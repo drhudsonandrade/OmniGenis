@@ -41,6 +41,26 @@ class Phase2CRunnerIdentityTest(unittest.TestCase):
         self.assertIn(initializer, step_two)
         self.assertLess(step_two.index(initializer), step_two.index("gh api --method POST"))
 
+    def test_plan_uses_structured_phase_two_b_image_identity(self) -> None:
+        """Keep the Phase 2B prerequisite aligned with its structured evidence schema."""
+        plan = PLAN.read_text(encoding="utf-8")
+        task_one = plan.split("### Task 1: Seal the Phase 2B post-merge GHCR prerequisite", 1)[1].split(
+            "---", 1
+        )[0]
+        self.assertNotIn('evidence["image_reference"]', task_one)
+        for key in ("registry", "package", "digest", "repository_id"):
+            self.assertIn(f'evidence["{key}"]', task_one)
+        self.assertIn("resolve the registry owner at runtime", task_one)
+
+    def test_post_merge_reregistration_uses_canonical_runner_names(self) -> None:
+        """Use canonical names for recreated runners and keep retired digests as evidence only."""
+        plan = PLAN.read_text(encoding="utf-8")
+        post_merge = plan.split("## Post-merge Phase 2C operational gate", 1)[1]
+        self.assertIn("`omnigenis-runner-01`", post_merge)
+        self.assertIn("`omnigenis-runner-02`", post_merge)
+        self.assertIn("retired-name digests remain evidence only", post_merge)
+        self.assertNotIn("re-registered as `runner_id=21; retired_name_sha256=", post_merge)
+
     def test_three_trusted_jobs_use_exact_canonical_selector(self) -> None:
         """Require the canonical pool on exactly the trusted heavy jobs."""
         for relative in (

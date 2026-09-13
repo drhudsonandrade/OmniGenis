@@ -9,6 +9,8 @@ from unittest import mock
 
 import fitz
 
+import scripts.build_report_coordinate_pack as coordinate_pack
+from reporting.template_v3 import LEGACY_RULESET_TEMPLATE_SOURCE_SHA256
 from scripts.build_report_coordinate_pack import (
     CANONICAL_RULESET_CONTROL,
     _controls,
@@ -32,6 +34,49 @@ class ReportCoordinatePackRulesetMarkerTests(unittest.TestCase):
     def test_noncanonical_marker_is_rejected(self) -> None:
         with self.assertRaisesRegex(RuntimeError, "noncanonical GENOMA ruleset control marker"):
             _ruleset_control_sources("GENOMA-RULESET-v3.3")
+
+    def test_compiler_uses_the_same_pinned_legacy_marker_digest_as_renderer(self) -> None:
+        """Keep compiler and renderer bound to one immutable legacy marker digest."""
+        self.assertEqual(
+            getattr(coordinate_pack, "LEGACY_RULESET_CONTROL_SHA256", None),
+            LEGACY_RULESET_TEMPLATE_SOURCE_SHA256,
+        )
+
+    def test_pinned_legacy_marker_is_normalized_to_canonical_control(self) -> None:
+        """Recognize a digest-pinned legacy marker without storing its plaintext."""
+        synthetic = "legacy-template-marker-v1"
+        digest = hashlib.sha256(synthetic.encode("utf-8")).hexdigest()
+        with (
+            mock.patch.object(
+                coordinate_pack,
+                "LEGACY_RULESET_CONTROL_SHA256",
+                digest,
+                create=True,
+            ),
+            mock.patch.object(
+                coordinate_pack,
+                "LEGACY_RULESET_CONTROL_LENGTH",
+                len(synthetic),
+                create=True,
+            ),
+        ):
+            self.assertEqual(
+                _ruleset_control_sources(f"before {synthetic} after"),
+                [CANONICAL_RULESET_CONTROL],
+            )
+
+            doc = fitz.open()
+            page = doc.new_page()
+            page.insert_text((72, 72), synthetic, fontsize=12)
+            try:
+                controls = [
+                    item
+                    for item in _controls(page)
+                    if item[0] == CANONICAL_RULESET_CONTROL
+                ]
+            finally:
+                doc.close()
+            self.assertEqual(len(controls), 1)
 
     def test_multiline_canonical_marker_becomes_one_controlled_span(self) -> None:
         doc = fitz.open()

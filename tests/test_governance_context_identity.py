@@ -62,6 +62,27 @@ class GovernanceContextIdentityTest(unittest.TestCase):
         self.assertTrue(match_expected_check({"context": "GitGuardian Security Checks", "integration_id": 46505}, expected))
         self.assertFalse(match_expected_check({"context": "GitGuardian Security Checks", "integration_id": 46506}, expected))
 
+    def test_required_check_identity_rejects_unknown_fields(self) -> None:
+        """Reject misspelled or extra fields instead of silently weakening app binding."""
+        invalid_literal = {"context": "Greptile Review", "integration-id": 867647}
+        self.assertFalse(expected_check_is_well_formed(invalid_literal))
+        self.assertFalse(
+            match_expected_check(
+                {"context": "Greptile Review", "integration_id": 999999},
+                invalid_literal,
+            )
+        )
+        invalid_fingerprint = {
+            "context_fingerprint": {
+                "algorithm": "sha256",
+                "digest": ACCOUNT_CONTEXT_SHA256,
+                "case_sensitive": True,
+                "provider_family": "dependency-security",
+                "unexpected": "ignored-before-fix",
+            }
+        }
+        self.assertFalse(expected_check_is_well_formed(invalid_fingerprint))
+
     def test_materializer_resolves_fingerprint_from_authenticated_live_state(self) -> None:
         payload = json.loads(
             (ROOT / ".github/governance/main-ruleset.json").read_text(encoding="utf-8")

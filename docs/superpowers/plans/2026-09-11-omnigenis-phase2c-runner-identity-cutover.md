@@ -65,13 +65,21 @@ self.assertEqual(evidence["workflow_run_id"], 34617560951)
 self.assertEqual(evidence["successful_attempt"], 2)
 self.assertEqual(evidence["publish_job_id"], 103363105798)
 self.assertEqual(evidence["status"], "VERIFIED")
+self.assertNotIn("image_reference", evidence)
+self.assertEqual(evidence["registry"], "ghcr.io")
+self.assertEqual(evidence["package"], "omnigenis-genome")
 self.assertEqual(
-    evidence["image_reference"],
-    "ghcr.io/<runtime-owner>/omnigenis-genome@sha256:b34cddd157132f0b039bebb1674abb4957e024fd0332568fc3ae9c2ca0fa8454",
+    evidence["digest"],
+    "sha256:b34cddd157132f0b039bebb1674abb4957e024fd0332568fc3ae9c2ca0fa8454",
 )
+self.assertEqual(evidence["repository_id"], 1212760346)
 self.assertEqual(evidence["artifact_id"], 10276395379)
 self.assertEqual(evidence["attempt_1_failure_class"], "UPSTREAM_DOCKER_HUB_502")
 ```
+
+Keep the evidence provider-neutral: resolve the registry owner at runtime from
+`repository_id` only when an OCI reference must actually be constructed. Do not persist a
+provider-qualified owner or synthetic `<runtime-owner>` placeholder in this evidence.
 
 - [ ] **Step 2: Run RED**
 
@@ -414,5 +422,5 @@ After explicit human merge:
 4. Only after that canary passes, remove `codework-isolated`, `codework-01`, and `codework-02` from runner metadata using label-specific DELETE endpoints; never use a replace-all operation accidentally.
 5. Verify both runners remain online with `omnigenis-isolated` and their canonical per-runner labels.
 6. Rerun the Runtime/Resource Gate before any runner-name re-registration. If recreation details are not verifiably available, stop with names unchanged rather than unregistering a working runner.
-7. If safe recreation is proven, keep runner 02 online while runner 01 is re-registered as `runner_id=21; retired_name_sha256=0840cef7416ffb5cfc1eb56b6273c34797f68d9e39bddf4293c187db450ea594`; verify/canary; then and only then repeat for runner 02.
+7. If safe recreation is proven, keep runner 02 online while runner 01 is re-registered with the canonical name `omnigenis-runner-01`; verify/canary; then and only then repeat for runner 02 with the canonical name `omnigenis-runner-02`. The retired-name digests remain evidence only and must never be used as runtime runner names.
 8. Final runner-name/pool evidence is carried into Phase 2D sealing. No simultaneous two-runner outage is permitted.

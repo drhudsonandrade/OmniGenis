@@ -20,6 +20,8 @@ def context_digest(value: str) -> str:
 def _fingerprint_is_valid(value: object) -> bool:
     if not isinstance(value, dict):
         return False
+    if set(value) != {"algorithm", "digest", "case_sensitive", "provider_family"}:
+        return False
     return (
         value.get("algorithm") == "sha256"
         and value.get("case_sensitive") is True
@@ -37,6 +39,13 @@ def expected_check_is_well_formed(expected: object) -> bool:
     has_context = "context" in expected
     has_fingerprint = "context_fingerprint" in expected
     if has_context == has_fingerprint:
+        return False
+    allowed = (
+        {"context", "integration_id"}
+        if has_context
+        else {"context_fingerprint", "integration_id"}
+    )
+    if set(expected) - allowed:
         return False
     if has_context and (
         not isinstance(expected.get("context"), str) or not expected.get("context")
