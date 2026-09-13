@@ -187,6 +187,22 @@ class RepositoryIdentityMigrationTest(unittest.TestCase):
         )[0]
         self.assertIn("raise SystemExit(", phase_two_gate)
 
+    def test_post_merge_readback_resolves_repository_before_api_calls(self):
+        """Require the post-merge readback block to work from a fresh shell."""
+        plan = self.read(
+            "docs/superpowers/plans/"
+            "2026-09-10-omnigenis-repository-identity-migration.md"
+        )
+        block = plan.split(
+            "- [ ] **Step 3: After the human merge, verify final Phase 1 continuity**",
+            1,
+        )[1].split("\nPhase 2 internal ", 1)[0]
+        initializer = 'repo="$(gh api repositories/1212760346 --jq .full_name)"'
+        self.assertIn(initializer, block)
+        self.assertIn('test -n "$repo"', block)
+        self.assertLess(block.index(initializer), block.index('gh api repos/$repo --jq'))
+        self.assertLess(block.index('test -n "$repo"'), block.index('gh api repos/$repo --jq'))
+
     def test_migration_plan_compares_complete_ruleset_semantics(self):
         plan = self.read(
             "docs/superpowers/plans/"

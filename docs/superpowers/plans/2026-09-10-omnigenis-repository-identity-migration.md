@@ -699,9 +699,10 @@ cd /srv/remote-desktop-commander-workspace/codework-audit/Codework
 git fetch origin --prune
 git remote get-url origin
 git log -1 --oneline origin/main
+repo="$(gh api repositories/1212760346 --jq .full_name)"
+test -n "$repo"
 gh api repos/$repo --jq '[.id,.full_name,.visibility,.default_branch] | @tsv'
 gh api repos/$repo/rulesets --jq '.[] | [.id,.name,.enforcement] | @tsv'
-repo="$(gh api repositories/1212760346 --jq .full_name)"
 owner="${repo%%/*}"
 git ls-remote "https://github.com/$owner/Codework.git" refs/heads/main
 git ls-remote "https://github.com/$repo.git" refs/heads/main
