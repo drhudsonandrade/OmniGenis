@@ -93,12 +93,11 @@ class ReportCoordinatePackRulesetMarkerTests(unittest.TestCase):
             ),
         ):
             for malformed in (f"x{synthetic}", f"{synthetic}.x"):
-                with self.subTest(malformed=malformed):
-                    with self.assertRaisesRegex(
-                        RuntimeError,
-                        "malformed pinned legacy ruleset control marker",
-                    ):
-                        _ruleset_control_sources(malformed)
+                with self.subTest(malformed=malformed), self.assertRaisesRegex(
+                    RuntimeError,
+                    "malformed pinned legacy ruleset control marker",
+                ):
+                    _ruleset_control_sources(malformed)
 
     def test_multiline_canonical_marker_becomes_one_controlled_span(self) -> None:
         doc = fitz.open()
