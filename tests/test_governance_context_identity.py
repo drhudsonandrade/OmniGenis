@@ -67,14 +67,18 @@ class GovernanceContextIdentityTest(unittest.TestCase):
             (ROOT / ".github/governance/main-ruleset.json").read_text(encoding="utf-8")
         )
         live = json.loads(json.dumps(payload))
-        status = next(
+        status_rules = [
             rule for rule in live["rules"] if rule["type"] == "required_status_checks"
-        )
-        fingerprint_index = next(
+        ]
+        self.assertEqual(len(status_rules), 1)
+        status = status_rules[0]
+        fingerprint_indices = [
             index
             for index, item in enumerate(status["parameters"]["required_status_checks"])
             if "context_fingerprint" in item
-        )
+        ]
+        self.assertEqual(len(fingerprint_indices), 1)
+        fingerprint_index = fingerprint_indices[0]
         status["parameters"]["required_status_checks"][fingerprint_index] = {
             "context": ACCOUNT_CONTEXT
         }
@@ -82,23 +86,34 @@ class GovernanceContextIdentityTest(unittest.TestCase):
         provider_payload = materialize_ruleset_spec(payload, live)
         self.assertNotIn("schema", provider_payload)
         self.assertNotIn("provider_payload", provider_payload)
-        provider_status = next(
+        provider_status_rules = [
             rule
             for rule in provider_payload["rules"]
             if rule["type"] == "required_status_checks"
-        )
+        ]
+        self.assertEqual(len(provider_status_rules), 1)
+        provider_status = provider_status_rules[0]
         checks = provider_status["parameters"]["required_status_checks"]
         self.assertFalse(any("context_fingerprint" in item for item in checks))
         self.assertTrue(any(item.get("context") == ACCOUNT_CONTEXT for item in checks))
 
+    def test_governance_materializer_uses_safe_runner_temp_fallback(self) -> None:
+        governance = (ROOT / "docs/BRANCH_GOVERNANCE.md").read_text(encoding="utf-8")
+        block = governance.split("```bash", 1)[1].split("```", 1)[0]
+        self.assertIn('runner_temp="${RUNNER_TEMP:-}"', block)
+        self.assertIn('runner_temp="$(mktemp -d)"', block)
+        self.assertNotIn('$RUNNER_TEMP/live-main-ruleset.json', block)
+        self.assertNotIn('$RUNNER_TEMP/materialized-main-ruleset.json', block)
+        self.assertIn('$runner_temp/live-main-ruleset.json', block)
+        self.assertIn('$runner_temp/materialized-main-ruleset.json', block)
+
     def test_tracked_ruleset_uses_digest_for_account_derived_check(self) -> None:
         payload = json.loads((ROOT / ".github/governance/main-ruleset.json").read_text(encoding="utf-8"))
-        status = next(
-            (rule for rule in payload["rules"] if rule["type"] == "required_status_checks"),
-            None,
-        )
-        self.assertIsNotNone(status)
-        assert status is not None
+        status_rules = [
+            rule for rule in payload["rules"] if rule["type"] == "required_status_checks"
+        ]
+        self.assertEqual(len(status_rules), 1)
+        status = status_rules[0]
         fingerprinted = [
             item for item in status["parameters"]["required_status_checks"]
             if "context_fingerprint" in item

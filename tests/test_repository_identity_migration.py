@@ -123,11 +123,13 @@ class RepositoryIdentityMigrationTest(unittest.TestCase):
         for phase in ("ruleset_semantics_pre", "ruleset_semantics_post"):
             protected = evidence[phase]["21303100"]
             self.assertIn(fingerprint, protected["required_status_contexts"])
-            status_rule = next(
+            status_rules = [
                 rule
                 for rule in protected["rules"]
                 if rule["type"] == "required_status_checks"
-            )
+            ]
+            self.assertEqual(len(status_rules), 1)
+            status_rule = status_rules[0]
             self.assertIn(
                 fingerprint,
                 status_rule["parameters"]["required_status_checks"],

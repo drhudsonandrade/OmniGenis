@@ -79,13 +79,18 @@ The repository must remain **GOVERNANCE PENDING** until the live GitHub settings
 Provider account-derived required checks are stored as SHA-256 fingerprints plus provider-family metadata. The tracked `main-ruleset.json` is therefore a neutral desired-state specification, not a provider API payload. Before applying or restoring it, fetch the authenticated live ruleset, materialize the fingerprinted entry, inspect the generated provider payload, and only then submit that generated payload to GitHub.
 
 ```bash
+runner_temp="${RUNNER_TEMP:-}"
+if [[ -z "$runner_temp" ]]; then
+  runner_temp="$(mktemp -d)"
+fi
+test -d "$runner_temp"
 repo="$(gh api repositories/1212760346 --jq .full_name)"
 test -n "$repo"
-gh api "repos/$repo/rulesets/21303100" > "$RUNNER_TEMP/live-main-ruleset.json"
+gh api "repos/$repo/rulesets/21303100" > "$runner_temp/live-main-ruleset.json"
 python3 scripts/governance_context_identity.py \
   --spec .github/governance/main-ruleset.json \
-  --live "$RUNNER_TEMP/live-main-ruleset.json" \
-  --output "$RUNNER_TEMP/materialized-main-ruleset.json"
+  --live "$runner_temp/live-main-ruleset.json" \
+  --output "$runner_temp/materialized-main-ruleset.json"
 ```
 
 Never send `.github/governance/main-ruleset.json` directly to the provider API while it contains `context_fingerprint`. The materializer must resolve every fingerprint uniquely from authenticated live state or fail closed.

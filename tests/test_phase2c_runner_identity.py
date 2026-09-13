@@ -26,14 +26,20 @@ class Phase2CRunnerIdentityTest(unittest.TestCase):
         """Read an active repository text file as UTF-8."""
         return (ROOT / relative).read_text(encoding="utf-8")
 
-    def test_plan_resolves_repository_selector_before_runner_api_calls(self) -> None:
-        """Require the runner plan to work from a fresh shell."""
+    def test_each_runner_api_block_resolves_repository_selector_locally(self) -> None:
+        """Require both runner mutation blocks to work from a fresh shell."""
         plan = PLAN.read_text(encoding="utf-8")
         initializer = 'repo="$(gh api repositories/1212760346 --jq .full_name)"'
-        first_runner_call = "gh api repos/$repo/actions/runners"
-        self.assertIn(initializer, plan)
-        self.assertIn(first_runner_call, plan)
-        self.assertLess(plan.index(initializer), plan.index(first_runner_call))
+        step_one = plan.split("- [ ] **Step 1: Capture the pre-mutation runner snapshot**", 1)[1].split(
+            "- [ ] **Step 2: Add canonical labels without deleting anything**", 1
+        )[0]
+        step_two = plan.split("- [ ] **Step 2: Add canonical labels without deleting anything**", 1)[1].split(
+            "- [ ] **Step 3: Verify dual-label state via runner API**", 1
+        )[0]
+        self.assertIn(initializer, step_one)
+        self.assertLess(step_one.index(initializer), step_one.index("gh api repos/$repo/actions/runners"))
+        self.assertIn(initializer, step_two)
+        self.assertLess(step_two.index(initializer), step_two.index("gh api --method POST"))
 
     def test_three_trusted_jobs_use_exact_canonical_selector(self) -> None:
         """Require the canonical pool on exactly the trusted heavy jobs."""

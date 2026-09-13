@@ -43,7 +43,7 @@ def _parse_policy_bytes(data: bytes) -> tuple[FingerprintClass, ...]:
     """Parse and validate fingerprint policy bytes from one authoritative tree."""
     try:
         payload = json.loads(data.decode("utf-8"))
-    except (UnicodeDecodeError, ValueError) as exc:
+    except ValueError as exc:
         raise PolicyError(f"unable to parse zero-identity policy: {exc}") from exc
     if not isinstance(payload, dict) or payload.get("schema") != _SCHEMA:
         raise PolicyError("zero-identity policy schema mismatch")

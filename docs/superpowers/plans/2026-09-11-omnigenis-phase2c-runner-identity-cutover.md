@@ -132,6 +132,8 @@ Require IDs 21 and 22, `status=online`, `busy=false`, legacy pool label present.
 - [ ] **Step 2: Add canonical labels without deleting anything**
 
 ```bash
+repo="$(gh api repositories/1212760346 --jq .full_name)"
+test -n "$repo"
 gh api --method POST repos/$repo/actions/runners/21/labels \
   -f 'labels[]=omnigenis-isolated' -f 'labels[]=omnigenis-01'
 gh api --method POST repos/$repo/actions/runners/22/labels \
