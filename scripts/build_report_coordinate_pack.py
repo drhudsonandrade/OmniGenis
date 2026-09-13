@@ -15,9 +15,11 @@ import fitz
 
 COMPILER_ID = "fitz-1.26.7-genoma-v2"
 TOKEN_RE = re.compile(r"\[\[.*?\]\]", re.S)
-RULESET_CONTROL_RE = re.compile(r"GENOMA-HUDSON-RULESET-v\d+(?:\.\d+)+")
-RULESET_CONTROL_PREFIX = "GENOMA-HUDSON-RULESET-v"
-CANONICAL_RULESET_CONTROL = "GENOMA-HUDSON-RULESET-v3.4"
+RULESET_CONTROL_RE = re.compile(r"GENOMA-RULESET-v\d+(?:\.\d+)+")
+RULESET_CONTROL_PREFIX = "GENOMA-RULESET-v"
+CANONICAL_RULESET_CONTROL = "GENOMA-RULESET-v3.4"
+LEGACY_RULESET_CONTROL_SHA256 = "e9d2e43c9c775b9bef05e7d33cd18ada3ef9e1e4bbfeda4db2617de1ab75cd97"
+LEGACY_RULESET_CONTROL_LENGTH = 26
 CONTROLLED = [
     "MODELO REUTILIZÁVEL v3.0",
     "MODELO EDITÁVEL",
@@ -139,6 +141,28 @@ def _tokens(page: fitz.Page) -> list[tuple[str, fitz.Rect, dict[str, Any]]]:
     return found
 
 
+def _legacy_ruleset_control_ranges(text: str) -> list[tuple[int, int]]:
+    """Locate the immutable legacy marker by digest without persisting its plaintext."""
+    ranges: list[tuple[int, int]] = []
+    length = LEGACY_RULESET_CONTROL_LENGTH
+    if len(text) < length:
+        return ranges
+    for start in range(0, len(text) - length + 1):
+        end = start + length
+        candidate = text[start:end]
+        digest = hashlib.sha256(candidate.encode("utf-8")).hexdigest()
+        if digest != LEGACY_RULESET_CONTROL_SHA256:
+            continue
+        before = text[start - 1] if start else ""
+        after = text[end] if end < len(text) else ""
+        if before and (before.isalnum() or before in "_.-"):
+            raise RuntimeError("malformed pinned legacy ruleset control marker")
+        if after and (after.isalnum() or after in "_.-"):
+            raise RuntimeError("malformed pinned legacy ruleset control marker")
+        ranges.append((start, end))
+    return ranges
+
+
 def _ruleset_control_sources(text: str) -> list[str]:
     sources: list[str] = []
     offset = 0
@@ -161,6 +185,8 @@ def _ruleset_control_sources(text: str) -> list[str]:
         if marker not in sources:
             sources.append(marker)
         offset = match.end()
+    if _legacy_ruleset_control_ranges(text) and CANONICAL_RULESET_CONTROL not in sources:
+        sources.append(CANONICAL_RULESET_CONTROL)
     return sources
 
 
@@ -239,6 +265,19 @@ def _ruleset_control_occurrences(page: fitz.Page) -> list[tuple[str, fitz.Rect, 
         rect = _union([spans[index]["bbox"] for index in indices])
         found.append((marker, rect, spans[indices[0]]))
         offset = match.end()
+
+    for start, end in _legacy_ruleset_control_ranges(compact):
+        indices = sorted(
+            {
+                owner
+                for owner in owners[start:end]
+                if owner is not None
+            }
+        )
+        if not indices:
+            raise RuntimeError("pinned legacy ruleset control marker has no layout span")
+        rect = _union([spans[index]["bbox"] for index in indices])
+        found.append((CANONICAL_RULESET_CONTROL, rect, spans[indices[0]]))
     return found
 
 

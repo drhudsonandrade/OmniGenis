@@ -8,6 +8,7 @@ from tests.test_ci_optimization_contract import _job_block
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOWS = ROOT / ".github" / "workflows"
+PLAN = ROOT / "docs" / "superpowers" / "plans" / "2026-09-11-omnigenis-phase2c-runner-identity-cutover.md"
 LEGACY = "code" + "work"
 CANONICAL_POOL = "omnigenis-isolated"
 TRUSTED_SELECTOR = (
@@ -24,6 +25,41 @@ class Phase2CRunnerIdentityTest(unittest.TestCase):
     def read(relative: str) -> str:
         """Read an active repository text file as UTF-8."""
         return (ROOT / relative).read_text(encoding="utf-8")
+
+    def test_each_runner_api_block_resolves_repository_selector_locally(self) -> None:
+        """Require both runner mutation blocks to work from a fresh shell."""
+        plan = PLAN.read_text(encoding="utf-8")
+        initializer = 'repo="$(gh api repositories/1212760346 --jq .full_name)"'
+        step_one = plan.split("- [ ] **Step 1: Capture the pre-mutation runner snapshot**", 1)[1].split(
+            "- [ ] **Step 2: Add canonical labels without deleting anything**", 1
+        )[0]
+        step_two = plan.split("- [ ] **Step 2: Add canonical labels without deleting anything**", 1)[1].split(
+            "- [ ] **Step 3: Verify dual-label state via runner API**", 1
+        )[0]
+        self.assertIn(initializer, step_one)
+        self.assertLess(step_one.index(initializer), step_one.index("gh api repos/$repo/actions/runners"))
+        self.assertIn(initializer, step_two)
+        self.assertLess(step_two.index(initializer), step_two.index("gh api --method POST"))
+
+    def test_plan_uses_structured_phase_two_b_image_identity(self) -> None:
+        """Keep the Phase 2B prerequisite aligned with its structured evidence schema."""
+        plan = PLAN.read_text(encoding="utf-8")
+        task_one = plan.split("### Task 1: Seal the Phase 2B post-merge GHCR prerequisite", 1)[1].split(
+            "---", 1
+        )[0]
+        self.assertNotIn('evidence["image_reference"]', task_one)
+        for key in ("registry", "package", "digest", "repository_id"):
+            self.assertIn(f'evidence["{key}"]', task_one)
+        self.assertIn("resolve the registry owner at runtime", task_one)
+
+    def test_post_merge_reregistration_uses_canonical_runner_names(self) -> None:
+        """Use canonical names for recreated runners and keep retired digests as evidence only."""
+        plan = PLAN.read_text(encoding="utf-8")
+        post_merge = plan.split("## Post-merge Phase 2C operational gate", 1)[1]
+        self.assertIn("`omnigenis-runner-01`", post_merge)
+        self.assertIn("`omnigenis-runner-02`", post_merge)
+        self.assertIn("retired-name digests remain evidence only", post_merge)
+        self.assertNotIn("re-registered as `runner_id=21; retired_name_sha256=", post_merge)
 
     def test_three_trusted_jobs_use_exact_canonical_selector(self) -> None:
         """Require the canonical pool on exactly the trusted heavy jobs."""
@@ -66,7 +102,7 @@ class Phase2CRunnerIdentityTest(unittest.TestCase):
         self.assertEqual(runners["per_runner_labels"], ["omnigenis-01", "omnigenis-02"])
         self.assertEqual(
             runners["runner_names"],
-            ["drhudson-omnigenis-01", "drhudson-omnigenis-02"],
+            ["omnigenis-runner-01", "omnigenis-runner-02"],
         )
 
     def test_phase_two_c_ledger_entries_are_sealed(self) -> None:
