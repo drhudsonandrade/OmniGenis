@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import subprocess
@@ -15,17 +16,13 @@ IDENTITY_PATH = Path("config/project_identity.json")
 LEDGER_PATH = Path("config/legacy_identity_ledger.json")
 LEGACY_PATTERN = re.compile("code" + "work", re.IGNORECASE)
 CONTROL_METADATA_PATHS = {LEDGER_PATH}
-PHASE2A_SCAN_SUFFIXES = (
+LEDGER_SCHEMA = "omnigenis-legacy-identity-ledger-v2"
+LEDGER_PHASE = "2D"
+PHASE2D_SCAN_SUFFIXES = (
     "", ".example", ".json", ".md", ".nf", ".py", ".service",
     ".sh", ".toml", ".ts", ".txt", ".yaml", ".yml",
 )
-PHASE2A_HISTORICAL_PREFIXES = (
-    "docs/history/",
-    "docs/superpowers/specs/",
-    "docs/superpowers/plans/",
-    "docs/superpowers/evidence/",
-    "docs/superpowers/checkpoints/",
-)
+_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
 def _load_json(path: Path) -> dict[str, Any]:
@@ -72,29 +69,78 @@ def _compile_matcher(entry: dict[str, Any]) -> re.Pattern[str]:
 
 
 def _validate_scope_policy(ledger: dict[str, Any]) -> None:
-    if ledger.get("scan_suffixes") != list(PHASE2A_SCAN_SUFFIXES):
+    if ledger.get("scan_suffixes") != list(PHASE2D_SCAN_SUFFIXES):
         raise ValueError("legacy identity scan suffix policy mismatch")
-    if ledger.get("historical_prefixes") != list(PHASE2A_HISTORICAL_PREFIXES):
-        raise ValueError("legacy identity historical prefix policy mismatch")
+    if ledger.get("control_metadata_paths") != [LEDGER_PATH.as_posix()]:
+        raise ValueError("legacy identity control metadata policy mismatch")
+    if "historical_prefixes" in ledger:
+        raise ValueError("broad historical prefix exemptions are forbidden in Phase 2D")
+    historical = ledger.get("historical_files")
+    if not isinstance(historical, dict):
+        raise ValueError("exact historical file allowlist is required in Phase 2D")
+    for relative, record in historical.items():
+        candidate = Path(relative) if isinstance(relative, str) else Path("/")
+        if (
+            not isinstance(relative, str)
+            or not relative
+            or candidate.is_absolute()
+            or candidate.as_posix() != relative
+            or ".." in candidate.parts
+            or candidate == LEDGER_PATH
+        ):
+            raise ValueError("invalid historical allowlist path")
+        if not isinstance(record, dict) or set(record) != {"sha256", "reason"}:
+            raise ValueError(f"invalid historical allowlist record: {relative}")
+        digest = record.get("sha256")
+        reason = record.get("reason")
+        if not isinstance(digest, str) or _SHA256_RE.fullmatch(digest) is None:
+            raise ValueError(f"invalid historical allowlist SHA-256: {relative}")
+        if not isinstance(reason, str) or not reason.strip():
+            raise ValueError(f"historical allowlist reason is required: {relative}")
 
 
 def scan_legacy_identities(root: Path, ledger: dict[str, Any]) -> dict[str, Any]:
     _validate_scope_policy(ledger)
     suffixes = tuple(ledger["scan_suffixes"])
-    historical = tuple(ledger["historical_prefixes"])
+    historical: dict[str, dict[str, str]] = ledger["historical_files"]
     entries = ledger["entries"]
     report: dict[str, Any] = {
         "counts": {},
+        "historical_drift": [],
+        "historical_verified": [],
         "unclassified": [],
         "over_budget": [],
     }
-    for relative in _repository_paths(root):
+    repository_paths = _repository_paths(root)
+    tracked = {relative.as_posix() for relative in repository_paths}
+    for relative in historical:
+        if relative not in tracked:
+            report["historical_drift"].append(
+                {"path": relative, "reason": "allowlisted path is not tracked"}
+            )
+
+    for relative in repository_paths:
         posix = relative.as_posix()
         if relative in CONTROL_METADATA_PATHS:
             continue
-        if posix.startswith(historical) or relative.suffix not in suffixes:
-            continue
         path = root / relative
+        if posix in historical:
+            record = historical[posix]
+            if path.is_symlink() or not path.is_file():
+                report["historical_drift"].append(
+                    {"path": posix, "reason": "allowlisted path is not a regular file"}
+                )
+                continue
+            digest = hashlib.sha256(path.read_bytes()).hexdigest()
+            if digest != record["sha256"]:
+                report["historical_drift"].append(
+                    {"path": posix, "reason": "SHA-256 mismatch"}
+                )
+                continue
+            report["historical_verified"].append(posix)
+            continue
+        if relative.suffix not in suffixes:
+            continue
         if not path.is_file():
             continue
         text = path.read_text(encoding="utf-8")
@@ -131,17 +177,28 @@ def validate_project_identity(root: Path) -> list[str]:
 
     if identity.get("schema") != "omnigenis-project-identity-v1":
         errors.append("project identity schema mismatch")
-    if ledger.get("schema") != "omnigenis-legacy-identity-ledger-v1":
+    if ledger.get("schema") != LEDGER_SCHEMA:
         errors.append("legacy identity ledger schema mismatch")
-    if ledger.get("phase") != "2A":
-        errors.append("legacy identity ledger must remain in Phase 2A during this subphase")
+    if ledger.get("phase") != LEDGER_PHASE:
+        errors.append("legacy identity ledger must be in Phase 2D")
 
     canonical = set(_flatten_strings(identity))
     for entry in ledger.get("entries", []):
         replacement = entry.get("replacement")
         disposition = entry.get("disposition", "migrate")
-        if disposition == "migrate" and replacement not in canonical:
-            errors.append(f"legacy identity replacement is not canonical: {entry.get('id')}")
+        locations = entry.get("locations")
+        if not isinstance(locations, dict):
+            errors.append(f"legacy identity locations must be a mapping: {entry.get('id')}")
+            continue
+        if disposition == "migrate":
+            if replacement not in canonical:
+                errors.append(f"legacy identity replacement is not canonical: {entry.get('id')}")
+            if locations:
+                errors.append(
+                    f"Phase 2D migrate entry retains compatibility budget: {entry.get('id')}"
+                )
+        elif disposition != "preserve_historical":
+            errors.append(f"unsupported legacy identity disposition: {entry.get('id')}")
         if not entry.get("reason") or not entry.get("retire_by"):
             errors.append(f"legacy identity entry lacks reason/retire_by: {entry.get('id')}")
 
@@ -149,6 +206,10 @@ def validate_project_identity(root: Path) -> list[str]:
         report = scan_legacy_identities(root, ledger)
     except (OSError, subprocess.CalledProcessError, ValueError) as exc:
         return errors + [f"legacy identity scan failed closed: {exc}"]
+    for item in report["historical_drift"]:
+        errors.append(
+            f"historical allowlist drift: {item['path']}: {item['reason']}"
+        )
     for item in report["unclassified"]:
         errors.append(
             f"unclassified legacy identity: {item['path']}:{item['line']}"

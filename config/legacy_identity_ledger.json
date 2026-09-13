@@ -1,5 +1,5 @@
 {
-  "baseline_commit": "939dfea5cc7cb2745638168d518d2005e941e9c6",
+  "baseline_commit": "a7cb7f5559a83adc3c75f61284fecb09d1fb5553",
   "control_metadata_paths": [
     "config/legacy_identity_ledger.json"
   ],
@@ -127,9 +127,7 @@
     },
     {
       "id": "coderabbit-bin-env",
-      "locations": {
-        "scripts/codex/setup-coderabbit.sh": 1
-      },
+      "locations": {},
       "matcher": {
         "kind": "literal",
         "value": "CODEWORK_CODERABBIT_BIN_DIR"
@@ -232,14 +230,93 @@
       "retire_by": "2B"
     }
   ],
-  "historical_prefixes": [
-    "docs/history/",
-    "docs/superpowers/specs/",
-    "docs/superpowers/plans/",
-    "docs/superpowers/evidence/",
-    "docs/superpowers/checkpoints/"
-  ],
-  "phase": "2A",
+  "historical_files": {
+    "docs/superpowers/checkpoints/2026-09-03-local-first-ci-session.md": {
+      "sha256": "8215c7d80d6af8a88ad4dedd766d041e817e8d558d90c0f8a13ce01956e30265",
+      "reason": "Immutable migration checkpoint retained for provenance."
+    },
+    "docs/superpowers/evidence/2026-09-03-pr36-local-validation-5953286.md": {
+      "sha256": "cec5e898e3ac905ea451ea6dac5314385d3887351352eba43725195818da83e6",
+      "reason": "Immutable migration evidence retained for provenance."
+    },
+    "docs/superpowers/evidence/2026-09-03-pr36-local-validation-977a531.md": {
+      "sha256": "fd515bb3f611667f8ef91a579192f234832e9a76a15f0f45c94bd5ebc5d7ad12",
+      "reason": "Immutable migration evidence retained for provenance."
+    },
+    "docs/superpowers/evidence/2026-09-10-omnigenis-phase2a-identity-contract.json": {
+      "sha256": "e968284a0692ae24975d6f0f859d9882528b542822656d9ac835d8da6455b9d3",
+      "reason": "Immutable migration evidence retained for provenance."
+    },
+    "docs/superpowers/evidence/2026-09-10-omnigenis-repository-identity-migration.json": {
+      "sha256": "bea6d7c14f73a83c70b60955406ac8a4aeea31a27f80c8266905c7373f9e917d",
+      "reason": "Immutable migration evidence retained for provenance."
+    },
+    "docs/superpowers/evidence/2026-09-11-omnigenis-phase2b-runtime-build-identity.json": {
+      "sha256": "b829c61985b7738ae1790ea9455bd475afaa3ca4b7c8d5b99feb59b37911a9f3",
+      "reason": "Immutable migration evidence retained for provenance."
+    },
+    "docs/superpowers/evidence/2026-09-11-omnigenis-phase2c-runner-cutover.json": {
+      "sha256": "2b8e153fc2353ba7c5a0f134e31edac463462778dc77a1a11009ac8a3f77c45c",
+      "reason": "Immutable migration evidence retained for provenance."
+    },
+    "docs/superpowers/plans/2026-09-07-scaffold-buildkit-cache.md": {
+      "sha256": "464059bee71453ad1304f1cbab6d4c86284a6492c451563b81b56a9d9711e673",
+      "reason": "Approved historical migration plan retained for provenance."
+    },
+    "docs/superpowers/plans/2026-09-08-scientific-internals-english.md": {
+      "sha256": "c5ebf5147f4533dc719bb3aa5b6bcb34de0cb53b703076148b5c70fb73270c24",
+      "reason": "Approved historical migration plan retained for provenance."
+    },
+    "docs/superpowers/plans/2026-09-09-policy-evidence-audit-english.md": {
+      "sha256": "10077f74224496d980e16121e3b6e6d97c9f28915d398db79e939421e1f12a77",
+      "reason": "Approved historical migration plan retained for provenance."
+    },
+    "docs/superpowers/plans/2026-09-09-reporting-english-locale.md": {
+      "sha256": "a9cb381d031383baa0a92621ce3607b84e6220cf1e4e0dcc17bc8e049c1a0940",
+      "reason": "Approved historical migration plan retained for provenance."
+    },
+    "docs/superpowers/plans/2026-09-10-omnigenis-phase2a-internal-identity-contract.md": {
+      "sha256": "d4f1fb403cd5b910eb38dd70c932b27e46ae797c71c016c9cb57407cf0a17d75",
+      "reason": "Approved historical migration plan retained for provenance."
+    },
+    "docs/superpowers/plans/2026-09-10-omnigenis-repository-identity-migration.md": {
+      "sha256": "0038d249b5dfe55dbc35a8ffb916059542a9bc4bc3385240d1b66fd3644f13fb",
+      "reason": "Approved historical migration plan retained for provenance."
+    },
+    "docs/superpowers/plans/2026-09-11-omnigenis-phase2b-runtime-build-identity-cutover.md": {
+      "sha256": "755ce3a16e57b572e437a1f7e7da20fdc86c430ead95719ad1b65240ab5eb841",
+      "reason": "Approved historical migration plan retained for provenance."
+    },
+    "docs/superpowers/plans/2026-09-11-omnigenis-phase2c-runner-identity-cutover.md": {
+      "sha256": "0d86a7901611d8178bb9639c8be2782e4763d3c42beb078f65a0e718ad9f61d5",
+      "reason": "Approved historical migration plan retained for provenance."
+    },
+    "docs/superpowers/specs/2026-09-03-english-codebase-refactor-design.md": {
+      "sha256": "6570365a31a202c0d086a903c068a6aa47fd87f9241dd90f4eea80f118a1eb6a",
+      "reason": "Approved historical migration specification retained for provenance."
+    },
+    "docs/superpowers/specs/2026-09-03-local-first-ci-architecture-design.md": {
+      "sha256": "5c1ed579ad5e36dba2e4f96f5c366a5d5d39c2cab4a50237315c7b2c9edd8ea9",
+      "reason": "Approved historical migration specification retained for provenance."
+    },
+    "docs/superpowers/specs/2026-09-05-draft-first-final-ci-design.md": {
+      "sha256": "6d61dec032687335dcbe9f2c1bc3b00b383450a9bdc68b1448018f035da5e534",
+      "reason": "Approved historical migration specification retained for provenance."
+    },
+    "docs/superpowers/specs/2026-09-05-four-plane-audit-static-dependency-design.md": {
+      "sha256": "25afc4943ed04d09a1f6085460df34f079217ad5eaff599b51728d4e873ff540",
+      "reason": "Approved historical migration specification retained for provenance."
+    },
+    "docs/superpowers/specs/2026-09-10-omnigenis-phase2-internal-identity-migration-design.md": {
+      "sha256": "f525d4489e0ddba29fe86213c2edb3bd357f247019d6f885703daabc1947ee55",
+      "reason": "Approved historical migration specification retained for provenance."
+    },
+    "docs/superpowers/specs/2026-09-10-omnigenis-repository-identity-migration-design.md": {
+      "sha256": "64c51a21555cf9e29d03f5dd354a8eeec060c93f67626fc7960eb3229447641f",
+      "reason": "Approved historical migration specification retained for provenance."
+    }
+  },
+  "phase": "2D",
   "scan_suffixes": [
     "",
     ".example",
@@ -255,5 +332,5 @@
     ".yaml",
     ".yml"
   ],
-  "schema": "omnigenis-legacy-identity-ledger-v1"
+  "schema": "omnigenis-legacy-identity-ledger-v2"
 }
