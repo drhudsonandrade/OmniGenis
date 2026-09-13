@@ -49,7 +49,7 @@ class Phase2DLegacyEliminationTest(unittest.TestCase):
                     "id": "product-word-active",
                     "matcher": {
                         "kind": "regex",
-                        "value": "(?<!/)(?<![A-Za-z0-9_-])Codework(?![A-Za-z0-9_-])",
+                        "value": rf"(?<!/)(?<![A-Za-z0-9_-]){LEGACY_WORD}(?![A-Za-z0-9_-])",
                     },
                     "replacement": "OmniGenis",
                     "retire_by": "2B",

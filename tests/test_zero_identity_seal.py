@@ -54,8 +54,17 @@ def _resolve_evidence_commit(implementation: str) -> str:
     head_parents = head_fields[1:]
     if len(head_parents) == 2 and head_parents[1] == evidence_commit:
         return evidence_commit
+
+    merged: list[str] = []
+    for line in _git("rev-list", "--merges", "--parents", "HEAD").splitlines():
+        fields = line.split()
+        if len(fields) == 3 and fields[2] == evidence_commit:
+            merged.append(fields[0])
+    if len(merged) == 1:
+        return evidence_commit
     raise AssertionError(
-        "evidence commit must be HEAD or the second parent of a two-parent merge"
+        "evidence commit must be HEAD, the second parent of HEAD, or the "
+        "second parent of one reachable historical merge commit"
     )
 
 
@@ -119,6 +128,52 @@ class ZeroIdentitySealTest(unittest.TestCase):
             run("add", "main.txt")
             run("commit", "-m", "main change")
             run("merge", "--no-ff", "feature", "-m", "merge feature")
+
+            module = __name__
+            with (
+                mock.patch(f"{module}.ROOT", repo),
+                mock.patch(f"{module}.EVIDENCE", evidence_path),
+                mock.patch(f"{module}.EVIDENCE_RELATIVE", evidence_relative),
+            ):
+                self.assertEqual(_resolve_evidence_commit(implementation), evidence_commit)
+
+    def test_evidence_binding_survives_later_commits_after_human_merge(self) -> None:
+        """Keep a merged seal valid while later phases add commits on top of main."""
+        with tempfile.TemporaryDirectory() as td:
+            repo = Path(td)
+
+            def git(*args: str) -> str:
+                return subprocess.check_output([GIT, *args], cwd=repo, text=True).strip()
+
+            def run(*args: str) -> None:
+                subprocess.run([GIT, *args], cwd=repo, check=True, capture_output=True)
+
+            run("init", "-b", "main")
+            run("config", "user.email", "test@example.invalid")
+            run("config", "user.name", "Seal Test")
+            (repo / "base.txt").write_text("base\n", encoding="utf-8")
+            run("add", "base.txt")
+            run("commit", "-m", "base")
+            run("checkout", "-b", "feature")
+            (repo / "implementation.txt").write_text("implementation\n", encoding="utf-8")
+            run("add", "implementation.txt")
+            run("commit", "-m", "implementation")
+            implementation = git("rev-parse", "HEAD")
+            evidence_relative = "docs/evidence.json"
+            evidence_path = repo / evidence_relative
+            evidence_path.parent.mkdir(parents=True)
+            evidence_path.write_text('{"status":"verified"}\n', encoding="utf-8")
+            run("add", evidence_relative)
+            run("commit", "-m", "evidence")
+            evidence_commit = git("rev-parse", "HEAD")
+            run("checkout", "main")
+            (repo / "main.txt").write_text("main change\n", encoding="utf-8")
+            run("add", "main.txt")
+            run("commit", "-m", "main change")
+            run("merge", "--no-ff", "feature", "-m", "merge feature")
+            (repo / "phase2d.txt").write_text("later phase\n", encoding="utf-8")
+            run("add", "phase2d.txt")
+            run("commit", "-m", "later phase")
 
             module = __name__
             with (

@@ -91,6 +91,33 @@ Run both test modules, `project_identity_guard.py --check`, `--inventory`, and m
 Commit Task 2 files with message `refactor: seal exact legacy history allowlist`.
 
 ---
+### Task 2.5: Preserve the merged zero-identity seal across later phases
+
+**Files:**
+- Modify: `tests/test_zero_identity_seal.py`
+
+**Interfaces:**
+- Consumes: the PR #71 implementation/evidence pair already merged into `main`.
+- Produces: a longitudinal resolver that still rejects pre-merge feature drift but accepts later commits built on the unique human merge containing the evidence child.
+
+- [x] **Step 1: Reproduce the post-merge failure**
+
+A Phase 2D commit on top of the PR #71 merge caused the exact-head seal resolver to reject the previously valid evidence child.
+
+- [x] **Step 2: Add a failing post-merge descendant regression**
+
+The regression builds implementation -> evidence-only child -> human merge -> later-phase commit and requires the original evidence child to remain resolvable.
+
+- [x] **Step 3: Allow one unique reachable historical merge anchor**
+
+The resolver accepts only a unique reachable two-parent merge whose second parent is exactly the evidence-only child. A feature commit inserted after evidence but before merge remains rejected.
+
+- [x] **Step 4: Run the complete zero-identity seal suite**
+
+Expected and observed: the historical merge regression passes, the pre-merge drift rejection still passes, and the sealed P1-P4 inventory remains zero.
+
+---
+
 ### Task 3: Record the Phase 2D repository checkpoint and external blocker
 
 **Files:**
