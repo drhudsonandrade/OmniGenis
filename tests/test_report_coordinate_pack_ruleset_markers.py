@@ -51,13 +51,11 @@ class ReportCoordinatePackRulesetMarkerTests(unittest.TestCase):
                 coordinate_pack,
                 "LEGACY_RULESET_CONTROL_SHA256",
                 digest,
-                create=True,
             ),
             mock.patch.object(
                 coordinate_pack,
                 "LEGACY_RULESET_CONTROL_LENGTH",
                 len(synthetic),
-                create=True,
             ),
         ):
             self.assertEqual(
@@ -77,6 +75,30 @@ class ReportCoordinatePackRulesetMarkerTests(unittest.TestCase):
             finally:
                 doc.close()
             self.assertEqual(len(controls), 1)
+
+    def test_pinned_legacy_marker_rejects_embedded_boundaries(self) -> None:
+        """Reject pinned legacy markers embedded in larger identifier-like text."""
+        synthetic = "legacy-template-marker-v1"
+        digest = hashlib.sha256(synthetic.encode("utf-8")).hexdigest()
+        with (
+            mock.patch.object(
+                coordinate_pack,
+                "LEGACY_RULESET_CONTROL_SHA256",
+                digest,
+            ),
+            mock.patch.object(
+                coordinate_pack,
+                "LEGACY_RULESET_CONTROL_LENGTH",
+                len(synthetic),
+            ),
+        ):
+            for malformed in (f"x{synthetic}", f"{synthetic}.x"):
+                with self.subTest(malformed=malformed):
+                    with self.assertRaisesRegex(
+                        RuntimeError,
+                        "malformed pinned legacy ruleset control marker",
+                    ):
+                        _ruleset_control_sources(malformed)
 
     def test_multiline_canonical_marker_becomes_one_controlled_span(self) -> None:
         doc = fitz.open()
