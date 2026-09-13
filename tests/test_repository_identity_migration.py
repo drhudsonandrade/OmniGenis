@@ -200,6 +200,7 @@ class RepositoryIdentityMigrationTest(unittest.TestCase):
         initializer = 'repo="$(gh api repositories/1212760346 --jq .full_name)"'
         self.assertIn(initializer, block)
         self.assertIn('test -n "$repo"', block)
+        self.assertLess(block.index(initializer), block.index('test -n "$repo"'))
         self.assertLess(block.index(initializer), block.index('gh api repos/$repo --jq'))
         self.assertLess(block.index('test -n "$repo"'), block.index('gh api repos/$repo --jq'))
 
