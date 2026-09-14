@@ -18,6 +18,7 @@ LEGACY_PATTERN = re.compile("code" + "work", re.IGNORECASE)
 CONTROL_METADATA_PATHS = {LEDGER_PATH}
 LEDGER_SCHEMA = "omnigenis-legacy-identity-ledger-v2"
 LEDGER_PHASE = "2D"
+PHASE2D_BASELINE_COMMIT = "a7cb7f5559a83adc3c75f61284fecb09d1fb5553"
 PHASE2D_SCAN_SUFFIXES = (
     "", ".example", ".json", ".md", ".nf", ".py", ".service",
     ".sh", ".toml", ".ts", ".txt", ".yaml", ".yml",
@@ -69,6 +70,8 @@ def _compile_matcher(entry: dict[str, Any]) -> re.Pattern[str]:
 
 
 def _validate_scope_policy(ledger: dict[str, Any]) -> None:
+    if ledger.get("baseline_commit") != PHASE2D_BASELINE_COMMIT:
+        raise ValueError("Phase 2D baseline commit mismatch")
     if ledger.get("scan_suffixes") != list(PHASE2D_SCAN_SUFFIXES):
         raise ValueError("legacy identity scan suffix policy mismatch")
     if ledger.get("control_metadata_paths") != [LEDGER_PATH.as_posix()]:
@@ -113,17 +116,38 @@ def scan_legacy_identities(root: Path, ledger: dict[str, Any]) -> dict[str, Any]
     }
     repository_paths = _repository_paths(root)
     tracked = {relative.as_posix() for relative in repository_paths}
-    for relative in historical:
-        if relative not in tracked:
+    baseline_commit = ledger["baseline_commit"]
+    for historical_relative, record in historical.items():
+        if historical_relative not in tracked:
             report["historical_drift"].append(
-                {"path": relative, "reason": "allowlisted path is not tracked"}
+                {"path": historical_relative, "reason": "allowlisted path is not tracked"}
+            )
+            continue
+        try:
+            baseline_payload = subprocess.check_output(
+                ["git", "show", f"{baseline_commit}:{historical_relative}"],
+                cwd=root,
+                stderr=subprocess.DEVNULL,
+            )
+        except subprocess.CalledProcessError:
+            report["historical_drift"].append(
+                {
+                    "path": historical_relative,
+                    "reason": "historical path absent from Phase 2D baseline",
+                }
+            )
+            continue
+        baseline_digest = hashlib.sha256(baseline_payload).hexdigest()
+        if baseline_digest != record["sha256"]:
+            report["historical_drift"].append(
+                {"path": historical_relative, "reason": "historical baseline digest mismatch"}
             )
 
-    for relative in repository_paths:
-        posix = relative.as_posix()
-        if relative in CONTROL_METADATA_PATHS:
+    for tracked_relative in repository_paths:
+        posix = tracked_relative.as_posix()
+        if tracked_relative in CONTROL_METADATA_PATHS:
             continue
-        path = root / relative
+        path = root / tracked_relative
         if posix in historical:
             record = historical[posix]
             if path.is_symlink() or not path.is_file():
@@ -139,7 +163,7 @@ def scan_legacy_identities(root: Path, ledger: dict[str, Any]) -> dict[str, Any]
                 continue
             report["historical_verified"].append(posix)
             continue
-        if relative.suffix not in suffixes:
+        if tracked_relative.suffix not in suffixes:
             continue
         if not path.is_file():
             continue

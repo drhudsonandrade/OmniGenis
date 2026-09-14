@@ -67,7 +67,9 @@ class IntegrationCodeLanguageTest(unittest.TestCase):
         """The stage-six inventoried developer diagnostics must not return in Portuguese."""
         diagnostics = _setup_diagnostics(SETUP_SCRIPT.read_text(encoding="utf-8"))
         self.assertEqual(len(diagnostics), 35)
-        self.assertNotIn("conflicting CodeRabbit bin directory variables", diagnostics)
+        self.assertFalse(
+            any("conflicting CodeRabbit bin directory" in message for message in diagnostics)
+        )
         self.assertFalse(any("deprecated" in message for message in diagnostics))
         self.assertEqual(_tooling_terms("\n".join(diagnostics)), set())
 

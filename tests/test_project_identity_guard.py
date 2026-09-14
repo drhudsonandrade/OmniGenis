@@ -5,7 +5,7 @@ import subprocess
 import tempfile
 import unittest
 
-from scripts.project_identity_guard import validate_project_identity
+from scripts.project_identity_guard import PHASE2D_BASELINE_COMMIT, validate_project_identity
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -84,7 +84,7 @@ class ProjectIdentityGuardTest(unittest.TestCase):
             entry["disposition"] = disposition
         ledger = {
             "schema": "omnigenis-legacy-identity-ledger-v2",
-            "baseline_commit": "fixture",
+            "baseline_commit": PHASE2D_BASELINE_COMMIT,
             "phase": "2D",
             "control_metadata_paths": ["config/legacy_identity_ledger.json"],
             "scan_suffixes": EXPECTED_SCAN_SUFFIXES if scan_suffixes is None else scan_suffixes,
@@ -115,6 +115,10 @@ class ProjectIdentityGuardTest(unittest.TestCase):
             target = root / relative
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, target)
+        ledger_path = root / "config/legacy_identity_ledger.json"
+        ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
+        ledger["historical_files"] = {}
+        ledger_path.write_text(json.dumps(ledger), encoding="utf-8")
         subprocess.run(["git", "init", "-q"], cwd=root, check=True)
         subprocess.run(["git", "add", "."], cwd=root, check=True)
         return root
@@ -128,8 +132,17 @@ class ProjectIdentityGuardTest(unittest.TestCase):
             errors,
         )
 
-    def test_removing_a_legacy_occurrence_is_allowed(self) -> None:
-        self.assertEqual(validate_project_identity(self.make_repo("clean")), [])
+    def test_removing_a_preserved_historical_occurrence_is_allowed(self) -> None:
+        self.assertEqual(
+            validate_project_identity(
+                self.make_repo(
+                    "clean",
+                    locations={"active.txt": 1},
+                    disposition="preserve_historical",
+                )
+            ),
+            [],
+        )
 
     def test_new_unclassified_legacy_identity_fails(self) -> None:
         errors = validate_project_identity(self.make_repo(LEGACY_SURPRISE))

@@ -114,7 +114,7 @@ The resolver accepts only a unique reachable two-parent merge whose second paren
 
 - [x] **Step 4: Run the complete zero-identity seal suite**
 
-Expected and observed: the historical merge regression passes, the pre-merge drift rejection still passes, and the sealed P1-P4 inventory remains zero.
+Expected and observed results are traceable in `docs/superpowers/evidence/2026-09-13-omnigenis-phase2d-legacy-elimination.json`: `validation_provenance.zero_identity_seal.sanitized_output` records the historical-merge and pre-merge rejection regression suite, while `zero_identity_class_counts` records zero path/blob findings for P1-P4.
 
 ---
 
