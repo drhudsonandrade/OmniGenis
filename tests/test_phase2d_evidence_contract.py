@@ -21,6 +21,7 @@ TRANSCRIPT_RELATIVE = (
 )
 TRANSCRIPT = ROOT / TRANSCRIPT_RELATIVE
 LEDGER = ROOT / "config/legacy_identity_ledger.json"
+RULESET_BASELINE = ROOT / "docs/superpowers/evidence/2026-09-10-omnigenis-repository-identity-migration.json"
 MERGE_SHA = "a7cb7f5559a83adc3c75f61284fecb09d1fb5553"
 EXPECTED_HISTORICAL_FILES = 21
 EXPECTED_RUNNERS = {21: "omnigenis-01", 22: "omnigenis-02"}
@@ -285,8 +286,8 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
             self.assertEqual(item["selector_labels"], ["omnigenis-isolated"])
             self.assertNotIn("runner_name", item)
 
-    def test_governance_rulesets_are_still_active_without_semantic_overclaim(self) -> None:
-        """Record live ruleset identity without claiming a semantic recomputation."""
+    def test_governance_rulesets_match_predecessor_semantics(self) -> None:
+        """Require live rulesets to match the verified predecessor semantics."""
         evidence = self.load()
         rulesets = evidence["rulesets"]
         provenance = evidence["ruleset_readback_provenance"]
@@ -303,8 +304,26 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
         for ruleset_id, (name, enforcement) in EXPECTED_RULESETS.items():
             self.assertEqual(by_id[ruleset_id]["name"], name)
             self.assertEqual(by_id[ruleset_id]["enforcement"], enforcement)
-            self.assertNotIn("semantic_sha256", by_id[ruleset_id])
-        self.assertEqual(evidence["ruleset_semantic_recomputation"], "NOT_CLAIMED")
+
+        predecessor = json.loads(RULESET_BASELINE.read_text(encoding="utf-8"))
+        baseline = predecessor["ruleset_semantics_post"]
+        canonical_baseline = json.dumps(baseline, sort_keys=True, separators=(",", ":"))
+        baseline_sha = hashlib.sha256(canonical_baseline.encode("utf-8")).hexdigest()
+        comparison = evidence["ruleset_semantic_comparison"]
+        self.assertEqual(
+            comparison["baseline_source"],
+            "docs/superpowers/evidence/2026-09-10-omnigenis-repository-identity-migration.json#ruleset_semantics_post",
+        )
+        self.assertEqual(comparison["baseline_semantics_sha256"], baseline_sha)
+        self.assertEqual(comparison["neutralized_live_semantics"], baseline)
+        self.assertEqual(comparison["live_neutralized_sha256"], baseline_sha)
+        self.assertTrue(comparison["match"])
+        readback = comparison["readback_provenance"]
+        self.assertEqual(readback["source"], "GitHub REST API")
+        self.assertRegex(readback["captured_at"], r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
+        self.assertEqual(set(readback["raw_ruleset_sha256"]), {"21303100", "22347095"})
+        for digest in readback["raw_ruleset_sha256"].values():
+            self.assertRegex(digest, r"^[0-9a-f]{64}$")
 
     def test_validation_environment_is_deterministically_reconstructible(self) -> None:
         """Require a recorded venv setup rooted in the versioned requirements lock."""

@@ -104,6 +104,18 @@ class Phase2DLegacyEliminationTest(unittest.TestCase):
         subprocess.run(["git", "add", str(historical.relative_to(root))], cwd=root, check=True)
         errors = self._validate_fixture(root)
         self.assertTrue(any("historical allowlist drift" in e for e in errors), errors)
+
+    def test_historical_hash_uses_staged_blob_not_restored_worktree(self) -> None:
+        """Reject staged historical drift even when worktree bytes are restored."""
+        root, historical = self._make_repo(allow_exact_history=True)
+        original = historical.read_bytes()
+        historical.write_bytes(original + b"staged-drift\n")
+        subprocess.run(
+            ["git", "add", str(historical.relative_to(root))], cwd=root, check=True
+        )
+        historical.write_bytes(original)
+        errors = self._validate_fixture(root)
+        self.assertTrue(any("historical allowlist drift" in e for e in errors), errors)
     def test_real_ledger_is_phase2d_and_has_zero_migrate_budgets(self) -> None:
         ledger = json.loads(LEDGER.read_text(encoding="utf-8"))
         self.assertEqual(ledger["schema"], "omnigenis-legacy-identity-ledger-v2")

@@ -58,6 +58,31 @@ def _repository_paths(root: Path) -> tuple[Path, ...]:
     )
 
 
+def _read_index_regular_blob(root: Path, relative: Path) -> bytes:
+    """Read the exact stage-0 regular-file blob for a tracked path."""
+    relative_text = relative.as_posix()
+    proc = subprocess.run(
+        ["git", "ls-files", "-s", "-z", "--", relative_text],
+        cwd=root,
+        check=True,
+        capture_output=True,
+    )
+    entries = [part for part in proc.stdout.split(b"\0") if part]
+    if len(entries) != 1 or b"\t" not in entries[0]:
+        raise ValueError(f"tracked index entry is ambiguous: {relative_text}")
+    metadata, indexed_path = entries[0].split(b"\t", 1)
+    fields = metadata.split()
+    expected_path = relative_text.encode("utf-8")
+    if len(fields) != 3 or indexed_path != expected_path or fields[2] != b"0":
+        raise ValueError(f"tracked index entry is invalid: {relative_text}")
+    mode, object_id, _stage = fields
+    if not mode.startswith(b"100"):
+        raise ValueError(f"tracked index entry is not a regular file: {relative_text}")
+    return subprocess.check_output(
+        ["git", "cat-file", "blob", object_id.decode("ascii")], cwd=root
+    )
+
+
 def _compile_matcher(entry: dict[str, Any]) -> re.Pattern[str]:
     matcher = entry["matcher"]
     kind = matcher["kind"]
@@ -150,12 +175,14 @@ def scan_legacy_identities(root: Path, ledger: dict[str, Any]) -> dict[str, Any]
         path = root / tracked_relative
         if posix in historical:
             record = historical[posix]
-            if path.is_symlink() or not path.is_file():
+            try:
+                staged_blob = _read_index_regular_blob(root, tracked_relative)
+            except ValueError:
                 report["historical_drift"].append(
-                    {"path": posix, "reason": "allowlisted path is not a regular file"}
+                    {"path": posix, "reason": "allowlisted path is not a regular staged file"}
                 )
                 continue
-            digest = hashlib.sha256(path.read_bytes()).hexdigest()
+            digest = hashlib.sha256(staged_blob).hexdigest()
             if digest != record["sha256"]:
                 report["historical_drift"].append(
                     {"path": posix, "reason": "SHA-256 mismatch"}
@@ -165,9 +192,7 @@ def scan_legacy_identities(root: Path, ledger: dict[str, Any]) -> dict[str, Any]
             continue
         if tracked_relative.suffix not in suffixes:
             continue
-        if not path.is_file():
-            continue
-        text = path.read_text(encoding="utf-8")
+        text = _read_index_regular_blob(root, tracked_relative).decode("utf-8")
         covered: list[tuple[int, int]] = []
         for entry in entries:
             allowed = entry["locations"].get(posix)
