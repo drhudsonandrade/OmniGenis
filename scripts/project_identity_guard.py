@@ -19,6 +19,7 @@ CONTROL_METADATA_PATHS = {LEDGER_PATH}
 LEDGER_SCHEMA = "omnigenis-legacy-identity-ledger-v2"
 LEDGER_PHASE = "2D"
 PHASE2D_BASELINE_COMMIT = "a7cb7f5559a83adc3c75f61284fecb09d1fb5553"
+PHASE2D_HISTORICAL_PATHS_SHA256 = "2f07a075d573c443c9d7801e9ddddeafc4e68c1a21151b5063ef35d7e79da4f6"
 PHASE2D_SCAN_SUFFIXES = (
     "", ".example", ".json", ".md", ".nf", ".py", ".service",
     ".sh", ".toml", ".ts", ".txt", ".yaml", ".yml",
@@ -88,6 +89,55 @@ def _load_index_json(root: Path, relative: Path) -> dict[str, Any]:
     return value
 
 
+def _historical_path_set_sha256(paths: object) -> str:
+    """Hash the exact sorted historical path membership without ledger metadata."""
+    if isinstance(paths, dict):
+        values = list(paths)
+    elif isinstance(paths, (list, tuple, set, frozenset)):
+        values = list(paths)
+    else:
+        raise ValueError("historical path membership must be a collection")
+    if not all(isinstance(item, str) and item for item in values):
+        raise ValueError("historical path membership contains an invalid path")
+    payload = ("\n".join(sorted(values)) + "\n").encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
+def _validate_entry_schema(entries: object) -> list[dict[str, Any]]:
+    """Validate ledger entry structure before any matcher or location access."""
+    if not isinstance(entries, list):
+        raise ValueError("legacy identity entries must be a list")
+    validated: list[dict[str, Any]] = []
+    for index, entry in enumerate(entries):
+        if not isinstance(entry, dict):
+            raise ValueError(f"legacy identity entry must be an object: index={index}")
+        entry_id = entry.get("id")
+        if not isinstance(entry_id, str) or not entry_id:
+            raise ValueError(f"legacy identity entry id is invalid: index={index}")
+        matcher = entry.get("matcher")
+        if not isinstance(matcher, dict) or set(matcher) != {"kind", "value"}:
+            raise ValueError(f"legacy identity matcher is invalid: {entry_id}")
+        if matcher.get("kind") not in {"literal", "regex"} or not isinstance(matcher.get("value"), str):
+            raise ValueError(f"legacy identity matcher is invalid: {entry_id}")
+        locations = entry.get("locations")
+        if not isinstance(locations, dict):
+            raise ValueError(f"legacy identity locations must be a mapping: {entry_id}")
+        for relative, maximum in locations.items():
+            if not isinstance(relative, str) or not relative:
+                raise ValueError(f"legacy identity location path is invalid: {entry_id}")
+            if not isinstance(maximum, int) or isinstance(maximum, bool) or maximum < 0:
+                raise ValueError(f"legacy identity location count is invalid: {entry_id} {relative}")
+        if not isinstance(entry.get("reason"), str) or not entry["reason"].strip():
+            raise ValueError(f"legacy identity entry reason is invalid: {entry_id}")
+        if not isinstance(entry.get("retire_by"), str) or not entry["retire_by"].strip():
+            raise ValueError(f"legacy identity entry retire_by is invalid: {entry_id}")
+        disposition = entry.get("disposition", "migrate")
+        if disposition not in {"migrate", "preserve_historical"}:
+            raise ValueError(f"unsupported legacy identity disposition: {entry_id}")
+        validated.append(entry)
+    return validated
+
+
 def _compile_matcher(entry: dict[str, Any]) -> re.Pattern[str]:
     matcher = entry["matcher"]
     kind = matcher["kind"]
@@ -111,6 +161,9 @@ def _validate_scope_policy(ledger: dict[str, Any]) -> None:
     historical = ledger.get("historical_files")
     if not isinstance(historical, dict):
         raise ValueError("exact historical file allowlist is required in Phase 2D")
+    if _historical_path_set_sha256(historical) != PHASE2D_HISTORICAL_PATHS_SHA256:
+        raise ValueError("historical allowlist membership mismatch")
+    _validate_entry_schema(ledger.get("entries"))
     for relative, record in historical.items():
         candidate = Path(relative) if isinstance(relative, str) else Path("/")
         if (
@@ -136,7 +189,7 @@ def scan_legacy_identities(root: Path, ledger: dict[str, Any]) -> dict[str, Any]
     _validate_scope_policy(ledger)
     suffixes = tuple(ledger["scan_suffixes"])
     historical: dict[str, dict[str, str]] = ledger["historical_files"]
-    entries = ledger["entries"]
+    entries = _validate_entry_schema(ledger.get("entries"))
     report: dict[str, Any] = {
         "counts": {},
         "historical_drift": [],
@@ -234,15 +287,18 @@ def validate_project_identity(root: Path) -> list[str]:
         errors.append("legacy identity ledger schema mismatch")
     if ledger.get("phase") != LEDGER_PHASE:
         errors.append("legacy identity ledger must be in Phase 2D")
+    try:
+        _validate_scope_policy(ledger)
+    except ValueError as exc:
+        errors.append(str(exc))
+    if errors:
+        return errors
 
     canonical = set(_flatten_strings(identity))
-    for entry in ledger.get("entries", []):
+    for entry in _validate_entry_schema(ledger.get("entries")):
         replacement = entry.get("replacement")
         disposition = entry.get("disposition", "migrate")
-        locations = entry.get("locations")
-        if not isinstance(locations, dict):
-            errors.append(f"legacy identity locations must be a mapping: {entry.get('id')}")
-            continue
+        locations = entry["locations"]
         if disposition == "migrate":
             if replacement not in canonical:
                 errors.append(f"legacy identity replacement is not canonical: {entry.get('id')}")

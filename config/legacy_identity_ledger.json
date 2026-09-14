@@ -207,10 +207,7 @@
     {
       "disposition": "preserve_historical",
       "id": "historical-repository-pr-urls",
-      "locations": {
-        "docs/POLICY_CODE_LANGUAGE_INVENTORY.md": 1,
-        "docs/REPORTING_CODE_LANGUAGE_INVENTORY.md": 1
-      },
+      "locations": {},
       "matcher": {
         "kind": "regex",
         "value": "https://github\\.com/[A-Za-z0-9_-]+/Codework/pull/(?:60|61)(?:#issuecomment-[0-9]+)?"

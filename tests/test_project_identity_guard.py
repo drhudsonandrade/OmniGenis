@@ -4,7 +4,9 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+from unittest import mock
 
+import scripts.project_identity_guard as identity_guard
 from scripts.project_identity_guard import PHASE2D_BASELINE_COMMIT, validate_project_identity
 
 
@@ -57,6 +59,17 @@ IDENTITY = {
 
 
 class ProjectIdentityGuardTest(unittest.TestCase):
+    @staticmethod
+    def validate_fixture(root: Path) -> list[str]:
+        ledger_path = root / "config/legacy_identity_ledger.json"
+        ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
+        historical = ledger.get("historical_files", {})
+        membership = identity_guard._historical_path_set_sha256(historical)
+        with mock.patch.object(
+            identity_guard, "PHASE2D_HISTORICAL_PATHS_SHA256", membership
+        ):
+            return validate_project_identity(root)
+
     def make_repo(
         self,
         text: str,
@@ -124,7 +137,7 @@ class ProjectIdentityGuardTest(unittest.TestCase):
         return root
 
     def test_phase2d_rejects_active_compatibility_budget(self) -> None:
-        errors = validate_project_identity(
+        errors = self.validate_fixture(
             self.make_repo(LEGACY_RUNTIME_ROOT, locations={"active.txt": 1})
         )
         self.assertTrue(
@@ -134,7 +147,7 @@ class ProjectIdentityGuardTest(unittest.TestCase):
 
     def test_removing_a_preserved_historical_occurrence_is_allowed(self) -> None:
         self.assertEqual(
-            validate_project_identity(
+            self.validate_fixture(
                 self.make_repo(
                     "clean",
                     locations={"active.txt": 1},
@@ -145,11 +158,11 @@ class ProjectIdentityGuardTest(unittest.TestCase):
         )
 
     def test_new_unclassified_legacy_identity_fails(self) -> None:
-        errors = validate_project_identity(self.make_repo(LEGACY_SURPRISE))
+        errors = self.validate_fixture(self.make_repo(LEGACY_SURPRISE))
         self.assertTrue(any("unclassified legacy identity" in error for error in errors), errors)
 
     def test_preserve_historical_count_may_not_increase(self) -> None:
-        errors = validate_project_identity(
+        errors = self.validate_fixture(
             self.make_repo(
                 f"{LEGACY_RUNTIME_ROOT} {LEGACY_RUNTIME_ROOT}",
                 locations={"active.txt": 1},
@@ -166,20 +179,20 @@ class ProjectIdentityGuardTest(unittest.TestCase):
         )
         (root / "moved.txt").write_text(LEGACY_RUNTIME_ROOT, encoding="utf-8")
         subprocess.run(["git", "add", "moved.txt"], cwd=root, check=True)
-        errors = validate_project_identity(root)
+        errors = self.validate_fixture(root)
         self.assertTrue(any("unclassified legacy identity" in error for error in errors), errors)
 
 
 
     def test_control_metadata_ledger_is_not_scanned(self) -> None:
         root = self.make_repo("clean")
-        errors = validate_project_identity(root)
+        errors = self.validate_fixture(root)
         self.assertEqual(errors, [])
 
     def test_untracked_file_does_not_affect_official_guard(self) -> None:
         root = self.make_repo("clean")
         (root / "local.txt").write_text(LEGACY_SURPRISE, encoding="utf-8")
-        errors = validate_project_identity(root)
+        errors = self.validate_fixture(root)
         self.assertEqual(errors, [])
 
     def test_malformed_locations_fail_closed_without_raising(self) -> None:
@@ -189,7 +202,7 @@ class ProjectIdentityGuardTest(unittest.TestCase):
         ledger["entries"][0]["locations"] = []
         ledger_path.write_text(json.dumps(ledger), encoding="utf-8")
         subprocess.run(["git", "add", "config/legacy_identity_ledger.json"], cwd=root, check=True)
-        errors = validate_project_identity(root)
+        errors = self.validate_fixture(root)
         self.assertTrue(
             any("legacy identity locations must be a mapping" in error for error in errors),
             errors,
@@ -210,12 +223,47 @@ class ProjectIdentityGuardTest(unittest.TestCase):
                 path.write_text(json.dumps(payload), encoding="utf-8")
                 subprocess.run(["git", "add", relative], cwd=root, check=True)
                 path.write_bytes(original)
-                errors = validate_project_identity(root)
+                errors = self.validate_fixture(root)
                 self.assertTrue(any(expected in error for error in errors), errors)
+
+    def test_ledger_entries_schema_fails_closed(self) -> None:
+        cases = (
+            (None, "legacy identity entries must be a list"),
+            ([None], "legacy identity entry must be an object"),
+        )
+        for replacement, expected in cases:
+            with self.subTest(entries=replacement):
+                root = self.make_repo("clean")
+                ledger_path = root / "config/legacy_identity_ledger.json"
+                ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
+                if replacement is None:
+                    ledger.pop("entries", None)
+                else:
+                    ledger["entries"] = replacement
+                ledger_path.write_text(json.dumps(ledger), encoding="utf-8")
+                subprocess.run(
+                    ["git", "add", "config/legacy_identity_ledger.json"],
+                    cwd=root, check=True,
+                )
+                errors = self.validate_fixture(root)
+                self.assertTrue(any(expected in error for error in errors), errors)
+
+    def test_zero_count_historical_pr_url_budget_cannot_reintroduce_identity(self) -> None:
+        relative = "docs/POLICY_CODE_LANGUAGE_INVENTORY.md"
+        root = self.make_real_repo_subset([relative])
+        target = root / relative
+        target.write_text(
+            target.read_text(encoding="utf-8")
+            + f"\nhttps://github.com/example/{LEGACY_WORD.capitalize()}/pull/60\n",
+            encoding="utf-8",
+        )
+        subprocess.run(["git", "add", relative], cwd=root, check=True)
+        errors = self.validate_fixture(root)
+        self.assertTrue(any("unclassified legacy identity" in error for error in errors), errors)
 
     def test_empty_scan_suffix_policy_fails_closed(self) -> None:
         root = self.make_repo("clean", scan_suffixes=[])
-        errors = validate_project_identity(root)
+        errors = self.validate_fixture(root)
         self.assertTrue(any("scan suffix policy mismatch" in error for error in errors))
 
     def test_broad_historical_prefix_bypass_fails_closed(self) -> None:
@@ -225,7 +273,7 @@ class ProjectIdentityGuardTest(unittest.TestCase):
         ledger["historical_prefixes"] = [""]
         ledger_path.write_text(json.dumps(ledger), encoding="utf-8")
         subprocess.run(["git", "add", "config/legacy_identity_ledger.json"], cwd=root, check=True)
-        errors = validate_project_identity(root)
+        errors = self.validate_fixture(root)
         self.assertTrue(
             any("broad historical prefix exemptions are forbidden" in error for error in errors),
             errors,
@@ -235,7 +283,7 @@ class ProjectIdentityGuardTest(unittest.TestCase):
         root = self.make_repo("clean")
         (root / "invalid.txt").write_bytes(b"\xff\xfelegacy")
         subprocess.run(["git", "add", "invalid.txt"], cwd=root, check=True)
-        errors = validate_project_identity(root)
+        errors = self.validate_fixture(root)
         self.assertTrue(any("legacy identity scan failed closed" in error for error in errors))
 
 
@@ -246,7 +294,7 @@ class ProjectIdentityGuardTest(unittest.TestCase):
         root = self.make_real_repo_subset([])
         (root / "active.txt").write_text(LEGACY_WORD + "-new-identity", encoding="utf-8")
         subprocess.run(["git", "add", "active.txt"], cwd=root, check=True)
-        errors = validate_project_identity(root)
+        errors = self.validate_fixture(root)
         self.assertTrue(any("unclassified legacy identity" in error for error in errors))
 
     def test_real_ledger_rejects_retired_compatibility_reintroduction(self) -> None:
@@ -257,14 +305,14 @@ class ProjectIdentityGuardTest(unittest.TestCase):
             encoding="utf-8",
         )
         subprocess.run(["git", "add", "scripts/codex/setup-coderabbit.sh"], cwd=root, check=True)
-        errors = validate_project_identity(root)
+        errors = self.validate_fixture(root)
         self.assertTrue(any("unclassified legacy identity" in error for error in errors), errors)
 
     def test_real_ledger_rejects_reviewed_identity_on_unlisted_path(self) -> None:
         root = self.make_real_repo_subset([])
         (root / "moved.txt").write_text(LEGACY_RUNTIME_ROOT, encoding="utf-8")
         subprocess.run(["git", "add", "moved.txt"], cwd=root, check=True)
-        errors = validate_project_identity(root)
+        errors = self.validate_fixture(root)
         self.assertTrue(any("unclassified legacy identity" in error for error in errors))
 
     def test_ledger_replacement_must_be_canonical(self) -> None:
@@ -274,7 +322,7 @@ class ProjectIdentityGuardTest(unittest.TestCase):
         ledger["entries"][0]["replacement"] = "/opt/not-omnigenis"
         ledger_path.write_text(json.dumps(ledger), encoding="utf-8")
         subprocess.run(["git", "add", "config/legacy_identity_ledger.json"], cwd=root, check=True)
-        errors = validate_project_identity(root)
+        errors = self.validate_fixture(root)
         self.assertTrue(any("replacement is not canonical" in error for error in errors))
 
 

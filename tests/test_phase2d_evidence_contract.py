@@ -23,6 +23,7 @@ TRANSCRIPT_RELATIVE = (
 TRANSCRIPT = ROOT / TRANSCRIPT_RELATIVE
 LEDGER = ROOT / "config/legacy_identity_ledger.json"
 RULESET_BASELINE = ROOT / "docs/superpowers/evidence/2026-09-10-omnigenis-repository-identity-migration.json"
+RUNNER_NAME_BASELINE = ROOT / "docs/superpowers/evidence/2026-09-11-omnigenis-phase2c-runner-cutover.json"
 MERGE_SHA = "a7cb7f5559a83adc3c75f61284fecb09d1fb5553"
 EXPECTED_HISTORICAL_FILES = 21
 EXPECTED_RUNNERS = {21: "omnigenis-01", 22: "omnigenis-02"}
@@ -361,6 +362,11 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
         sanitized = provenance["sanitized_output"]
         self.assertEqual(provenance["source"], "GitHub REST API")
         self.assertRegex(provenance["captured_at"], r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
+        command = provenance["command"]
+        for _runner_id, (_run_id, job_id) in EXPECTED_CANARIES.items():
+            self.assertIn(f"actions/jobs/{job_id}", command)
+        self.assertNotIn("authenticated protected-main canary jobs", command)
+        subprocess.run(["bash", "-n", "-c", command], check=True, capture_output=True)
         self.assertEqual(
             hashlib.sha256(sanitized.encode("utf-8")).hexdigest(),
             provenance["sanitized_output_sha256"],
@@ -499,6 +505,54 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
             record["execution_receipt_sha256"],
         )
 
+    def test_required_validation_records_are_bound_to_implementation(self) -> None:
+        """Bind every required gate result to the exact implementation SHA and tree."""
+        evidence = self.load()
+        implementation = evidence["implementation_head_sha"]
+        tree = evidence["implementation_tree_sha"]
+        required = (
+            "identity",
+            "zero_identity",
+            "validate_repo",
+            "supply_chain",
+            "code_language",
+            "residual_language",
+            "docs_language",
+            "zero_identity_seal",
+            "phase2d_hardening",
+            "shell_syntax",
+            "diff_check",
+            "legacy_inventory",
+            "zero_identity_plane_inventory",
+        )
+        for name in required:
+            with self.subTest(gate=name):
+                record = evidence["validation_provenance"][name]
+                self.assertEqual(record["exit_code"], 0)
+                self.assertEqual(record["validated_head_sha"], implementation)
+                self.assertEqual(record["validated_tree_sha"], tree)
+                sanitized = record["sanitized_output"]
+                self.assertEqual(
+                    hashlib.sha256(sanitized.encode("utf-8")).hexdigest(),
+                    record["output_sha256"],
+                )
+                receipt_payload = {
+                    "command": record["command"],
+                    "exit_code": record["exit_code"],
+                    "output_sha256": record["output_sha256"],
+                    "validated_head_sha": implementation,
+                    "validated_tree_sha": tree,
+                }
+                canonical = json.dumps(receipt_payload, sort_keys=True, separators=(",", ":"))
+                self.assertEqual(
+                    hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
+                    record["execution_receipt_sha256"],
+                )
+        self.assertEqual(
+            evidence["validation_provenance"]["diff_check"]["command"],
+            f"git diff --check {evidence['base_main_sha']} {implementation}",
+        )
+
     def test_zero_identity_seal_and_class_counts_are_evidence_bound(self) -> None:
         """Bind the plan's zero-seal claim to executed evidence and explicit P1-P4 counts."""
         evidence = self.load()
@@ -543,6 +597,13 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
                 set(item["labels"]),
                 {"self-hosted", "Linux", "X64", "omnigenis-isolated", per_runner_label},
             )
+            predecessor = json.loads(RUNNER_NAME_BASELINE.read_text(encoding="utf-8"))
+            expected_names = {
+                int(record["id"]): record["retired_name_sha256"]
+                for record in predecessor["runner_snapshot_after"]
+            }
+            self.assertEqual(item["runner_name_sha256"], expected_names[runner_id])
+            self.assertRegex(item["runner_name_sha256"], r"^[0-9a-f]{64}$")
             self.assertNotIn("runner_name", item)
 
 

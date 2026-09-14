@@ -81,8 +81,10 @@ class Phase2DLegacyEliminationTest(unittest.TestCase):
     def _validate_fixture(root: Path) -> list[str]:
         """Validate a temporary repository against its own committed baseline."""
         ledger = json.loads((root / "config/legacy_identity_ledger.json").read_text(encoding="utf-8"))
-        with mock.patch.object(
-            identity_guard, "PHASE2D_BASELINE_COMMIT", ledger["baseline_commit"]
+        membership = identity_guard._historical_path_set_sha256(ledger["historical_files"])
+        with (
+            mock.patch.object(identity_guard, "PHASE2D_BASELINE_COMMIT", ledger["baseline_commit"]),
+            mock.patch.object(identity_guard, "PHASE2D_HISTORICAL_PATHS_SHA256", membership),
         ):
             return validate_project_identity(root)
 
@@ -215,6 +217,22 @@ class Phase2DLegacyEliminationTest(unittest.TestCase):
         errors = self._validate_fixture(root)
         self.assertTrue(any("historical baseline digest mismatch" in e for e in errors), errors)
 
+    def test_real_historical_membership_is_independently_pinned(self) -> None:
+        ledger = json.loads(LEDGER.read_text(encoding="utf-8"))
+        self.assertEqual(
+            identity_guard._historical_path_set_sha256(ledger["historical_files"]),
+            identity_guard.PHASE2D_HISTORICAL_PATHS_SHA256,
+        )
+        mutated = json.loads(json.dumps(ledger))
+        removed = next(iter(mutated["historical_files"]))
+        mutated["historical_files"].pop(removed)
+        mutated["historical_files"]["docs/GITHUB_MOBILE_IMPORT.md"] = {
+            "sha256": "0" * 64,
+            "reason": "Attempted membership substitution.",
+        }
+        with self.assertRaisesRegex(ValueError, "historical allowlist membership mismatch"):
+            identity_guard._validate_scope_policy(mutated)
+
     def test_preserve_historical_locations_remain_explicit(self) -> None:
         ledger = json.loads(LEDGER.read_text(encoding="utf-8"))
         preserved = {
@@ -226,10 +244,7 @@ class Phase2DLegacyEliminationTest(unittest.TestCase):
             preserved,
             {
                 "historical-runtime-zip": {"docs/GITHUB_MOBILE_IMPORT.md": 2},
-                "historical-repository-pr-urls": {
-                    "docs/POLICY_CODE_LANGUAGE_INVENTORY.md": 1,
-                    "docs/REPORTING_CODE_LANGUAGE_INVENTORY.md": 1,
-                },
+                "historical-repository-pr-urls": {},
             },
         )
 
