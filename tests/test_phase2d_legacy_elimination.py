@@ -77,7 +77,8 @@ class Phase2DLegacyEliminationTest(unittest.TestCase):
         subprocess.run(["git", "add", "config/legacy_identity_ledger.json"], cwd=root, check=True)
         return root, historical
 
-    def _validate_fixture(self, root: Path) -> list[str]:
+    @staticmethod
+    def _validate_fixture(root: Path) -> list[str]:
         """Validate a temporary repository against its own committed baseline."""
         ledger = json.loads((root / "config/legacy_identity_ledger.json").read_text(encoding="utf-8"))
         with mock.patch.object(
@@ -130,11 +131,13 @@ class Phase2DLegacyEliminationTest(unittest.TestCase):
         """Keep historical string keys separate from tracked Path loop variables."""
         source = (ROOT / "scripts/project_identity_guard.py").read_text(encoding="utf-8")
         module = ast.parse(source)
-        scanner = next(
+        scanners = [
             node
             for node in module.body
             if isinstance(node, ast.FunctionDef) and node.name == "scan_legacy_identities"
-        )
+        ]
+        self.assertEqual(len(scanners), 1)
+        scanner = scanners[0]
         targets: dict[str, str] = {}
         for loop in (node for node in ast.walk(scanner) if isinstance(node, ast.For)):
             source_name: str | None = None
