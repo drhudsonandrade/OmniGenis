@@ -26,13 +26,6 @@ PHASE2D_SCAN_SUFFIXES = (
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
-def _load_json(path: Path) -> dict[str, Any]:
-    value = json.loads(path.read_text(encoding="utf-8"))
-    if not isinstance(value, dict):
-        raise ValueError(f"expected JSON object: {path}")
-    return value
-
-
 def _flatten_strings(value: object) -> Iterator[str]:
     if isinstance(value, str):
         yield value
@@ -81,6 +74,18 @@ def _read_index_regular_blob(root: Path, relative: Path) -> bytes:
     return subprocess.check_output(
         ["git", "cat-file", "blob", object_id.decode("ascii")], cwd=root
     )
+
+
+def _load_index_json(root: Path, relative: Path) -> dict[str, Any]:
+    """Load one JSON control contract from the stage-0 Git index."""
+    try:
+        payload = _read_index_regular_blob(root, relative).decode("utf-8")
+        value = json.loads(payload)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError(f"invalid staged JSON contract: {relative}") from exc
+    if not isinstance(value, dict):
+        raise ValueError(f"expected staged JSON object: {relative}")
+    return value
 
 
 def _compile_matcher(entry: dict[str, Any]) -> re.Pattern[str]:
@@ -218,9 +223,9 @@ def scan_legacy_identities(root: Path, ledger: dict[str, Any]) -> dict[str, Any]
 def validate_project_identity(root: Path) -> list[str]:
     errors: list[str] = []
     try:
-        identity = _load_json(root / IDENTITY_PATH)
-        ledger = _load_json(root / LEDGER_PATH)
-    except (OSError, ValueError) as exc:
+        identity = _load_index_json(root, IDENTITY_PATH)
+        ledger = _load_index_json(root, LEDGER_PATH)
+    except (OSError, subprocess.CalledProcessError, ValueError) as exc:
         return [f"project identity contract unreadable: {exc}"]
 
     if identity.get("schema") != "omnigenis-project-identity-v1":
@@ -282,7 +287,7 @@ def main() -> None:
 
     if args.inventory:
         try:
-            ledger = _load_json(ROOT / LEDGER_PATH)
+            ledger = _load_index_json(ROOT, LEDGER_PATH)
             report = scan_legacy_identities(ROOT, ledger)
         except (OSError, subprocess.CalledProcessError, ValueError) as exc:
             raise SystemExit(f"legacy identity inventory failed closed: {exc}") from exc
