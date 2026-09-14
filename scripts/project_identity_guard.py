@@ -172,7 +172,6 @@ def scan_legacy_identities(root: Path, ledger: dict[str, Any]) -> dict[str, Any]
         posix = tracked_relative.as_posix()
         if tracked_relative in CONTROL_METADATA_PATHS:
             continue
-        path = root / tracked_relative
         if posix in historical:
             record = historical[posix]
             try:
@@ -250,6 +249,9 @@ def validate_project_identity(root: Path) -> list[str]:
             errors.append(f"unsupported legacy identity disposition: {entry.get('id')}")
         if not entry.get("reason") or not entry.get("retire_by"):
             errors.append(f"legacy identity entry lacks reason/retire_by: {entry.get('id')}")
+
+    if errors:
+        return errors
 
     try:
         report = scan_legacy_identities(root, ledger)

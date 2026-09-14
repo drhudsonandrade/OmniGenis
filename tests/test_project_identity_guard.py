@@ -182,6 +182,19 @@ class ProjectIdentityGuardTest(unittest.TestCase):
         errors = validate_project_identity(root)
         self.assertEqual(errors, [])
 
+    def test_malformed_locations_fail_closed_without_raising(self) -> None:
+        root = self.make_repo("clean")
+        ledger_path = root / "config/legacy_identity_ledger.json"
+        ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
+        ledger["entries"][0]["locations"] = []
+        ledger_path.write_text(json.dumps(ledger), encoding="utf-8")
+        subprocess.run(["git", "add", "config/legacy_identity_ledger.json"], cwd=root, check=True)
+        errors = validate_project_identity(root)
+        self.assertTrue(
+            any("legacy identity locations must be a mapping" in error for error in errors),
+            errors,
+        )
+
     def test_empty_scan_suffix_policy_fails_closed(self) -> None:
         root = self.make_repo("clean", scan_suffixes=[])
         errors = validate_project_identity(root)
