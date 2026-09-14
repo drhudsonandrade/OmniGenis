@@ -121,6 +121,11 @@ def _validate_entry_schema(entries: object) -> list[dict[str, Any]]:
             raise ValueError(f"legacy identity matcher is invalid: {entry_id}")
         if matcher.get("kind") not in {"literal", "regex"} or not isinstance(matcher.get("value"), str):
             raise ValueError(f"legacy identity matcher is invalid: {entry_id}")
+        if matcher["kind"] == "regex":
+            try:
+                re.compile(matcher["value"])
+            except re.error as exc:
+                raise ValueError(f"legacy identity matcher is invalid: {entry_id}") from exc
         locations = entry.get("locations")
         if not isinstance(locations, dict):
             raise ValueError(f"legacy identity locations must be a mapping: {entry_id}")
@@ -136,6 +141,8 @@ def _validate_entry_schema(entries: object) -> list[dict[str, Any]]:
         disposition = entry.get("disposition", "migrate")
         if disposition not in {"migrate", "preserve_historical"}:
             raise ValueError(f"unsupported legacy identity disposition: {entry_id}")
+        if disposition == "migrate" and not isinstance(entry.get("replacement"), str):
+            raise ValueError(f"legacy identity replacement is invalid: {entry_id}")
         validated.append(entry)
     return validated
 

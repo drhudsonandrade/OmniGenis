@@ -214,6 +214,34 @@ class ProjectIdentityGuardTest(unittest.TestCase):
             errors,
         )
 
+    def test_invalid_regex_matcher_fails_closed_without_raising(self) -> None:
+        root = self.make_repo("clean")
+        ledger_path = root / "config/legacy_identity_ledger.json"
+        ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
+        ledger["entries"][0]["matcher"] = {"kind": "regex", "value": "["}
+        ledger_path.write_text(json.dumps(ledger), encoding="utf-8")
+        subprocess.run(
+            ["git", "add", "config/legacy_identity_ledger.json"], cwd=root, check=True
+        )
+        errors = self.validate_fixture(root)
+        self.assertTrue(
+            any("legacy identity matcher is invalid" in error for error in errors), errors
+        )
+
+    def test_non_string_migrate_replacement_fails_closed_without_raising(self) -> None:
+        root = self.make_repo("clean")
+        ledger_path = root / "config/legacy_identity_ledger.json"
+        ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
+        ledger["entries"][0]["replacement"] = []
+        ledger_path.write_text(json.dumps(ledger), encoding="utf-8")
+        subprocess.run(
+            ["git", "add", "config/legacy_identity_ledger.json"], cwd=root, check=True
+        )
+        errors = self.validate_fixture(root)
+        self.assertTrue(
+            any("legacy identity replacement is invalid" in error for error in errors), errors
+        )
+
     def test_staged_control_contracts_override_restored_worktree(self) -> None:
         cases = (
             ("config/legacy_identity_ledger.json", "phase", "BROKEN", "legacy identity ledger must be in Phase 2D"),

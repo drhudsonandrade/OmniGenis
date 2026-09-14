@@ -250,9 +250,9 @@ class Phase2DLegacyEliminationTest(unittest.TestCase):
     def test_preserved_budget_policy_is_independently_pinned(self) -> None:
         ledger = json.loads(LEDGER.read_text(encoding="utf-8"))
         mutated = json.loads(json.dumps(ledger))
-        runtime = next(
-            entry for entry in mutated["entries"] if entry["id"] == "historical-runtime-zip"
-        )
+        entries_by_id = {entry["id"]: entry for entry in mutated["entries"]}
+        self.assertIn("historical-runtime-zip", entries_by_id)
+        runtime = entries_by_id["historical-runtime-zip"]
         runtime["locations"]["docs/GITHUB_MOBILE_IMPORT.md"] = 3
         with self.assertRaisesRegex(ValueError, "preserved legacy budget policy mismatch"):
             identity_guard._validate_scope_policy(mutated)
