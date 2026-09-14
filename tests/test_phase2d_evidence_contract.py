@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import gzip
 import hashlib
 import json
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -14,6 +16,10 @@ EVIDENCE_RELATIVE = (
     "docs/superpowers/evidence/2026-09-13-omnigenis-phase2d-legacy-elimination.json"
 )
 EVIDENCE = ROOT / EVIDENCE_RELATIVE
+TRANSCRIPT_RELATIVE = (
+    "docs/superpowers/evidence/2026-09-13-omnigenis-phase2d-implementation-suite.log.gz"
+)
+TRANSCRIPT = ROOT / TRANSCRIPT_RELATIVE
 LEDGER = ROOT / "config/legacy_identity_ledger.json"
 MERGE_SHA = "a7cb7f5559a83adc3c75f61284fecb09d1fb5553"
 EXPECTED_HISTORICAL_FILES = 21
@@ -39,6 +45,7 @@ def _git(*args: str) -> str:
 def _resolve_evidence_commit(implementation: str) -> str:
     """Resolve the evidence-only child across branch, PR merge-ref, and main history."""
     expected = EVIDENCE.read_bytes()
+    expected_transcript = TRANSCRIPT.read_bytes()
     candidates: list[str] = []
     for line in _git("rev-list", "--parents", "HEAD").splitlines():
         fields = line.split()
@@ -48,12 +55,15 @@ def _resolve_evidence_commit(implementation: str) -> str:
         changed = _git(
             "diff-tree", "--no-commit-id", "--name-only", "-r", commit
         ).splitlines()
-        if changed != [EVIDENCE_RELATIVE]:
+        if sorted(changed) != sorted([EVIDENCE_RELATIVE, TRANSCRIPT_RELATIVE]):
             continue
         committed = subprocess.check_output(
             [GIT, "show", f"{commit}:{EVIDENCE_RELATIVE}"], cwd=ROOT
         )
-        if committed == expected:
+        committed_transcript = subprocess.check_output(
+            [GIT, "show", f"{commit}:{TRANSCRIPT_RELATIVE}"], cwd=ROOT
+        )
+        if committed == expected and committed_transcript == expected_transcript:
             candidates.append(commit)
     if len(candidates) != 1:
         raise AssertionError(
@@ -137,7 +147,9 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
         changed = _git(
             "diff-tree", "--no-commit-id", "--name-only", "-r", evidence_commit
         ).splitlines()
-        self.assertEqual(changed, [EVIDENCE_RELATIVE])
+        self.assertEqual(
+            sorted(changed), sorted([EVIDENCE_RELATIVE, TRANSCRIPT_RELATIVE])
+        )
     def test_evidence_binding_accepts_pr_merge_ref(self) -> None:
         """Accept a PR merge-ref whose second parent is the evidence-only child."""
         with tempfile.TemporaryDirectory() as td:
@@ -164,7 +176,10 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
             evidence_path = repo / evidence_relative
             evidence_path.parent.mkdir(parents=True)
             evidence_path.write_text('{"status":"verified"}\n', encoding="utf-8")
-            run("add", evidence_relative)
+            transcript_relative = "docs/evidence.log.gz"
+            transcript_path = repo / transcript_relative
+            transcript_path.write_bytes(gzip.compress(b"suite\n__OMNIGENIS_EXIT_CODE__=0\n", mtime=0))
+            run("add", evidence_relative, transcript_relative)
             run("commit", "-m", "evidence")
             evidence_commit = git("rev-parse", "HEAD")
             run("checkout", "main")
@@ -175,6 +190,8 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
                 mock.patch(f"{module}.ROOT", repo),
                 mock.patch(f"{module}.EVIDENCE", evidence_path),
                 mock.patch(f"{module}.EVIDENCE_RELATIVE", evidence_relative),
+                mock.patch(f"{module}.TRANSCRIPT", transcript_path),
+                mock.patch(f"{module}.TRANSCRIPT_RELATIVE", transcript_relative),
             ):
                 self.assertEqual(_resolve_evidence_commit(implementation), evidence_commit)
 
@@ -204,7 +221,10 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
             evidence_path = repo / evidence_relative
             evidence_path.parent.mkdir(parents=True)
             evidence_path.write_text('{"status":"verified"}\n', encoding="utf-8")
-            run("add", evidence_relative)
+            transcript_relative = "docs/evidence.log.gz"
+            transcript_path = repo / transcript_relative
+            transcript_path.write_bytes(gzip.compress(b"suite\n__OMNIGENIS_EXIT_CODE__=0\n", mtime=0))
+            run("add", evidence_relative, transcript_relative)
             run("commit", "-m", "evidence")
             (repo / "later.txt").write_text("later\n", encoding="utf-8")
             run("add", "later.txt")
@@ -217,6 +237,8 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
                 mock.patch(f"{module}.ROOT", repo),
                 mock.patch(f"{module}.EVIDENCE", evidence_path),
                 mock.patch(f"{module}.EVIDENCE_RELATIVE", evidence_relative),
+                mock.patch(f"{module}.TRANSCRIPT", transcript_path),
+                mock.patch(f"{module}.TRANSCRIPT_RELATIVE", transcript_relative),
                 self.assertRaises(AssertionError),
             ):
                 _resolve_evidence_commit(implementation)
@@ -241,6 +263,15 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
         """Bind both post-merge canaries to stable runner IDs and canonical routing."""
         evidence = self.load()
         canaries = evidence["protected_main_canaries"]
+        provenance = evidence["canary_readback_provenance"]
+        sanitized = provenance["sanitized_output"]
+        self.assertEqual(provenance["source"], "GitHub REST API")
+        self.assertRegex(provenance["captured_at"], r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
+        self.assertEqual(
+            hashlib.sha256(sanitized.encode("utf-8")).hexdigest(),
+            provenance["sanitized_output_sha256"],
+        )
+        self.assertEqual(json.loads(sanitized), canaries)
         self.assertEqual(len(canaries), 2)
         by_runner = {int(item["runner_id"]): item for item in canaries}
         self.assertEqual(set(by_runner), set(EXPECTED_RUNNERS))
@@ -258,6 +289,15 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
         """Record live ruleset identity without claiming a semantic recomputation."""
         evidence = self.load()
         rulesets = evidence["rulesets"]
+        provenance = evidence["ruleset_readback_provenance"]
+        sanitized = provenance["sanitized_output"]
+        self.assertEqual(provenance["source"], "GitHub REST API")
+        self.assertRegex(provenance["captured_at"], r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
+        self.assertEqual(
+            hashlib.sha256(sanitized.encode("utf-8")).hexdigest(),
+            provenance["sanitized_output_sha256"],
+        )
+        self.assertEqual(json.loads(sanitized), rulesets)
         by_id = {int(item["id"]): item for item in rulesets}
         self.assertEqual(set(by_id), set(EXPECTED_RULESETS))
         for ruleset_id, (name, enforcement) in EXPECTED_RULESETS.items():
@@ -266,8 +306,35 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
             self.assertNotIn("semantic_sha256", by_id[ruleset_id])
         self.assertEqual(evidence["ruleset_semantic_recomputation"], "NOT_CLAIMED")
 
+    def test_validation_environment_is_deterministically_reconstructible(self) -> None:
+        """Require a recorded venv setup rooted in the versioned requirements lock."""
+        evidence = self.load()
+        environment = evidence["validation_environment"]
+        requirements = ROOT / environment["requirements_file"]
+        self.assertEqual(environment["requirements_file"], "reporting/requirements.txt")
+        self.assertEqual(
+            hashlib.sha256(requirements.read_bytes()).hexdigest(),
+            environment["requirements_sha256"],
+        )
+        setup = environment["setup_command"]
+        self.assertIn("python3.12 -m venv", setup)
+        self.assertIn("-r reporting/requirements.txt", setup)
+        self.assertEqual(
+            hashlib.sha256(setup.encode("utf-8")).hexdigest(),
+            environment["setup_command_sha256"],
+        )
+        self.assertEqual(environment["setup_status"], "EXECUTED")
+        interpreter = environment["interpreter"]
+        for name in (
+            "docs_language",
+            "implementation_suite_without_phase2d_evidence",
+            "phase2d_hardening",
+            "zero_identity_seal",
+        ):
+            self.assertIn(interpreter, evidence["validation_provenance"][name]["command"], name)
+
     def test_implementation_suite_provenance_is_replayable(self) -> None:
-        """Require an executable suite command rather than a prose placeholder."""
+        """Bind the suite claim to its command, committed transcript, and exit status."""
         evidence = self.load()
         record = evidence["validation_provenance"]["implementation_suite_without_phase2d_evidence"]
         command = record["command"]
@@ -275,9 +342,47 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
         self.assertNotIn(">", command)
         self.assertIn("find tests", command)
         self.assertIn("test_phase2d_evidence_contract.py", command)
-        self.assertEqual(record["exit_code"], 0)
-        self.assertIn("Ran ", record["sanitized_output"])
-        self.assertIn("OK", record["sanitized_output"])
+        self.assertEqual(record["transcript_path"], TRANSCRIPT_RELATIVE)
+        compressed = TRANSCRIPT.read_bytes()
+        self.assertEqual(hashlib.sha256(compressed).hexdigest(), record["transcript_gzip_sha256"])
+        transcript = gzip.decompress(compressed)
+        marker = re.search(rb"\n__OMNIGENIS_EXIT_CODE__=(\d+)\n$", transcript)
+        self.assertIsNotNone(marker)
+        assert marker is not None
+        raw_output = transcript[: marker.start()]
+        exit_code = int(marker.group(1))
+        self.assertEqual(exit_code, record["exit_code"])
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(hashlib.sha256(raw_output).hexdigest(), record["raw_output_sha256"])
+        decoded = raw_output.decode("utf-8")
+        ran = re.findall(r"^Ran \d+ tests(?: in [0-9.]+s)?$", decoded, flags=re.MULTILINE)
+        ok = re.findall(r"^OK(?: \(skipped=\d+\))?$", decoded, flags=re.MULTILINE)
+        self.assertTrue(ran)
+        self.assertTrue(ok)
+        summary = ran[-1] + "\n" + ok[-1] + "\n"
+        self.assertEqual(summary, record["sanitized_output"])
+        self.assertEqual(
+            hashlib.sha256(summary.encode("utf-8")).hexdigest(),
+            record["output_sha256"],
+        )
+        self.assertEqual(record["validated_head_sha"], evidence["implementation_head_sha"])
+        self.assertEqual(record["validated_tree_sha"], evidence["implementation_tree_sha"])
+        receipt_payload = {
+            "command": command,
+            "exit_code": exit_code,
+            "output_sha256": record["output_sha256"],
+            "raw_output_sha256": record["raw_output_sha256"],
+            "transcript_gzip_sha256": record["transcript_gzip_sha256"],
+            "validated_head_sha": record["validated_head_sha"],
+            "validated_tree_sha": record["validated_tree_sha"],
+            "environment_setup_sha256": evidence["validation_environment"]["setup_command_sha256"],
+            "requirements_sha256": evidence["validation_environment"]["requirements_sha256"],
+        }
+        canonical = json.dumps(receipt_payload, sort_keys=True, separators=(",", ":"))
+        self.assertEqual(
+            hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
+            record["execution_receipt_sha256"],
+        )
 
     def test_zero_identity_seal_and_class_counts_are_evidence_bound(self) -> None:
         """Bind the plan's zero-seal claim to executed evidence and explicit P1-P4 counts."""
