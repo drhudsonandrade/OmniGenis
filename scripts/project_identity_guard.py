@@ -217,8 +217,38 @@ def _validate_scope_policy(ledger: dict[str, Any]) -> None:
             raise ValueError(f"historical allowlist reason is required: {relative}")
 
 
+def _unstaged_identity_relevant_paths(
+    root: Path, ledger: dict[str, Any]
+) -> tuple[str, ...]:
+    """Return tracked unstaged paths that can change an identity decision."""
+    proc = subprocess.run(
+        ["git", "diff", "--name-only", "-z", "--"],
+        cwd=root,
+        check=True,
+        capture_output=True,
+    )
+    try:
+        changed = [item for item in proc.stdout.decode("utf-8").split("\0") if item]
+    except UnicodeDecodeError as exc:
+        raise ValueError("unstaged path list is not UTF-8") from exc
+    historical = set(ledger["historical_files"])
+    suffixes = tuple(ledger["scan_suffixes"])
+    controls = {IDENTITY_PATH.as_posix(), LEDGER_PATH.as_posix()}
+    relevant = {
+        relative
+        for relative in changed
+        if relative in controls
+        or relative in historical
+        or Path(relative).suffix in suffixes
+    }
+    return tuple(sorted(relevant))
+
+
 def scan_legacy_identities(root: Path, ledger: dict[str, Any]) -> dict[str, Any]:
     _validate_scope_policy(ledger)
+    unstaged = _unstaged_identity_relevant_paths(root, ledger)
+    if unstaged:
+        raise ValueError(f"unstaged identity-relevant change: {unstaged[0]}")
     suffixes = tuple(ledger["scan_suffixes"])
     historical: dict[str, dict[str, str]] = ledger["historical_files"]
     entries = _validate_entry_schema(ledger.get("entries"))
