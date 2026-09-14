@@ -77,6 +77,9 @@ jobs:
           echo "container_required=$container_required" >> "$GITHUB_OUTPUT"
 
   static:
+    permissions:
+      actions: read
+      contents: read
     needs: changes
     if: >-
       always() &&
@@ -110,6 +113,8 @@ jobs:
       - name: Install pinned editorial renderer dependencies
         run: python3 -m pip install --disable-pip-version-check -r reporting/requirements.txt
       - name: Validate shell and Python
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           export TMPDIR="$RUNNER_TEMP"
           bash -n scripts/*.sh tests/test_wgs_align_or_stage.sh tests/test_ci_changed_paths.sh

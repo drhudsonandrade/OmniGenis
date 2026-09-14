@@ -659,6 +659,16 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
             self.assertIn(f"actions/jobs/{job_id}", command)
         self.assertNotIn("authenticated protected-main canary jobs", command)
         subprocess.run(["bash", "-n", "-c", command], check=True, capture_output=True)
+        live = subprocess.run(
+            ["bash", "-c", command],
+            cwd=ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(live.returncode, 0, live.stderr)
+        self.assertEqual(live.stderr, "")
+        self.assertEqual(live.stdout, sanitized)
         self.assertEqual(captured["command"], command)
         self.assertEqual(captured["exit_code"], 0)
         self.assertRegex(captured["captured_at"], r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
@@ -677,6 +687,16 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
             run_record = bundle["canary_run_readbacks"][str(run_id)]
             self.assertEqual(run_record["exit_code"], 0)
             self.assertIn(f"actions/runs/{run_id}", run_record["command"])
+            live_run = subprocess.run(
+                ["bash", "-c", run_record["command"]],
+                cwd=ROOT,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(live_run.returncode, 0, live_run.stderr)
+            self.assertEqual(live_run.stderr, "")
+            self.assertEqual(live_run.stdout, run_record["raw_output"])
             self.assertEqual(
                 hashlib.sha256(run_record["raw_output"].encode("utf-8")).hexdigest(),
                 run_record["raw_output_sha256"],
