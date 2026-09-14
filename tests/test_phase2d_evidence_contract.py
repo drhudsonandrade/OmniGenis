@@ -38,6 +38,10 @@ EXPECTED_CANARIES = {
     21: (34778271301, 103780369158),
     22: (34778271133, 103780390014),
 }
+EXPECTED_CANARY_RUNS = {
+    34778271301: (334755305, "Genome runtime scaffold", ".github/workflows/scaffold-validation.yml"),
+    34778271133: (335346657, "GENOMA deterministic policy engine", ".github/workflows/genoma-policy-engine.yml"),
+}
 EXPECTED_RULESETS = {
     21303100: ("GENOMA protected main", "active"),
     22347095: ("GENOMA approval gate", "active"),
@@ -186,6 +190,13 @@ def _expected_ruleset_semantics(predecessor: dict) -> dict:
     return expected
 
 
+def _same_integration_binding(live: dict, expected: dict) -> bool:
+    """Require integration binding presence and identity to remain exact."""
+    if ("integration_id" in live) != ("integration_id" in expected):
+        return False
+    return "integration_id" not in expected or live["integration_id"] == expected["integration_id"]
+
+
 def _neutralize_ruleset(raw: dict, expected: dict) -> dict:
     """Project authenticated provider JSON into the versioned neutral semantic shape."""
     normalized = {
@@ -215,6 +226,7 @@ def _neutralize_ruleset(raw: dict, expected: dict) -> dict:
             live_check
             for live_check in live_checks
             if match_expected_check(live_check, expected_check)
+            and _same_integration_binding(live_check, expected_check)
         ]
         if len(matches) != 1:
             raise AssertionError("required status check did not resolve uniquely")
@@ -659,6 +671,30 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
             provenance["validation_bundle_record_sha256"],
             hashlib.sha256(_canonical_json_bytes(captured)).hexdigest(),
         )
+        run_hashes = provenance["run_readback_bundle_record_sha256"]
+        self.assertEqual(set(run_hashes), {str(run_id) for run_id in EXPECTED_CANARY_RUNS})
+        for run_id, (workflow_id, workflow_name, workflow_path) in EXPECTED_CANARY_RUNS.items():
+            run_record = bundle["canary_run_readbacks"][str(run_id)]
+            self.assertEqual(run_record["exit_code"], 0)
+            self.assertIn(f"actions/runs/{run_id}", run_record["command"])
+            self.assertEqual(
+                hashlib.sha256(run_record["raw_output"].encode("utf-8")).hexdigest(),
+                run_record["raw_output_sha256"],
+            )
+            self.assertEqual(
+                run_hashes[str(run_id)],
+                hashlib.sha256(_canonical_json_bytes(run_record)).hexdigest(),
+            )
+            run = json.loads(run_record["raw_output"])
+            self.assertEqual(run["id"], run_id)
+            self.assertEqual(run["workflow_id"], workflow_id)
+            self.assertEqual(run["name"], workflow_name)
+            self.assertEqual(run["path"], workflow_path)
+            self.assertEqual(run["event"], "push")
+            self.assertEqual(run["head_branch"], "main")
+            self.assertEqual(run["head_sha"], MERGE_SHA)
+            self.assertEqual(run["conclusion"], "success")
+            self.assertEqual(run["status"], "completed")
         self.assertEqual(
             hashlib.sha256(sanitized.encode("utf-8")).hexdigest(),
             provenance["sanitized_output_sha256"],
@@ -753,6 +789,26 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
         self.assertEqual(comparison["live_neutralized_sha256"], live_sha)
         self.assertEqual(live_sha, expected_sha)
         self.assertTrue(comparison["match"])
+
+    def test_ruleset_normalization_rejects_new_integration_binding(self) -> None:
+        """Do not erase a newly introduced provider integration binding."""
+        evidence = self.load()
+        bundle = self.load_validation_bundle(evidence)
+        predecessor = json.loads(RULESET_BASELINE.read_text(encoding="utf-8"))
+        expected = _expected_ruleset_semantics(predecessor)["21303100"]
+        live = json.loads(bundle["ruleset_readbacks"]["21303100"]["raw_output"])
+        checks = [
+            check
+            for rule in live["rules"]
+            if rule["type"] == "required_status_checks"
+            for check in rule["parameters"]["required_status_checks"]
+            if check.get("context") == "CodeRabbit"
+        ]
+        self.assertEqual(len(checks), 1)
+        self.assertNotIn("integration_id", checks[0])
+        checks[0]["integration_id"] = 999999
+        with self.assertRaises(AssertionError):
+            _neutralize_ruleset(live, expected)
 
     def test_validation_environment_is_deterministically_reconstructible(self) -> None:
         """Require a recorded venv setup rooted in the versioned requirements lock."""
