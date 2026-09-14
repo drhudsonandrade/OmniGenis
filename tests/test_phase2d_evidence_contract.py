@@ -125,6 +125,17 @@ def _resolve_evidence_delivery(implementation: str, payload_tree: str, base_main
         )
         if ancestry.returncode != 0 or _tree_without_evidence("HEAD") != payload_tree:
             raise original
+        try:
+            committed_evidence = subprocess.check_output(
+                [GIT, "show", f"HEAD:{EVIDENCE_RELATIVE}"], cwd=ROOT
+            )
+            committed_transcript = subprocess.check_output(
+                [GIT, "show", f"HEAD:{TRANSCRIPT_RELATIVE}"], cwd=ROOT
+            )
+        except subprocess.CalledProcessError:
+            raise original
+        if committed_evidence != EVIDENCE.read_bytes() or committed_transcript != TRANSCRIPT.read_bytes():
+            raise original
         return "squashed_head", fields[0]
 
 
