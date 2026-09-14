@@ -42,10 +42,7 @@ class Phase2DLegacyEliminationTest(unittest.TestCase):
             "baseline_commit": "pending",
             "phase": "2D",
             "control_metadata_paths": ["config/legacy_identity_ledger.json"],
-            "scan_suffixes": [
-                "", ".example", ".json", ".md", ".nf", ".py", ".service",
-                ".sh", ".toml", ".ts", ".txt", ".yaml", ".yml",
-            ],
+            "scan_suffixes": list(identity_guard.PHASE2D_SCAN_SUFFIXES),
             "historical_files": history,
             "entries": [
                 {
@@ -82,9 +79,11 @@ class Phase2DLegacyEliminationTest(unittest.TestCase):
         """Validate a temporary repository against its own committed baseline."""
         ledger = json.loads((root / "config/legacy_identity_ledger.json").read_text(encoding="utf-8"))
         membership = identity_guard._historical_path_set_sha256(ledger["historical_files"])
+        preserved = identity_guard._preserved_budget_policy_sha256(ledger.get("entries"))
         with (
             mock.patch.object(identity_guard, "PHASE2D_BASELINE_COMMIT", ledger["baseline_commit"]),
             mock.patch.object(identity_guard, "PHASE2D_HISTORICAL_PATHS_SHA256", membership),
+            mock.patch.object(identity_guard, "PHASE2D_PRESERVED_BUDGETS_SHA256", preserved),
         ):
             return validate_project_identity(root)
 
@@ -247,6 +246,16 @@ class Phase2DLegacyEliminationTest(unittest.TestCase):
                 "historical-repository-pr-urls": {},
             },
         )
+
+    def test_preserved_budget_policy_is_independently_pinned(self) -> None:
+        ledger = json.loads(LEDGER.read_text(encoding="utf-8"))
+        mutated = json.loads(json.dumps(ledger))
+        runtime = next(
+            entry for entry in mutated["entries"] if entry["id"] == "historical-runtime-zip"
+        )
+        runtime["locations"]["docs/GITHUB_MOBILE_IMPORT.md"] = 3
+        with self.assertRaisesRegex(ValueError, "preserved legacy budget policy mismatch"):
+            identity_guard._validate_scope_policy(mutated)
 
 
 if __name__ == "__main__":

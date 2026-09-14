@@ -18,8 +18,9 @@ LEGACY_RUNNER_POOL = LEGACY_WORD + "-isolated"
 LEGACY_CODERABBIT_BIN_ENV = LEGACY_WORD.upper() + "_CODERABBIT_BIN_DIR"
 
 EXPECTED_SCAN_SUFFIXES = [
-    "", ".example", ".json", ".md", ".nf", ".py", ".service",
-    ".sh", ".toml", ".ts", ".txt", ".yaml", ".yml",
+    "", ".config", ".example", ".in", ".json", ".md", ".nf", ".py",
+    ".rego", ".service", ".sh", ".sql", ".toml", ".ts", ".txt",
+    ".yaml", ".yml",
 ]
 
 IDENTITY = {
@@ -65,8 +66,13 @@ class ProjectIdentityGuardTest(unittest.TestCase):
         ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
         historical = ledger.get("historical_files", {})
         membership = identity_guard._historical_path_set_sha256(historical)
-        with mock.patch.object(
-            identity_guard, "PHASE2D_HISTORICAL_PATHS_SHA256", membership
+        try:
+            preserved = identity_guard._preserved_budget_policy_sha256(ledger.get("entries"))
+        except ValueError:
+            preserved = identity_guard.PHASE2D_PRESERVED_BUDGETS_SHA256
+        with (
+            mock.patch.object(identity_guard, "PHASE2D_HISTORICAL_PATHS_SHA256", membership),
+            mock.patch.object(identity_guard, "PHASE2D_PRESERVED_BUDGETS_SHA256", preserved),
         ):
             return validate_project_identity(root)
 
@@ -260,6 +266,19 @@ class ProjectIdentityGuardTest(unittest.TestCase):
         subprocess.run(["git", "add", relative], cwd=root, check=True)
         errors = self.validate_fixture(root)
         self.assertTrue(any("unclassified legacy identity" in error for error in errors), errors)
+
+    def test_active_implementation_suffixes_are_scanned(self) -> None:
+        for suffix in (".rego", ".sql", ".config", ".in"):
+            with self.subTest(suffix=suffix):
+                root = self.make_repo("clean")
+                relative = f"active{suffix}"
+                (root / relative).write_text(LEGACY_SURPRISE, encoding="utf-8")
+                subprocess.run(["git", "add", relative], cwd=root, check=True)
+                errors = self.validate_fixture(root)
+                self.assertTrue(
+                    any("unclassified legacy identity" in error for error in errors),
+                    errors,
+                )
 
     def test_empty_scan_suffix_policy_fails_closed(self) -> None:
         root = self.make_repo("clean", scan_suffixes=[])

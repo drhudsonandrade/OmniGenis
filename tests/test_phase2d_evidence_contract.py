@@ -181,18 +181,25 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
         """Bind evidence to the implementation and reviewed PR #71 baseline."""
         evidence = self.load()
         implementation = evidence["implementation_head_sha"]
-        self.assertEqual(
-            _git("rev-parse", f"{implementation}^{{tree}}"),
-            evidence["implementation_tree_sha"],
-        )
-        ancestry = subprocess.run(
-            [GIT, "merge-base", "--is-ancestor", MERGE_SHA, implementation],
+        payload_tree = evidence["implementation_payload_tree_sha"]
+        implementation_available = subprocess.run(
+            [GIT, "cat-file", "-e", f"{implementation}^{{commit}}"],
             cwd=ROOT,
             check=False,
-        )
-        self.assertEqual(ancestry.returncode, 0)
-        payload_tree = evidence["implementation_payload_tree_sha"]
-        self.assertEqual(_tree_without_evidence(implementation), payload_tree)
+            capture_output=True,
+        ).returncode == 0
+        if implementation_available:
+            self.assertEqual(
+                _git("rev-parse", f"{implementation}^{{tree}}"),
+                evidence["implementation_tree_sha"],
+            )
+            ancestry = subprocess.run(
+                [GIT, "merge-base", "--is-ancestor", MERGE_SHA, implementation],
+                cwd=ROOT,
+                check=False,
+            )
+            self.assertEqual(ancestry.returncode, 0)
+            self.assertEqual(_tree_without_evidence(implementation), payload_tree)
         mode, delivery = _resolve_evidence_delivery(implementation, payload_tree, MERGE_SHA)
         if mode == "evidence_commit":
             self.assertEqual(_git("rev-parse", f"{delivery}^"), implementation)
@@ -204,6 +211,7 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
             )
         else:
             self.assertEqual(delivery, _git("rev-parse", "HEAD"))
+            self.assertEqual(_tree_without_evidence(delivery), payload_tree)
     def test_evidence_binding_accepts_pr_merge_ref(self) -> None:
         """Accept a PR merge-ref whose second parent is the evidence-only child."""
         with tempfile.TemporaryDirectory() as td:
@@ -250,45 +258,85 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
                 self.assertEqual(_resolve_evidence_commit(implementation), evidence_commit)
 
     def test_evidence_binding_accepts_flattened_squash_payload(self) -> None:
-        """Accept a single squash commit whose non-evidence payload matches implementation."""
+        """Accept a squash checkout after unreachable implementation objects are pruned."""
         with tempfile.TemporaryDirectory() as td:
             repo = Path(td)
+
             def git(*args: str) -> str:
                 return subprocess.check_output([GIT, *args], cwd=repo, text=True).strip()
+
             def run(*args: str) -> None:
                 subprocess.run([GIT, *args], cwd=repo, check=True, capture_output=True)
+
             run("init", "-b", "main")
             run("config", "user.email", "test@example.invalid")
             run("config", "user.name", "Phase2D Evidence Test")
             (repo / "base.txt").write_text("base\n", encoding="utf-8")
-            run("add", "base.txt"); run("commit", "-m", "base")
+            run("add", "base.txt")
+            run("commit", "-m", "base")
             base = git("rev-parse", "HEAD")
             run("checkout", "-b", "feature")
             (repo / "implementation.txt").write_text("implementation\n", encoding="utf-8")
-            run("add", "implementation.txt"); run("commit", "-m", "implementation")
+            run("add", "implementation.txt")
+            run("commit", "-m", "implementation")
             implementation = git("rev-parse", "HEAD")
-            evidence_relative = "docs/evidence.json"; transcript_relative = "docs/evidence.log.gz"
-            evidence_path = repo / evidence_relative; transcript_path = repo / transcript_relative
+            implementation_tree = git("rev-parse", f"{implementation}^{{tree}}")
+
+            evidence_relative = "docs/evidence.json"
+            transcript_relative = "docs/evidence.log.gz"
+            evidence_path = repo / evidence_relative
+            transcript_path = repo / transcript_relative
             evidence_path.parent.mkdir(parents=True)
-            evidence_path.write_text('{"status":"verified"}\n', encoding="utf-8")
-            transcript_path.write_bytes(b"gzip-fixture")
-            run("add", evidence_relative, transcript_relative); run("commit", "-m", "evidence")
             module = __name__
+            with (
+                mock.patch(f"{module}.ROOT", repo),
+                mock.patch(f"{module}.EVIDENCE_RELATIVE", evidence_relative),
+                mock.patch(f"{module}.TRANSCRIPT_RELATIVE", transcript_relative),
+            ):
+                payload_tree = _tree_without_evidence(implementation)
+            evidence_path.write_text(
+                json.dumps(
+                    {
+                        "base_main_sha": base,
+                        "implementation_head_sha": implementation,
+                        "implementation_tree_sha": implementation_tree,
+                        "implementation_payload_tree_sha": payload_tree,
+                    },
+                    sort_keys=True,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            transcript_path.write_bytes(b"gzip-fixture")
+            run("add", evidence_relative, transcript_relative)
+            run("commit", "-m", "evidence")
+
+            run("checkout", "main")
+            run("merge", "--squash", "feature")
+            run("commit", "-m", "squashed delivery")
+            run("branch", "-D", "feature")
+            run("reflog", "expire", "--expire=now", "--all")
+            run("gc", "--prune=now")
+            missing = subprocess.run(
+                [GIT, "cat-file", "-e", f"{implementation}^{{commit}}"],
+                cwd=repo,
+                check=False,
+                capture_output=True,
+            )
+            self.assertNotEqual(missing.returncode, 0)
+
+            case = Phase2DEvidenceContractTest(
+                "test_implementation_tree_and_evidence_only_child_are_bound"
+            )
             with (
                 mock.patch(f"{module}.ROOT", repo),
                 mock.patch(f"{module}.EVIDENCE", evidence_path),
                 mock.patch(f"{module}.EVIDENCE_RELATIVE", evidence_relative),
                 mock.patch(f"{module}.TRANSCRIPT", transcript_path),
                 mock.patch(f"{module}.TRANSCRIPT_RELATIVE", transcript_relative),
+                mock.patch(f"{module}.MERGE_SHA", base),
             ):
-                payload_tree = _tree_without_evidence(implementation)
-                run("checkout", "main")
-                run("merge", "--squash", "feature")
-                run("commit", "-m", "squashed delivery")
-                run("branch", "-D", "feature")
-                mode, delivery = _resolve_evidence_delivery(implementation, payload_tree, base)
-                self.assertEqual(mode, "squashed_head")
-                self.assertEqual(delivery, git("rev-parse", "HEAD"))
+                case.test_implementation_tree_and_evidence_only_child_are_bound()
 
     def test_evidence_binding_rejects_extra_feature_commit_before_merge(self) -> None:
         """Reject a branch that adds unvalidated work after its evidence child."""

@@ -20,9 +20,11 @@ LEDGER_SCHEMA = "omnigenis-legacy-identity-ledger-v2"
 LEDGER_PHASE = "2D"
 PHASE2D_BASELINE_COMMIT = "a7cb7f5559a83adc3c75f61284fecb09d1fb5553"
 PHASE2D_HISTORICAL_PATHS_SHA256 = "2f07a075d573c443c9d7801e9ddddeafc4e68c1a21151b5063ef35d7e79da4f6"
+PHASE2D_PRESERVED_BUDGETS_SHA256 = "cfa134db8bd96f4c90ec4268dd0888f8aa1af6272ce9fc8068616e5d89791f93"
 PHASE2D_SCAN_SUFFIXES = (
-    "", ".example", ".json", ".md", ".nf", ".py", ".service",
-    ".sh", ".toml", ".ts", ".txt", ".yaml", ".yml",
+    "", ".config", ".example", ".in", ".json", ".md", ".nf", ".py",
+    ".rego", ".service", ".sh", ".sql", ".toml", ".ts", ".txt",
+    ".yaml", ".yml",
 )
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
@@ -138,6 +140,24 @@ def _validate_entry_schema(entries: object) -> list[dict[str, Any]]:
     return validated
 
 
+def _preserved_budget_policy_sha256(entries: object) -> str:
+    """Hash preserved matcher/location budgets independently of the mutable ledger."""
+    preserved = [
+        {
+            "id": entry["id"],
+            "matcher": entry["matcher"],
+            "locations": entry["locations"],
+        }
+        for entry in _validate_entry_schema(entries)
+        if entry.get("disposition", "migrate") == "preserve_historical"
+    ]
+    preserved.sort(key=lambda entry: entry["id"])
+    payload = (
+        json.dumps(preserved, sort_keys=True, separators=(",", ":")) + "\n"
+    ).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
 def _compile_matcher(entry: dict[str, Any]) -> re.Pattern[str]:
     matcher = entry["matcher"]
     kind = matcher["kind"]
@@ -164,6 +184,11 @@ def _validate_scope_policy(ledger: dict[str, Any]) -> None:
     if _historical_path_set_sha256(historical) != PHASE2D_HISTORICAL_PATHS_SHA256:
         raise ValueError("historical allowlist membership mismatch")
     _validate_entry_schema(ledger.get("entries"))
+    if (
+        _preserved_budget_policy_sha256(ledger.get("entries"))
+        != PHASE2D_PRESERVED_BUDGETS_SHA256
+    ):
+        raise ValueError("preserved legacy budget policy mismatch")
     for relative, record in historical.items():
         candidate = Path(relative) if isinstance(relative, str) else Path("/")
         if (
