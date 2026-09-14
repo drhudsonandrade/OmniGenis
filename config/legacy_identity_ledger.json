@@ -329,6 +329,7 @@
     ".sql",
     ".toml",
     ".ts",
+    ".tsv",
     ".txt",
     ".yaml",
     ".yml"

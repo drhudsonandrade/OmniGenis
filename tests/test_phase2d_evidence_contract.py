@@ -635,8 +635,10 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
     def test_protected_main_canaries_cover_both_canonical_runners(self) -> None:
         """Bind both post-merge canaries to stable runner IDs and canonical routing."""
         evidence = self.load()
+        bundle = self.load_validation_bundle(evidence)
         canaries = evidence["protected_main_canaries"]
         provenance = evidence["canary_readback_provenance"]
+        captured = bundle["canary_readback"]
         sanitized = provenance["sanitized_output"]
         self.assertEqual(provenance["source"], "GitHub REST API")
         self.assertRegex(provenance["captured_at"], r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
@@ -645,6 +647,18 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
             self.assertIn(f"actions/jobs/{job_id}", command)
         self.assertNotIn("authenticated protected-main canary jobs", command)
         subprocess.run(["bash", "-n", "-c", command], check=True, capture_output=True)
+        self.assertEqual(captured["command"], command)
+        self.assertEqual(captured["exit_code"], 0)
+        self.assertRegex(captured["captured_at"], r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
+        self.assertEqual(captured["raw_output"], sanitized)
+        self.assertEqual(
+            hashlib.sha256(captured["raw_output"].encode("utf-8")).hexdigest(),
+            captured["raw_output_sha256"],
+        )
+        self.assertEqual(
+            provenance["validation_bundle_record_sha256"],
+            hashlib.sha256(_canonical_json_bytes(captured)).hexdigest(),
+        )
         self.assertEqual(
             hashlib.sha256(sanitized.encode("utf-8")).hexdigest(),
             provenance["sanitized_output_sha256"],

@@ -23,7 +23,7 @@ PHASE2D_HISTORICAL_PATHS_SHA256 = "2f07a075d573c443c9d7801e9ddddeafc4e68c1a21151
 PHASE2D_PRESERVED_BUDGETS_SHA256 = "cfa134db8bd96f4c90ec4268dd0888f8aa1af6272ce9fc8068616e5d89791f93"
 PHASE2D_SCAN_SUFFIXES = (
     "", ".config", ".example", ".in", ".json", ".md", ".nf", ".py",
-    ".rego", ".service", ".sh", ".sql", ".toml", ".ts", ".txt",
+    ".rego", ".service", ".sh", ".sql", ".toml", ".ts", ".tsv", ".txt",
     ".yaml", ".yml",
 )
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -308,6 +308,10 @@ def scan_legacy_identities(root: Path, ledger: dict[str, Any]) -> dict[str, Any]
                 continue
             report["historical_verified"].append(posix)
             continue
+        if LEGACY_PATTERN.search(posix) or any(
+            _compile_matcher(entry).search(posix) for entry in entries
+        ):
+            report["unclassified"].append({"path": posix, "domain": "path"})
         if tracked_relative.suffix not in suffixes:
             continue
         text = _read_index_regular_blob(root, tracked_relative).decode("utf-8")
@@ -386,9 +390,12 @@ def validate_project_identity(root: Path) -> list[str]:
     for relative in report["unstaged_drift"]:
         errors.append(f"unstaged identity-relevant change: {relative}")
     for item in report["unclassified"]:
-        errors.append(
-            f"unclassified legacy identity: {item['path']}:{item['line']}"
-        )
+        if item.get("domain") == "path":
+            errors.append(f"unclassified legacy identity in tracked path: {item['path']}")
+        else:
+            errors.append(
+                f"unclassified legacy identity: {item['path']}:{item['line']}"
+            )
     for item in report["over_budget"]:
         errors.append(
             "legacy occurrence count increased: "

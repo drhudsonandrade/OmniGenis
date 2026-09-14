@@ -139,7 +139,7 @@ class Phase2DLegacyEliminationTest(unittest.TestCase):
             with self.subTest(path=relative):
                 self.assertIn(relative, tracked)
                 self.assertTrue(record["reason"])
-                payload = (ROOT / relative).read_bytes()
+                payload = identity_guard._read_index_regular_blob(ROOT, Path(relative))
                 self.assertEqual(hashlib.sha256(payload).hexdigest(), record["sha256"])
 
     def test_scanner_uses_distinct_loop_targets_for_string_and_path_domains(self) -> None:

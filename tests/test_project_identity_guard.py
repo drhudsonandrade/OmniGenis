@@ -19,7 +19,7 @@ LEGACY_CODERABBIT_BIN_ENV = LEGACY_WORD.upper() + "_CODERABBIT_BIN_DIR"
 
 EXPECTED_SCAN_SUFFIXES = [
     "", ".config", ".example", ".in", ".json", ".md", ".nf", ".py",
-    ".rego", ".service", ".sh", ".sql", ".toml", ".ts", ".txt",
+    ".rego", ".service", ".sh", ".sql", ".toml", ".ts", ".tsv", ".txt",
     ".yaml", ".yml",
 ]
 
@@ -304,7 +304,7 @@ class ProjectIdentityGuardTest(unittest.TestCase):
         self.assertTrue(any("unclassified legacy identity" in error for error in errors), errors)
 
     def test_active_implementation_suffixes_are_scanned(self) -> None:
-        for suffix in (".rego", ".sql", ".config", ".in"):
+        for suffix in (".rego", ".sql", ".config", ".in", ".tsv"):
             with self.subTest(suffix=suffix):
                 root = self.make_repo("clean")
                 relative = f"active{suffix}"
@@ -315,6 +315,19 @@ class ProjectIdentityGuardTest(unittest.TestCase):
                     any("unclassified legacy identity" in error for error in errors),
                     errors,
                 )
+
+    def test_tracked_path_with_legacy_identity_fails_even_for_unscanned_suffix(self) -> None:
+        root = self.make_repo("clean")
+        relative = f"scripts/{LEGACY_WORD}-helper.bin"
+        target = root / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(b"")
+        subprocess.run(["git", "add", relative], cwd=root, check=True)
+        errors = self.validate_fixture(root)
+        self.assertTrue(
+            any("unclassified legacy identity in tracked path" in error for error in errors),
+            errors,
+        )
 
     def test_empty_scan_suffix_policy_fails_closed(self) -> None:
         root = self.make_repo("clean", scan_suffixes=[])
