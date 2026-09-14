@@ -117,6 +117,8 @@ class Phase2DLegacyEliminationTest(unittest.TestCase):
         historical.write_bytes(original)
         errors = self._validate_fixture(root)
         self.assertTrue(any("historical allowlist drift" in e for e in errors), errors)
+        self.assertTrue(any("unstaged identity-relevant change" in e for e in errors), errors)
+
     def test_real_ledger_is_phase2d_and_has_zero_migrate_budgets(self) -> None:
         ledger = json.loads(LEDGER.read_text(encoding="utf-8"))
         self.assertEqual(ledger["schema"], "omnigenis-legacy-identity-ledger-v2")

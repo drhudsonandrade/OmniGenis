@@ -247,8 +247,6 @@ def _unstaged_identity_relevant_paths(
 def scan_legacy_identities(root: Path, ledger: dict[str, Any]) -> dict[str, Any]:
     _validate_scope_policy(ledger)
     unstaged = _unstaged_identity_relevant_paths(root, ledger)
-    if unstaged:
-        raise ValueError(f"unstaged identity-relevant change: {unstaged[0]}")
     suffixes = tuple(ledger["scan_suffixes"])
     historical: dict[str, dict[str, str]] = ledger["historical_files"]
     entries = _validate_entry_schema(ledger.get("entries"))
@@ -256,6 +254,7 @@ def scan_legacy_identities(root: Path, ledger: dict[str, Any]) -> dict[str, Any]
         "counts": {},
         "historical_drift": [],
         "historical_verified": [],
+        "unstaged_drift": list(unstaged),
         "unclassified": [],
         "over_budget": [],
     }
@@ -384,6 +383,8 @@ def validate_project_identity(root: Path) -> list[str]:
         errors.append(
             f"historical allowlist drift: {item['path']}: {item['reason']}"
         )
+    for relative in report["unstaged_drift"]:
+        errors.append(f"unstaged identity-relevant change: {relative}")
     for item in report["unclassified"]:
         errors.append(
             f"unclassified legacy identity: {item['path']}:{item['line']}"
