@@ -154,8 +154,8 @@
         "docs/GITHUB_MOBILE_IMPORT.md": 2
       },
       "matcher": {
-        "kind": "literal",
-        "value": "codework-genome-runtime-2026-08-15.zip"
+        "kind": "regex",
+        "value": "(?<![A-Za-z0-9_-])codework-genome-runtime-2026-08-15\\.zip(?![A-Za-z0-9_-])"
       },
       "reason": "Historical recovery archive filename; bytes/name are provenance.",
       "retire_by": "2D"

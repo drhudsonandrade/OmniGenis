@@ -20,7 +20,7 @@ LEDGER_SCHEMA = "omnigenis-legacy-identity-ledger-v2"
 LEDGER_PHASE = "2D"
 PHASE2D_BASELINE_COMMIT = "a7cb7f5559a83adc3c75f61284fecb09d1fb5553"
 PHASE2D_HISTORICAL_PATHS_SHA256 = "2f07a075d573c443c9d7801e9ddddeafc4e68c1a21151b5063ef35d7e79da4f6"
-PHASE2D_PRESERVED_BUDGETS_SHA256 = "cfa134db8bd96f4c90ec4268dd0888f8aa1af6272ce9fc8068616e5d89791f93"
+PHASE2D_PRESERVED_BUDGETS_SHA256 = "2e7603ab60a4e2cd135b1555326d80e1757968634db6961dbe4876dc9cc86d19"
 PHASE2D_SCAN_SUFFIXES = (
     "", ".config", ".example", ".in", ".json", ".md", ".nf", ".py",
     ".rego", ".service", ".sh", ".sql", ".toml", ".ts", ".tsv", ".txt",

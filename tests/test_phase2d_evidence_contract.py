@@ -56,6 +56,22 @@ def _git(*args: str) -> str:
     return subprocess.check_output([GIT, *args], cwd=ROOT, text=True).strip()
 
 
+def _run_live_readback(command: str) -> str:
+    """Execute one authenticated read-only evidence command and return exact stdout."""
+    proc = subprocess.run(
+        ["bash", "-c", command],
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode != 0:
+        raise AssertionError(f"live readback failed: {proc.stderr}")
+    if proc.stderr:
+        raise AssertionError(f"live readback wrote stderr: {proc.stderr}")
+    return proc.stdout
+
+
 def _canonical_json_bytes(value: object) -> bytes:
     return (json.dumps(value, sort_keys=True, separators=(",", ":")) + "\n").encode("utf-8")
 
@@ -645,10 +661,20 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
         )
 
     def test_protected_main_canaries_cover_both_canonical_runners(self) -> None:
-        """Bind both post-merge canaries to stable runner IDs and canonical routing."""
+        """Bind pre-Phase2D protected-main canaries as baseline context only."""
         evidence = self.load()
         bundle = self.load_validation_bundle(evidence)
         canaries = evidence["protected_main_canaries"]
+        scope = evidence["protected_main_canary_scope"]
+        self.assertEqual(
+            scope,
+            {
+                "role": "PRE_PHASE2D_BASELINE_CONTEXT_ONLY",
+                "commit_sha": MERGE_SHA,
+                "validates_implementation_payload": False,
+                "implementation_head_sha": evidence["implementation_head_sha"],
+            },
+        )
         provenance = evidence["canary_readback_provenance"]
         captured = bundle["canary_readback"]
         sanitized = provenance["sanitized_output"]
@@ -659,16 +685,7 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
             self.assertIn(f"actions/jobs/{job_id}", command)
         self.assertNotIn("authenticated protected-main canary jobs", command)
         subprocess.run(["bash", "-n", "-c", command], check=True, capture_output=True)
-        live = subprocess.run(
-            ["bash", "-c", command],
-            cwd=ROOT,
-            check=False,
-            capture_output=True,
-            text=True,
-        )
-        self.assertEqual(live.returncode, 0, live.stderr)
-        self.assertEqual(live.stderr, "")
-        self.assertEqual(live.stdout, sanitized)
+        self.assertEqual(_run_live_readback(command), sanitized)
         self.assertEqual(captured["command"], command)
         self.assertEqual(captured["exit_code"], 0)
         self.assertRegex(captured["captured_at"], r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
@@ -687,16 +704,10 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
             run_record = bundle["canary_run_readbacks"][str(run_id)]
             self.assertEqual(run_record["exit_code"], 0)
             self.assertIn(f"actions/runs/{run_id}", run_record["command"])
-            live_run = subprocess.run(
-                ["bash", "-c", run_record["command"]],
-                cwd=ROOT,
-                check=False,
-                capture_output=True,
-                text=True,
+            self.assertEqual(
+                _run_live_readback(run_record["command"]),
+                run_record["raw_output"],
             )
-            self.assertEqual(live_run.returncode, 0, live_run.stderr)
-            self.assertEqual(live_run.stderr, "")
-            self.assertEqual(live_run.stdout, run_record["raw_output"])
             self.assertEqual(
                 hashlib.sha256(run_record["raw_output"].encode("utf-8")).hexdigest(),
                 run_record["raw_output_sha256"],
@@ -742,6 +753,9 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
         sanitized = provenance["sanitized_output"]
         self.assertEqual(provenance["source"], "GitHub REST API")
         self.assertRegex(provenance["captured_at"], r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
+        for ruleset_id in EXPECTED_RULESETS:
+            self.assertNotIn(str(ruleset_id), provenance["command"])
+        self.assertEqual(_run_live_readback(provenance["command"]), sanitized)
         self.assertEqual(
             hashlib.sha256(sanitized.encode("utf-8")).hexdigest(),
             provenance["sanitized_output_sha256"],
@@ -778,17 +792,26 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
         readback = comparison["readback_provenance"]
         self.assertEqual(readback["source"], "GitHub REST API")
         self.assertEqual(readback["bundle_path"], VALIDATION_BUNDLE_RELATIVE)
-        captured: dict[str, dict] = {}
+        neutralized: dict[str, dict] = {}
         for ruleset_id in EXPECTED_RULESETS:
             key = str(ruleset_id)
             bundle_record = bundle["ruleset_readbacks"][key]
             self.assertEqual(bundle_record["exit_code"], 0)
             self.assertIn(f"rulesets/{ruleset_id}", bundle_record["command"])
             self.assertRegex(bundle_record["captured_at"], r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
-            raw = bundle_record["raw_output"]
+            self.assertNotIn("raw_output", bundle_record)
+            live_raw = _run_live_readback(bundle_record["command"])
             self.assertEqual(
-                hashlib.sha256(raw.encode("utf-8")).hexdigest(),
+                hashlib.sha256(live_raw.encode("utf-8")).hexdigest(),
                 bundle_record["raw_output_sha256"],
+            )
+            live = json.loads(live_raw)
+            normalized = _neutralize_ruleset(live, expected[key])
+            semantic = _canonical_json_bytes(normalized).decode("utf-8")
+            self.assertEqual(bundle_record["semantic_output"], semantic)
+            self.assertEqual(
+                hashlib.sha256(semantic.encode("utf-8")).hexdigest(),
+                bundle_record["semantic_output_sha256"],
             )
             evidence_record = readback["records"][key]
             self.assertEqual(evidence_record["command"], bundle_record["command"])
@@ -797,12 +820,8 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
                 evidence_record["bundle_record_sha256"],
                 hashlib.sha256(_canonical_json_bytes(bundle_record)).hexdigest(),
             )
-            captured[key] = json.loads(raw)
+            neutralized[key] = normalized
 
-        neutralized = {
-            key: _neutralize_ruleset(captured[key], expected[key])
-            for key in sorted(expected)
-        }
         self.assertEqual(neutralized, expected)
         live_sha = hashlib.sha256(_canonical_json_bytes(neutralized)).hexdigest()
         self.assertEqual(comparison["neutralized_live_semantics"], neutralized)
@@ -816,7 +835,8 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
         bundle = self.load_validation_bundle(evidence)
         predecessor = json.loads(RULESET_BASELINE.read_text(encoding="utf-8"))
         expected = _expected_ruleset_semantics(predecessor)["21303100"]
-        live = json.loads(bundle["ruleset_readbacks"]["21303100"]["raw_output"])
+        record = bundle["ruleset_readbacks"]["21303100"]
+        live = json.loads(_run_live_readback(record["command"]))
         checks = [
             check
             for rule in live["rules"]
@@ -977,16 +997,30 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
         self.assertIn("OK", seal["sanitized_output"])
 
     def test_runner_snapshot_has_authenticated_readback_provenance(self) -> None:
-        """Bind volatile runner state to repository identity, time, and sanitized API bytes."""
+        """Bind volatile runner state to an executed raw-output bundle record."""
         evidence = self.load()
+        bundle = self.load_validation_bundle(evidence)
         self.assertEqual(evidence["repository_id"], 1212760346)
         captured_at = evidence["runner_snapshot_captured_at"]
         self.assertRegex(captured_at, r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
         provenance = evidence["runner_readback_provenance"]
+        captured = bundle["runner_readback"]
         self.assertEqual(provenance["source"], "GitHub REST API")
         self.assertIn("repositories/1212760346", provenance["command"])
         self.assertIn("actions/runners", provenance["command"])
+        self.assertEqual(captured["command"], provenance["command"])
+        self.assertEqual(captured["exit_code"], 0)
+        self.assertRegex(captured["captured_at"], r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
         sanitized = provenance["sanitized_output"]
+        self.assertEqual(captured["raw_output"], sanitized)
+        self.assertEqual(
+            hashlib.sha256(captured["raw_output"].encode("utf-8")).hexdigest(),
+            captured["raw_output_sha256"],
+        )
+        self.assertEqual(
+            provenance["validation_bundle_record_sha256"],
+            hashlib.sha256(_canonical_json_bytes(captured)).hexdigest(),
+        )
         self.assertEqual(
             hashlib.sha256(sanitized.encode("utf-8")).hexdigest(),
             provenance["sanitized_output_sha256"],

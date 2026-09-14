@@ -329,6 +329,23 @@ class ProjectIdentityGuardTest(unittest.TestCase):
             errors,
         )
 
+    def test_preserved_archive_name_may_not_be_extended(self) -> None:
+        relative = "docs/GITHUB_MOBILE_IMPORT.md"
+        root = self.make_real_repo_subset([relative])
+        target = root / relative
+        original = target.read_text(encoding="utf-8")
+        exact = LEGACY_WORD + "-genome-runtime-2026-08-15.zip"
+        self.assertIn(exact, original)
+        target.write_text(
+            original.replace(exact, "malicious-" + exact, 1),
+            encoding="utf-8",
+        )
+        subprocess.run(["git", "add", relative], cwd=root, check=True)
+        errors = self.validate_fixture(root)
+        self.assertTrue(
+            any("unclassified legacy identity" in error for error in errors), errors
+        )
+
     def test_empty_scan_suffix_policy_fails_closed(self) -> None:
         root = self.make_repo("clean", scan_suffixes=[])
         errors = self.validate_fixture(root)
