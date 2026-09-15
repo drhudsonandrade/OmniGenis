@@ -1223,6 +1223,21 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
                 self.assertEqual(captured["exit_code"], 0)
                 self.assertEqual(captured["validated_head_sha"], implementation)
                 self.assertEqual(captured["validated_tree_sha"], tree)
+                execution_context = captured["execution_context"]
+                self.assertEqual(execution_context["mode"], "detached_git_worktree")
+                self.assertEqual(execution_context["head_sha"], implementation)
+                self.assertEqual(execution_context["tree_sha"], tree)
+                self.assertEqual(execution_context["status_porcelain"], "")
+                context_payload = {
+                    "head_sha": implementation,
+                    "mode": "detached_git_worktree",
+                    "status_porcelain": "",
+                    "tree_sha": tree,
+                }
+                self.assertEqual(
+                    execution_context["receipt_sha256"],
+                    hashlib.sha256(_canonical_json_bytes(context_payload)).hexdigest(),
+                )
                 self.assertEqual(record["command"], captured["command"])
                 self.assertEqual(record["exit_code"], captured["exit_code"])
                 self.assertEqual(record["validated_head_sha"], implementation)
