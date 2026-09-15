@@ -23,9 +23,9 @@
     "requires_base_main_ancestry": true,
     "requires_evidence_artifact_equality": true
   },
-  "implementation_head_sha": "4e59e12f41f55c7de9fbdff79673a922666e6fdf",
-  "implementation_payload_tree_sha": "3073a58fa3af8185e016d0433fde096c8c5e84df",
-  "implementation_tree_sha": "136a27782df264eac7f01aae137f29319668032b",
+  "implementation_head_sha": "851317b2d02c9e045d7adf37944ee88e2e2f22ce",
+  "implementation_payload_tree_sha": "5b441bcc3b4f8824892661ba0436df7738c06a7d",
+  "implementation_tree_sha": "25ac1fde4e52da74d4a48d24827cdca4b30013c8",
   "legacy_inventory": {
     "active_migrate_location_count": 0,
     "historical_drift": [],
@@ -64,7 +64,7 @@
   ],
   "protected_main_canary_scope": {
     "commit_sha": "a7cb7f5559a83adc3c75f61284fecb09d1fb5553",
-    "implementation_head_sha": "4e59e12f41f55c7de9fbdff79673a922666e6fdf",
+    "implementation_head_sha": "851317b2d02c9e045d7adf37944ee88e2e2f22ce",
     "role": "PRE_PHASE2D_BASELINE_CONTEXT_ONLY",
     "validates_implementation_payload": false
   },
@@ -314,13 +314,13 @@
     "status": "BLOCKED_RUNTIME_RESOURCE_GATE"
   },
   "runner_readback_provenance": {
-    "captured_at": "2026-09-15T17:50:39Z",
+    "captured_at": "2026-09-15T18:18:35Z",
     "command": "repo=\"$(gh api repositories/1212760346 --jq .full_name)\"; gh api --paginate --slurp \"repos/$repo/actions/runners?per_page=100\" | python3 -c 'import sys,json,hashlib; pages=json.load(sys.stdin); runners=[x for page in pages for x in page[\"runners\"]]; totals={int(page[\"total_count\"]) for page in pages}; assert len(totals)==1 and len(runners)==totals.pop() and len({int(x[\"id\"]) for x in runners})==len(runners); o=sorted([{\"id\":x[\"id\"],\"status\":x[\"status\"],\"busy\":x[\"busy\"],\"labels\":[y[\"name\"] for y in x[\"labels\"]],\"runner_name_sha256\":hashlib.sha256(x[\"name\"].encode()).hexdigest()} for x in runners],key=lambda x:x[\"id\"]); print(json.dumps(o,sort_keys=True,separators=(\",\",\":\")))'",
-    "replay_bundle_record_sha256": "dd2617292048f834322cea20a6f7d7cdbf684c21c6f787e49cd056c99744b444",
+    "replay_bundle_record_sha256": "25c21d97e99e47d57ade9f354e205cb9f3ca6e65e5e7e1d5cf6912fb4063c090",
     "sanitized_output": "[{\"busy\":false,\"id\":21,\"labels\":[\"self-hosted\",\"Linux\",\"X64\",\"omnigenis-isolated\",\"omnigenis-01\"],\"runner_name_sha256\":\"90eeec4bbf8402458fd978e8e455ae3dbf93637bd7addb068ff5b0ae2d80b2cd\",\"status\":\"online\"},{\"busy\":false,\"id\":22,\"labels\":[\"self-hosted\",\"Linux\",\"X64\",\"omnigenis-isolated\",\"omnigenis-02\"],\"runner_name_sha256\":\"d230518f559a417c7807ef428a3fa8adeafb30921d2c57e1545ee8b4314d3e93\",\"status\":\"online\"}]\n",
     "sanitized_output_sha256": "0df0a4bdec2db41e96c61f803c603f33258c05934ddc9811d17b614bdb2efe9f",
     "source": "GitHub REST API",
-    "validation_bundle_record_sha256": "00b27c71ae8af51da45867a51cf9b45b06b7f3f4f501087661684193e19c55bc"
+    "validation_bundle_record_sha256": "248bc6b9c14eebd45cec29dd3d1f934867bf141fb14ba11a0fd849799a235d87"
   },
   "runner_snapshot": [
     {
@@ -350,12 +350,12 @@
       "status": "online"
     }
   ],
-  "runner_snapshot_captured_at": "2026-09-15T17:50:39Z",
+  "runner_snapshot_captured_at": "2026-09-15T18:18:35Z",
   "schema": "omnigenis-phase2d-legacy-elimination-v1",
   "secret_material_recorded": false,
   "validation_bundle": {
     "path": "docs/superpowers/evidence/2026-09-14-omnigenis-phase2d-validation-bundle.json",
-    "sha256": "c9f51cf3f2adeea1b033826e81be458f7619cb87bc07abce53ece6b27160b8df"
+    "sha256": "a08fdab811af9ac27ed5adf26074cd1c62802292d53e2fb54e46d934cd173b5f"
   },
   "validation_environment": {
     "interpreter": "/tmp/omnigenis-phase2d-validation-venv/bin/python",
@@ -375,31 +375,31 @@
       "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "raw_output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "sanitized_output": "",
-      "validated_head_sha": "4e59e12f41f55c7de9fbdff79673a922666e6fdf",
-      "validated_tree_sha": "136a27782df264eac7f01aae137f29319668032b",
-      "validation_bundle_record_sha256": "e01922766230c072c52011bc1a4fb0d16f29405dddd02814708c83583a9315ed"
+      "validated_head_sha": "851317b2d02c9e045d7adf37944ee88e2e2f22ce",
+      "validated_tree_sha": "25ac1fde4e52da74d4a48d24827cdca4b30013c8",
+      "validation_bundle_record_sha256": "67153df38a79366c361a1b29f796a4ad2e04ac554349d212075977b87a354b87"
     },
     "diff_check": {
-      "command": "git diff --check a7cb7f5559a83adc3c75f61284fecb09d1fb5553 4e59e12f41f55c7de9fbdff79673a922666e6fdf",
+      "command": "git diff --check a7cb7f5559a83adc3c75f61284fecb09d1fb5553 851317b2d02c9e045d7adf37944ee88e2e2f22ce",
       "exit_code": 0,
       "output_kind": "inline_sanitized_summary",
       "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "raw_output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "sanitized_output": "",
-      "validated_head_sha": "4e59e12f41f55c7de9fbdff79673a922666e6fdf",
-      "validated_tree_sha": "136a27782df264eac7f01aae137f29319668032b",
-      "validation_bundle_record_sha256": "70ff85274fa689587795e688afe1978a052bbafe3504add04eb79115132edd1b"
+      "validated_head_sha": "851317b2d02c9e045d7adf37944ee88e2e2f22ce",
+      "validated_tree_sha": "25ac1fde4e52da74d4a48d24827cdca4b30013c8",
+      "validation_bundle_record_sha256": "4ebec7c752f5d483353b531135e7af0020da6b932e9b00bdf196c21a22c35899"
     },
     "docs_language": {
       "command": "PYTHONPATH=tests:. /tmp/omnigenis-phase2d-validation-venv/bin/python -m unittest tests.test_developer_documentation_language -v",
       "exit_code": 0,
       "output_kind": "inline_sanitized_summary",
-      "output_sha256": "0336ef19636fc7b31a1278607ab448bef3c3b9c4403c8a01e3699c1c7d105a24",
-      "raw_output_sha256": "a951b1d05606177e6f3e6c0fcd7893345f39789d12426ee8c52c516ecbd768a0",
-      "sanitized_output": "Ran 27 tests in 0.203s\nOK\n",
-      "validated_head_sha": "4e59e12f41f55c7de9fbdff79673a922666e6fdf",
-      "validated_tree_sha": "136a27782df264eac7f01aae137f29319668032b",
-      "validation_bundle_record_sha256": "3c19b675108656f2b9a320fb3f8dea14e49241d04589ada123600433728c4ee6"
+      "output_sha256": "2c11fa529ddc4c038e1088b938cd23b03fbdb0a48e0a79216ee13e3e39b6b7e3",
+      "raw_output_sha256": "5091f54f26c55d1d08ee581d713496ea12fc852edb59fbd7565b6baab4385a3e",
+      "sanitized_output": "Ran 27 tests in 0.204s\nOK\n",
+      "validated_head_sha": "851317b2d02c9e045d7adf37944ee88e2e2f22ce",
+      "validated_tree_sha": "25ac1fde4e52da74d4a48d24827cdca4b30013c8",
+      "validation_bundle_record_sha256": "05ee3712a7b2533d943161334952abc64c56fc5ef5c0adb5e7465d589367b013"
     },
     "identity": {
       "command": "python3 scripts/project_identity_guard.py --check",
@@ -408,22 +408,22 @@
       "output_sha256": "0c6537c2763c5efb04594bf3441d6e02a721a5f1f220fe4490de707fea3aad2d",
       "raw_output_sha256": "0c6537c2763c5efb04594bf3441d6e02a721a5f1f220fe4490de707fea3aad2d",
       "sanitized_output": "PASS\tproject_identity_contract\n",
-      "validated_head_sha": "4e59e12f41f55c7de9fbdff79673a922666e6fdf",
-      "validated_tree_sha": "136a27782df264eac7f01aae137f29319668032b",
-      "validation_bundle_record_sha256": "1dece410f3e6cfd9ebd7a0af59cdc8e8aa918584efb51da2728d493370cd1fbc"
+      "validated_head_sha": "851317b2d02c9e045d7adf37944ee88e2e2f22ce",
+      "validated_tree_sha": "25ac1fde4e52da74d4a48d24827cdca4b30013c8",
+      "validation_bundle_record_sha256": "461d133659ad7e02f1ac2f61d3a054be9d696a3b443641bdf0c446cb7844fb89"
     },
     "implementation_suite_without_phase2d_evidence": {
       "command": "PYTHONPATH=tests:. /tmp/omnigenis-phase2d-validation-venv/bin/python -m unittest $(find tests -maxdepth 1 -name 'test_*.py' ! -name 'test_phase2d_evidence_contract.py' -printf '%f\\n' | sort | sed 's/\\.py$//' | tr '\\n' ' ') -v",
-      "execution_receipt_sha256": "ad1a8a408ed8baa263d04db6ed9c267b061bb80cccedce301b0b94a9bde042d5",
+      "execution_receipt_sha256": "fa8e117d14e026e2fff1f0c8947329199819fba6dc22cf3b1f9c7ea6c9eee9fe",
       "exit_code": 0,
       "output_kind": "inline_sanitized_summary",
-      "output_sha256": "674d097edfb84e0c3530bb211d7342c5a6439532f454cb3e754ca850b2203c60",
-      "raw_output_sha256": "a2956624ad93f2e3dfa82dd2cbccc4bf29fd01a2fa9bde5976ecc15d39d29e8a",
-      "sanitized_output": "Ran 1194 tests in 300.825s\nOK (skipped=1)\n",
-      "transcript_gzip_sha256": "1df66ee718210faa79f781381bffe066eb490c03373c9b859dc6cc86cc34b6d3",
+      "output_sha256": "1e3dfe0d7acafff80bbe45f5f732bccd554a1275848112428a00a45fc39f8ba3",
+      "raw_output_sha256": "d1386c7c76eee9cafca97027bd79828a811a7cb217db8ab8370bf26d9e0adcad",
+      "sanitized_output": "Ran 1194 tests in 307.882s\nOK (skipped=1)\n",
+      "transcript_gzip_sha256": "898dfa3538813b6430131093bb326524bf6b00637422e0718dfa7c2af7e5253c",
       "transcript_path": "docs/superpowers/evidence/2026-09-13-omnigenis-phase2d-implementation-suite.log.gz",
-      "validated_head_sha": "4e59e12f41f55c7de9fbdff79673a922666e6fdf",
-      "validated_tree_sha": "136a27782df264eac7f01aae137f29319668032b"
+      "validated_head_sha": "851317b2d02c9e045d7adf37944ee88e2e2f22ce",
+      "validated_tree_sha": "25ac1fde4e52da74d4a48d24827cdca4b30013c8"
     },
     "legacy_inventory": {
       "command": "python3 scripts/project_identity_guard.py --inventory",
@@ -432,20 +432,20 @@
       "output_sha256": "0eec39139d9f347b86ef0f21d3c8f1823963a45dabf1b90b37431cd70c49afd5",
       "raw_output_sha256": "0eec39139d9f347b86ef0f21d3c8f1823963a45dabf1b90b37431cd70c49afd5",
       "sanitized_output": "{\n  \"counts\": {\n    \"historical-runtime-zip\": {\n      \"docs/GITHUB_MOBILE_IMPORT.md\": 2\n    }\n  },\n  \"historical_drift\": [],\n  \"historical_verified\": [\n    \"docs/superpowers/checkpoints/2026-09-03-local-first-ci-session.md\",\n    \"docs/superpowers/evidence/2026-09-03-pr36-local-validation-5953286.md\",\n    \"docs/superpowers/evidence/2026-09-03-pr36-local-validation-977a531.md\",\n    \"docs/superpowers/evidence/2026-09-10-omnigenis-phase2a-identity-contract.json\",\n    \"docs/superpowers/evidence/2026-09-10-omnigenis-repository-identity-migration.json\",\n    \"docs/superpowers/evidence/2026-09-11-omnigenis-phase2b-runtime-build-identity.json\",\n    \"docs/superpowers/evidence/2026-09-11-omnigenis-phase2c-runner-cutover.json\",\n    \"docs/superpowers/plans/2026-09-07-scaffold-buildkit-cache.md\",\n    \"docs/superpowers/plans/2026-09-08-scientific-internals-english.md\",\n    \"docs/superpowers/plans/2026-09-09-policy-evidence-audit-english.md\",\n    \"docs/superpowers/plans/2026-09-09-reporting-english-locale.md\",\n    \"docs/superpowers/plans/2026-09-10-omnigenis-phase2a-internal-identity-contract.md\",\n    \"docs/superpowers/plans/2026-09-10-omnigenis-repository-identity-migration.md\",\n    \"docs/superpowers/plans/2026-09-11-omnigenis-phase2b-runtime-build-identity-cutover.md\",\n    \"docs/superpowers/plans/2026-09-11-omnigenis-phase2c-runner-identity-cutover.md\",\n    \"docs/superpowers/specs/2026-09-03-english-codebase-refactor-design.md\",\n    \"docs/superpowers/specs/2026-09-03-local-first-ci-architecture-design.md\",\n    \"docs/superpowers/specs/2026-09-05-draft-first-final-ci-design.md\",\n    \"docs/superpowers/specs/2026-09-05-four-plane-audit-static-dependency-design.md\",\n    \"docs/superpowers/specs/2026-09-10-omnigenis-phase2-internal-identity-migration-design.md\",\n    \"docs/superpowers/specs/2026-09-10-omnigenis-repository-identity-migration-design.md\"\n  ],\n  \"over_budget\": [],\n  \"unclassified\": [],\n  \"unstaged_drift\": []\n}\n",
-      "validated_head_sha": "4e59e12f41f55c7de9fbdff79673a922666e6fdf",
-      "validated_tree_sha": "136a27782df264eac7f01aae137f29319668032b",
-      "validation_bundle_record_sha256": "54f1b27a5016510ce49b46c9f4c8df5b3edd30ef2c849faffea0897bde1e4e32"
+      "validated_head_sha": "851317b2d02c9e045d7adf37944ee88e2e2f22ce",
+      "validated_tree_sha": "25ac1fde4e52da74d4a48d24827cdca4b30013c8",
+      "validation_bundle_record_sha256": "790b0ac453a7adfd9badb5173cb67ad9c07d9b0aaeddf0e39dd571bbcd2627c1"
     },
     "phase2d_hardening": {
       "command": "PYTHONPATH=tests:. /tmp/omnigenis-phase2d-validation-venv/bin/python -m unittest tests.test_phase2d_legacy_elimination tests.test_project_identity_guard tests.test_integration_code_language -v",
       "exit_code": 0,
       "output_kind": "inline_sanitized_summary",
-      "output_sha256": "8711b035d04acf3dbf54448a4ea2e38a0dc4f4d64aa8d13d34b67b01074e36e6",
-      "raw_output_sha256": "b0f4b01aac65139f609d2b3d2d33482b1319d0a20e6a1e41b0dba23d5926e444",
-      "sanitized_output": "Ran 45 tests in 5.480s\nOK\n",
-      "validated_head_sha": "4e59e12f41f55c7de9fbdff79673a922666e6fdf",
-      "validated_tree_sha": "136a27782df264eac7f01aae137f29319668032b",
-      "validation_bundle_record_sha256": "a4fc8e7d9fc4a37e262d728dbb633cc0a36a3203516757ad8d7de477f04f542b"
+      "output_sha256": "ba483373e2c328945da48a945e7ba4516f4c913e462b10e51992136d4b7821dc",
+      "raw_output_sha256": "3dfca5d5f2c90e047455aff56082c3192eebf8ca8f8574a21009b39efca862dc",
+      "sanitized_output": "Ran 45 tests in 5.504s\nOK\n",
+      "validated_head_sha": "851317b2d02c9e045d7adf37944ee88e2e2f22ce",
+      "validated_tree_sha": "25ac1fde4e52da74d4a48d24827cdca4b30013c8",
+      "validation_bundle_record_sha256": "d4f1eeef9c734858a4573aafa42efe4ed702c8cf8008de920de55251f8653c42"
     },
     "residual_language": {
       "command": "python3 scripts/residual_language_audit.py --check",
@@ -454,9 +454,9 @@
       "output_sha256": "3aa068a3ee76de0f29694f99d95a5e14143a3ed1743f142bd60781ef1cdcfc25",
       "raw_output_sha256": "3aa068a3ee76de0f29694f99d95a5e14143a3ed1743f142bd60781ef1cdcfc25",
       "sanitized_output": "{\"category_files\": {\"canonical\": 13, \"compatibility-preserved\": 108, \"historical\": 27, \"localized\": 68, \"normative\": 36}, \"category_lines\": {\"canonical\": 31, \"compatibility-preserved\": 4861, \"historical\": 766, \"localized\": 1740, \"normative\": 204}, \"clean\": true, \"detected_lines\": 7602, \"drift\": [], \"missing\": [], \"schema\": \"genoma-residual-language-audit-v1\", \"tracked_files_with_residuals\": 252, \"unclassified\": []}\n",
-      "validated_head_sha": "4e59e12f41f55c7de9fbdff79673a922666e6fdf",
-      "validated_tree_sha": "136a27782df264eac7f01aae137f29319668032b",
-      "validation_bundle_record_sha256": "b7d0ccefd76aaf9f9caae4496b179f486aeaec08f90aab1c6e655c561b6c20c5"
+      "validated_head_sha": "851317b2d02c9e045d7adf37944ee88e2e2f22ce",
+      "validated_tree_sha": "25ac1fde4e52da74d4a48d24827cdca4b30013c8",
+      "validation_bundle_record_sha256": "1338161c1be34f40e78d1e511d1395cdbb3a1eaa001323e63f3ab1195f37575d"
     },
     "shell_syntax": {
       "command": "find scripts -type f -name '*.sh' -exec bash -n {} +",
@@ -465,9 +465,9 @@
       "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "raw_output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "sanitized_output": "",
-      "validated_head_sha": "4e59e12f41f55c7de9fbdff79673a922666e6fdf",
-      "validated_tree_sha": "136a27782df264eac7f01aae137f29319668032b",
-      "validation_bundle_record_sha256": "7b649e8fd896cd682452a93c7a6cf69f5baa66c7a3d9552e59ea176e54a4ad54"
+      "validated_head_sha": "851317b2d02c9e045d7adf37944ee88e2e2f22ce",
+      "validated_tree_sha": "25ac1fde4e52da74d4a48d24827cdca4b30013c8",
+      "validation_bundle_record_sha256": "c08ce00a9d9350ec910472e4fcedefb6851bd1a0b8d170443eada12a6065c893"
     },
     "supply_chain": {
       "command": "python3 scripts/verify_supply_chain_lock.py",
@@ -476,9 +476,9 @@
       "output_sha256": "3ffbf1e78306655dbb2f214974a4e24c842e6378da0e2d8840d43b2eb4939c7c",
       "raw_output_sha256": "3ffbf1e78306655dbb2f214974a4e24c842e6378da0e2d8840d43b2eb4939c7c",
       "sanitized_output": "PASS\tactions_immutable\t10 action identities observed\nPASS\tcontainer_digests\tbase image\nPASS\texternal_secret_scanner\tGitGuardian Security Checks@46505\nPASS\truntime_versions\texact critical conda pins\n",
-      "validated_head_sha": "4e59e12f41f55c7de9fbdff79673a922666e6fdf",
-      "validated_tree_sha": "136a27782df264eac7f01aae137f29319668032b",
-      "validation_bundle_record_sha256": "5d26038d0e03020efb601252a9cebeceb79f53734169a1765292bd918c805f9a"
+      "validated_head_sha": "851317b2d02c9e045d7adf37944ee88e2e2f22ce",
+      "validated_tree_sha": "25ac1fde4e52da74d4a48d24827cdca4b30013c8",
+      "validation_bundle_record_sha256": "5206d7e66e66caffa14514986ea7a6c6b3284a158de07289a43fbabffee305f3"
     },
     "validate_repo": {
       "command": "python3 scripts/validate_repo.py",
@@ -487,9 +487,9 @@
       "output_sha256": "3c0dc015021366a6895ca1777bd4be46995994861b27bb8fcaa7cb47a143f2fd",
       "raw_output_sha256": "3c0dc015021366a6895ca1777bd4be46995994861b27bb8fcaa7cb47a143f2fd",
       "sanitized_output": "PASS\trepository_contract\nPASS\truleset_manifest_contract\tv3.4 raw SHA-256 pinned\nPASS\trepository_active_rulesets\t0\nPASS\tsealed_normative_transport\tshared decoder\nPASS\tgrch38_manifest\t9/9\nPASS\tpre_dna_readiness_contract\tlatest-tested candidate + canaries + freshness + runtime/resource gate\nPASS\twgs_scientific_data_plane_contract\treal SNV/indel path + explicit unsupported classes\nPASS\tarray_scientific_data_plane_contract\tQC + target-first evidence + policy/report handoff\nPASS\tevidence_adapter_contract\tClinVar/ClinGen/CPIC/ClinPGx/gnomAD/PGS Catalog\nPASS\tsupply_chain_contract\tworkflow/action/container lock paths present\nPASS\treporting_contract\t11-model deterministic renderer and reference identities\nPASS\toptional_adapters\tcore has no external runtime dependency\n",
-      "validated_head_sha": "4e59e12f41f55c7de9fbdff79673a922666e6fdf",
-      "validated_tree_sha": "136a27782df264eac7f01aae137f29319668032b",
-      "validation_bundle_record_sha256": "e3255d710e7420a8e2401d84adaf2321128d0359e7ed8a3c2716fb956bd09060"
+      "validated_head_sha": "851317b2d02c9e045d7adf37944ee88e2e2f22ce",
+      "validated_tree_sha": "25ac1fde4e52da74d4a48d24827cdca4b30013c8",
+      "validation_bundle_record_sha256": "30b8c9cf28864f8f7032231f2b9b7bca4dae55d2129ae4cc1174a7d2b1de431d"
     },
     "zero_identity": {
       "command": "python3 scripts/zero_identity_guard.py --check",
@@ -498,9 +498,9 @@
       "output_sha256": "c3d9578a5523c7d94201489a5809df65f0529e2ae4e5e0df64cd3eb604b62e8c",
       "raw_output_sha256": "c3d9578a5523c7d94201489a5809df65f0529e2ae4e5e0df64cd3eb604b62e8c",
       "sanitized_output": "PASS\tzero_identity_guard\tfindings=0\n",
-      "validated_head_sha": "4e59e12f41f55c7de9fbdff79673a922666e6fdf",
-      "validated_tree_sha": "136a27782df264eac7f01aae137f29319668032b",
-      "validation_bundle_record_sha256": "885bef4971b5ce2b167111c4aaebcd7b623578a1be1e2ee9fd5f6bcefd599499"
+      "validated_head_sha": "851317b2d02c9e045d7adf37944ee88e2e2f22ce",
+      "validated_tree_sha": "25ac1fde4e52da74d4a48d24827cdca4b30013c8",
+      "validation_bundle_record_sha256": "722fea302f878da067e51c942498b5f3de2c2df3f394edfc12e260c4c5497fb8"
     },
     "zero_identity_plane_inventory": {
       "command": "PYTHONPATH=. python3 -c \"from pathlib import Path; import json; from scripts import zero_identity_guard as z; r=Path('.').resolve(); c=z._load_index_policy(r); d={x.class_id:{'path':0,'blob':0} for x in c}; [( [d.__getitem__(i).__setitem__('path',d[i]['path']+1) for i,_ in z._find_matches(p,c)], [d.__getitem__(i).__setitem__('blob',d[i]['blob']+1) for i,_ in z._find_matches(z._read_index_blob(r,p,c),c)] ) for p in z._tracked_paths(r)]; print(json.dumps(d,separators=(',',':'),sort_keys=True))\"",
@@ -509,20 +509,20 @@
       "output_sha256": "84b448e16eb9250ad6a03f1f8999864b8cee9a717a7bbc77ef717eadafae333f",
       "raw_output_sha256": "84b448e16eb9250ad6a03f1f8999864b8cee9a717a7bbc77ef717eadafae333f",
       "sanitized_output": "{\"P1\":{\"blob\":0,\"path\":0},\"P2\":{\"blob\":0,\"path\":0},\"P3\":{\"blob\":0,\"path\":0},\"P4\":{\"blob\":0,\"path\":0}}\n",
-      "validated_head_sha": "4e59e12f41f55c7de9fbdff79673a922666e6fdf",
-      "validated_tree_sha": "136a27782df264eac7f01aae137f29319668032b",
-      "validation_bundle_record_sha256": "8248a140831a7211654b3f658428d702be17ca08da832632c2ce6ddeac6a8019"
+      "validated_head_sha": "851317b2d02c9e045d7adf37944ee88e2e2f22ce",
+      "validated_tree_sha": "25ac1fde4e52da74d4a48d24827cdca4b30013c8",
+      "validation_bundle_record_sha256": "ae96278b59591a5a957fcbf13a5298d8b95c27b0d3cb82c664e90c5319a4efbc"
     },
     "zero_identity_seal": {
       "command": "PYTHONPATH=tests:. /tmp/omnigenis-phase2d-validation-venv/bin/python -m unittest tests.test_zero_identity_seal -v",
       "exit_code": 0,
       "output_kind": "inline_sanitized_summary",
-      "output_sha256": "04c3b07bfb7ea2030b83cd4e9b9cf87680df2924a0fddfa96e7ef5052df09417",
-      "raw_output_sha256": "fd2743c2ede8c33f9c63d270e1952df9b8d0ea46e1411fef2882b235f06c8943",
-      "sanitized_output": "Ran 10 tests in 0.566s\nOK\n",
-      "validated_head_sha": "4e59e12f41f55c7de9fbdff79673a922666e6fdf",
-      "validated_tree_sha": "136a27782df264eac7f01aae137f29319668032b",
-      "validation_bundle_record_sha256": "4aa4004ba98b373de8bddc9ea19018fa0e66ebd40f3e5b4b45fbc53d24e09a6c"
+      "output_sha256": "b997ffef1080491af4a5a6cba1bb3fb4c81be8775935b6986faf6fd84a0ef383",
+      "raw_output_sha256": "c6d21a997787790a8f6efec88d95e503b612b90e218ed9feb8cabf71e5604fc2",
+      "sanitized_output": "Ran 10 tests in 0.791s\nOK\n",
+      "validated_head_sha": "851317b2d02c9e045d7adf37944ee88e2e2f22ce",
+      "validated_tree_sha": "25ac1fde4e52da74d4a48d24827cdca4b30013c8",
+      "validation_bundle_record_sha256": "880d3a67d12ebaccb82a07a787d5119ec013aeb865681d94d861ba83d6078977"
     }
   },
   "zero_identity_class_counts": {
