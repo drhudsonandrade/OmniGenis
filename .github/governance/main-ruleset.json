@@ -43,10 +43,6 @@
             "context": "CodeRabbit"
           },
           {
-            "context": "Greptile Review",
-            "integration_id": 867647
-          },
-          {
             "context": "GitGuardian Security Checks",
             "integration_id": 46505
           },

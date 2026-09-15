@@ -28,6 +28,26 @@ The desired state for `main` is split into two layered rulesets:
 
 The approval-layer bypass does not apply to the Security & CI ruleset, so required checks cannot be bypassed through this architecture. These files are desired-state artifacts, not evidence that GitHub has applied the rulesets.
 
+## Reviewer retirement — 2026-09-15
+
+The owner retired Greptile for this repository only. `Greptile Review` and
+integration ID `867647` must not be required or reintroduced by bootstrap,
+restoration, or checkpoint validation. The protected-main manifest now retains
+exactly 14 required checks; all other check identities and integration bindings,
+strict status-check enforcement, deletion/force-push protection, and the separate
+human approval layer remain unchanged.
+
+This corrects a stale desired-state manifest: the authenticated protected-main
+ruleset already omitted the retired check. Do not add it to the live ruleset to
+make an outdated manifest pass. Continue comparing live state against the current
+versioned manifests and retain fail-closed behavior for any other divergence.
+
+GitHub App repository access is a separate administrative surface. Removing a
+required status check does not prove that application access was revoked. Verify
+repository-specific removal in the installation settings without uninstalling or
+changing the application for other repositories. Historical plans and evidence
+remain historical records, not authority to reactivate the retired reviewer.
+
 ## `audit-evidence`
 
 Target branch: `audit-evidence`.
