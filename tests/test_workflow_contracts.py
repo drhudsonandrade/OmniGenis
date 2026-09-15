@@ -246,6 +246,14 @@ def _assert_attestation_step_is_in_main_gated_ceremony_job(workflow: str) -> Non
 
 
 class WorkflowContractTest(unittest.TestCase):
+    def test_scaffold_pr_validation_does_not_expose_actions_token(self):
+        workflow = (ROOT / ".github/workflows/scaffold-validation.yml").read_text(encoding="utf-8")
+        static = _job_block(workflow, "static")
+        validate = _named_step_block(workflow, "static", "Validate shell and Python")
+        self.assertNotIn("actions: read", static)
+        self.assertNotIn("GH_TOKEN", validate)
+        self.assertIn("persist-credentials: false", static)
+
     def test_production_witness_uses_current_live_smoke_cli_contract(self):
         workflow = (ROOT / ".github/workflows/genoma-production-witness.yml").read_text(encoding="utf-8")
         self.assertIn("--output evidence/live-section-260/summary.json", workflow)

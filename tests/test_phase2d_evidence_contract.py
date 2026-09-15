@@ -46,6 +46,7 @@ EXPECTED_RULESETS = {
     21303100: ("GENOMA protected main", "active"),
     22347095: ("GENOMA approval gate", "active"),
 }
+LIVE_REPLAY_ENV = "OMNIGENIS_PHASE2D_LIVE_REPLAY"
 GIT = shutil.which("git")
 if GIT is None:
     raise RuntimeError("git is required by the Phase 2D evidence contract")
@@ -685,8 +686,12 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
             self.assertIn(f"actions/jobs/{job_id}", command)
         self.assertNotIn("authenticated protected-main canary jobs", command)
         subprocess.run(["bash", "-n", "-c", command], check=True, capture_output=True)
-        self.assertEqual(_run_live_readback(command), sanitized)
+        replay = bundle["canary_replay"]
         self.assertEqual(captured["command"], command)
+        self.assertEqual(replay["command"], command)
+        self.assertEqual(replay["exit_code"], 0)
+        self.assertEqual(replay["raw_output"], sanitized)
+        self.assertEqual(replay["raw_output_sha256"], captured["raw_output_sha256"])
         self.assertEqual(captured["exit_code"], 0)
         self.assertRegex(captured["captured_at"], r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
         self.assertEqual(captured["raw_output"], sanitized)
@@ -704,10 +709,11 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
             run_record = bundle["canary_run_readbacks"][str(run_id)]
             self.assertEqual(run_record["exit_code"], 0)
             self.assertIn(f"actions/runs/{run_id}", run_record["command"])
-            self.assertEqual(
-                _run_live_readback(run_record["command"]),
-                run_record["raw_output"],
-            )
+            replay_record = bundle["canary_run_replays"][str(run_id)]
+            self.assertEqual(replay_record["command"], run_record["command"])
+            self.assertEqual(replay_record["exit_code"], 0)
+            self.assertEqual(replay_record["raw_output"], run_record["raw_output"])
+            self.assertEqual(replay_record["raw_output_sha256"], run_record["raw_output_sha256"])
             self.assertEqual(
                 hashlib.sha256(run_record["raw_output"].encode("utf-8")).hexdigest(),
                 run_record["raw_output_sha256"],
@@ -755,7 +761,11 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
         self.assertRegex(provenance["captured_at"], r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
         for ruleset_id in EXPECTED_RULESETS:
             self.assertNotIn(str(ruleset_id), provenance["command"])
-        self.assertEqual(_run_live_readback(provenance["command"]), sanitized)
+        summary_replay = bundle["ruleset_summary_replay"]
+        self.assertEqual(summary_replay["command"], provenance["command"])
+        self.assertEqual(summary_replay["exit_code"], 0)
+        self.assertEqual(summary_replay["raw_output"], sanitized)
+        self.assertEqual(summary_replay["raw_output_sha256"], provenance["sanitized_output_sha256"])
         self.assertEqual(
             hashlib.sha256(sanitized.encode("utf-8")).hexdigest(),
             provenance["sanitized_output_sha256"],
@@ -800,13 +810,15 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
             self.assertIn(f"rulesets/{ruleset_id}", bundle_record["command"])
             self.assertRegex(bundle_record["captured_at"], r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
             self.assertNotIn("raw_output", bundle_record)
-            live_raw = _run_live_readback(bundle_record["command"])
-            self.assertEqual(
-                hashlib.sha256(live_raw.encode("utf-8")).hexdigest(),
-                bundle_record["raw_output_sha256"],
-            )
-            live = json.loads(live_raw)
-            normalized = _neutralize_ruleset(live, expected[key])
+            replay_record = bundle["ruleset_replays"][key]
+            self.assertNotIn("raw_output", replay_record)
+            self.assertEqual(replay_record["command"], bundle_record["command"])
+            self.assertEqual(replay_record["exit_code"], 0)
+            self.assertEqual(replay_record["raw_output_sha256"], bundle_record["raw_output_sha256"])
+            self.assertEqual(replay_record["semantic_output"], bundle_record["semantic_output"])
+            self.assertEqual(replay_record["semantic_output_sha256"], bundle_record["semantic_output_sha256"])
+            normalized = json.loads(bundle_record["semantic_output"])
+            self.assertEqual(normalized, expected[key])
             semantic = _canonical_json_bytes(normalized).decode("utf-8")
             self.assertEqual(bundle_record["semantic_output"], semantic)
             self.assertEqual(
@@ -831,24 +843,56 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
 
     def test_ruleset_normalization_rejects_new_integration_binding(self) -> None:
         """Do not erase a newly introduced provider integration binding."""
-        evidence = self.load()
-        bundle = self.load_validation_bundle(evidence)
-        predecessor = json.loads(RULESET_BASELINE.read_text(encoding="utf-8"))
-        expected = _expected_ruleset_semantics(predecessor)["21303100"]
-        record = bundle["ruleset_readbacks"]["21303100"]
-        live = json.loads(_run_live_readback(record["command"]))
-        checks = [
-            check
-            for rule in live["rules"]
-            if rule["type"] == "required_status_checks"
-            for check in rule["parameters"]["required_status_checks"]
-            if check.get("context") == "CodeRabbit"
-        ]
-        self.assertEqual(len(checks), 1)
-        self.assertNotIn("integration_id", checks[0])
-        checks[0]["integration_id"] = 999999
+        expected = {
+            "id": 1,
+            "name": "fixture",
+            "enforcement": "active",
+            "conditions": {},
+            "bypass_actors": [],
+            "rules": [
+                {
+                    "type": "required_status_checks",
+                    "parameters": {"required_status_checks": [{"context": "CodeRabbit"}]},
+                }
+            ],
+            "required_status_contexts": ["CodeRabbit"],
+        }
+        live = copy.deepcopy(expected)
+        check = live["rules"][0]["parameters"]["required_status_checks"][0]
+        check["integration_id"] = 999999
         with self.assertRaises(AssertionError):
             _neutralize_ruleset(live, expected)
+
+    @unittest.skipUnless(
+        os.environ.get(LIVE_REPLAY_ENV) == "1",
+        "authenticated Phase 2D live replay is an opt-in evidence ceremony",
+    )
+    def test_authenticated_external_readbacks_replay_exactly(self) -> None:
+        """Optionally replay committed external evidence outside untrusted PR CI."""
+        evidence = self.load()
+        bundle = self.load_validation_bundle(evidence)
+        pairs = [
+            (bundle["canary_readback"], bundle["canary_replay"]),
+            (bundle["runner_readback"], bundle["runner_replay"]),
+            (bundle["ruleset_summary"], bundle["ruleset_summary_replay"]),
+        ]
+        pairs.extend(
+            (bundle["canary_run_readbacks"][key], bundle["canary_run_replays"][key])
+            for key in sorted(bundle["canary_run_readbacks"])
+        )
+        for captured, replay in pairs:
+            self.assertEqual(captured["command"], replay["command"])
+            self.assertEqual(_run_live_readback(captured["command"]), captured["raw_output"])
+            self.assertEqual(captured["raw_output"], replay["raw_output"])
+        for key in sorted(bundle["ruleset_readbacks"]):
+            captured = bundle["ruleset_readbacks"][key]
+            replay = bundle["ruleset_replays"][key]
+            live_raw = _run_live_readback(captured["command"])
+            self.assertEqual(
+                hashlib.sha256(live_raw.encode("utf-8")).hexdigest(),
+                captured["raw_output_sha256"],
+            )
+            self.assertEqual(captured["raw_output_sha256"], replay["raw_output_sha256"])
 
     def test_validation_environment_is_deterministically_reconstructible(self) -> None:
         """Require a recorded venv setup rooted in the versioned requirements lock."""
@@ -1005,14 +1049,19 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
         self.assertRegex(captured_at, r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
         provenance = evidence["runner_readback_provenance"]
         captured = bundle["runner_readback"]
+        replay = bundle["runner_replay"]
         self.assertEqual(provenance["source"], "GitHub REST API")
         self.assertIn("repositories/1212760346", provenance["command"])
         self.assertIn("actions/runners", provenance["command"])
         self.assertEqual(captured["command"], provenance["command"])
+        self.assertEqual(replay["command"], provenance["command"])
         self.assertEqual(captured["exit_code"], 0)
+        self.assertEqual(replay["exit_code"], 0)
         self.assertRegex(captured["captured_at"], r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
         sanitized = provenance["sanitized_output"]
         self.assertEqual(captured["raw_output"], sanitized)
+        self.assertEqual(replay["raw_output"], sanitized)
+        self.assertEqual(replay["raw_output_sha256"], captured["raw_output_sha256"])
         self.assertEqual(
             hashlib.sha256(captured["raw_output"].encode("utf-8")).hexdigest(),
             captured["raw_output_sha256"],
