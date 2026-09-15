@@ -52,7 +52,11 @@ VALIDATION_INTERPRETER = "/tmp/omnigenis-phase2d-validation-venv/bin/python"
 VALIDATION_SETUP_COMMAND = (
     "python3.12 -m venv --clear /tmp/omnigenis-phase2d-validation-venv && "
     "/tmp/omnigenis-phase2d-validation-venv/bin/python -m pip install "
-    "--disable-pip-version-check --require-hashes -r reporting/requirements.txt"
+    "--disable-pip-version-check --require-hashes -r reporting/requirements.txt && "
+    "/tmp/omnigenis-phase2d-validation-venv/bin/python -m pip check"
+)
+VALIDATION_PIP_CHECK_COMMAND = (
+    "/tmp/omnigenis-phase2d-validation-venv/bin/python -m pip check"
 )
 EXPECTED_REPOSITORY_IDENTITY = {
     "id": REPOSITORY_ID,
@@ -143,8 +147,18 @@ def _live_canary_jobs_output() -> str:
 
 def _live_runner_output() -> str:
     repo = _live_repository_full_name()
-    raw = _gh_api_json(f"repos/{repo}/actions/runners")
-    assert isinstance(raw, dict)
+    pages = _gh_api_json(
+        f"repos/{repo}/actions/runners?per_page=100", "--paginate", "--slurp"
+    )
+    assert isinstance(pages, list) and pages
+    total_counts = {int(page["total_count"]) for page in pages}
+    if len(total_counts) != 1:
+        raise AssertionError("runner page total_count values disagree")
+    runners = [item for page in pages for item in page["runners"]]
+    if len(runners) != total_counts.pop():
+        raise AssertionError("paginated runner readback is incomplete")
+    if len({int(item["id"]) for item in runners}) != len(runners):
+        raise AssertionError("paginated runner readback contains duplicate IDs")
     rows = [
         {
             "id": item["id"],
@@ -153,7 +167,7 @@ def _live_runner_output() -> str:
             "labels": [label["name"] for label in item["labels"]],
             "runner_name_sha256": hashlib.sha256(item["name"].encode()).hexdigest(),
         }
-        for item in raw["runners"]
+        for item in runners
     ]
     return _canonical_json_text(sorted(rows, key=lambda item: item["id"]))
 
@@ -1093,7 +1107,14 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
         self.assertEqual(receipt["requirements_sha256"], environment["requirements_sha256"])
         self.assertEqual(receipt["interpreter"], VALIDATION_INTERPRETER)
         self.assertEqual(receipt["python_version"], environment["python_version"])
-        self.assertEqual(receipt["pip_check"], "No broken requirements found.")
+        pip_check = receipt["pip_check"]
+        self.assertEqual(pip_check["command"], VALIDATION_PIP_CHECK_COMMAND)
+        self.assertEqual(pip_check["exit_code"], 0)
+        self.assertEqual(pip_check["output"], "No broken requirements found.\n")
+        self.assertEqual(
+            hashlib.sha256(pip_check["output"].encode("utf-8")).hexdigest(),
+            pip_check["output_sha256"],
+        )
         locked = {
             match.group(1).lower().replace("_", "-"): match.group(2).strip()
             for match in re.finditer(
@@ -1233,6 +1254,52 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
         self.assertIn("Ran ", seal["sanitized_output"])
         self.assertIn("OK", seal["sanitized_output"])
 
+    def test_live_runner_readback_requires_complete_pagination(self) -> None:
+        """Flatten every runner page and reject incomplete provider responses."""
+        pages = [
+            {
+                "total_count": 2,
+                "runners": [
+                    {
+                        "id": 21,
+                        "name": "runner-a",
+                        "status": "online",
+                        "busy": False,
+                        "labels": [{"name": "self-hosted"}],
+                    }
+                ],
+            },
+            {
+                "total_count": 2,
+                "runners": [
+                    {
+                        "id": 22,
+                        "name": "runner-b",
+                        "status": "online",
+                        "busy": False,
+                        "labels": [{"name": "self-hosted"}],
+                    }
+                ],
+            },
+        ]
+        with (
+            mock.patch(f"{__name__}._live_repository_full_name", return_value="owner/repo"),
+            mock.patch(f"{__name__}._gh_api_json", return_value=pages) as readback,
+        ):
+            output = json.loads(_live_runner_output())
+        self.assertEqual([item["id"] for item in output], [21, 22])
+        readback.assert_called_once_with(
+            "repos/owner/repo/actions/runners?per_page=100", "--paginate", "--slurp"
+        )
+
+        incomplete = [{"total_count": 2, "runners": pages[0]["runners"]}]
+        with (
+            mock.patch(f"{__name__}._live_repository_full_name", return_value="owner/repo"),
+            mock.patch(f"{__name__}._gh_api_json", return_value=incomplete),
+            self.assertRaisesRegex(AssertionError, "incomplete"),
+        ):
+            _live_runner_output()
+
     def test_runner_snapshot_has_authenticated_readback_provenance(self) -> None:
         """Bind volatile runner state to an executed raw-output bundle record."""
         evidence = self.load()
@@ -1246,6 +1313,12 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
         self.assertEqual(provenance["source"], "GitHub REST API")
         self.assertIn("repositories/1212760346", provenance["command"])
         self.assertIn("actions/runners", provenance["command"])
+        self.assertIn("per_page=100", provenance["command"])
+        self.assertIn("--paginate", provenance["command"])
+        self.assertIn("--slurp", provenance["command"])
+        self.assertIn("pages=json.load", provenance["command"])
+        self.assertIn("for page in pages for x in page", provenance["command"])
+        self.assertIn("total_count", provenance["command"])
         self.assertEqual(captured["command"], provenance["command"])
         self.assertEqual(replay["command"], provenance["command"])
         self.assertEqual(captured["exit_code"], 0)
