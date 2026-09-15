@@ -29,7 +29,8 @@ VALIDATION_BUNDLE_RELATIVE = (
 )
 VALIDATION_BUNDLE = ROOT / VALIDATION_BUNDLE_RELATIVE
 LEDGER = ROOT / "config/legacy_identity_ledger.json"
-RULESET_BASELINE = ROOT / "docs/superpowers/evidence/2026-09-10-omnigenis-repository-identity-migration.json"
+MAIN_RULESET_MANIFEST = ROOT / ".github/governance/main-ruleset.json"
+APPROVAL_RULESET_MANIFEST = ROOT / ".github/governance/main-approval-ruleset.json"
 RUNNER_NAME_BASELINE = ROOT / "docs/superpowers/evidence/2026-09-11-omnigenis-phase2c-runner-cutover.json"
 MERGE_SHA = "a7cb7f5559a83adc3c75f61284fecb09d1fb5553"
 EXPECTED_HISTORICAL_FILES = 21
@@ -346,16 +347,30 @@ def _resolve_evidence_delivery(implementation: str, payload_tree: str, base_main
 
 
 
-def _expected_ruleset_semantics(predecessor: dict) -> dict:
-    """Apply the one authorized approval hardening delta to predecessor semantics."""
-    expected = copy.deepcopy(predecessor["ruleset_semantics_post"])
-    approval = expected["22347095"]
-    pull_request_rules = [rule for rule in approval["rules"] if rule["type"] == "pull_request"]
-    if len(pull_request_rules) != 1:
-        raise AssertionError("approval baseline must contain exactly one pull_request rule")
-    parameters = pull_request_rules[0]["parameters"]
-    parameters["required_approving_review_count"] = 1
-    parameters["require_last_push_approval"] = True
+def _expected_ruleset_semantics() -> dict:
+    """Derive required live semantics from the current governance manifests."""
+    manifests = {
+        21303100: MAIN_RULESET_MANIFEST,
+        22347095: APPROVAL_RULESET_MANIFEST,
+    }
+    expected: dict[str, dict] = {}
+    for ruleset_id, path in manifests.items():
+        manifest = json.loads(path.read_text(encoding="utf-8"))
+        if manifest.pop("target") != "branch":
+            raise AssertionError(f"{path} must target branches")
+        manifest["id"] = ruleset_id
+        required_status_contexts: list[object] = []
+        for rule in manifest["rules"]:
+            if rule["type"] != "required_status_checks":
+                continue
+            for item in rule["parameters"]["required_status_checks"]:
+                required_status_contexts.append(
+                    item["context"]
+                    if "context" in item
+                    else {"context_fingerprint": copy.deepcopy(item["context_fingerprint"])}
+                )
+        manifest["required_status_contexts"] = required_status_contexts
+        expected[str(ruleset_id)] = manifest
     return expected
 
 
@@ -995,24 +1010,19 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
             self.assertEqual(by_id[ruleset_id]["name"], name)
             self.assertEqual(by_id[ruleset_id]["enforcement"], enforcement)
 
-        predecessor = json.loads(RULESET_BASELINE.read_text(encoding="utf-8"))
-        baseline = predecessor["ruleset_semantics_post"]
-        expected = _expected_ruleset_semantics(predecessor)
-        baseline_sha = hashlib.sha256(_canonical_json_bytes(baseline)).hexdigest()
+        expected = _expected_ruleset_semantics()
         expected_sha = hashlib.sha256(_canonical_json_bytes(expected)).hexdigest()
         comparison = evidence["ruleset_semantic_comparison"]
+        manifest_sources = {
+            "21303100": ".github/governance/main-ruleset.json",
+            "22347095": ".github/governance/main-approval-ruleset.json",
+        }
+        self.assertEqual(comparison["governance_manifest_sources"], manifest_sources)
         self.assertEqual(
-            comparison["baseline_source"],
-            "docs/superpowers/evidence/2026-09-10-omnigenis-repository-identity-migration.json#ruleset_semantics_post",
-        )
-        self.assertEqual(comparison["baseline_semantics_sha256"], baseline_sha)
-        self.assertEqual(
-            comparison["authorized_delta"],
+            comparison["governance_manifest_sha256"],
             {
-                "ruleset_id": 22347095,
-                "source": ".github/governance/main-approval-ruleset.json",
-                "required_approving_review_count": {"from": 0, "to": 1},
-                "require_last_push_approval": {"from": False, "to": True},
+                key: hashlib.sha256((ROOT / path).read_bytes()).hexdigest()
+                for key, path in manifest_sources.items()
             },
         )
         self.assertEqual(comparison["expected_semantics_sha256"], expected_sha)
@@ -1198,13 +1208,7 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
         self.assertEqual(exit_code, 0)
         self.assertEqual(hashlib.sha256(raw_output).hexdigest(), record["raw_output_sha256"])
         decoded = raw_output.decode("utf-8")
-        ran = re.findall(r"^Ran \d+ tests(?: in [0-9.]+s)?$", decoded, flags=re.MULTILINE)
-        ok = re.findall(r"^OK(?: \(skipped=\d+\))?$", decoded, flags=re.MULTILINE)
-        self.assertTrue(ran)
-        self.assertTrue(ok)
-        self.assertNotRegex(decoded, r"(?m)^FAILED \(")
-        self.assertNotRegex(decoded, r"(?m)^ERROR: ")
-        summary = ran[-1] + "\n" + ok[-1] + "\n"
+        summary = _validated_unittest_summary(decoded)
         self.assertEqual(summary, record["sanitized_output"])
         self.assertEqual(
             hashlib.sha256(summary.encode("utf-8")).hexdigest(),
@@ -1311,11 +1315,14 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
     def test_zero_identity_seal_and_class_counts_are_evidence_bound(self) -> None:
         """Bind the plan's zero-seal claim to executed evidence and explicit P1-P4 counts."""
         evidence = self.load()
+        bundle = self.load_validation_bundle(evidence)
         counts = evidence["zero_identity_class_counts"]
+        inventory_record = bundle["gates"]["zero_identity_plane_inventory"]
+        inventory_counts = json.loads(inventory_record["raw_output"])
         self.assertEqual(set(counts), {"P1", "P2", "P3", "P4"})
+        self.assertEqual(inventory_counts, counts)
         for class_id, record in counts.items():
             self.assertEqual(record, {"path": 0, "blob": 0}, class_id)
-        bundle = self.load_validation_bundle(evidence)
         seal = evidence["validation_provenance"]["zero_identity_seal"]
         captured = bundle["gates"]["zero_identity_seal"]
         self.assertEqual(seal["exit_code"], 0)
