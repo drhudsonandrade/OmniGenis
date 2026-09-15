@@ -428,6 +428,21 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
         bundle = json.loads(raw.decode("utf-8"))
         self.assertEqual(bundle["schema"], "omnigenis-phase2d-validation-bundle-v1")
         return bundle
+
+    def load_execution_transcripts(self, evidence: dict) -> dict:
+        """Load the commit-bound transcript archive outside the validation bundle."""
+        record = evidence["validation_provenance"][
+            "implementation_suite_without_phase2d_evidence"
+        ]
+        self.assertEqual(record["transcript_path"], TRANSCRIPT_RELATIVE)
+        compressed = TRANSCRIPT.read_bytes()
+        self.assertEqual(
+            hashlib.sha256(compressed).hexdigest(),
+            record["transcript_gzip_sha256"],
+        )
+        archive = json.loads(gzip.decompress(compressed).decode("utf-8"))
+        self.assertEqual(archive["schema"], "omnigenis-phase2d-transcripts-v1")
+        return archive
     def test_validation_bundle_payload_probe_is_independent_and_replayable(self) -> None:
         """Bind head/tree/payload claims to captured command output in the bundle."""
         evidence = self.load()
@@ -1168,10 +1183,12 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
         self.assertNotIn(">", command)
         self.assertIn("find tests", command)
         self.assertIn("test_phase2d_evidence_contract.py", command)
-        self.assertEqual(record["transcript_path"], TRANSCRIPT_RELATIVE)
-        compressed = TRANSCRIPT.read_bytes()
-        self.assertEqual(hashlib.sha256(compressed).hexdigest(), record["transcript_gzip_sha256"])
-        transcript = gzip.decompress(compressed)
+        archive = self.load_execution_transcripts(evidence)
+        self.assertEqual(
+            set(archive),
+            {"gates", "implementation_suite", "schema"},
+        )
+        transcript = archive["implementation_suite"].encode("utf-8")
         marker = re.search(rb"\n__OMNIGENIS_EXIT_CODE__=(\d+)\n$", transcript)
         self.assertIsNotNone(marker)
         assert marker is not None
@@ -1234,6 +1251,8 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
             "zero_identity_plane_inventory",
         )
         self.assertEqual(set(bundle["gates"]), set(required))
+        transcripts = self.load_execution_transcripts(evidence)
+        self.assertEqual(set(transcripts["gates"]), set(required))
         for name in required:
             with self.subTest(gate=name):
                 record = evidence["validation_provenance"][name]
@@ -1246,16 +1265,25 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
                 self.assertEqual(execution_context["head_sha"], implementation)
                 self.assertEqual(execution_context["tree_sha"], tree)
                 self.assertEqual(execution_context["status_porcelain"], "")
-                context_payload = {
-                    "head_sha": implementation,
-                    "mode": "detached_git_worktree",
-                    "status_porcelain": "",
-                    "tree_sha": tree,
-                }
                 self.assertEqual(
-                    execution_context["receipt_sha256"],
-                    hashlib.sha256(_canonical_json_bytes(context_payload)).hexdigest(),
+                    execution_context["transcript_locator"],
+                    f"{TRANSCRIPT_RELATIVE}#/gates/{name}",
                 )
+                gate_transcript = transcripts["gates"][name].encode("utf-8")
+                self.assertEqual(
+                    execution_context["transcript_sha256"],
+                    hashlib.sha256(gate_transcript).hexdigest(),
+                )
+                marker = re.search(
+                    rb"\n__OMNIGENIS_EXIT_CODE__=(\d+)\n$",
+                    gate_transcript,
+                )
+                self.assertIsNotNone(marker)
+                assert marker is not None
+                transcript_exit_code = int(marker.group(1))
+                self.assertEqual(transcript_exit_code, captured["exit_code"])
+                transcript_raw = gate_transcript[: marker.start()].decode("utf-8")
+                self.assertEqual(transcript_raw, captured["raw_output"])
                 self.assertEqual(record["command"], captured["command"])
                 self.assertEqual(record["exit_code"], captured["exit_code"])
                 self.assertEqual(record["validated_head_sha"], implementation)
