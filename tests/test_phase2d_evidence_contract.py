@@ -394,6 +394,8 @@ def _same_integration_binding(live: dict, expected: dict) -> bool:
 
 def _neutralize_ruleset(raw: dict, expected: dict) -> dict:
     """Project authenticated provider JSON into the versioned neutral semantic shape."""
+    if raw.get("target") != expected.get("target"):
+        raise AssertionError("ruleset target mismatch")
     normalized = {
         "id": raw["id"],
         "name": raw["name"],
@@ -1118,7 +1120,8 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
         }
         live = copy.deepcopy(expected)
         live["target"] = "tag"
-        self.assertNotEqual(_neutralize_ruleset(live, expected), expected)
+        with self.assertRaisesRegex(AssertionError, "ruleset target mismatch"):
+            _neutralize_ruleset(live, expected)
 
     @unittest.skipUnless(
         os.environ.get(LIVE_REPLAY_ENV) == "1",
