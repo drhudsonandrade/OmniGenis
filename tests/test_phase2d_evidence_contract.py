@@ -211,7 +211,18 @@ def _live_ruleset_detail_output(ruleset_id: int) -> str:
     raw = _gh_api_json(f"repos/{repo}/rulesets/{ruleset_id}")
     assert isinstance(raw, dict)
     return _canonical_json_text(
-        {key: raw[key] for key in ("id", "name", "enforcement", "conditions", "bypass_actors", "rules")}
+        {
+            key: raw[key]
+            for key in (
+                "id",
+                "name",
+                "target",
+                "enforcement",
+                "conditions",
+                "bypass_actors",
+                "rules",
+            )
+        }
     )
 
 
@@ -356,7 +367,7 @@ def _expected_ruleset_semantics() -> dict:
     expected: dict[str, dict] = {}
     for ruleset_id, path in manifests.items():
         manifest = json.loads(path.read_text(encoding="utf-8"))
-        if manifest.pop("target") != "branch":
+        if manifest.get("target") != "branch":
             raise AssertionError(f"{path} must target branches")
         manifest["id"] = ruleset_id
         required_status_contexts: list[object] = []
@@ -386,6 +397,7 @@ def _neutralize_ruleset(raw: dict, expected: dict) -> dict:
     normalized = {
         "id": raw["id"],
         "name": raw["name"],
+        "target": raw["target"],
         "enforcement": raw["enforcement"],
         "conditions": copy.deepcopy(raw["conditions"]),
         "bypass_actors": copy.deepcopy(raw["bypass_actors"]),
@@ -1074,6 +1086,7 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
         expected = {
             "id": 1,
             "name": "fixture",
+            "target": "branch",
             "enforcement": "active",
             "conditions": {},
             "bypass_actors": [],
@@ -1090,6 +1103,22 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
         check["integration_id"] = 999999
         with self.assertRaises(AssertionError):
             _neutralize_ruleset(live, expected)
+
+    def test_ruleset_normalization_rejects_non_branch_target(self) -> None:
+        """Do not certify a ruleset that applies to a target other than branches."""
+        expected = {
+            "id": 1,
+            "name": "fixture",
+            "target": "branch",
+            "enforcement": "active",
+            "conditions": {},
+            "bypass_actors": [],
+            "rules": [],
+            "required_status_contexts": [],
+        }
+        live = copy.deepcopy(expected)
+        live["target"] = "tag"
+        self.assertNotEqual(_neutralize_ruleset(live, expected), expected)
 
     @unittest.skipUnless(
         os.environ.get(LIVE_REPLAY_ENV) == "1",
