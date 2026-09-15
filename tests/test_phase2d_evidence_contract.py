@@ -47,7 +47,15 @@ EXPECTED_RULESETS = {
     22347095: ("GENOMA approval gate", "active"),
 }
 LIVE_REPLAY_ENV = "OMNIGENIS_PHASE2D_LIVE_REPLAY"
+REPOSITORY_ID = 1212760346
+EXPECTED_REPOSITORY_IDENTITY = {
+    "id": REPOSITORY_ID,
+    "name": "OmniGenis",
+    "visibility": "public",
+    "default_branch": "main",
+}
 GIT = shutil.which("git")
+GH = shutil.which("gh")
 if GIT is None:
     raise RuntimeError("git is required by the Phase 2D evidence contract")
 
@@ -57,24 +65,126 @@ def _git(*args: str) -> str:
     return subprocess.check_output([GIT, *args], cwd=ROOT, text=True).strip()
 
 
-def _run_live_readback(command: str) -> str:
-    """Execute one authenticated read-only evidence command and return exact stdout."""
+def _gh_api_json(endpoint: str, *options: str) -> object:
+    """Read one allowlisted GitHub REST endpoint without invoking a shell."""
+    if GH is None:
+        raise AssertionError("gh is required for authenticated Phase 2D live replay")
     proc = subprocess.run(
-        ["bash", "-c", command],
+        [GH, "api", *options, endpoint],
         cwd=ROOT,
         check=False,
         capture_output=True,
         text=True,
     )
     if proc.returncode != 0:
-        raise AssertionError(f"live readback failed: {proc.stderr}")
+        raise AssertionError(f"GitHub REST readback failed: {proc.stderr}")
     if proc.stderr:
-        raise AssertionError(f"live readback wrote stderr: {proc.stderr}")
-    return proc.stdout
+        raise AssertionError(f"GitHub REST readback wrote stderr: {proc.stderr}")
+    return json.loads(proc.stdout)
 
 
 def _canonical_json_bytes(value: object) -> bytes:
     return (json.dumps(value, sort_keys=True, separators=(",", ":")) + "\n").encode("utf-8")
+
+
+def _canonical_json_text(value: object) -> str:
+    return _canonical_json_bytes(value).decode("utf-8")
+
+
+def _live_repository_record() -> dict:
+    raw = _gh_api_json(f"repositories/{REPOSITORY_ID}")
+    assert isinstance(raw, dict)
+    return raw
+
+
+def _live_repository_identity_output() -> str:
+    raw = _live_repository_record()
+    return _canonical_json_text(
+        {
+            "id": raw["id"],
+            "name": raw["name"],
+            "visibility": raw["visibility"],
+            "default_branch": raw["default_branch"],
+        }
+    )
+
+
+def _live_repository_full_name() -> str:
+    raw = _live_repository_record()
+    return str(raw["full_name"])
+
+
+def _live_canary_jobs_output() -> str:
+    repo = _live_repository_full_name()
+    rows = []
+    for runner_id, (run_id, job_id) in EXPECTED_CANARIES.items():
+        raw = _gh_api_json(f"repos/{repo}/actions/jobs/{job_id}")
+        assert isinstance(raw, dict)
+        rows.append(
+            {
+                "runner_id": raw["runner_id"],
+                "run_id": raw["run_id"],
+                "job_id": raw["id"],
+                "commit_sha": raw["head_sha"],
+                "conclusion": raw["conclusion"],
+                "selector_labels": raw["labels"],
+            }
+        )
+        if int(raw["runner_id"]) != runner_id or int(raw["run_id"]) != run_id:
+            raise AssertionError("canary job identity mismatch")
+    return _canonical_json_text(sorted(rows, key=lambda item: item["runner_id"]))
+
+
+def _live_runner_output() -> str:
+    repo = _live_repository_full_name()
+    raw = _gh_api_json(f"repos/{repo}/actions/runners")
+    assert isinstance(raw, dict)
+    rows = [
+        {
+            "id": item["id"],
+            "status": item["status"],
+            "busy": item["busy"],
+            "labels": [label["name"] for label in item["labels"]],
+            "runner_name_sha256": hashlib.sha256(item["name"].encode()).hexdigest(),
+        }
+        for item in raw["runners"]
+    ]
+    return _canonical_json_text(sorted(rows, key=lambda item: item["id"]))
+
+
+def _live_ruleset_summary_output() -> str:
+    repo = _live_repository_full_name()
+    pages = _gh_api_json(
+        f"repos/{repo}/rulesets?per_page=100", "--paginate", "--slurp"
+    )
+    assert isinstance(pages, list)
+    rows = [item for page in pages for item in page]
+    active = [
+        {"id": item["id"], "name": item["name"], "enforcement": item["enforcement"]}
+        for item in rows
+        if item["enforcement"] == "active"
+    ]
+    return _canonical_json_text(sorted(active, key=lambda item: item["id"]))
+
+
+def _live_ruleset_detail_output(ruleset_id: int) -> str:
+    repo = _live_repository_full_name()
+    raw = _gh_api_json(f"repos/{repo}/rulesets/{ruleset_id}")
+    assert isinstance(raw, dict)
+    return _canonical_json_text(
+        {key: raw[key] for key in ("id", "name", "enforcement", "conditions", "bypass_actors", "rules")}
+    )
+
+
+def _live_canary_run_output(run_id: int) -> str:
+    repo = _live_repository_full_name()
+    raw = _gh_api_json(f"repos/{repo}/actions/runs/{run_id}")
+    assert isinstance(raw, dict)
+    keys = (
+        "id", "name", "event", "head_branch", "head_sha", "workflow_id",
+        "path", "conclusion", "status", "run_attempt",
+    )
+    return _canonical_json_text({key: raw[key] for key in keys})
 
 
 def _evidence_artifacts() -> tuple[tuple[str, Path], ...]:
@@ -150,7 +260,11 @@ def _tree_without_evidence(commit: str) -> str:
 
 
 def _resolve_evidence_delivery(implementation: str, payload_tree: str, base_main: str) -> tuple[str, str]:
-    """Resolve commit-bound evidence or a flattened squash carrying the same payload."""
+    """Resolve commit-bound evidence or payload-equivalent flattened delivery.
+
+    The fallback proves byte-identical payload/evidence content only. It does not
+    claim commit ancestry from an implementation object that may have been pruned.
+    """
     try:
         return "evidence_commit", _resolve_evidence_commit(implementation)
     except AssertionError as original:
@@ -190,7 +304,7 @@ def _resolve_evidence_delivery(implementation: str, payload_tree: str, base_main
         expected = {relative: path.read_bytes() for relative, path in _evidence_artifacts()}
         if committed != expected:
             raise original
-        return "squashed_delivery", candidate
+        return "payload_equivalent_squashed_delivery", candidate
 
 
 
@@ -325,12 +439,52 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
         )
         self.assertFalse(evidence["secret_material_recorded"])
 
+    def test_repository_identity_is_canonical_and_authenticated(self) -> None:
+        """Bind VERIFIED to the full canonical GitHub repository identity."""
+        evidence = self.load()
+        bundle = self.load_validation_bundle(evidence)
+        self.assertEqual(evidence["repository_id"], REPOSITORY_ID)
+        self.assertEqual(evidence["repository_identity"], EXPECTED_REPOSITORY_IDENTITY)
+        provenance = evidence["repository_identity_provenance"]
+        captured = bundle["repository_identity_readback"]
+        replay = bundle["repository_identity_replay"]
+        self.assertEqual(provenance["source"], "GitHub REST API")
+        self.assertIn(f"repositories/{REPOSITORY_ID}", provenance["command"])
+        self.assertEqual(captured["command"], provenance["command"])
+        self.assertEqual(replay["command"], provenance["command"])
+        self.assertEqual(captured["exit_code"], 0)
+        self.assertEqual(replay["exit_code"], 0)
+        self.assertEqual(captured["raw_output"], replay["raw_output"])
+        self.assertEqual(json.loads(captured["raw_output"]), EXPECTED_REPOSITORY_IDENTITY)
+        self.assertEqual(
+            hashlib.sha256(captured["raw_output"].encode("utf-8")).hexdigest(),
+            captured["raw_output_sha256"],
+        )
+        self.assertEqual(captured["raw_output_sha256"], replay["raw_output_sha256"])
+        self.assertEqual(
+            provenance["validation_bundle_record_sha256"],
+            hashlib.sha256(_canonical_json_bytes(captured)).hexdigest(),
+        )
+        self.assertEqual(
+            provenance["replay_bundle_record_sha256"],
+            hashlib.sha256(_canonical_json_bytes(replay)).hexdigest(),
+        )
+
     def test_implementation_tree_and_evidence_only_child_are_bound(self) -> None:
         """Bind evidence to the independently captured validated payload tree."""
         evidence = self.load()
         bundle = self.load_validation_bundle(evidence)
         implementation = evidence["implementation_head_sha"]
         payload_tree = bundle["validated_payload_tree_sha"]
+        self.assertEqual(
+            evidence["flattened_delivery_fallback"],
+            {
+                "proof_scope": "PAYLOAD_TREE_EQUIVALENCE_ONLY",
+                "claims_implementation_ancestry": False,
+                "requires_base_main_ancestry": True,
+                "requires_evidence_artifact_equality": True,
+            },
+        )
         self.assertEqual(bundle["validated_head_sha"], implementation)
         self.assertEqual(bundle["validated_tree_sha"], evidence["implementation_tree_sha"])
         self.assertEqual(evidence["implementation_payload_tree_sha"], payload_tree)
@@ -362,7 +516,7 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
                 sorted(changed), sorted(relative for relative, _path in _evidence_artifacts())
             )
         else:
-            self.assertEqual(mode, "squashed_delivery")
+            self.assertEqual(mode, "payload_equivalent_squashed_delivery")
             self.assertEqual(_tree_without_evidence(delivery), payload_tree)
 
     def test_evidence_binding_accepts_pr_merge_ref(self) -> None:
@@ -471,6 +625,12 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
                         "implementation_head_sha": implementation,
                         "implementation_tree_sha": implementation_tree,
                         "implementation_payload_tree_sha": payload_tree,
+                        "flattened_delivery_fallback": {
+                            "proof_scope": "PAYLOAD_TREE_EQUIVALENCE_ONLY",
+                            "claims_implementation_ancestry": False,
+                            "requires_base_main_ancestry": True,
+                            "requires_evidence_artifact_equality": True,
+                        },
                         "validation_bundle": {
                             "path": bundle_relative,
                             "sha256": hashlib.sha256(bundle_path.read_bytes()).hexdigest(),
@@ -589,7 +749,7 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
                 mock.patch(f"{module}.VALIDATION_BUNDLE_RELATIVE", bundle_relative),
             ):
                 mode, delivery = _resolve_evidence_delivery(implementation, payload_tree, base)
-            self.assertEqual(mode, "squashed_delivery")
+            self.assertEqual(mode, "payload_equivalent_squashed_delivery")
             self.assertEqual(delivery, squash)
 
     def test_evidence_binding_rejects_extra_feature_commit_before_merge(self) -> None:
@@ -873,31 +1033,34 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
         "authenticated Phase 2D live replay is an opt-in evidence ceremony",
     )
     def test_authenticated_external_readbacks_replay_exactly(self) -> None:
-        """Optionally replay committed external evidence outside untrusted PR CI."""
+        """Replay only fixed read-only GitHub queries outside untrusted PR CI."""
         evidence = self.load()
         bundle = self.load_validation_bundle(evidence)
-        pairs = [
-            (bundle["canary_readback"], bundle["canary_replay"]),
-            (bundle["runner_readback"], bundle["runner_replay"]),
-            (bundle["ruleset_summary"], bundle["ruleset_summary_replay"]),
-        ]
-        pairs.extend(
-            (bundle["canary_run_readbacks"][key], bundle["canary_run_replays"][key])
-            for key in sorted(bundle["canary_run_readbacks"])
+        self.assertEqual(
+            _live_repository_identity_output(),
+            bundle["repository_identity_readback"]["raw_output"],
         )
-        for captured, replay in pairs:
-            self.assertEqual(captured["command"], replay["command"])
-            self.assertEqual(_run_live_readback(captured["command"]), captured["raw_output"])
-            self.assertEqual(captured["raw_output"], replay["raw_output"])
-        for key in sorted(bundle["ruleset_readbacks"]):
-            captured = bundle["ruleset_readbacks"][key]
-            replay = bundle["ruleset_replays"][key]
-            live_raw = _run_live_readback(captured["command"])
+        self.assertEqual(
+            _live_canary_jobs_output(), bundle["canary_readback"]["raw_output"]
+        )
+        self.assertEqual(
+            _live_runner_output(), bundle["runner_readback"]["raw_output"]
+        )
+        self.assertEqual(
+            _live_ruleset_summary_output(), bundle["ruleset_summary"]["raw_output"]
+        )
+        for key, record in bundle["canary_run_readbacks"].items():
+            self.assertEqual(_live_canary_run_output(int(key)), record["raw_output"])
+        for key, record in bundle["ruleset_readbacks"].items():
+            live_raw = _live_ruleset_detail_output(int(key))
             self.assertEqual(
                 hashlib.sha256(live_raw.encode("utf-8")).hexdigest(),
-                captured["raw_output_sha256"],
+                record["raw_output_sha256"],
             )
-            self.assertEqual(captured["raw_output_sha256"], replay["raw_output_sha256"])
+        self.assertEqual(
+            evidence["repository_identity"],
+            json.loads(_live_repository_identity_output()),
+        )
 
     def test_validation_environment_is_deterministically_reconstructible(self) -> None:
         """Require a recorded venv setup rooted in the versioned requirements lock."""

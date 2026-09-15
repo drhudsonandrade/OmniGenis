@@ -316,6 +316,17 @@ class ProjectIdentityGuardTest(unittest.TestCase):
                     errors,
                 )
 
+    def test_active_implementation_suffixes_are_case_insensitive(self) -> None:
+        root = self.make_repo("clean")
+        relative = "case-bypass.PY"
+        (root / relative).write_text(LEGACY_SURPRISE, encoding="utf-8")
+        subprocess.run(["git", "add", relative], cwd=root, check=True)
+        errors = self.validate_fixture(root)
+        self.assertTrue(
+            any("unclassified legacy identity" in error for error in errors),
+            errors,
+        )
+
     def test_tracked_path_with_legacy_identity_fails_even_for_unscanned_suffix(self) -> None:
         root = self.make_repo("clean")
         relative = f"scripts/{LEGACY_WORD}-helper.bin"

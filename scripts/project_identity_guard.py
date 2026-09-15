@@ -312,7 +312,7 @@ def scan_legacy_identities(root: Path, ledger: dict[str, Any]) -> dict[str, Any]
             _compile_matcher(entry).search(posix) for entry in entries
         ):
             report["unclassified"].append({"path": posix, "domain": "path"})
-        if tracked_relative.suffix not in suffixes:
+        if tracked_relative.suffix.lower() not in suffixes:
             continue
         text = _read_index_regular_blob(root, tracked_relative).decode("utf-8")
         covered: list[tuple[int, int]] = []
