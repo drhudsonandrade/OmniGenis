@@ -761,6 +761,11 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
         self.assertRegex(provenance["captured_at"], r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
         for ruleset_id in EXPECTED_RULESETS:
             self.assertNotIn(str(ruleset_id), provenance["command"])
+        self.assertIn("--paginate", provenance["command"])
+        self.assertIn("--slurp", provenance["command"])
+        self.assertIn("per_page=100", provenance["command"])
+        self.assertIn("pages=json.load", provenance["command"])
+        self.assertIn("for page in pages for x in page", provenance["command"])
         summary_replay = bundle["ruleset_summary_replay"]
         self.assertEqual(summary_replay["command"], provenance["command"])
         self.assertEqual(summary_replay["exit_code"], 0)
