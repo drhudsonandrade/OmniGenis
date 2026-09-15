@@ -101,6 +101,24 @@ def _canonical_json_text(value: object) -> str:
     return _canonical_json_bytes(value).decode("utf-8")
 
 
+def _validated_unittest_summary(raw_output: str) -> str:
+    if re.search(r"(?m)^(?:FAILED|ERROR|NOT OK)(?:\b|:)", raw_output):
+        raise AssertionError("unittest transcript contains a failure marker")
+    ran = re.findall(
+        r"^Ran \d+ tests(?: in [0-9.]+s)?$",
+        raw_output,
+        flags=re.MULTILINE,
+    )
+    ok = re.findall(
+        r"^OK(?: \(skipped=\d+\))?$",
+        raw_output,
+        flags=re.MULTILINE,
+    )
+    if len(ran) != 1 or len(ok) != 1:
+        raise AssertionError("unittest transcript must contain one complete success summary")
+    return ran[0] + "\n" + ok[0] + "\n"
+
+
 def _live_repository_record() -> dict:
     raw = _gh_api_json(f"repositories/{REPOSITORY_ID}")
     assert isinstance(raw, dict)
@@ -1269,10 +1287,23 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
         self.assertEqual(set(counts), {"P1", "P2", "P3", "P4"})
         for class_id, record in counts.items():
             self.assertEqual(record, {"path": 0, "blob": 0}, class_id)
+        bundle = self.load_validation_bundle(evidence)
         seal = evidence["validation_provenance"]["zero_identity_seal"]
+        captured = bundle["gates"]["zero_identity_seal"]
         self.assertEqual(seal["exit_code"], 0)
-        self.assertIn("Ran ", seal["sanitized_output"])
-        self.assertIn("OK", seal["sanitized_output"])
+        summary = _validated_unittest_summary(captured["raw_output"])
+        self.assertEqual(seal["sanitized_output"], summary)
+
+    def test_unittest_summary_validation_rejects_ambiguous_results(self) -> None:
+        """Reject success substrings embedded beside unittest failure markers."""
+        for raw_output in (
+            "Ran 2 tests in 0.1s\nFAILED (failures=1)\nOK\n",
+            "Ran 2 tests in 0.1s\nERROR: setup failed\nOK\n",
+            "Ran 2 tests in 0.1s\nNOT OK\n",
+            "prefix OK suffix\n",
+        ):
+            with self.subTest(raw_output=raw_output), self.assertRaises(AssertionError):
+                _validated_unittest_summary(raw_output)
 
     def test_live_runner_readback_requires_complete_pagination(self) -> None:
         """Flatten every runner page and reject incomplete provider responses."""
