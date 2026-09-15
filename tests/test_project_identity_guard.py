@@ -203,6 +203,19 @@ class ProjectIdentityGuardTest(unittest.TestCase):
             any("unstaged identity-relevant change" in error for error in errors), errors
         )
 
+    def test_unstaged_identity_relevant_change_with_uppercase_suffix_fails_closed(
+        self,
+    ) -> None:
+        root = self.make_repo("clean")
+        relative = "case-bypass.PY"
+        (root / relative).write_text("clean", encoding="utf-8")
+        subprocess.run(["git", "add", relative], cwd=root, check=True)
+        (root / relative).write_text(LEGACY_SURPRISE, encoding="utf-8")
+        errors = self.validate_fixture(root)
+        self.assertTrue(
+            any("unstaged identity-relevant change" in error for error in errors), errors
+        )
+
     def test_untracked_file_does_not_affect_official_guard(self) -> None:
         root = self.make_repo("clean")
         (root / "local.txt").write_text(LEGACY_SURPRISE, encoding="utf-8")

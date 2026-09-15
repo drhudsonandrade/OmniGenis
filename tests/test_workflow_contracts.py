@@ -245,17 +245,39 @@ def _assert_attestation_step_is_in_main_gated_ceremony_job(workflow: str) -> Non
         raise AssertionError("bootstrap attestation result locator must remain in the main-gated job")
 
 
+def _assert_scaffold_pr_validation_does_not_expose_token(workflow: str) -> None:
+    static = _job_block(workflow, "static")
+    header = workflow.split("\njobs:", 1)[0]
+    if "actions: read" in header or "actions: read" in static:
+        raise AssertionError("PR validation must not grant actions: read")
+    for expression in ("GH_TOKEN", "${{ github.token }}", "${{ secrets.GITHUB_TOKEN }}"):
+        if expression in header + static:
+            raise AssertionError(f"PR validation exposes a GitHub token via {expression}")
+    if "persist-credentials: false" not in static:
+        raise AssertionError("static checkout must not persist credentials")
+
+
 class WorkflowContractTest(unittest.TestCase):
     def test_scaffold_pr_validation_does_not_expose_actions_token(self):
         workflow = (ROOT / ".github/workflows/scaffold-validation.yml").read_text(encoding="utf-8")
-        static = _job_block(workflow, "static")
-        header = workflow.split("\njobs:", 1)[0]
-        self.assertNotIn("actions: read", header)
-        self.assertNotIn("actions: read", static)
-        self.assertNotIn("actions: read", workflow)
-        self.assertNotIn("GH_TOKEN", header + static)
-        self.assertNotIn("GH_TOKEN", workflow)
-        self.assertIn("persist-credentials: false", static)
+        _assert_scaffold_pr_validation_does_not_expose_token(workflow)
+        for expression in ("${{ github.token }}", "${{ secrets.GITHUB_TOKEN }}"):
+            mutations = (
+                workflow.replace(
+                    "\njobs:",
+                    f"\nenv:\n  TOKEN: {expression}\njobs:",
+                    1,
+                ),
+                workflow.replace(
+                    "  static:\n",
+                    f"  static:\n    env:\n      TOKEN: {expression}\n",
+                    1,
+                ),
+            )
+            for mutated in mutations:
+                with self.subTest(expression=expression):
+                    with self.assertRaises(AssertionError):
+                        _assert_scaffold_pr_validation_does_not_expose_token(mutated)
 
     def test_production_witness_uses_current_live_smoke_cli_contract(self):
         workflow = (ROOT / ".github/workflows/genoma-production-witness.yml").read_text(encoding="utf-8")

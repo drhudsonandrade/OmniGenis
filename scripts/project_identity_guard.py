@@ -239,7 +239,7 @@ def _unstaged_identity_relevant_paths(
         for relative in changed
         if relative in controls
         or relative in historical
-        or Path(relative).suffix in suffixes
+        or Path(relative).suffix.lower() in suffixes
     }
     return tuple(sorted(relevant))
 
