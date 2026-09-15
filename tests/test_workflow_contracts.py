@@ -248,10 +248,24 @@ def _assert_attestation_step_is_in_main_gated_ceremony_job(workflow: str) -> Non
 def _assert_scaffold_pr_validation_does_not_expose_token(workflow: str) -> None:
     static = _job_block(workflow, "static")
     header = workflow.split("\njobs:", 1)[0]
-    if "actions: read" in header or "actions: read" in static:
-        raise AssertionError("PR validation must not grant actions: read")
+    permission_surfaces = header + "\n" + static
+    broad_permissions = re.search(
+        r"(?m)^[ \t]*permissions:[ \t]*(?:read-all|write-all)[ \t]*(?:#.*)?$",
+        permission_surfaces,
+    )
+    actions_permission = re.search(
+        r"(?m)^[ \t]*actions:[ \t]*(?:read|write)[ \t]*(?:#.*)?$",
+        permission_surfaces,
+    )
+    inline_actions_permission = re.search(
+        r"(?m)^[ \t]*permissions:[ \t]*\{[^}\n]*\bactions[ \t]*:"
+        r"[ \t]*(?:read|write)\b",
+        permission_surfaces,
+    )
+    if broad_permissions or actions_permission or inline_actions_permission:
+        raise AssertionError("PR validation must not grant GitHub Actions access")
     for expression in ("GH_TOKEN", "${{ github.token }}", "${{ secrets.GITHUB_TOKEN }}"):
-        if expression in header + static:
+        if expression in permission_surfaces:
             raise AssertionError(f"PR validation exposes a GitHub token via {expression}")
     if "persist-credentials: false" not in static:
         raise AssertionError("static checkout must not persist credentials")
@@ -280,6 +294,36 @@ class WorkflowContractTest(unittest.TestCase):
                     self.assertRaises(AssertionError),
                 ):
                     _assert_scaffold_pr_validation_does_not_expose_token(mutated)
+
+        permission_mutations = {
+            "header-actions-read": workflow.replace(
+                "  contents: read\n", "  contents: read\n  actions: read\n", 1
+            ),
+            "header-actions-write": workflow.replace(
+                "  contents: read\n", "  contents: read\n  actions: write\n", 1
+            ),
+            "header-read-all": workflow.replace(
+                "permissions:\n  contents: read", "permissions: read-all", 1
+            ),
+            "header-write-all": workflow.replace(
+                "permissions:\n  contents: read", "permissions: write-all", 1
+            ),
+            "static-actions-read": workflow.replace(
+                "  static:\n", "  static:\n    permissions:\n      actions: read\n", 1
+            ),
+            "static-actions-write": workflow.replace(
+                "  static:\n", "  static:\n    permissions:\n      actions: write\n", 1
+            ),
+            "static-read-all": workflow.replace(
+                "  static:\n", "  static:\n    permissions: read-all\n", 1
+            ),
+            "static-write-all": workflow.replace(
+                "  static:\n", "  static:\n    permissions: write-all\n", 1
+            ),
+        }
+        for name, mutated in permission_mutations.items():
+            with self.subTest(permission=name), self.assertRaises(AssertionError):
+                _assert_scaffold_pr_validation_does_not_expose_token(mutated)
 
     def test_production_witness_uses_current_live_smoke_cli_contract(self):
         workflow = (ROOT / ".github/workflows/genoma-production-witness.yml").read_text(encoding="utf-8")

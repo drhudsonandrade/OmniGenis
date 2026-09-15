@@ -1115,6 +1115,11 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
             hashlib.sha256(pip_check["output"].encode("utf-8")).hexdigest(),
             pip_check["output_sha256"],
         )
+        self.assertTrue(receipt["raw_output"].endswith(pip_check["output"]))
+        self.assertEqual(
+            hashlib.sha256(receipt["raw_output"].encode("utf-8")).hexdigest(),
+            receipt["raw_output_sha256"],
+        )
         locked = {
             match.group(1).lower().replace("_", "-"): match.group(2).strip()
             for match in re.finditer(
