@@ -48,6 +48,12 @@ EXPECTED_RULESETS = {
 }
 LIVE_REPLAY_ENV = "OMNIGENIS_PHASE2D_LIVE_REPLAY"
 REPOSITORY_ID = 1212760346
+VALIDATION_INTERPRETER = "/tmp/omnigenis-phase2d-validation-venv/bin/python"
+VALIDATION_SETUP_COMMAND = (
+    "python3.12 -m venv --clear /tmp/omnigenis-phase2d-validation-venv && "
+    "/tmp/omnigenis-phase2d-validation-venv/bin/python -m pip install "
+    "--disable-pip-version-check --require-hashes -r reporting/requirements.txt"
+)
 EXPECTED_REPOSITORY_IDENTITY = {
     "id": REPOSITORY_ID,
     "name": "OmniGenis",
@@ -1073,14 +1079,33 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
             environment["requirements_sha256"],
         )
         setup = environment["setup_command"]
-        self.assertIn("python3.12 -m venv", setup)
-        self.assertIn("-r reporting/requirements.txt", setup)
+        self.assertEqual(setup, VALIDATION_SETUP_COMMAND)
+        self.assertIn("--require-hashes", setup)
         self.assertEqual(
             hashlib.sha256(setup.encode("utf-8")).hexdigest(),
             environment["setup_command_sha256"],
         )
-        self.assertEqual(environment["setup_status"], "REPRODUCIBLE_SPEC")
-        self.assertNotIn("setup_log_sha256", environment)
+        self.assertEqual(environment["setup_status"], "EXECUTED")
+        bundle = self.load_validation_bundle(evidence)
+        receipt = bundle["validation_environment_setup"]
+        self.assertEqual(receipt["command"], setup)
+        self.assertEqual(receipt["exit_code"], 0)
+        self.assertEqual(receipt["requirements_sha256"], environment["requirements_sha256"])
+        self.assertEqual(receipt["interpreter"], VALIDATION_INTERPRETER)
+        self.assertEqual(receipt["python_version"], environment["python_version"])
+        self.assertEqual(receipt["pip_check"], "No broken requirements found.")
+        locked = {
+            match.group(1).lower().replace("_", "-"): match.group(2).strip()
+            for match in re.finditer(
+                r"(?m)^([A-Za-z0-9_.-]+)==([^\s\\]+)", requirements.read_text(encoding="utf-8")
+            )
+        }
+        self.assertTrue(locked)
+        self.assertEqual(receipt["locked_distributions"], locked)
+        self.assertEqual(
+            hashlib.sha256(_canonical_json_bytes(receipt)).hexdigest(),
+            environment["setup_receipt_sha256"],
+        )
         interpreter = environment["interpreter"]
         for name in (
             "docs_language",
