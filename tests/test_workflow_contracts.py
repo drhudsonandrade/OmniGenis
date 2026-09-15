@@ -275,9 +275,11 @@ class WorkflowContractTest(unittest.TestCase):
                 ),
             )
             for mutated in mutations:
-                with self.subTest(expression=expression):
-                    with self.assertRaises(AssertionError):
-                        _assert_scaffold_pr_validation_does_not_expose_token(mutated)
+                with (
+                    self.subTest(expression=expression),
+                    self.assertRaises(AssertionError),
+                ):
+                    _assert_scaffold_pr_validation_does_not_expose_token(mutated)
 
     def test_production_witness_uses_current_live_smoke_cli_contract(self):
         workflow = (ROOT / ".github/workflows/genoma-production-witness.yml").read_text(encoding="utf-8")
