@@ -30,7 +30,6 @@ EXPECTED_REQUIRED_CHECKS = {
     "OPA/Rego parity",
     "Real Docker + canonical read-only mount",
     "CodeRabbit",
-    "Greptile Review",
     "GitGuardian Security Checks",
     "DeepSource: Python",
     "DeepSource: JavaScript",
@@ -66,7 +65,11 @@ class IntegrationCodeLanguageTest(unittest.TestCase):
     def test_coderabbit_setup_diagnostics_are_english(self) -> None:
         """The stage-six inventoried developer diagnostics must not return in Portuguese."""
         diagnostics = _setup_diagnostics(SETUP_SCRIPT.read_text(encoding="utf-8"))
-        self.assertEqual(len(diagnostics), 37)
+        self.assertEqual(len(diagnostics), 35)
+        self.assertFalse(
+            any("conflicting CodeRabbit bin directory" in message for message in diagnostics)
+        )
+        self.assertFalse(any("deprecated" in message for message in diagnostics))
         self.assertEqual(_tooling_terms("\n".join(diagnostics)), set())
 
     def test_diagnostic_extraction_ignores_comments_and_contract_values(self) -> None:
@@ -95,8 +98,8 @@ class IntegrationCodeLanguageTest(unittest.TestCase):
         found = set(re.findall(r"process\.env\.([A-Z][A-Z0-9_]*)", source))
         self.assertEqual(found, EXPECTED_MCP_ENV)
 
-    def test_required_status_check_contexts_are_unchanged(self) -> None:
-        """Workflow display cleanup cannot rename protected-main check identities."""
+    def test_required_status_check_contexts_match_approved_policy(self) -> None:
+        """Preserve all checks except the reviewer retired by the owner on 2026-09-15."""
         payload = json.loads(GOVERNANCE.read_text(encoding="utf-8"))
         status_rules = [
             rule for rule in payload["rules"] if rule["type"] == "required_status_checks"
@@ -104,6 +107,7 @@ class IntegrationCodeLanguageTest(unittest.TestCase):
         self.assertEqual(len(status_rules), 1)
         status_rule = status_rules[0]
         checks = status_rule["parameters"]["required_status_checks"]
+        self.assertEqual(len(checks), 14)
         contexts = {item["context"] for item in checks if "context" in item}
         fingerprints = [item["context_fingerprint"] for item in checks if "context_fingerprint" in item]
         self.assertEqual(contexts, EXPECTED_REQUIRED_CHECKS)

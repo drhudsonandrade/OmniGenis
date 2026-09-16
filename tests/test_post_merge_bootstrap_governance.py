@@ -300,7 +300,8 @@ class PostMergeBootstrapGovernanceTests(unittest.TestCase):
         checks = {item["context"]: item.get("integration_id") for item in required_checks if "context" in item}
         fingerprints = [item["context_fingerprint"] for item in required_checks if "context_fingerprint" in item]
         self.assertIn("CodeRabbit", checks)
-        self.assertEqual(checks.get("Greptile Review"), 867647)
+        self.assertNotIn("Greptile Review", checks)
+        self.assertNotIn(867647, checks.values())
         self.assertEqual(checks.get("GitGuardian Security Checks"), 46505)
         for context in (
             "DeepSource: Python",
@@ -316,6 +317,18 @@ class PostMergeBootstrapGovernanceTests(unittest.TestCase):
         self.assertEqual(checks.get("semgrep-cloud-platform/scan"), 4836909)
         self.assertNotIn("Gitleaks secret scan", checks)
         self.assertTrue(status_rule["parameters"]["strict_required_status_checks_policy"])
+
+    def test_retired_reviewer_is_absent_from_all_governance_rulesets(self) -> None:
+        """Neither the retired context nor an aliased app ID may become mandatory."""
+        for path in sorted((ROOT / ".github/governance").glob("*.json")):
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            for rule in payload["rules"]:
+                if rule["type"] != "required_status_checks":
+                    continue
+                for check in rule["parameters"]["required_status_checks"]:
+                    with self.subTest(ruleset=path.name, check=check):
+                        self.assertNotIn("greptile", check.get("context", "").casefold())
+                        self.assertNotEqual(check.get("integration_id"), 867647)
 
     def test_main_approval_gate_is_layered_and_pr_only_bypass(self) -> None:
         approval = json.loads(

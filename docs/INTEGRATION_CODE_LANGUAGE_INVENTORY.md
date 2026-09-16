@@ -40,11 +40,16 @@ Deployment-admin environment names remain exact:
 
 ### Protected status checks
 
-The tracked protected-main ruleset remains byte-for-byte unchanged from the baseline. Its required contexts remain:
+At the stage-six baseline, the tracked protected-main ruleset was unchanged. Its historical required contexts were:
 
 `static`, `container-canary`, `Canonical policy + 263-rule contract`, `OPA/Rego parity`, `Real Docker + canonical read-only mount`, `CodeRabbit`, `Greptile Review`, `GitGuardian Security Checks`, five DeepSource language contexts, one fingerprinted dependency-security context, and `semgrep-cloud-platform/scan`.
 
-No workflow or governance file is modified by stage 6.
+No workflow or governance file was modified by stage 6.
+
+The owner-approved reviewer retirement on 2026-09-15 supersedes that historical
+check inventory: `Greptile Review` is no longer required. All other contexts and
+integration bindings remain unchanged, leaving 14 required checks. The current
+policy is `.github/governance/main-ruleset.json`; see `docs/BRANCH_GOVERNANCE.md`.
 
 ## Intentional Portuguese preserved
 

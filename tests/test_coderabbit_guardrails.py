@@ -369,9 +369,9 @@ class CodeRabbitGuardrailTests(unittest.TestCase):
         )
         calls = codex_log.read_text(encoding="utf-8") if codex_log.is_file() else ""
         installed_path = (
-            home_dir / ".local" / "bin" / "coderabbit"
-            if bin_env_mode == "none"
-            else install_bin / "coderabbit"
+            install_bin / "coderabbit"
+            if bin_env_mode in {"canonical", "both-same", "conflict"}
+            else home_dir / ".local" / "bin" / "coderabbit"
         )
         return result, marker.is_file(), calls, installed_path
 
@@ -394,27 +394,42 @@ class CodeRabbitGuardrailTests(unittest.TestCase):
         self.assertTrue(marker_created)
         self.assertNotIn("deprecated", result.stderr)
 
-    def test_legacy_bin_dir_variable_is_accepted_with_warning(self) -> None:
-        """Accept the legacy variable only with an explicit deprecation warning."""
-        result, marker_created, _calls, _installed_path = self._run_setup_with_fakes(bin_env_mode="legacy")
+    def test_legacy_bin_dir_variable_is_ignored_after_phase2d(self) -> None:
+        """Do not let the retired alias control the CodeRabbit install directory."""
+        result, marker_created, _calls, installed_path = self._run_setup_with_fakes(
+            bin_env_mode="legacy"
+        )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertTrue(marker_created)
-        self.assertIn(f"{LEGACY_BIN_ENV} is deprecated; use {CANONICAL_BIN_ENV}", result.stderr)
+        self.assertTrue(installed_path.is_file())
+        self.assertEqual(installed_path.parent.name, "bin")
+        self.assertEqual(installed_path.parent.parent.name, ".local")
+        self.assertNotIn("deprecated", result.stderr)
+        script = (ROOT / "scripts" / "codex" / "setup-coderabbit.sh").read_text(
+            encoding="utf-8"
+        )
+        self.assertNotIn(LEGACY_BIN_ENV, script)
 
-    def test_same_value_dual_bin_dir_variables_are_accepted(self) -> None:
-        """Accept canonical and legacy variables when their values are identical."""
-        result, marker_created, _calls, _installed_path = self._run_setup_with_fakes(bin_env_mode="both-same")
+    def test_same_value_legacy_variable_does_not_change_canonical_selection(self) -> None:
+        """Keep the canonical directory authoritative when the retired alias is also set."""
+        result, marker_created, _calls, installed_path = self._run_setup_with_fakes(
+            bin_env_mode="both-same"
+        )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertTrue(marker_created)
+        self.assertTrue(installed_path.is_file())
         self.assertNotIn("conflicting CodeRabbit bin directory variables", result.stderr)
 
-    def test_conflicting_bin_dir_variables_fail_closed(self) -> None:
-        """Reject conflicting canonical and legacy binary directory variables."""
-        result, marker_created, calls, _installed_path = self._run_setup_with_fakes(bin_env_mode="conflict")
-        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
-        self.assertFalse(marker_created)
-        self.assertEqual(calls, "")
-        self.assertIn("conflicting CodeRabbit bin directory variables", result.stderr)
+    def test_conflicting_legacy_variable_cannot_override_canonical_selection(self) -> None:
+        """Ignore a conflicting retired alias instead of reviving compatibility semantics."""
+        result, marker_created, calls, installed_path = self._run_setup_with_fakes(
+            bin_env_mode="conflict"
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertTrue(marker_created)
+        self.assertTrue(installed_path.is_file())
+        self.assertNotEqual(calls, "")
+        self.assertNotIn("conflicting CodeRabbit bin directory variables", result.stderr)
 
     def test_available_plugin_is_installed_before_success(self) -> None:
         result, marker_created, calls, _installed_path = self._run_setup_with_fakes()

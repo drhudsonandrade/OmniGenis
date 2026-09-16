@@ -18,7 +18,7 @@ During Phase 2A only, migration specifications, implementation plans, evidence, 
 
 ## Scan scope
 
-The official identity guard scans Git-tracked files only. Local untracked files do not affect the repository gate. Phase 2A requires the exact reviewed `scan_suffixes` and `historical_prefixes` values recorded in the ledger; a weakened or broadened scope fails closed. A tracked file selected by that scope must be valid UTF-8 or the scan fails closed.
+The official identity guard scans Git-tracked files only. Local untracked files do not affect the repository gate. Phase 2D requires the exact reviewed `scan_suffixes` policy and permits historical bypass only for explicitly listed tracked files whose SHA-256 matches the ledger; broad historical-prefix exemptions are forbidden. A tracked file selected by the active scan must be valid UTF-8 or the scan fails closed.
 
 
 ## Editing rule
@@ -33,6 +33,6 @@ Do not update the ledger to make a failing new legacy occurrence pass. First det
 
 Phase 2C routes trusted protected-main jobs through the canonical `omnigenis-isolated` pool. The live runners remain dual-labeled until a real post-merge protected-main canary succeeds; legacy labels are rollback-only during that transition.
 
-`OMNIGENIS_CODERABBIT_BIN_DIR` is canonical. The legacy CodeRabbit bin-directory variable remains a deprecated compatibility fallback through Phase 2D; conflicting canonical and legacy values fail closed.
+`OMNIGENIS_CODERABBIT_BIN_DIR` is canonical. Phase 2D removes the deprecated bin-directory fallback; only the canonical variable may override the default `$HOME/.local/bin` location.
 
 Historical repository URLs and archived runtime bundle names remain provenance records. Historical GHCR package state is not claimed as inspected when package-read capability is unavailable.
