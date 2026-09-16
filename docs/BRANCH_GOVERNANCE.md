@@ -48,6 +48,28 @@ repository-specific removal in the installation settings without uninstalling or
 changing the application for other repositories. Historical plans and evidence
 remain historical records, not authority to reactivate the retired reviewer.
 
+### Retained blocking review responsibilities
+
+The authorized retirement consolidates general AI code review into the existing
+mandatory `CodeRabbit` check; it does not remove the AI review responsibility.
+The equivalent responsibility is enforced by the retained reviewer rather than by
+adding another provider or bypassing a failed check. This is not a claim that two
+models have identical findings, recall, or implementation.
+
+| Responsibility formerly shared by AI reviewers | Retained blocking control | Auditable contract |
+| --- | --- | --- |
+| Correctness, regressions, test integrity, and architectural review | `CodeRabbit`, with request-changes workflow enabled | `.coderabbit.yaml` review profile, path instructions, and error-mode pre-merge checks; `tests/test_coderabbit_guardrails.py` |
+| Repository, runtime, and policy regressions | `static`, `container-canary`, `Canonical policy + 263-rule contract`, and the existing conditional parity/runtime jobs | `.github/governance/main-ruleset.json` and the corresponding workflow contracts |
+| Static analysis, secrets, dependencies, and security findings | All existing DeepSource, GitGuardian, dependency-security, and Semgrep requirements | Unchanged remaining check identities and integration bindings in the protected-main manifest |
+| Independent approval and conversation resolution before manual merge | The separate pull-request approval ruleset | `.github/governance/main-approval-ruleset.json` |
+
+The acceptance evidence for this consolidation is the exact remaining-check
+manifest, authenticated live ruleset comparison, reviewer configuration tests,
+and the retained CodeRabbit review and pre-merge results on the candidate SHA.
+A green `CodeRabbit` commit status alone is insufficient: its error-mode
+pre-merge checks and approval state must also be inspected. Pending or failing
+pre-merge checks must not be overridden to complete this retirement.
+
 ## `audit-evidence`
 
 Target branch: `audit-evidence`.

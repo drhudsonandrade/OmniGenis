@@ -1347,6 +1347,8 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
                 )
                 self.assertNotIn("execution_receipt_sha256", record)
                 sanitized = record["sanitized_output"]
+                if name in ("docs_language", "phase2d_hardening", "zero_identity_seal"):
+                    self.assertEqual(sanitized, _validated_unittest_summary(transcript_raw))
                 self.assertEqual(
                     hashlib.sha256(sanitized.encode("utf-8")).hexdigest(),
                     record["output_sha256"],
@@ -1355,6 +1357,59 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
             evidence["validation_provenance"]["diff_check"]["command"],
             f"git diff --check {evidence['base_main_sha']} {implementation}",
         )
+
+    def test_unittest_gate_summary_rejects_rehashed_inconsistent_transcripts(self) -> None:
+        """Reject forged success summaries even when every capture hash agrees."""
+        baseline = self.load()
+        baseline_bundle = self.load_validation_bundle(baseline)
+        baseline_transcripts = self.load_execution_transcripts(baseline)
+        for gate in ("docs_language", "phase2d_hardening", "zero_identity_seal"):
+            for raw in (
+                "Ran 999 tests in 0.1s\nFAILED (failures=1)\n",
+                "Ran 999 tests in 0.1s\nOK\n",
+            ):
+                with self.subTest(gate=gate, raw=raw), tempfile.TemporaryDirectory() as tmp:
+                    evidence = copy.deepcopy(baseline)
+                    bundle = copy.deepcopy(baseline_bundle)
+                    transcripts = copy.deepcopy(baseline_transcripts)
+                    captured = bundle["gates"][gate]
+                    captured["raw_output"] = raw
+                    captured["raw_output_sha256"] = hashlib.sha256(raw.encode()).hexdigest()
+                    transcript = raw + "\n__OMNIGENIS_EXIT_CODE__=0\n"
+                    transcripts["gates"][gate] = transcript
+                    captured["execution_context"]["transcript_sha256"] = hashlib.sha256(
+                        transcript.encode()
+                    ).hexdigest()
+                    record = evidence["validation_provenance"][gate]
+                    record["raw_output_sha256"] = captured["raw_output_sha256"]
+                    record["validation_bundle_record_sha256"] = hashlib.sha256(
+                        _canonical_json_bytes(captured)
+                    ).hexdigest()
+                    bundle_bytes = _canonical_json_bytes(bundle)
+                    evidence["validation_bundle"]["sha256"] = hashlib.sha256(bundle_bytes).hexdigest()
+                    compressed = gzip.compress(_canonical_json_bytes(transcripts), mtime=0)
+                    evidence["validation_provenance"]["implementation_suite_without_phase2d_evidence"][
+                        "transcript_gzip_sha256"
+                    ] = hashlib.sha256(compressed).hexdigest()
+                    root = Path(tmp)
+                    evidence_path = root / "evidence.json"
+                    bundle_path = root / "bundle.json"
+                    transcript_path = root / "transcript.gz"
+                    evidence_path.write_bytes(_canonical_json_bytes(evidence))
+                    bundle_path.write_bytes(bundle_bytes)
+                    transcript_path.write_bytes(compressed)
+                    probe = type(self)(
+                        "test_required_validation_records_are_backed_by_captured_bundle_outputs"
+                    )
+                    result = unittest.TestResult()
+                    with (
+                        mock.patch(f"{__name__}.EVIDENCE", evidence_path),
+                        mock.patch(f"{__name__}.VALIDATION_BUNDLE", bundle_path),
+                        mock.patch(f"{__name__}.TRANSCRIPT", transcript_path),
+                    ):
+                        probe.run(result)
+                    self.assertFalse(result.errors, result.errors)
+                    self.assertTrue(result.failures, "inconsistent gate transcript was accepted")
 
     def test_zero_identity_seal_and_class_counts_are_evidence_bound(self) -> None:
         """Bind the plan's zero-seal claim to executed evidence and explicit P1-P4 counts."""
