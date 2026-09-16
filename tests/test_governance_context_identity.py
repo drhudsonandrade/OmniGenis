@@ -64,11 +64,11 @@ class GovernanceContextIdentityTest(unittest.TestCase):
 
     def test_required_check_identity_rejects_unknown_fields(self) -> None:
         """Reject misspelled or extra fields instead of silently weakening app binding."""
-        invalid_literal = {"context": "Greptile Review", "integration-id": 867647}
+        invalid_literal = {"context": "GitGuardian Security Checks", "integration-id": 46505}
         self.assertFalse(expected_check_is_well_formed(invalid_literal))
         self.assertFalse(
             match_expected_check(
-                {"context": "Greptile Review", "integration_id": 999999},
+                {"context": "GitGuardian Security Checks", "integration_id": 999999},
                 invalid_literal,
             )
         )

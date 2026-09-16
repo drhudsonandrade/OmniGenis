@@ -15,23 +15,7 @@ fail() {
   exit 2
 }
 
-readonly LEGACY_BIN_ENV_NAME="CODEWORK_CODERABBIT_BIN_DIR"
-canonical_bin_dir="${OMNIGENIS_CODERABBIT_BIN_DIR:-}"
-legacy_bin_dir=""
-if declare -p "$LEGACY_BIN_ENV_NAME" >/dev/null 2>&1; then
-  legacy_bin_dir="${!LEGACY_BIN_ENV_NAME}"
-fi
-if [[ -n "$canonical_bin_dir" && -n "$legacy_bin_dir" && "$canonical_bin_dir" != "$legacy_bin_dir" ]]; then
-  fail "conflicting CodeRabbit bin directory variables"
-fi
-if [[ -n "$canonical_bin_dir" ]]; then
-  INSTALL_BIN_DIR="$canonical_bin_dir"
-elif [[ -n "$legacy_bin_dir" ]]; then
-  INSTALL_BIN_DIR="$legacy_bin_dir"
-  echo "WARNING: ${LEGACY_BIN_ENV_NAME} is deprecated; use OMNIGENIS_CODERABBIT_BIN_DIR." >&2
-else
-  INSTALL_BIN_DIR="$HOME/.local/bin"
-fi
+INSTALL_BIN_DIR="${OMNIGENIS_CODERABBIT_BIN_DIR:-$HOME/.local/bin}"
 
 cleanup() {
   if [[ -n "$TEMP_DIR" && -d "$TEMP_DIR" ]]; then

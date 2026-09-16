@@ -1,0 +1,542 @@
+{
+  "base_main_sha": "a7cb7f5559a83adc3c75f61284fecb09d1fb5553",
+  "canary_readback_provenance": {
+    "captured_at": "2026-09-16T03:58:27Z",
+    "command": "repo=\"$(gh api repositories/1212760346 --jq .full_name)\"; { gh api \"repos/$repo/actions/jobs/103780369158\"; printf '\\n'; gh api \"repos/$repo/actions/jobs/103780390014\"; printf '\\n'; } | python3 -c 'import sys,json; rows=[json.loads(x) for x in sys.stdin if x.strip()]; o=sorted([{'\"'\"'runner_id'\"'\"':x['\"'\"'runner_id'\"'\"'],'\"'\"'run_id'\"'\"':x['\"'\"'run_id'\"'\"'],'\"'\"'job_id'\"'\"':x['\"'\"'id'\"'\"'],'\"'\"'commit_sha'\"'\"':x['\"'\"'head_sha'\"'\"'],'\"'\"'conclusion'\"'\"':x['\"'\"'conclusion'\"'\"'],'\"'\"'selector_labels'\"'\"':x['\"'\"'labels'\"'\"']} for x in rows],key=lambda x:x['\"'\"'runner_id'\"'\"']); print(json.dumps(o,sort_keys=True,separators=('\"'\"','\"'\"','\"'\"':'\"'\"')))'",
+    "replay_bundle_record_sha256": "952d6fbab43c09e0318b13c5446ac8ca8ef7c76202d7085016fdb74943a281c5",
+    "run_readback_bundle_record_sha256": {
+      "34778271133": "ad1ccba4ca7fa2ee3ee9ff2940cb4f9fea4579383a21630bf9e4b3c0be4898e2",
+      "34778271301": "97cc411f8cc2117f4fd96f3ce5001df6c4fc3991ed07fe7a05e11049e6a2bec7"
+    },
+    "run_replay_bundle_record_sha256": {
+      "34778271133": "d09e68067f6b23ba48cd07666caa014aa76a3b4a0cb712451f67edc0a01ef51e",
+      "34778271301": "2ea47f07c93477de430575a060f87e8f09c189b53005c37017d9334a5d504c52"
+    },
+    "sanitized_output": "[{\"commit_sha\":\"a7cb7f5559a83adc3c75f61284fecb09d1fb5553\",\"conclusion\":\"success\",\"job_id\":103780369158,\"run_id\":34778271301,\"runner_id\":21,\"selector_labels\":[\"omnigenis-isolated\"]},{\"commit_sha\":\"a7cb7f5559a83adc3c75f61284fecb09d1fb5553\",\"conclusion\":\"success\",\"job_id\":103780390014,\"run_id\":34778271133,\"runner_id\":22,\"selector_labels\":[\"omnigenis-isolated\"]}]\n",
+    "sanitized_output_sha256": "2655a3867148deb7129189cc24a7982dad59537decc6b978efd90c364a7a5b6b",
+    "source": "GitHub REST API",
+    "validation_bundle_record_sha256": "15f2602aa480ed55d827e3450d4878d270697d58c9ca8937a8bdfe1e0af78a8c"
+  },
+  "flattened_delivery_fallback": {
+    "claims_implementation_ancestry": false,
+    "proof_scope": "PAYLOAD_TREE_EQUIVALENCE_ONLY",
+    "requires_base_main_ancestry": true,
+    "requires_evidence_artifact_equality": true
+  },
+  "implementation_head_sha": "89da423c2ded26cd21122fb1f224cd9f5258d6a2",
+  "implementation_payload_tree_sha": "786211ae736e94f2565ec95931c1a60a69db4c74",
+  "implementation_tree_sha": "258033af4c1d06a5cc086001d0997500e3aee2ac",
+  "legacy_inventory": {
+    "active_migrate_location_count": 0,
+    "historical_drift": [],
+    "historical_verified_count": 21,
+    "over_budget": [],
+    "preserved_historical_counts": {
+      "historical-runtime-zip": {
+        "docs/GITHUB_MOBILE_IMPORT.md": 2
+      }
+    },
+    "unclassified": []
+  },
+  "legacy_ledger_sha256": "fb49166e89d793db1e1eecd74c67acdb5ef2e7961dafec2a22aba9ac9422cc42",
+  "phase2_global_seal": "BLOCKED",
+  "protected_main_canaries": [
+    {
+      "commit_sha": "a7cb7f5559a83adc3c75f61284fecb09d1fb5553",
+      "conclusion": "success",
+      "job_id": 103780369158,
+      "run_id": 34778271301,
+      "runner_id": 21,
+      "selector_labels": [
+        "omnigenis-isolated"
+      ]
+    },
+    {
+      "commit_sha": "a7cb7f5559a83adc3c75f61284fecb09d1fb5553",
+      "conclusion": "success",
+      "job_id": 103780390014,
+      "run_id": 34778271133,
+      "runner_id": 22,
+      "selector_labels": [
+        "omnigenis-isolated"
+      ]
+    }
+  ],
+  "protected_main_canary_scope": {
+    "commit_sha": "a7cb7f5559a83adc3c75f61284fecb09d1fb5553",
+    "implementation_head_sha": "89da423c2ded26cd21122fb1f224cd9f5258d6a2",
+    "role": "PRE_PHASE2D_BASELINE_CONTEXT_ONLY",
+    "validates_implementation_payload": false
+  },
+  "repository_checkpoint_status": "VERIFIED",
+  "repository_id": 1212760346,
+  "repository_identity": {
+    "default_branch": "main",
+    "id": 1212760346,
+    "name": "OmniGenis",
+    "visibility": "public"
+  },
+  "repository_identity_provenance": {
+    "captured_at": "2026-09-16T03:58:23Z",
+    "command": "gh api repositories/1212760346 --jq '{id,name,visibility,default_branch}'",
+    "replay_bundle_record_sha256": "ddf927d402b6615222dc19a35d065f9605ac189b94b8390fe922a79b39389274",
+    "sanitized_output": "{\"default_branch\":\"main\",\"id\":1212760346,\"name\":\"OmniGenis\",\"visibility\":\"public\"}\n",
+    "sanitized_output_sha256": "88d68836fa36357588d6d48f440d708aa507a40e8e6b24e7f9e7a0209146d319",
+    "source": "GitHub REST API",
+    "validation_bundle_record_sha256": "89e75fad3d8b38b45bd9b556c60b8227e158071638ec057f4ffd3407204abd0b"
+  },
+  "ruleset_readback_provenance": {
+    "captured_at": "2026-09-16T03:58:25Z",
+    "command": "repo=\"$(gh api repositories/1212760346 --jq .full_name)\"; gh api --paginate --slurp \"repos/$repo/rulesets?per_page=100\" | python3 -c 'import sys,json; pages=json.load(sys.stdin); rows=[x for page in pages for x in page]; o=sorted([{\"id\":x[\"id\"],\"name\":x[\"name\"],\"enforcement\":x[\"enforcement\"]} for x in rows if x[\"enforcement\"]==\"active\"],key=lambda x:x[\"id\"]); print(json.dumps(o,sort_keys=True,separators=(\",\",\":\")))'",
+    "replay_bundle_record_sha256": "d33f3528257d02205bd471ab143415555aa9a31cfe69e62ea08edbfdf4d7a90f",
+    "sanitized_output": "[{\"enforcement\":\"active\",\"id\":21303100,\"name\":\"GENOMA protected main\"},{\"enforcement\":\"active\",\"id\":22347095,\"name\":\"GENOMA approval gate\"}]\n",
+    "sanitized_output_sha256": "a35953ff9e447b646b673d9dd3800e03da4fa7cb911e0978b6321d0ed56bce79",
+    "source": "GitHub REST API",
+    "validation_bundle_record_sha256": "29109cec7f62db2240e90745d8f8f8efe215672ed83ec64e065bf7adc2e4defb"
+  },
+  "ruleset_semantic_comparison": {
+    "expected_semantics_sha256": "dae74758e0165a294e4c520fed1f353b86e7628e89ae301b71390fde26cd63a2",
+    "governance_manifest_sha256": {
+      "21303100": "aa1555dc175846b64f682aaf0129dcb79ff4b8584991fa120eea5bf0c9e370c5",
+      "22347095": "b7ce8f57e6f3aa667c449b4b0e2f2f2d9dcc8194c819d3028712ab25abeb5c81"
+    },
+    "governance_manifest_sources": {
+      "21303100": ".github/governance/main-ruleset.json",
+      "22347095": ".github/governance/main-approval-ruleset.json"
+    },
+    "live_neutralized_sha256": "dae74758e0165a294e4c520fed1f353b86e7628e89ae301b71390fde26cd63a2",
+    "match": true,
+    "neutralized_live_semantics": {
+      "21303100": {
+        "bypass_actors": [],
+        "conditions": {
+          "ref_name": {
+            "exclude": [],
+            "include": [
+              "refs/heads/main"
+            ]
+          }
+        },
+        "enforcement": "active",
+        "id": 21303100,
+        "name": "GENOMA protected main",
+        "required_status_contexts": [
+          "static",
+          "container-canary",
+          "Canonical policy + 263-rule contract",
+          "OPA/Rego parity",
+          "Real Docker + canonical read-only mount",
+          "CodeRabbit",
+          "GitGuardian Security Checks",
+          "DeepSource: Python",
+          "DeepSource: JavaScript",
+          "DeepSource: Shell",
+          "DeepSource: Docker",
+          "DeepSource: SQL",
+          {
+            "context_fingerprint": {
+              "algorithm": "sha256",
+              "case_sensitive": true,
+              "digest": "13148c18c6ce9155ee89d2c0de0435a9ff86e658bc56851d2a8ec24062134bf7",
+              "provider_family": "dependency-security"
+            }
+          },
+          "semgrep-cloud-platform/scan"
+        ],
+        "rules": [
+          {
+            "type": "deletion"
+          },
+          {
+            "type": "non_fast_forward"
+          },
+          {
+            "parameters": {
+              "do_not_enforce_on_create": false,
+              "required_status_checks": [
+                {
+                  "context": "static"
+                },
+                {
+                  "context": "container-canary"
+                },
+                {
+                  "context": "Canonical policy + 263-rule contract"
+                },
+                {
+                  "context": "OPA/Rego parity"
+                },
+                {
+                  "context": "Real Docker + canonical read-only mount"
+                },
+                {
+                  "context": "CodeRabbit"
+                },
+                {
+                  "context": "GitGuardian Security Checks",
+                  "integration_id": 46505
+                },
+                {
+                  "context": "DeepSource: Python",
+                  "integration_id": 16372
+                },
+                {
+                  "context": "DeepSource: JavaScript",
+                  "integration_id": 16372
+                },
+                {
+                  "context": "DeepSource: Shell",
+                  "integration_id": 16372
+                },
+                {
+                  "context": "DeepSource: Docker",
+                  "integration_id": 16372
+                },
+                {
+                  "context": "DeepSource: SQL",
+                  "integration_id": 16372
+                },
+                {
+                  "context_fingerprint": {
+                    "algorithm": "sha256",
+                    "case_sensitive": true,
+                    "digest": "13148c18c6ce9155ee89d2c0de0435a9ff86e658bc56851d2a8ec24062134bf7",
+                    "provider_family": "dependency-security"
+                  }
+                },
+                {
+                  "context": "semgrep-cloud-platform/scan",
+                  "integration_id": 4836909
+                }
+              ],
+              "strict_required_status_checks_policy": true
+            },
+            "type": "required_status_checks"
+          }
+        ],
+        "target": "branch"
+      },
+      "22347095": {
+        "bypass_actors": [
+          {
+            "actor_id": 116986656,
+            "actor_type": "User",
+            "bypass_mode": "pull_request"
+          }
+        ],
+        "conditions": {
+          "ref_name": {
+            "exclude": [],
+            "include": [
+              "refs/heads/main"
+            ]
+          }
+        },
+        "enforcement": "active",
+        "id": 22347095,
+        "name": "GENOMA approval gate",
+        "required_status_contexts": [],
+        "rules": [
+          {
+            "parameters": {
+              "allowed_merge_methods": [
+                "merge",
+                "squash",
+                "rebase"
+              ],
+              "dismiss_stale_reviews_on_push": true,
+              "require_code_owner_review": false,
+              "require_extra_approval_for_unattributed_changes": false,
+              "require_last_push_approval": true,
+              "required_approving_review_count": 1,
+              "required_review_thread_resolution": true,
+              "required_reviewers": []
+            },
+            "type": "pull_request"
+          }
+        ],
+        "target": "branch"
+      }
+    },
+    "readback_provenance": {
+      "bundle_path": "docs/superpowers/evidence/2026-09-14-omnigenis-phase2d-validation-bundle.json",
+      "captured_at": "2026-09-16T03:58:22Z",
+      "records": {
+        "21303100": {
+          "bundle_record_sha256": "0583ceffaefa8ba3ce3ef1799ca6c5dcf6fbb504a06d63eea062c6329715deae",
+          "command": "repo=\"$(gh api repositories/1212760346 --jq .full_name)\"; gh api \"repos/$repo/rulesets/21303100\" | python3 -c 'import sys,json; x=json.load(sys.stdin); y={k:x[k] for k in (\"id\",\"name\",\"target\",\"enforcement\",\"conditions\",\"bypass_actors\",\"rules\")}; print(json.dumps(y,sort_keys=True,separators=(\",\",\":\")))'",
+          "raw_output_sha256": "17599427ba61c65a70654a67c7cd635d9bb214673796068cb6be8721242cde94",
+          "replay_bundle_record_sha256": "45c51e3ae8a4c4a405160fc3f97a0a8d33831b9414b91037a3ddfe09d78af580",
+          "replay_raw_output_sha256": "17599427ba61c65a70654a67c7cd635d9bb214673796068cb6be8721242cde94"
+        },
+        "22347095": {
+          "bundle_record_sha256": "1813ee0b9c1d10d638b110d0f85a9caec71882c842155fe05a3985dec6ec97d1",
+          "command": "repo=\"$(gh api repositories/1212760346 --jq .full_name)\"; gh api \"repos/$repo/rulesets/22347095\" | python3 -c 'import sys,json; x=json.load(sys.stdin); y={k:x[k] for k in (\"id\",\"name\",\"target\",\"enforcement\",\"conditions\",\"bypass_actors\",\"rules\")}; print(json.dumps(y,sort_keys=True,separators=(\",\",\":\")))'",
+          "raw_output_sha256": "02ef6409e5d7f40f37bbd60ceaf8c1a21acab6e2716fbf82f6aae5e2d7fcc01f",
+          "replay_bundle_record_sha256": "2d0785125d843d18173ced3f8afb74264e9a224e410142e9f9e85e4135d51359",
+          "replay_raw_output_sha256": "02ef6409e5d7f40f37bbd60ceaf8c1a21acab6e2716fbf82f6aae5e2d7fcc01f"
+        }
+      },
+      "source": "GitHub REST API"
+    }
+  },
+  "ruleset_semantic_recomputation": "VERIFIED_MATCH",
+  "rulesets": [
+    {
+      "enforcement": "active",
+      "id": 21303100,
+      "name": "GENOMA protected main"
+    },
+    {
+      "enforcement": "active",
+      "id": 22347095,
+      "name": "GENOMA approval gate"
+    }
+  ],
+  "runner_name_reregistration": {
+    "authorized_executor_observations": {
+      "noninteractive_privilege_elevation": "DENIED_NO_NEW_PRIVILEGES",
+      "rootful_docker_socket": "DENIED",
+      "rootless_docker_socket": "DENIED",
+      "runner_reregistration_attempted": false
+    },
+    "missing_proofs": [
+      "container_creation_restart_mechanism",
+      "container_image_digest",
+      "container_mounts",
+      "registration_workflow",
+      "rollback_procedure"
+    ],
+    "status": "BLOCKED_RUNTIME_RESOURCE_GATE"
+  },
+  "runner_readback_provenance": {
+    "captured_at": "2026-09-16T03:58:24Z",
+    "command": "repo=\"$(gh api repositories/1212760346 --jq .full_name)\"; gh api --paginate --slurp \"repos/$repo/actions/runners?per_page=100\" | python3 -c 'import sys,json,hashlib; pages=json.load(sys.stdin); runners=[x for page in pages for x in page[\"runners\"]]; totals={int(page[\"total_count\"]) for page in pages}; assert len(totals)==1 and len(runners)==totals.pop() and len({int(x[\"id\"]) for x in runners})==len(runners); o=sorted([{\"id\":x[\"id\"],\"status\":x[\"status\"],\"busy\":x[\"busy\"],\"labels\":[y[\"name\"] for y in x[\"labels\"]],\"runner_name_sha256\":hashlib.sha256(x[\"name\"].encode()).hexdigest()} for x in runners],key=lambda x:x[\"id\"]); print(json.dumps(o,sort_keys=True,separators=(\",\",\":\")))'",
+    "replay_bundle_record_sha256": "517528a0f16e4c3ae6efb0862e6eb511ae8c0bbdcb9f291d86bbbdd7c0d042fa",
+    "sanitized_output": "[{\"busy\":false,\"id\":21,\"labels\":[\"self-hosted\",\"Linux\",\"X64\",\"omnigenis-isolated\",\"omnigenis-01\"],\"runner_name_sha256\":\"90eeec4bbf8402458fd978e8e455ae3dbf93637bd7addb068ff5b0ae2d80b2cd\",\"status\":\"online\"},{\"busy\":false,\"id\":22,\"labels\":[\"self-hosted\",\"Linux\",\"X64\",\"omnigenis-isolated\",\"omnigenis-02\"],\"runner_name_sha256\":\"d230518f559a417c7807ef428a3fa8adeafb30921d2c57e1545ee8b4314d3e93\",\"status\":\"online\"}]\n",
+    "sanitized_output_sha256": "0df0a4bdec2db41e96c61f803c603f33258c05934ddc9811d17b614bdb2efe9f",
+    "source": "GitHub REST API",
+    "validation_bundle_record_sha256": "16dec86f6ac65e7a14c936f496c4d51611eb198aaa652ee599b2d99ba4eb6718"
+  },
+  "runner_snapshot": [
+    {
+      "busy": false,
+      "id": 21,
+      "labels": [
+        "self-hosted",
+        "Linux",
+        "X64",
+        "omnigenis-isolated",
+        "omnigenis-01"
+      ],
+      "runner_name_sha256": "90eeec4bbf8402458fd978e8e455ae3dbf93637bd7addb068ff5b0ae2d80b2cd",
+      "status": "online"
+    },
+    {
+      "busy": false,
+      "id": 22,
+      "labels": [
+        "self-hosted",
+        "Linux",
+        "X64",
+        "omnigenis-isolated",
+        "omnigenis-02"
+      ],
+      "runner_name_sha256": "d230518f559a417c7807ef428a3fa8adeafb30921d2c57e1545ee8b4314d3e93",
+      "status": "online"
+    }
+  ],
+  "runner_snapshot_captured_at": "2026-09-16T03:58:24Z",
+  "schema": "omnigenis-phase2d-legacy-elimination-v1",
+  "secret_material_recorded": false,
+  "validation_bundle": {
+    "path": "docs/superpowers/evidence/2026-09-14-omnigenis-phase2d-validation-bundle.json",
+    "sha256": "9a3c01365bbfbfe7b3586e6bf21688358fd0e3453225866314423f17d725cd0c"
+  },
+  "validation_environment": {
+    "interpreter": "/tmp/omnigenis-phase2d-validation-venv/bin/python",
+    "python_version": "3.12.3",
+    "requirements_file": "reporting/requirements.txt",
+    "requirements_sha256": "416b942d5eaaa9b7d24d0a0c684018cd4d3b335b827a916fe762a9479a549277",
+    "setup_command": "python3.12 -m venv --clear /tmp/omnigenis-phase2d-validation-venv && /tmp/omnigenis-phase2d-validation-venv/bin/python -m pip install --disable-pip-version-check --require-hashes -r reporting/requirements.txt && /tmp/omnigenis-phase2d-validation-venv/bin/python -m pip check",
+    "setup_command_sha256": "4f0a556ae75ab002b0a4c91e223a1bdaf277dec07a6365213b3fd3d0b6700cfb",
+    "setup_receipt_sha256": "eccebb6f3e30eb8d59448dbceb7b5ef4cd612625e265f474e586635649f14428",
+    "setup_status": "EXECUTED"
+  },
+  "validation_provenance": {
+    "code_language": {
+      "command": "python3 scripts/code_language_guard.py --check",
+      "exit_code": 0,
+      "output_kind": "inline_sanitized_summary",
+      "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "raw_output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sanitized_output": "",
+      "validated_head_sha": "89da423c2ded26cd21122fb1f224cd9f5258d6a2",
+      "validated_tree_sha": "258033af4c1d06a5cc086001d0997500e3aee2ac",
+      "validation_bundle_record_sha256": "4e3eca410253f845bbca6e21aace038fb4fbab80b77e75401d3c812a4043546d"
+    },
+    "diff_check": {
+      "command": "git diff --check a7cb7f5559a83adc3c75f61284fecb09d1fb5553 89da423c2ded26cd21122fb1f224cd9f5258d6a2",
+      "exit_code": 0,
+      "output_kind": "inline_sanitized_summary",
+      "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "raw_output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sanitized_output": "",
+      "validated_head_sha": "89da423c2ded26cd21122fb1f224cd9f5258d6a2",
+      "validated_tree_sha": "258033af4c1d06a5cc086001d0997500e3aee2ac",
+      "validation_bundle_record_sha256": "8c35ca432c9e20cc5dbf722199023c2d80309902aee5899f98686345b213c2e7"
+    },
+    "docs_language": {
+      "command": "PYTHONPATH=tests:. /tmp/omnigenis-phase2d-validation-venv/bin/python -m unittest tests.test_developer_documentation_language -v",
+      "exit_code": 0,
+      "output_kind": "inline_sanitized_summary",
+      "output_sha256": "f4b85762f6f02ba31f970d908b88eb611751857bdcb7b0b938d6bf3ed0a0834b",
+      "raw_output_sha256": "05ad05e446d7dd9d6e2052551239ad255336aacf4d4b326afc6043bba6866d12",
+      "sanitized_output": "Ran 27 tests in 0.205s\nOK\n",
+      "validated_head_sha": "89da423c2ded26cd21122fb1f224cd9f5258d6a2",
+      "validated_tree_sha": "258033af4c1d06a5cc086001d0997500e3aee2ac",
+      "validation_bundle_record_sha256": "0a8b840300b9c86a2f445bc6e0a05bc24205fbb924fa9f793a824c3004e5a9d9"
+    },
+    "identity": {
+      "command": "python3 scripts/project_identity_guard.py --check",
+      "exit_code": 0,
+      "output_kind": "inline_sanitized_summary",
+      "output_sha256": "0c6537c2763c5efb04594bf3441d6e02a721a5f1f220fe4490de707fea3aad2d",
+      "raw_output_sha256": "0c6537c2763c5efb04594bf3441d6e02a721a5f1f220fe4490de707fea3aad2d",
+      "sanitized_output": "PASS\tproject_identity_contract\n",
+      "validated_head_sha": "89da423c2ded26cd21122fb1f224cd9f5258d6a2",
+      "validated_tree_sha": "258033af4c1d06a5cc086001d0997500e3aee2ac",
+      "validation_bundle_record_sha256": "efdeb191933df585f2a1f54713bd7cd45de20b5355fb2ddef87f02562ee254d8"
+    },
+    "implementation_suite_without_phase2d_evidence": {
+      "command": "PYTHONPATH=tests:. /tmp/omnigenis-phase2d-validation-venv/bin/python -m unittest $(find tests -maxdepth 1 -name 'test_*.py' ! -name 'test_phase2d_evidence_contract.py' -printf '%f\\n' | sort | sed 's/\\.py$//' | tr '\\n' ' ') -v",
+      "execution_receipt_sha256": "e184c90f0067ad619ce8ac101a322a1fc35111e2d145027914ac0c93de3060e1",
+      "exit_code": 0,
+      "output_kind": "inline_sanitized_summary",
+      "output_sha256": "6cf2f7fb391e90a0e61a8c676629fc3144f6f75dde04c6afa94d91c1ebc59cf0",
+      "raw_output_sha256": "e24006264e566716c3d2862549c7a642b0a6a3dacff6526cfcd4896d42d0c110",
+      "sanitized_output": "Ran 1195 tests in 281.397s\nOK (skipped=1)\n",
+      "transcript_gzip_sha256": "f698092642f9fd2d3120a5b8972d8f48b462a8a5686fabd0f3f13d424c6af57a",
+      "transcript_path": "docs/superpowers/evidence/2026-09-13-omnigenis-phase2d-implementation-suite.log.gz",
+      "validated_head_sha": "89da423c2ded26cd21122fb1f224cd9f5258d6a2",
+      "validated_tree_sha": "258033af4c1d06a5cc086001d0997500e3aee2ac"
+    },
+    "legacy_inventory": {
+      "command": "python3 scripts/project_identity_guard.py --inventory",
+      "exit_code": 0,
+      "output_kind": "inline_sanitized_summary",
+      "output_sha256": "0eec39139d9f347b86ef0f21d3c8f1823963a45dabf1b90b37431cd70c49afd5",
+      "raw_output_sha256": "0eec39139d9f347b86ef0f21d3c8f1823963a45dabf1b90b37431cd70c49afd5",
+      "sanitized_output": "{\n  \"counts\": {\n    \"historical-runtime-zip\": {\n      \"docs/GITHUB_MOBILE_IMPORT.md\": 2\n    }\n  },\n  \"historical_drift\": [],\n  \"historical_verified\": [\n    \"docs/superpowers/checkpoints/2026-09-03-local-first-ci-session.md\",\n    \"docs/superpowers/evidence/2026-09-03-pr36-local-validation-5953286.md\",\n    \"docs/superpowers/evidence/2026-09-03-pr36-local-validation-977a531.md\",\n    \"docs/superpowers/evidence/2026-09-10-omnigenis-phase2a-identity-contract.json\",\n    \"docs/superpowers/evidence/2026-09-10-omnigenis-repository-identity-migration.json\",\n    \"docs/superpowers/evidence/2026-09-11-omnigenis-phase2b-runtime-build-identity.json\",\n    \"docs/superpowers/evidence/2026-09-11-omnigenis-phase2c-runner-cutover.json\",\n    \"docs/superpowers/plans/2026-09-07-scaffold-buildkit-cache.md\",\n    \"docs/superpowers/plans/2026-09-08-scientific-internals-english.md\",\n    \"docs/superpowers/plans/2026-09-09-policy-evidence-audit-english.md\",\n    \"docs/superpowers/plans/2026-09-09-reporting-english-locale.md\",\n    \"docs/superpowers/plans/2026-09-10-omnigenis-phase2a-internal-identity-contract.md\",\n    \"docs/superpowers/plans/2026-09-10-omnigenis-repository-identity-migration.md\",\n    \"docs/superpowers/plans/2026-09-11-omnigenis-phase2b-runtime-build-identity-cutover.md\",\n    \"docs/superpowers/plans/2026-09-11-omnigenis-phase2c-runner-identity-cutover.md\",\n    \"docs/superpowers/specs/2026-09-03-english-codebase-refactor-design.md\",\n    \"docs/superpowers/specs/2026-09-03-local-first-ci-architecture-design.md\",\n    \"docs/superpowers/specs/2026-09-05-draft-first-final-ci-design.md\",\n    \"docs/superpowers/specs/2026-09-05-four-plane-audit-static-dependency-design.md\",\n    \"docs/superpowers/specs/2026-09-10-omnigenis-phase2-internal-identity-migration-design.md\",\n    \"docs/superpowers/specs/2026-09-10-omnigenis-repository-identity-migration-design.md\"\n  ],\n  \"over_budget\": [],\n  \"unclassified\": [],\n  \"unstaged_drift\": []\n}\n",
+      "validated_head_sha": "89da423c2ded26cd21122fb1f224cd9f5258d6a2",
+      "validated_tree_sha": "258033af4c1d06a5cc086001d0997500e3aee2ac",
+      "validation_bundle_record_sha256": "c88d271da131e75740e8d929add8ca121f8dbb8c579f548c4b902d9422cf6766"
+    },
+    "phase2d_hardening": {
+      "command": "PYTHONPATH=tests:. /tmp/omnigenis-phase2d-validation-venv/bin/python -m unittest tests.test_phase2d_legacy_elimination tests.test_project_identity_guard tests.test_integration_code_language -v",
+      "exit_code": 0,
+      "output_kind": "inline_sanitized_summary",
+      "output_sha256": "2b78d320abfe4f3b037cb360794417fdad81e785e40ade6f6483bcc02a72fb70",
+      "raw_output_sha256": "2c992dac78e627f601230ed5e220ffc3abb88d13ed454d4273daa67f3449db0e",
+      "sanitized_output": "Ran 45 tests in 6.988s\nOK\n",
+      "validated_head_sha": "89da423c2ded26cd21122fb1f224cd9f5258d6a2",
+      "validated_tree_sha": "258033af4c1d06a5cc086001d0997500e3aee2ac",
+      "validation_bundle_record_sha256": "64dc5d21678500f24a4e38f683256d8328c8be9d9ed2372342d293dda97b715e"
+    },
+    "residual_language": {
+      "command": "python3 scripts/residual_language_audit.py --check",
+      "exit_code": 0,
+      "output_kind": "inline_sanitized_summary",
+      "output_sha256": "3aa068a3ee76de0f29694f99d95a5e14143a3ed1743f142bd60781ef1cdcfc25",
+      "raw_output_sha256": "3aa068a3ee76de0f29694f99d95a5e14143a3ed1743f142bd60781ef1cdcfc25",
+      "sanitized_output": "{\"category_files\": {\"canonical\": 13, \"compatibility-preserved\": 108, \"historical\": 27, \"localized\": 68, \"normative\": 36}, \"category_lines\": {\"canonical\": 31, \"compatibility-preserved\": 4861, \"historical\": 766, \"localized\": 1740, \"normative\": 204}, \"clean\": true, \"detected_lines\": 7602, \"drift\": [], \"missing\": [], \"schema\": \"genoma-residual-language-audit-v1\", \"tracked_files_with_residuals\": 252, \"unclassified\": []}\n",
+      "validated_head_sha": "89da423c2ded26cd21122fb1f224cd9f5258d6a2",
+      "validated_tree_sha": "258033af4c1d06a5cc086001d0997500e3aee2ac",
+      "validation_bundle_record_sha256": "bf6dfd393d93ec20d617a7ebec7e781166fcf4e4626924f4c44693f8927aeaea"
+    },
+    "shell_syntax": {
+      "command": "find scripts -type f -name '*.sh' -exec bash -n {} +",
+      "exit_code": 0,
+      "output_kind": "inline_sanitized_summary",
+      "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "raw_output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sanitized_output": "",
+      "validated_head_sha": "89da423c2ded26cd21122fb1f224cd9f5258d6a2",
+      "validated_tree_sha": "258033af4c1d06a5cc086001d0997500e3aee2ac",
+      "validation_bundle_record_sha256": "d3005d4c043431e1630bf060bf04b434449a523bfc7d14df802e09623e3270e4"
+    },
+    "supply_chain": {
+      "command": "python3 scripts/verify_supply_chain_lock.py",
+      "exit_code": 0,
+      "output_kind": "inline_sanitized_summary",
+      "output_sha256": "3ffbf1e78306655dbb2f214974a4e24c842e6378da0e2d8840d43b2eb4939c7c",
+      "raw_output_sha256": "3ffbf1e78306655dbb2f214974a4e24c842e6378da0e2d8840d43b2eb4939c7c",
+      "sanitized_output": "PASS\tactions_immutable\t10 action identities observed\nPASS\tcontainer_digests\tbase image\nPASS\texternal_secret_scanner\tGitGuardian Security Checks@46505\nPASS\truntime_versions\texact critical conda pins\n",
+      "validated_head_sha": "89da423c2ded26cd21122fb1f224cd9f5258d6a2",
+      "validated_tree_sha": "258033af4c1d06a5cc086001d0997500e3aee2ac",
+      "validation_bundle_record_sha256": "c006bd776da8351e63d95d1cfe31f55a7385103cdb8be9c1b29bd23da8b3a35e"
+    },
+    "validate_repo": {
+      "command": "python3 scripts/validate_repo.py",
+      "exit_code": 0,
+      "output_kind": "inline_sanitized_summary",
+      "output_sha256": "3c0dc015021366a6895ca1777bd4be46995994861b27bb8fcaa7cb47a143f2fd",
+      "raw_output_sha256": "3c0dc015021366a6895ca1777bd4be46995994861b27bb8fcaa7cb47a143f2fd",
+      "sanitized_output": "PASS\trepository_contract\nPASS\truleset_manifest_contract\tv3.4 raw SHA-256 pinned\nPASS\trepository_active_rulesets\t0\nPASS\tsealed_normative_transport\tshared decoder\nPASS\tgrch38_manifest\t9/9\nPASS\tpre_dna_readiness_contract\tlatest-tested candidate + canaries + freshness + runtime/resource gate\nPASS\twgs_scientific_data_plane_contract\treal SNV/indel path + explicit unsupported classes\nPASS\tarray_scientific_data_plane_contract\tQC + target-first evidence + policy/report handoff\nPASS\tevidence_adapter_contract\tClinVar/ClinGen/CPIC/ClinPGx/gnomAD/PGS Catalog\nPASS\tsupply_chain_contract\tworkflow/action/container lock paths present\nPASS\treporting_contract\t11-model deterministic renderer and reference identities\nPASS\toptional_adapters\tcore has no external runtime dependency\n",
+      "validated_head_sha": "89da423c2ded26cd21122fb1f224cd9f5258d6a2",
+      "validated_tree_sha": "258033af4c1d06a5cc086001d0997500e3aee2ac",
+      "validation_bundle_record_sha256": "8b95a61a4e7008164a570a8b85c70a12a033bba399316dbf725f0958bc6bf4f4"
+    },
+    "zero_identity": {
+      "command": "python3 scripts/zero_identity_guard.py --check",
+      "exit_code": 0,
+      "output_kind": "inline_sanitized_summary",
+      "output_sha256": "c3d9578a5523c7d94201489a5809df65f0529e2ae4e5e0df64cd3eb604b62e8c",
+      "raw_output_sha256": "c3d9578a5523c7d94201489a5809df65f0529e2ae4e5e0df64cd3eb604b62e8c",
+      "sanitized_output": "PASS\tzero_identity_guard\tfindings=0\n",
+      "validated_head_sha": "89da423c2ded26cd21122fb1f224cd9f5258d6a2",
+      "validated_tree_sha": "258033af4c1d06a5cc086001d0997500e3aee2ac",
+      "validation_bundle_record_sha256": "f97ed29972ceaff2a907d30109c3193e1909124d8b962229b18db585c102d63d"
+    },
+    "zero_identity_plane_inventory": {
+      "command": "PYTHONPATH=. python3 -c \"from pathlib import Path; import json; from scripts import zero_identity_guard as z; r=Path('.').resolve(); c=z._load_index_policy(r); d={x.class_id:{'path':0,'blob':0} for x in c}; [( [d.__getitem__(i).__setitem__('path',d[i]['path']+1) for i,_ in z._find_matches(p,c)], [d.__getitem__(i).__setitem__('blob',d[i]['blob']+1) for i,_ in z._find_matches(z._read_index_blob(r,p,c),c)] ) for p in z._tracked_paths(r)]; print(json.dumps(d,separators=(',',':'),sort_keys=True))\"",
+      "exit_code": 0,
+      "output_kind": "inline_sanitized_summary",
+      "output_sha256": "84b448e16eb9250ad6a03f1f8999864b8cee9a717a7bbc77ef717eadafae333f",
+      "raw_output_sha256": "84b448e16eb9250ad6a03f1f8999864b8cee9a717a7bbc77ef717eadafae333f",
+      "sanitized_output": "{\"P1\":{\"blob\":0,\"path\":0},\"P2\":{\"blob\":0,\"path\":0},\"P3\":{\"blob\":0,\"path\":0},\"P4\":{\"blob\":0,\"path\":0}}\n",
+      "validated_head_sha": "89da423c2ded26cd21122fb1f224cd9f5258d6a2",
+      "validated_tree_sha": "258033af4c1d06a5cc086001d0997500e3aee2ac",
+      "validation_bundle_record_sha256": "b882b481e52685bf186c2937d6c71edbdbc9603cb5781106ae68998a06353fc4"
+    },
+    "zero_identity_seal": {
+      "command": "PYTHONPATH=tests:. /tmp/omnigenis-phase2d-validation-venv/bin/python -m unittest tests.test_zero_identity_seal -v",
+      "exit_code": 0,
+      "output_kind": "inline_sanitized_summary",
+      "output_sha256": "68ab361d8f39a35054b01ecea25d9942ad611e74930d46f3589bc35732b7e92c",
+      "raw_output_sha256": "b7c576b9df03269fcb4ccafb3077c3de71780822836e7babbaff2879c2e086ac",
+      "sanitized_output": "Ran 10 tests in 0.494s\nOK\n",
+      "validated_head_sha": "89da423c2ded26cd21122fb1f224cd9f5258d6a2",
+      "validated_tree_sha": "258033af4c1d06a5cc086001d0997500e3aee2ac",
+      "validation_bundle_record_sha256": "f2f4ab28969f1ddfb67abbae1f0e89be16079c228a40adbc0dc7d02af4478098"
+    }
+  },
+  "zero_identity_class_counts": {
+    "P1": {
+      "blob": 0,
+      "path": 0
+    },
+    "P2": {
+      "blob": 0,
+      "path": 0
+    },
+    "P3": {
+      "blob": 0,
+      "path": 0
+    },
+    "P4": {
+      "blob": 0,
+      "path": 0
+    }
+  }
+}
