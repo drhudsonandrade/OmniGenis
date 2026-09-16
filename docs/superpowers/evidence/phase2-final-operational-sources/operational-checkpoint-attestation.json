@@ -1,0 +1,86 @@
+{
+  "final_completion_gate": {
+    "code_language_guard": "PASS",
+    "final_static_log_sha256": "596c634b1c0e78c98846cdfafb7459a6838047936a0e35d5457516a7ca0a3926",
+    "full_root_suite": {
+      "failures": 0,
+      "skipped": 2,
+      "source_job_id": 104894004131,
+      "tests": 1219
+    },
+    "mcp_suite": {
+      "failures": 0,
+      "passed": 45,
+      "skipped": 1,
+      "source_job_id": 104894004131,
+      "tests": 46
+    },
+    "no_auto_merge": true,
+    "pr72_manual_merge_recorded": true,
+    "project_identity_guard": "PASS",
+    "protected_main_bypass_actors": [],
+    "protected_main_ruleset_active": true,
+    "repository_validator": "PASS",
+    "residual_language_audit": "PASS_CLEAN",
+    "ruleset_v3_4_sha_pinned": "PASS",
+    "supply_chain_lock": "PASS",
+    "tracked_zero_identity_findings": 0
+  },
+  "final_runners": [
+    {
+      "busy": false,
+      "id": 24,
+      "labels": [
+        "self-hosted",
+        "Linux",
+        "X64",
+        "omnigenis-isolated",
+        "omnigenis-01"
+      ],
+      "name": "omnigenis-runner-01",
+      "status": "online"
+    },
+    {
+      "busy": false,
+      "id": 25,
+      "labels": [
+        "self-hosted",
+        "Linux",
+        "X64",
+        "omnigenis-isolated",
+        "omnigenis-02"
+      ],
+      "name": "omnigenis-runner-02",
+      "status": "online"
+    }
+  ],
+  "governance": {
+    "enforcement": "active",
+    "protected_main_ruleset_id": 21303100,
+    "required_status_check_count": 14
+  },
+  "main_sha": "1cb09951fac586b9774e550815d3718993fc23ec",
+  "schema": "omnigenis-phase2-operational-checkpoint-attestation-v1",
+  "secrets_captured": false,
+  "status": "COMPLETE",
+  "task9": {
+    "continuity_anchor_preserved_during_migration": true,
+    "external_zero_personal_identity": "PASS",
+    "runner01": {
+      "canary_run_id": 35123838618,
+      "current_id": 24,
+      "name": "omnigenis-runner-01",
+      "static_job_id": 104887984148,
+      "status": "PASS"
+    },
+    "runner02": {
+      "canary_run_id": 35125654567,
+      "current_id": 25,
+      "name": "omnigenis-runner-02",
+      "static_job_id": 104894004131,
+      "status": "PASS"
+    },
+    "status": "COMPLETE"
+  },
+  "verified_at_utc": "2026-09-16T17:17:16.081834+00:00"
+}

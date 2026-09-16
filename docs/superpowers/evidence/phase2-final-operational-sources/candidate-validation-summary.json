@@ -1,0 +1,23 @@
+{
+  "candidate_commit_at_execution": "21e4bc85f6ea1e001f8c1e3405564043b75c075a",
+  "mcp_suite": {
+    "failures": 0,
+    "passed": 45,
+    "skipped": 1,
+    "tests": 46
+  },
+  "root_suite": {
+    "failures": 0,
+    "skipped": 2,
+    "tests": 1228
+  },
+  "schema": "omnigenis-phase2-evidence-pr-candidate-validation-v1",
+  "secrets_captured": false,
+  "source_locator": "tracked-attestation:local-pinned-validation-summary",
+  "status": "PASS",
+  "validation_environment": {
+    "python": "3.12.3",
+    "reporting_requirements": "pinned"
+  },
+  "validation_scope": "LOCAL_PINNED_ENV_SUPPORTING_VALIDATION"
+}

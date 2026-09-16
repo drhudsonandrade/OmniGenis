@@ -1,0 +1,17 @@
+{
+  "docker_server_version": "29.8.0",
+  "facts": {
+    "all_compose_hashes_match": true,
+    "both_host_volume_states_present": true,
+    "both_listener_states_present": true,
+    "both_runner_binaries_present": true,
+    "restart_unless_stopped": true,
+    "same_image": true
+  },
+  "image_id_sha256": "f9ec13bf8bbb1479e582c7dc67d4ddec06f21e109e4230517a8f063d0b879b33",
+  "raw_environment_values_captured": false,
+  "runner_count": 2,
+  "schema": "omnigenis-phase2-runtime-gate-v6-attestation-v1",
+  "secrets_captured": false,
+  "status": "VERIFIED"
+}

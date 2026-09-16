@@ -1,0 +1,192 @@
+{
+  "controlled_canaries": {
+    "runner01": {
+      "four_plane_audit_conclusion": "success",
+      "four_plane_audit_job_id": 104890552272,
+      "static_job_conclusion": "success",
+      "static_job_id": 104887984148,
+      "static_job_status": "completed",
+      "static_runner_id": 24,
+      "static_runner_name": "omnigenis-runner-01",
+      "workflow_conclusion": "success",
+      "workflow_head_sha": "1cb09951fac586b9774e550815d3718993fc23ec",
+      "workflow_run_id": 35123838618,
+      "workflow_status": "completed"
+    },
+    "runner02": {
+      "four_plane_audit_conclusion": "success",
+      "four_plane_audit_job_id": 104896463291,
+      "static_job_conclusion": "success",
+      "static_job_id": 104894004131,
+      "static_job_status": "completed",
+      "static_runner_id": 25,
+      "static_runner_name": "omnigenis-runner-02",
+      "workflow_conclusion": "success",
+      "workflow_head_sha": "1cb09951fac586b9774e550815d3718993fc23ec",
+      "workflow_run_id": 35125654567,
+      "workflow_status": "completed"
+    }
+  },
+  "final_main_gates": {
+    "code_language": {
+      "command": "python3 scripts/code_language_guard.py --check",
+      "exit_code": 0,
+      "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sanitized_output": ""
+    },
+    "project_identity": {
+      "command": "python3 scripts/project_identity_guard.py --check",
+      "exit_code": 0,
+      "output_sha256": "0c6537c2763c5efb04594bf3441d6e02a721a5f1f220fe4490de707fea3aad2d",
+      "sanitized_output": "PASS\tproject_identity_contract\n"
+    },
+    "repository_validator": {
+      "command": "python3 scripts/validate_repo.py",
+      "exit_code": 0,
+      "output_sha256": "3c0dc015021366a6895ca1777bd4be46995994861b27bb8fcaa7cb47a143f2fd",
+      "sanitized_output": "PASS\trepository_contract\nPASS\truleset_manifest_contract\tv3.4 raw SHA-256 pinned\nPASS\trepository_active_rulesets\t0\nPASS\tsealed_normative_transport\tshared decoder\nPASS\tgrch38_manifest\t9/9\nPASS\tpre_dna_readiness_contract\tlatest-tested candidate + canaries + freshness + runtime/resource gate\nPASS\twgs_scientific_data_plane_contract\treal SNV/indel path + explicit unsupported classes\nPASS\tarray_scientific_data_plane_contract\tQC + target-first evidence + policy/report handoff\nPASS\tevidence_adapter_contract\tClinVar/ClinGen/CPIC/ClinPGx/gnomAD/PGS Catalog\nPASS\tsupply_chain_contract\tworkflow/action/container lock paths present\nPASS\treporting_contract\t11-model deterministic renderer and reference identities\nPASS\toptional_adapters\tcore has no external runtime dependency\n"
+    },
+    "residual_language": {
+      "command": "python3 scripts/residual_language_audit.py --check",
+      "exit_code": 0,
+      "output_sha256": "3aa068a3ee76de0f29694f99d95a5e14143a3ed1743f142bd60781ef1cdcfc25",
+      "sanitized_output": "{\"category_files\": {\"canonical\": 13, \"compatibility-preserved\": 108, \"historical\": 27, \"localized\": 68, \"normative\": 36}, \"category_lines\": {\"canonical\": 31, \"compatibility-preserved\": 4861, \"historical\": 766, \"localized\": 1740, \"normative\": 204}, \"clean\": true, \"detected_lines\": 7602, \"drift\": [], \"missing\": [], \"schema\": \"genoma-residual-language-audit-v1\", \"tracked_files_with_residuals\": 252, \"unclassified\": []}\n"
+    },
+    "supply_chain": {
+      "command": "python3 scripts/verify_supply_chain_lock.py",
+      "exit_code": 0,
+      "output_sha256": "3ffbf1e78306655dbb2f214974a4e24c842e6378da0e2d8840d43b2eb4939c7c",
+      "sanitized_output": "PASS\tactions_immutable\t10 action identities observed\nPASS\tcontainer_digests\tbase image\nPASS\texternal_secret_scanner\tGitGuardian Security Checks@46505\nPASS\truntime_versions\texact critical conda pins\n"
+    },
+    "zero_identity": {
+      "command": "python3 scripts/zero_identity_guard.py --check",
+      "exit_code": 0,
+      "output_sha256": "c3d9578a5523c7d94201489a5809df65f0529e2ae4e5e0df64cd3eb604b62e8c",
+      "sanitized_output": "PASS\tzero_identity_guard\tfindings=0\n"
+    }
+  },
+  "final_test_summary": {
+    "evidence_pr_candidate_validation": {
+      "mcp_suite": {
+        "failures": 0,
+        "passed": 45,
+        "skipped": 1,
+        "tests": 46
+      },
+      "root_suite": {
+        "failures": 0,
+        "skipped": 2,
+        "tests": 1228
+      },
+      "source_artifact": {
+        "path": "docs/superpowers/evidence/phase2-final-operational-sources/candidate-validation-summary.json",
+        "sha256": "ebd2c87cf4a6e63059ca34e1a2c66b8e210862c9aa7a99283eef4c0fedf55dfd"
+      },
+      "validated_commit_sha": "21e4bc85f6ea1e001f8c1e3405564043b75c075a",
+      "validation_scope": "LOCAL_PINNED_ENV_SUPPORTING_VALIDATION"
+    },
+    "main_operational_canary": {
+      "mcp_suite": {
+        "failures": 0,
+        "passed": 45,
+        "skipped": 1,
+        "tests": 46
+      },
+      "root_suite": {
+        "failures": 0,
+        "skipped": 2,
+        "tests": 1219
+      },
+      "source_artifact": {
+        "path": "docs/superpowers/evidence/phase2-final-operational-sources/main-final-static-summary.json",
+        "sha256": "4c456d7901ff7121de9f54685f8211164969fb4140370a0d7c8ecf5f0c4c9055"
+      },
+      "source_job_id": 104894004131
+    }
+  },
+  "governance_readback": {
+    "bypass_actor_count": 0,
+    "enforcement": "active",
+    "protected_main_ruleset_id": 21303100,
+    "required_status_check_count": 14,
+    "semantic_sha256": "9945b6b88c49ce2657f67bae273f13c9aea67446e9027f7c1997134092b9ff9c"
+  },
+  "main_sha": "1cb09951fac586b9774e550815d3718993fc23ec",
+  "pr72_merge_record": {
+    "auto_merge_enabled": false,
+    "merge_commit_sha": "1cb09951fac586b9774e550815d3718993fc23ec",
+    "merged_at": "2026-09-16T13:36:21Z",
+    "pull_request": 72,
+    "review_decision": "APPROVED",
+    "state": "MERGED"
+  },
+  "repository_id": 1212760346,
+  "runner_readback": {
+    "captured_at": "2026-09-16T17:34:45.293048+00:00",
+    "command": "repo=\"$(gh api repositories/1212760346 --jq .full_name)\"; gh api \"repos/$repo/actions/runners?per_page=100\"",
+    "execution_id": "2d2b4a96-fa4e-4a31-b8e0-aaba5b50b7fa",
+    "result": [
+      {
+        "busy": false,
+        "id": 24,
+        "labels": [
+          "self-hosted",
+          "Linux",
+          "X64",
+          "omnigenis-isolated",
+          "omnigenis-01"
+        ],
+        "name": "omnigenis-runner-01",
+        "status": "online"
+      },
+      {
+        "busy": false,
+        "id": 25,
+        "labels": [
+          "self-hosted",
+          "Linux",
+          "X64",
+          "omnigenis-isolated",
+          "omnigenis-02"
+        ],
+        "name": "omnigenis-runner-02",
+        "status": "online"
+      }
+    ]
+  },
+  "runner_replay": {
+    "captured_at": "2026-09-16T17:34:46.708417+00:00",
+    "command": "repo=\"$(gh api repositories/1212760346 --jq .full_name)\"; gh api \"repos/$repo/actions/runners?per_page=100\"",
+    "execution_id": "6bfb6ebb-0a6a-4cf4-bff8-82ad3dfabad3",
+    "result": [
+      {
+        "busy": false,
+        "id": 24,
+        "labels": [
+          "self-hosted",
+          "Linux",
+          "X64",
+          "omnigenis-isolated",
+          "omnigenis-01"
+        ],
+        "name": "omnigenis-runner-01",
+        "status": "online"
+      },
+      {
+        "busy": false,
+        "id": 25,
+        "labels": [
+          "self-hosted",
+          "Linux",
+          "X64",
+          "omnigenis-isolated",
+          "omnigenis-02"
+        ],
+        "name": "omnigenis-runner-02",
+        "status": "online"
+      }
+    ]
+  },
+  "schema": "omnigenis-phase2-final-operational-bundle-v1",
+  "secret_material_recorded": false
+}

@@ -1,0 +1,20 @@
+{
+  "facts": {
+    "compose_services_render": true,
+    "persistent_states_snapshot_readable": true,
+    "read_only": true,
+    "restart_unless_stopped": true,
+    "same_runtime_image": true,
+    "volume_target_home_runner": true
+  },
+  "implementation_hashes": [
+    "aa959b403115674aedec90f79f8756ac14cb823c0ec0cf8f4e6fe36d7202ab3c",
+    "af797305d95354535468edbcc3386afc4ce8fe71ed6f74e90ff2ae4eb6756a8b",
+    "a356473dd4ce4b6d5dfa9f37e41a9e208938178b8ca00b150711ee5ccd0b8ac0"
+  ],
+  "raw_file_contents_captured": false,
+  "runner_count": 2,
+  "schema": "omnigenis-phase2-runtime-gate-v7-attestation-v1",
+  "secrets_captured": false,
+  "status": "VERIFIED"
+}
