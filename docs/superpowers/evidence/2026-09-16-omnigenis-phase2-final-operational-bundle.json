@@ -80,9 +80,9 @@
       },
       "source_artifact": {
         "path": "docs/superpowers/evidence/phase2-final-operational-sources/candidate-validation-summary.json",
-        "sha256": "290bd0467ea845c6babf76700b901d4bc551b18f311cfd457c7c92d6f9484a59"
+        "sha256": "fd6ab08ee4bc5639091552d550278c942efab3e031a39163780d54839909d2ba"
       },
-      "validated_commit_sha": "b8ed0bedadb985cf202de8a7a8606efea15a462c",
+      "validated_commit_sha": "21e4bc85f6ea1e001f8c1e3405564043b75c075a",
       "validation_scope": "LOCAL_PINNED_ENV_BASELINE_CANDIDATE"
     },
     "main_operational_canary": {

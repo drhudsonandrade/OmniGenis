@@ -1,7 +1,7 @@
 {
-  "candidate_commit_at_execution": "b8ed0bedadb985cf202de8a7a8606efea15a462c",
-  "external_full_log_sha256": "2b2a7c4f69f5740e684e61334431dbc9cf99b0facd0559ba77aa4c613ad8df24",
-  "mcp_recheck_log_sha256": "3f2fa216f0561dcb065b8721b4dc5f7828490a76a54afa201c2c5dcdb37da4c8",
+  "candidate_commit_at_execution": "21e4bc85f6ea1e001f8c1e3405564043b75c075a",
+  "external_full_log_sha256": "b6bc3b62462741c601c61b111a3f1a47a18be8ee0540eba163a558c4ce25d636",
+  "mcp_recheck_log_sha256": "898eb8a9e3e16427077ebf9180f81b09ce53e1b64aa627a73528eb56f1ba0e0f",
   "mcp_suite": {
     "failures": 0,
     "passed": 45,
