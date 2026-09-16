@@ -1372,7 +1372,7 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
         archive = self.load_execution_transcripts(evidence)
         self.assertEqual(
             set(archive),
-            {"gates", "implementation_suite", "schema"},
+            {"external_readbacks", "gates", "implementation_suite", "schema"},
         )
         transcript = archive["implementation_suite"].encode("utf-8")
         marker = re.search(rb"\n__OMNIGENIS_EXIT_CODE__=(\d+)\n$", transcript)
