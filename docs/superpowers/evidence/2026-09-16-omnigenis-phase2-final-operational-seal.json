@@ -1,19 +1,42 @@
 {
   "final_completion_gate": {
     "code_language_guard": "PASS",
-    "final_static_log_sha256": "596c634b1c0e78c98846cdfafb7459a6838047936a0e35d5457516a7ca0a3926",
-    "full_root_suite": {
-      "failures": 0,
-      "skipped": 2,
-      "source_job_id": 104894004131,
-      "tests": 1219
+    "evidence_pr_candidate_validation": {
+      "mcp_suite": {
+        "failures": 0,
+        "passed": 45,
+        "skipped": 1,
+        "tests": 46
+      },
+      "root_suite": {
+        "failures": 0,
+        "skipped": 2,
+        "tests": 1228
+      },
+      "source_artifact": {
+        "path": "docs/superpowers/evidence/phase2-final-operational-sources/candidate-validation-summary.json",
+        "sha256": "290bd0467ea845c6babf76700b901d4bc551b18f311cfd457c7c92d6f9484a59"
+      },
+      "validated_commit_sha": "b8ed0bedadb985cf202de8a7a8606efea15a462c",
+      "validation_scope": "LOCAL_PINNED_ENV_BASELINE_CANDIDATE"
     },
-    "mcp_suite": {
-      "failures": 0,
-      "passed": 45,
-      "skipped": 1,
-      "source_job_id": 104894004131,
-      "tests": 46
+    "main_operational_canary": {
+      "mcp_suite": {
+        "failures": 0,
+        "passed": 45,
+        "skipped": 1,
+        "tests": 46
+      },
+      "root_suite": {
+        "failures": 0,
+        "skipped": 2,
+        "tests": 1219
+      },
+      "source_artifact": {
+        "path": "docs/superpowers/evidence/phase2-final-operational-sources/main-final-static-summary.json",
+        "sha256": "89dc619314d3308db79f0a1200df355863362ed6eecb97c2289abeaf7a49658a"
+      },
+      "source_job_id": 104894004131
     },
     "no_auto_merge": true,
     "pr72_manual_merge_recorded": true,
@@ -58,7 +81,7 @@
   "main_sha": "1cb09951fac586b9774e550815d3718993fc23ec",
   "operational_bundle": {
     "path": "docs/superpowers/evidence/2026-09-16-omnigenis-phase2-final-operational-bundle.json",
-    "sha256": "f26689bd7393212e98b2ed67cc67622c4cc1bde8c2e70f7aea9ebd5be42422d3"
+    "sha256": "cb0f40c68dc4788da3890459b1800af2873593c926ffa7a528fbb077cf398277"
   },
   "phase2_global_seal": "VERIFIED",
   "repository_id": 1212760346,
@@ -93,12 +116,32 @@
       "throwaway_registration_rehearsal": "PASS"
     },
     "secrets_captured": false,
-    "source_artifact_sha256": {
-      "operational_checkpoint": "d229f441fb4ba9fc850d834c5aacc7deb981bfa36d435cec12e5b87873394998",
-      "registration_rehearsal": "50f8980f870041e97b51016c52d0b4e6ab496f8171055545d7ed1c2eb0552d86",
-      "runner01_contract": "2e59c06b681f569b1a5c8ba9e8b5e59cb5f0ab71658deed2a3bd9e2095f8e8c3",
-      "runtime_resource_gate_v6": "ea93581c8e3feac98220da1ec4675b80257206dbf1582f516e96b63db9800be8",
-      "runtime_resource_gate_v7": "bae1c5bf22a8bfaf8be1f25fbf8f40c2539d4cb991d43527913e00798fca84c4"
+    "source_artifacts": {
+      "operational_checkpoint": {
+        "external_raw_sha256": "d229f441fb4ba9fc850d834c5aacc7deb981bfa36d435cec12e5b87873394998",
+        "path": "docs/superpowers/evidence/phase2-final-operational-sources/operational-checkpoint-attestation.json",
+        "sha256": "6f3718fc83dd58ad64b3d5c5d4c4736b5ef52157cb75146ecc647c842ee0b589"
+      },
+      "registration_rehearsal": {
+        "external_raw_sha256": "50f8980f870041e97b51016c52d0b4e6ab496f8171055545d7ed1c2eb0552d86",
+        "path": "docs/superpowers/evidence/phase2-final-operational-sources/registration-rehearsal-attestation.json",
+        "sha256": "3657919698c0cc8728f972b417c8cef7c5c121fcb6cb4988343f820991d55fc0"
+      },
+      "runner01_contract": {
+        "external_raw_sha256": "2e59c06b681f569b1a5c8ba9e8b5e59cb5f0ab71658deed2a3bd9e2095f8e8c3",
+        "path": "docs/superpowers/evidence/phase2-final-operational-sources/runner01-contract-attestation.json",
+        "sha256": "06f4d78c3d272d05b146599a40564a4d6b93dcfc01a5960507b5e865ac9671ec"
+      },
+      "runtime_resource_gate_v6": {
+        "external_raw_sha256": "ea93581c8e3feac98220da1ec4675b80257206dbf1582f516e96b63db9800be8",
+        "path": "docs/superpowers/evidence/phase2-final-operational-sources/runtime-resource-gate-v6-attestation.json",
+        "sha256": "2e3e71b4b71ee8087aa3d027183a3f5ec2ec617a0dba360f82313865fe9e28bd"
+      },
+      "runtime_resource_gate_v7": {
+        "external_raw_sha256": "bae1c5bf22a8bfaf8be1f25fbf8f40c2539d4cb991d43527913e00798fca84c4",
+        "path": "docs/superpowers/evidence/phase2-final-operational-sources/runtime-resource-gate-v7-attestation.json",
+        "sha256": "66a4551d8a83a272b660771db4e7488f34f8fbf6d02ae468d73e44154575def8"
+      }
     },
     "status": "EXECUTED_AND_VERIFIED"
   },

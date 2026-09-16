@@ -1,0 +1,25 @@
+{
+  "external_full_log_sha256": "596c634b1c0e78c98846cdfafb7459a6838047936a0e35d5457516a7ca0a3926",
+  "mcp_suite": {
+    "failures": 0,
+    "passed": 45,
+    "skipped": 1,
+    "tests": 46
+  },
+  "root_suite": {
+    "failures": 0,
+    "skipped": 2,
+    "tests": 1219
+  },
+  "schema": "omnigenis-phase2-main-final-static-summary-v1",
+  "secrets_captured": false,
+  "source_locator": "github-actions:repository_id=1212760346;run_id=35125654567;job_id=104894004131",
+  "summary_lines": [
+    "2026-09-16T17:09:12.7033643Z Ran 1219 tests in 355.538s",
+    "2026-09-16T17:09:12.7033872Z OK (skipped=2)",
+    "2026-09-16T17:09:27.0097060Z # tests 46",
+    "2026-09-16T17:09:27.0097894Z # pass 45",
+    "2026-09-16T17:09:27.0098323Z # fail 0",
+    "2026-09-16T17:09:27.0101903Z # skipped 1"
+  ]
+}

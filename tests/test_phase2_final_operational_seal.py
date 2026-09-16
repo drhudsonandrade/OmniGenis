@@ -1,6 +1,7 @@
 """Verify the post-merge Phase 2 operational seal without rewriting history."""
 
 from pathlib import Path
+import copy
 import hashlib
 import json
 import shutil
@@ -44,6 +45,12 @@ class Phase2FinalOperationalSealTest(unittest.TestCase):
         self.assertTrue(EVIDENCE.is_file(), f"missing evidence: {EVIDENCE}")
         return json.loads(EVIDENCE.read_text(encoding="utf-8"))
 
+    def load_bound_json(self, binding: dict) -> dict:
+        path = ROOT / binding["path"]
+        self.assertTrue(path.is_file(), f"missing bound artifact: {path}")
+        self.assertEqual(binding["sha256"], _sha256(path))
+        return json.loads(path.read_text(encoding="utf-8"))
+
     def load_bundle(self, evidence: dict) -> dict:
         self.assertTrue(BUNDLE.is_file(), f"missing bundle: {BUNDLE}")
         binding = evidence["operational_bundle"]
@@ -51,6 +58,12 @@ class Phase2FinalOperationalSealTest(unittest.TestCase):
         self.assertEqual(binding["sha256"], _sha256(BUNDLE))
         bundle = json.loads(BUNDLE.read_text(encoding="utf-8"))
         self.assertEqual(bundle["schema"], "omnigenis-phase2-final-operational-bundle-v1")
+        self.assertEqual(bundle["repository_id"], REPOSITORY_ID)
+        self.assertEqual(bundle["main_sha"], MAIN_SHA)
+        self.assertFalse(bundle["secret_material_recorded"])
+        self.assertEqual(
+            bundle["secret_material_recorded"], evidence["secret_material_recorded"]
+        )
         return bundle
 
     def test_historical_blocker_is_preserved_and_superseded(self) -> None:
@@ -98,8 +111,21 @@ class Phase2FinalOperationalSealTest(unittest.TestCase):
             },
         )
         self.assertFalse(gate["secrets_captured"])
-        self.assertEqual(len(gate["source_artifact_sha256"]), 5)
-        self.assertTrue(all(len(value) == 64 for value in gate["source_artifact_sha256"].values()))
+        sources = gate["source_artifacts"]
+        self.assertEqual(
+            set(sources),
+            {
+                "runtime_resource_gate_v6",
+                "runtime_resource_gate_v7",
+                "registration_rehearsal",
+                "runner01_contract",
+                "operational_checkpoint",
+            },
+        )
+        for binding in sources.values():
+            source = self.load_bound_json(binding)
+            self.assertEqual(source["external_raw_sha256"], binding["external_raw_sha256"])
+            self.assertFalse(source["secrets_captured"])
 
     def test_final_runner_readback_and_replay_are_exact(self) -> None:
         evidence = self.load_evidence()
@@ -146,8 +172,7 @@ class Phase2FinalOperationalSealTest(unittest.TestCase):
             self.assertEqual(record["static_runner_name"], runner_name)
             self.assertEqual(record["four_plane_audit_conclusion"], "success")
 
-    def test_final_completion_gate_matches_executed_results(self) -> None:
-        evidence = self.load_evidence()
+    def _assert_completion_consistency(self, evidence: dict, bundle: dict) -> None:
         gate = evidence["final_completion_gate"]
         self.assertEqual(gate["tracked_zero_identity_findings"], 0)
         self.assertEqual(gate["project_identity_guard"], "PASS")
@@ -156,18 +181,65 @@ class Phase2FinalOperationalSealTest(unittest.TestCase):
         self.assertEqual(gate["code_language_guard"], "PASS")
         self.assertEqual(gate["residual_language_audit"], "PASS_CLEAN")
         self.assertEqual(gate["ruleset_v3_4_sha_pinned"], "PASS")
+
+        main = gate["main_operational_canary"]
+        candidate = gate["evidence_pr_candidate_validation"]
+        bundle_main = bundle["final_test_summary"]["main_operational_canary"]
+        bundle_candidate = bundle["final_test_summary"]["evidence_pr_candidate_validation"]
+        self.assertEqual(main, bundle_main)
+        self.assertEqual(candidate, bundle_candidate)
+        self.assertEqual(main["root_suite"], {"tests": 1219, "failures": 0, "skipped": 2})
         self.assertEqual(
-            gate["full_root_suite"],
-            {"tests": 1219, "failures": 0, "skipped": 2, "source_job_id": 104894004131},
+            main["mcp_suite"],
+            {"tests": 46, "passed": 45, "failures": 0, "skipped": 1},
         )
+        self.assertEqual(candidate["root_suite"], {"tests": 1228, "failures": 0, "skipped": 2})
         self.assertEqual(
-            gate["mcp_suite"],
-            {"tests": 46, "passed": 45, "failures": 0, "skipped": 1, "source_job_id": 104894004131},
+            candidate["mcp_suite"],
+            {"tests": 46, "passed": 45, "failures": 0, "skipped": 1},
         )
+        self.assertNotEqual(candidate["validated_commit_sha"], MAIN_SHA)
+        subprocess.run(
+            [GIT, "merge-base", "--is-ancestor", candidate["validated_commit_sha"], "HEAD"],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+        )
+        main_source = self.load_bound_json(main["source_artifact"])
+        candidate_source = self.load_bound_json(candidate["source_artifact"])
+        self.assertEqual(main_source["root_suite"], main["root_suite"])
+        self.assertEqual(main_source["mcp_suite"], main["mcp_suite"])
+        self.assertEqual(candidate_source["root_suite"], candidate["root_suite"])
+        self.assertEqual(candidate_source["mcp_suite"], candidate["mcp_suite"])
         self.assertEqual(
-            gate["final_static_log_sha256"],
-            "596c634b1c0e78c98846cdfafb7459a6838047936a0e35d5457516a7ca0a3926",
+            candidate_source["candidate_commit_at_execution"],
+            candidate["validated_commit_sha"],
         )
+
+        gate_map = {
+            "zero_identity": "tracked_zero_identity_findings",
+            "project_identity": "project_identity_guard",
+            "repository_validator": "repository_validator",
+            "supply_chain": "supply_chain_lock",
+            "code_language": "code_language_guard",
+            "residual_language": "residual_language_audit",
+        }
+        for bundle_key, seal_key in gate_map.items():
+            self.assertEqual(bundle["final_main_gates"][bundle_key]["exit_code"], 0)
+            if seal_key != "tracked_zero_identity_findings":
+                self.assertTrue(str(gate[seal_key]).startswith("PASS"))
+
+    def test_final_completion_gate_matches_executed_results(self) -> None:
+        evidence = self.load_evidence()
+        bundle = self.load_bundle(evidence)
+        self._assert_completion_consistency(evidence, bundle)
+
+        tampered = copy.deepcopy(bundle)
+        tampered["final_test_summary"]["evidence_pr_candidate_validation"][
+            "root_suite"
+        ]["failures"] = 1
+        with self.assertRaises(AssertionError):
+            self._assert_completion_consistency(evidence, tampered)
 
     def test_governance_and_manual_merge_remain_intact(self) -> None:
         evidence = self.load_evidence()
@@ -191,17 +263,25 @@ class Phase2FinalOperationalSealTest(unittest.TestCase):
 
     def test_operational_source_hashes_are_exact(self) -> None:
         evidence = self.load_evidence()
-        hashes = evidence["runtime_resource_gate"]["source_artifact_sha256"]
-        self.assertEqual(
-            hashes,
-            {
-                "runtime_resource_gate_v6": "ea93581c8e3feac98220da1ec4675b80257206dbf1582f516e96b63db9800be8",
-                "runtime_resource_gate_v7": "bae1c5bf22a8bfaf8be1f25fbf8f40c2539d4cb991d43527913e00798fca84c4",
-                "registration_rehearsal": "50f8980f870041e97b51016c52d0b4e6ab496f8171055545d7ed1c2eb0552d86",
-                "runner01_contract": "2e59c06b681f569b1a5c8ba9e8b5e59cb5f0ab71658deed2a3bd9e2095f8e8c3",
-                "operational_checkpoint": "d229f441fb4ba9fc850d834c5aacc7deb981bfa36d435cec12e5b87873394998",
-            },
-        )
+        expected_raw = {
+            "runtime_resource_gate_v6": "ea93581c8e3feac98220da1ec4675b80257206dbf1582f516e96b63db9800be8",
+            "runtime_resource_gate_v7": "bae1c5bf22a8bfaf8be1f25fbf8f40c2539d4cb991d43527913e00798fca84c4",
+            "registration_rehearsal": "50f8980f870041e97b51016c52d0b4e6ab496f8171055545d7ed1c2eb0552d86",
+            "runner01_contract": "2e59c06b681f569b1a5c8ba9e8b5e59cb5f0ab71658deed2a3bd9e2095f8e8c3",
+            "operational_checkpoint": "d229f441fb4ba9fc850d834c5aacc7deb981bfa36d435cec12e5b87873394998",
+        }
+        bindings = evidence["runtime_resource_gate"]["source_artifacts"]
+        self.assertEqual(set(bindings), set(expected_raw))
+        for key, expected_sha in expected_raw.items():
+            source = self.load_bound_json(bindings[key])
+            self.assertEqual(bindings[key]["external_raw_sha256"], expected_sha)
+            self.assertEqual(source["external_raw_sha256"], expected_sha)
+
+        for section in (
+            evidence["final_completion_gate"]["main_operational_canary"],
+            evidence["final_completion_gate"]["evidence_pr_candidate_validation"],
+        ):
+            self.load_bound_json(section["source_artifact"])
 
 
 if __name__ == "__main__":

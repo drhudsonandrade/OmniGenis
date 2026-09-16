@@ -1,0 +1,25 @@
+{
+  "external_raw_sha256": "50f8980f870041e97b51016c52d0b4e6ab496f8171055545d7ed1c2eb0552d86",
+  "facts": {
+    "config_capabilities_verified": true,
+    "official_remove_flow_succeeded": true,
+    "registration_token_obtained": true,
+    "remove_token_obtained": true,
+    "temporary_runner_absent_after_remove": true,
+    "temporary_runner_became_online": true,
+    "temporary_volume_removed": true
+  },
+  "production_continuity": {
+    "runner_21_online_after": true,
+    "runner_22_online_after": true
+  },
+  "production_runner_ids": [
+    21,
+    22
+  ],
+  "repository_id": 1212760346,
+  "schema": "omnigenis-phase2-registration-rehearsal-attestation-v1",
+  "secrets_captured": false,
+  "token_values_persisted": false,
+  "verified_at_utc": "2026-09-16T15:30:42.129444+00:00"
+}

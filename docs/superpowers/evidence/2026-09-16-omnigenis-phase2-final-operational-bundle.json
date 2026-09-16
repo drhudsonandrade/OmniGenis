@@ -66,27 +66,43 @@
     }
   },
   "final_test_summary": {
-    "full_log_sha256": "596c634b1c0e78c98846cdfafb7459a6838047936a0e35d5457516a7ca0a3926",
-    "mcp_suite": {
-      "failures": 0,
-      "passed": 45,
-      "skipped": 1,
-      "tests": 46
+    "evidence_pr_candidate_validation": {
+      "mcp_suite": {
+        "failures": 0,
+        "passed": 45,
+        "skipped": 1,
+        "tests": 46
+      },
+      "root_suite": {
+        "failures": 0,
+        "skipped": 2,
+        "tests": 1228
+      },
+      "source_artifact": {
+        "path": "docs/superpowers/evidence/phase2-final-operational-sources/candidate-validation-summary.json",
+        "sha256": "290bd0467ea845c6babf76700b901d4bc551b18f311cfd457c7c92d6f9484a59"
+      },
+      "validated_commit_sha": "b8ed0bedadb985cf202de8a7a8606efea15a462c",
+      "validation_scope": "LOCAL_PINNED_ENV_BASELINE_CANDIDATE"
     },
-    "root_suite": {
-      "failures": 0,
-      "skipped": 2,
-      "tests": 1219
-    },
-    "source_job_id": 104894004131,
-    "summary_lines": [
-      "2026-09-16T17:09:12.7033643Z Ran 1219 tests in 355.538s",
-      "2026-09-16T17:09:12.7033872Z OK (skipped=2)",
-      "2026-09-16T17:09:27.0097060Z # tests 46",
-      "2026-09-16T17:09:27.0097894Z # pass 45",
-      "2026-09-16T17:09:27.0098323Z # fail 0",
-      "2026-09-16T17:09:27.0101903Z # skipped 1"
-    ]
+    "main_operational_canary": {
+      "mcp_suite": {
+        "failures": 0,
+        "passed": 45,
+        "skipped": 1,
+        "tests": 46
+      },
+      "root_suite": {
+        "failures": 0,
+        "skipped": 2,
+        "tests": 1219
+      },
+      "source_artifact": {
+        "path": "docs/superpowers/evidence/phase2-final-operational-sources/main-final-static-summary.json",
+        "sha256": "89dc619314d3308db79f0a1200df355863362ed6eecb97c2289abeaf7a49658a"
+      },
+      "source_job_id": 104894004131
+    }
   },
   "governance_readback": {
     "bypass_actor_count": 0,

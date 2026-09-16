@@ -1,0 +1,23 @@
+{
+  "candidate_commit_at_execution": "b8ed0bedadb985cf202de8a7a8606efea15a462c",
+  "external_full_log_sha256": "2b2a7c4f69f5740e684e61334431dbc9cf99b0facd0559ba77aa4c613ad8df24",
+  "mcp_recheck_log_sha256": "3f2fa216f0561dcb065b8721b4dc5f7828490a76a54afa201c2c5dcdb37da4c8",
+  "mcp_suite": {
+    "failures": 0,
+    "passed": 45,
+    "skipped": 1,
+    "tests": 46
+  },
+  "root_suite": {
+    "failures": 0,
+    "skipped": 2,
+    "tests": 1228
+  },
+  "schema": "omnigenis-phase2-evidence-pr-candidate-validation-v1",
+  "secrets_captured": false,
+  "source_locator": "operator-local:pinned-venv-full-suite",
+  "validation_environment": {
+    "python": "3.12.3",
+    "reporting_requirements": "pinned"
+  }
+}
