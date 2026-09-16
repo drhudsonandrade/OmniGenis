@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import re
+from datetime import datetime
 from pathlib import Path
 import shutil
 import subprocess
@@ -992,10 +993,88 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
             self.assertEqual(item["selector_labels"], ["omnigenis-isolated"])
             self.assertNotIn("runner_name", item)
 
+    def _assert_external_query_executions(self, evidence: dict, bundle: dict) -> None:
+        """Bind each read-only query to its own archived process capture."""
+        pairs = [
+            ("repository_identity_readback", "repository_identity_replay"),
+            ("runner_readback", "runner_replay"),
+            ("ruleset_summary", "ruleset_summary_replay"),
+            ("canary_readback", "canary_replay"),
+        ]
+        for first, second, identities in (
+            ("ruleset_readbacks", "ruleset_replays", EXPECTED_RULESETS),
+            ("canary_run_readbacks", "canary_run_replays", EXPECTED_CANARY_RUNS),
+        ):
+            pairs.extend((f"{first}:{key}", f"{second}:{key}") for key in identities)
+        records = {}
+        for name in (name for pair in pairs for name in pair):
+            group, separator, key = name.partition(":")
+            records[name] = bundle[group][key] if separator else bundle[group]
+        captures = self.load_execution_transcripts(evidence).get("external_readbacks")
+        self.assertIsInstance(captures, dict, "independent query transcripts are missing")
+        self.assertEqual(set(captures), set(records))
+        seen_ids: set[str] = set()
+        times = {}
+        expected = _expected_ruleset_semantics()
+        for name, record in records.items():
+            context = record.get("execution_provenance")
+            self.assertIsInstance(context, dict, "query execution provenance is missing")
+            capture = captures[name]
+            self.assertEqual(capture["schema"], "omnigenis-github-query-execution-v1")
+            self.assertEqual(
+                context["transcript_locator"],
+                f"{TRANSCRIPT_RELATIVE}#/external_readbacks/{name}",
+            )
+            self.assertEqual(
+                context["transcript_sha256"],
+                hashlib.sha256(_canonical_json_bytes(capture)).hexdigest(),
+            )
+            execution_id = capture["execution_id"]
+            self.assertRegex(execution_id, r"^[0-9a-f]{32}$")
+            self.assertNotIn(execution_id, seen_ids, "query executions must not be copied")
+            seen_ids.add(execution_id)
+            self.assertEqual(context["execution_id"], execution_id)
+            self.assertEqual(capture["command"], record["command"])
+            self.assertEqual(
+                capture["argv"], ["bash", "-o", "pipefail", "-lc", record["command"]]
+            )
+            self.assertEqual(capture["head_sha"], evidence["implementation_head_sha"])
+            self.assertEqual(capture["tree_sha"], evidence["implementation_tree_sha"])
+            self.assertIs(type(capture["exit_code"]), int)
+            self.assertEqual(capture["exit_code"], 0)
+            self.assertEqual(capture["exit_code"], record["exit_code"])
+            self.assertEqual(capture["stderr"], "")
+            output = capture["stdout"]
+            self.assertEqual(
+                hashlib.sha256(output.encode("utf-8")).hexdigest(),
+                record["raw_output_sha256"],
+            )
+            if "raw_output" in record:
+                self.assertEqual(output, record["raw_output"])
+            else:
+                key = name.partition(":")[2]
+                normalized = _neutralize_ruleset(json.loads(output), expected[key])
+                self.assertEqual(normalized, json.loads(record["semantic_output"]))
+            for field in ("started_at", "completed_at"):
+                self.assertRegex(
+                    capture[field], r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$"
+                )
+            start, end = (
+                datetime.fromisoformat(capture[field].replace("Z", "+00:00"))
+                for field in ("started_at", "completed_at")
+            )
+            self.assertLessEqual(start, end)
+            self.assertEqual(record["captured_at"], end.strftime("%Y-%m-%dT%H:%M:%SZ"))
+            times[name] = (start, end)
+        for first, second in pairs:
+            self.assertEqual(captures[first]["command"], captures[second]["command"])
+            self.assertLessEqual(times[first][1], times[second][0])
+
     def test_governance_rulesets_match_authorized_hardened_semantics(self) -> None:
         """Recompute live ruleset semantics from captured per-ID REST responses."""
         evidence = self.load()
         bundle = self.load_validation_bundle(evidence)
+        self._assert_external_query_executions(evidence, bundle)
         rulesets = evidence["rulesets"]
         provenance = evidence["ruleset_readback_provenance"]
         sanitized = provenance["sanitized_output"]
@@ -1086,6 +1165,59 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
         self.assertEqual(comparison["live_neutralized_sha256"], live_sha)
         self.assertEqual(live_sha, expected_sha)
         self.assertTrue(comparison["match"])
+
+    def test_ruleset_contract_rejects_copied_execution_provenance(self) -> None:
+        """A consistently rehashed copy must not stand in for a second query."""
+        baseline = self.load()
+        baseline_bundle = self.load_validation_bundle(baseline)
+        baseline_archive = self.load_execution_transcripts(baseline)
+        target = "test_governance_rulesets_match_authorized_hardened_semantics"
+        baseline_result = unittest.TestResult()
+        type(self)(target).run(baseline_result)
+        self.assertTrue(baseline_result.wasSuccessful(), baseline_result.errors)
+        for key in baseline_bundle["ruleset_readbacks"]:
+            with self.subTest(ruleset=key), tempfile.TemporaryDirectory() as tmp:
+                evidence = copy.deepcopy(baseline)
+                bundle = copy.deepcopy(baseline_bundle)
+                archive = copy.deepcopy(baseline_archive)
+                replay = copy.deepcopy(bundle["ruleset_readbacks"][key])
+                if "execution_provenance" in replay:
+                    source_name = f"ruleset_readbacks:{key}"
+                    replay_name = f"ruleset_replays:{key}"
+                    copied = copy.deepcopy(archive["external_readbacks"][source_name])
+                    archive["external_readbacks"][replay_name] = copied
+                    replay["execution_provenance"]["transcript_locator"] = (
+                        f"{TRANSCRIPT_RELATIVE}#/external_readbacks/{replay_name}"
+                    )
+                    replay["execution_provenance"]["transcript_sha256"] = hashlib.sha256(
+                        _canonical_json_bytes(copied)
+                    ).hexdigest()
+                bundle["ruleset_replays"][key] = replay
+                evidence["ruleset_semantic_comparison"]["readback_provenance"]["records"][key][
+                    "replay_bundle_record_sha256"
+                ] = hashlib.sha256(_canonical_json_bytes(replay)).hexdigest()
+                bundle_bytes = _canonical_json_bytes(bundle)
+                evidence["validation_bundle"]["sha256"] = hashlib.sha256(bundle_bytes).hexdigest()
+                compressed = gzip.compress(_canonical_json_bytes(archive), mtime=0)
+                evidence["validation_provenance"]["implementation_suite_without_phase2d_evidence"][
+                    "transcript_gzip_sha256"
+                ] = hashlib.sha256(compressed).hexdigest()
+                root = Path(tmp)
+                evidence_path, bundle_path, archive_path = (
+                    root / "evidence.json", root / "bundle.json", root / "transcript.gz"
+                )
+                evidence_path.write_bytes(_canonical_json_bytes(evidence))
+                bundle_path.write_bytes(bundle_bytes)
+                archive_path.write_bytes(compressed)
+                result = unittest.TestResult()
+                with (
+                    mock.patch(f"{__name__}.EVIDENCE", evidence_path),
+                    mock.patch(f"{__name__}.VALIDATION_BUNDLE", bundle_path),
+                    mock.patch(f"{__name__}.TRANSCRIPT", archive_path),
+                ):
+                    type(self)(target).run(result)
+                self.assertFalse(result.errors, result.errors)
+                self.assertTrue(result.failures, "copied query execution was accepted")
 
     def test_ruleset_normalization_rejects_new_integration_binding(self) -> None:
         """Do not erase a newly introduced provider integration binding."""

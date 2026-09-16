@@ -30,3 +30,22 @@
 - [ ] Replace accumulated superseded PR closure claims with current, linked evidence and explicit pending review/CI state.
 - [ ] Explain the authorized reviewer consolidation, retained blocking coverage, and unchanged Security & CI enforcement; do not claim identical model findings.
 - [ ] Request normal CodeRabbit review and pre-merge checks. Confirm the exact HEAD, approval, thread resolution, and required CI before reporting ready. Leave merge to the owner.
+
+## Review follow-up: independently captured queries
+
+Every repository, runner, ruleset, and baseline-canary readback/replay pair must
+retain separate process captures in the existing transcript archive. Each capture
+records its own execution identifier, start/end timestamps, exact command, exit
+status, stdout, stderr, and implementation SHA/tree. Bundle records bind to those
+captures by locator and hash. Semantic equality is required without accepting a
+copied execution as a second query.
+
+These are operator-collected process transcripts and content-integrity bindings,
+not signed GitHub attestations. The opt-in authenticated replay independently
+checks current provider state; it does not cryptographically authenticate an old
+operator transcript. Baseline-canary captures remain scoped to the historical
+run identifiers and must not be presented as a new candidate's runtime execution.
+
+The workflow contract must also reject token references independent of whitespace,
+case, property-index notation, or expression wrapping. No workflow permission or
+credential grant is added by this regression-test hardening.

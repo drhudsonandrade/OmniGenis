@@ -270,9 +270,14 @@ def _assert_scaffold_pr_validation_does_not_expose_token(workflow: str) -> None:
     )
     if broad_permissions or actions_permission or inline_actions_permission:
         raise AssertionError("PR validation must not grant GitHub Actions access")
-    for expression in ("GH_TOKEN", "${{ github.token }}", "${{ secrets.GITHUB_TOKEN }}"):
-        if expression in permission_surfaces:
-            raise AssertionError(f"PR validation exposes a GitHub token via {expression}")
+    token_reference = (
+        r"\b(?:github\s*(?:\.\s*token\b|\[\s*['\"]token['\"]\s*\])"
+        r"|secrets\s*(?:\.\s*GITHUB_TOKEN\b|\[\s*['\"]GITHUB_TOKEN['\"]\s*\]))"
+    )
+    if "GH_TOKEN" in permission_surfaces or re.search(
+        token_reference, permission_surfaces, flags=re.IGNORECASE
+    ):
+        raise AssertionError("PR validation exposes a GitHub token")
     if "persist-credentials: false" not in static:
         raise AssertionError("static checkout must not persist credentials")
 
@@ -281,7 +286,13 @@ class WorkflowContractTest(unittest.TestCase):
     def test_scaffold_pr_validation_does_not_expose_actions_token(self):
         workflow = (ROOT / ".github/workflows/scaffold-validation.yml").read_text(encoding="utf-8")
         _assert_scaffold_pr_validation_does_not_expose_token(workflow)
-        for expression in ("${{ github.token }}", "${{ secrets.GITHUB_TOKEN }}"):
+        for expression in (
+            "${{ github.token }}", "${{ secrets.GITHUB_TOKEN }}",
+            "${{github.token}}", "${{github.token }}", "${{ github.token}}",
+            "${{secrets.GITHUB_TOKEN}}", "${{ github['token'] }}",
+            "${{secrets['GITHUB_TOKEN']}}", "${{ GITHUB.TOKEN }}",
+            "${{ format('{0}', github.token) }}",
+        ):
             mutations = (
                 workflow.replace(
                     "\njobs:",
