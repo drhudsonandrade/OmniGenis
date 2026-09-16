@@ -1,0 +1,116 @@
+{
+  "final_completion_gate": {
+    "code_language_guard": "PASS",
+    "final_static_log_sha256": "596c634b1c0e78c98846cdfafb7459a6838047936a0e35d5457516a7ca0a3926",
+    "full_root_suite": {
+      "failures": 0,
+      "skipped": 2,
+      "source_job_id": 104894004131,
+      "tests": 1219
+    },
+    "mcp_suite": {
+      "failures": 0,
+      "passed": 45,
+      "skipped": 1,
+      "source_job_id": 104894004131,
+      "tests": 46
+    },
+    "no_auto_merge": true,
+    "pr72_manual_merge_recorded": true,
+    "project_identity_guard": "PASS",
+    "protected_main_bypass_actors": [],
+    "protected_main_ruleset_active": true,
+    "repository_validator": "PASS",
+    "required_status_check_count": 14,
+    "residual_language_audit": "PASS_CLEAN",
+    "ruleset_v3_4_sha_pinned": "PASS",
+    "supply_chain_lock": "PASS",
+    "tracked_zero_identity_findings": 0
+  },
+  "final_runners": [
+    {
+      "busy": false,
+      "id": 24,
+      "labels": [
+        "self-hosted",
+        "Linux",
+        "X64",
+        "omnigenis-isolated",
+        "omnigenis-01"
+      ],
+      "name": "omnigenis-runner-01",
+      "status": "online"
+    },
+    {
+      "busy": false,
+      "id": 25,
+      "labels": [
+        "self-hosted",
+        "Linux",
+        "X64",
+        "omnigenis-isolated",
+        "omnigenis-02"
+      ],
+      "name": "omnigenis-runner-02",
+      "status": "online"
+    }
+  ],
+  "main_sha": "1cb09951fac586b9774e550815d3718993fc23ec",
+  "operational_bundle": {
+    "path": "docs/superpowers/evidence/2026-09-16-omnigenis-phase2-final-operational-bundle.json",
+    "sha256": "f26689bd7393212e98b2ed67cc67622c4cc1bde8c2e70f7aea9ebd5be42422d3"
+  },
+  "phase2_global_seal": "VERIFIED",
+  "repository_id": 1212760346,
+  "runner_id_semantics": "Re-registration allocated new current runner IDs; retired IDs remain historical correlation anchors only.",
+  "runner_migrations": {
+    "runner01": {
+      "canary_run_id": 35123838618,
+      "current_name": "omnigenis-runner-01",
+      "current_runner_id": 24,
+      "retired_name_sha256": "0840cef7416ffb5cfc1eb56b6273c34797f68d9e39bddf4293c187db450ea594",
+      "retired_runner_id": 21,
+      "static_job_id": 104887984148,
+      "status": "PASS"
+    },
+    "runner02": {
+      "canary_run_id": 35125654567,
+      "current_name": "omnigenis-runner-02",
+      "current_runner_id": 25,
+      "retired_name_sha256": "c009b56b587f276bb06642ff98931b2ddfeb566f75f48075c73695cda5b72e54",
+      "retired_runner_id": 22,
+      "static_job_id": 104894004131,
+      "status": "PASS"
+    }
+  },
+  "runtime_resource_gate": {
+    "proofs": {
+      "container_creation_restart_mechanism": "VERIFIED",
+      "container_image_digest": "VERIFIED",
+      "container_mounts": "VERIFIED",
+      "registration_workflow": "VERIFIED",
+      "rollback_procedure": "VERIFIED",
+      "throwaway_registration_rehearsal": "PASS"
+    },
+    "secrets_captured": false,
+    "source_artifact_sha256": {
+      "operational_checkpoint": "d229f441fb4ba9fc850d834c5aacc7deb981bfa36d435cec12e5b87873394998",
+      "registration_rehearsal": "50f8980f870041e97b51016c52d0b4e6ab496f8171055545d7ed1c2eb0552d86",
+      "runner01_contract": "2e59c06b681f569b1a5c8ba9e8b5e59cb5f0ab71658deed2a3bd9e2095f8e8c3",
+      "runtime_resource_gate_v6": "ea93581c8e3feac98220da1ec4675b80257206dbf1582f516e96b63db9800be8",
+      "runtime_resource_gate_v7": "bae1c5bf22a8bfaf8be1f25fbf8f40c2539d4cb991d43527913e00798fca84c4"
+    },
+    "status": "EXECUTED_AND_VERIFIED"
+  },
+  "schema": "omnigenis-phase2-final-operational-seal-v1",
+  "secret_material_recorded": false,
+  "status": "VERIFIED",
+  "supersedes": {
+    "historical_phase2_global_seal": "BLOCKED",
+    "historical_runner_status": "BLOCKED_RUNTIME_RESOURCE_GATE",
+    "mutation": "NONE_HISTORICAL_RECORD_PRESERVED",
+    "path": "docs/superpowers/evidence/2026-09-13-omnigenis-phase2d-legacy-elimination.json",
+    "sha256": "d0e2192b3a4c069f46cada3d480c92d4ad5e34c9c03014cc053ad2284537be84"
+  },
+  "verified_at_utc": "2026-09-16T17:17:16.081834+00:00"
+}
