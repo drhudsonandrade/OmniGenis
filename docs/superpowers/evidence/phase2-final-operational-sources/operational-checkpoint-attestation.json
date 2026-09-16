@@ -1,5 +1,4 @@
 {
-  "external_raw_sha256": "d229f441fb4ba9fc850d834c5aacc7deb981bfa36d435cec12e5b87873394998",
   "final_completion_gate": {
     "code_language_guard": "PASS",
     "final_static_log_sha256": "596c634b1c0e78c98846cdfafb7459a6838047936a0e35d5457516a7ca0a3926",
@@ -63,6 +62,7 @@
   "main_sha": "1cb09951fac586b9774e550815d3718993fc23ec",
   "schema": "omnigenis-phase2-operational-checkpoint-attestation-v1",
   "secrets_captured": false,
+  "status": "COMPLETE",
   "task9": {
     "continuity_anchor_preserved_during_migration": true,
     "external_zero_personal_identity": "PASS",

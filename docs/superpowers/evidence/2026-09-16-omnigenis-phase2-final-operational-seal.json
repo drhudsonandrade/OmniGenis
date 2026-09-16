@@ -15,10 +15,10 @@
       },
       "source_artifact": {
         "path": "docs/superpowers/evidence/phase2-final-operational-sources/candidate-validation-summary.json",
-        "sha256": "fd6ab08ee4bc5639091552d550278c942efab3e031a39163780d54839909d2ba"
+        "sha256": "ebd2c87cf4a6e63059ca34e1a2c66b8e210862c9aa7a99283eef4c0fedf55dfd"
       },
       "validated_commit_sha": "21e4bc85f6ea1e001f8c1e3405564043b75c075a",
-      "validation_scope": "LOCAL_PINNED_ENV_BASELINE_CANDIDATE"
+      "validation_scope": "LOCAL_PINNED_ENV_SUPPORTING_VALIDATION"
     },
     "main_operational_canary": {
       "mcp_suite": {
@@ -34,7 +34,7 @@
       },
       "source_artifact": {
         "path": "docs/superpowers/evidence/phase2-final-operational-sources/main-final-static-summary.json",
-        "sha256": "89dc619314d3308db79f0a1200df355863362ed6eecb97c2289abeaf7a49658a"
+        "sha256": "4c456d7901ff7121de9f54685f8211164969fb4140370a0d7c8ecf5f0c4c9055"
       },
       "source_job_id": 104894004131
     },
@@ -81,7 +81,7 @@
   "main_sha": "1cb09951fac586b9774e550815d3718993fc23ec",
   "operational_bundle": {
     "path": "docs/superpowers/evidence/2026-09-16-omnigenis-phase2-final-operational-bundle.json",
-    "sha256": "5599911911048258323d7909d22dcf9c8ccdf5181eef5bb01a3e9f143145ec90"
+    "sha256": "cdd21459979a8bf58112399dc5b60ec7a50c1991bb7e64549d08a25693ae34ff"
   },
   "phase2_global_seal": "VERIFIED",
   "repository_id": 1212760346,
@@ -118,29 +118,24 @@
     "secrets_captured": false,
     "source_artifacts": {
       "operational_checkpoint": {
-        "external_raw_sha256": "d229f441fb4ba9fc850d834c5aacc7deb981bfa36d435cec12e5b87873394998",
         "path": "docs/superpowers/evidence/phase2-final-operational-sources/operational-checkpoint-attestation.json",
-        "sha256": "6f3718fc83dd58ad64b3d5c5d4c4736b5ef52157cb75146ecc647c842ee0b589"
+        "sha256": "6a654ebb095f4f4f23714f38c7e680875234bc87b1ff18130ec4fd253b897eaa"
       },
       "registration_rehearsal": {
-        "external_raw_sha256": "50f8980f870041e97b51016c52d0b4e6ab496f8171055545d7ed1c2eb0552d86",
         "path": "docs/superpowers/evidence/phase2-final-operational-sources/registration-rehearsal-attestation.json",
-        "sha256": "3657919698c0cc8728f972b417c8cef7c5c121fcb6cb4988343f820991d55fc0"
+        "sha256": "3f6c170d5b43d85ccebb37b7e971186dab9257da49686dd5bb530f929429ee52"
       },
       "runner01_contract": {
-        "external_raw_sha256": "2e59c06b681f569b1a5c8ba9e8b5e59cb5f0ab71658deed2a3bd9e2095f8e8c3",
         "path": "docs/superpowers/evidence/phase2-final-operational-sources/runner01-contract-attestation.json",
-        "sha256": "06f4d78c3d272d05b146599a40564a4d6b93dcfc01a5960507b5e865ac9671ec"
+        "sha256": "2758e98156f0eeb5819b90a861620daa17e601e54d76f1b903788b53ca4e3939"
       },
       "runtime_resource_gate_v6": {
-        "external_raw_sha256": "ea93581c8e3feac98220da1ec4675b80257206dbf1582f516e96b63db9800be8",
         "path": "docs/superpowers/evidence/phase2-final-operational-sources/runtime-resource-gate-v6-attestation.json",
-        "sha256": "2e3e71b4b71ee8087aa3d027183a3f5ec2ec617a0dba360f82313865fe9e28bd"
+        "sha256": "aa7d4d51eebe926624e8ba14f8968e22dba5ea9a52b080a3fe682a48b422a2cd"
       },
       "runtime_resource_gate_v7": {
-        "external_raw_sha256": "bae1c5bf22a8bfaf8be1f25fbf8f40c2539d4cb991d43527913e00798fca84c4",
         "path": "docs/superpowers/evidence/phase2-final-operational-sources/runtime-resource-gate-v7-attestation.json",
-        "sha256": "66a4551d8a83a272b660771db4e7488f34f8fbf6d02ae468d73e44154575def8"
+        "sha256": "f83cb7744c686b8307936b6066600160e8491f067a3edb9fb8d1650dce2d8c50"
       }
     },
     "status": "EXECUTED_AND_VERIFIED"

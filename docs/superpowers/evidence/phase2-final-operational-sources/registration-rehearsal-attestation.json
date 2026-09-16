@@ -1,5 +1,4 @@
 {
-  "external_raw_sha256": "50f8980f870041e97b51016c52d0b4e6ab496f8171055545d7ed1c2eb0552d86",
   "facts": {
     "config_capabilities_verified": true,
     "official_remove_flow_succeeded": true,
@@ -20,6 +19,7 @@
   "repository_id": 1212760346,
   "schema": "omnigenis-phase2-registration-rehearsal-attestation-v1",
   "secrets_captured": false,
+  "status": "PASS",
   "token_values_persisted": false,
   "verified_at_utc": "2026-09-16T15:30:42.129444+00:00"
 }

@@ -1,6 +1,5 @@
 {
   "docker_server_version": "29.8.0",
-  "external_raw_sha256": "ea93581c8e3feac98220da1ec4675b80257206dbf1582f516e96b63db9800be8",
   "facts": {
     "all_compose_hashes_match": true,
     "both_host_volume_states_present": true,
@@ -13,5 +12,6 @@
   "raw_environment_values_captured": false,
   "runner_count": 2,
   "schema": "omnigenis-phase2-runtime-gate-v6-attestation-v1",
-  "secrets_captured": false
+  "secrets_captured": false,
+  "status": "VERIFIED"
 }

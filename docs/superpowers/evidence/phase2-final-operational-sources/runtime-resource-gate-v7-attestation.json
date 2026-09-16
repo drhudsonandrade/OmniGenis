@@ -1,5 +1,4 @@
 {
-  "external_raw_sha256": "bae1c5bf22a8bfaf8be1f25fbf8f40c2539d4cb991d43527913e00798fca84c4",
   "facts": {
     "compose_services_render": true,
     "persistent_states_snapshot_readable": true,
@@ -16,5 +15,6 @@
   "raw_file_contents_captured": false,
   "runner_count": 2,
   "schema": "omnigenis-phase2-runtime-gate-v7-attestation-v1",
-  "secrets_captured": false
+  "secrets_captured": false,
+  "status": "VERIFIED"
 }

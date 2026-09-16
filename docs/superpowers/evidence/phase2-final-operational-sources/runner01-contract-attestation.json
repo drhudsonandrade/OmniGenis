@@ -2,7 +2,6 @@
   "canonical_name": "omnigenis-runner-01",
   "canonical_runner_id": 24,
   "cleanup_status_at_capture": "PENDING_ROOT_ONLY",
-  "external_raw_sha256": "2e59c06b681f569b1a5c8ba9e8b5e59cb5f0ab71658deed2a3bd9e2095f8e8c3",
   "full_workflow_conclusion": "success",
   "main_sha": "1cb09951fac586b9774e550815d3718993fc23ec",
   "previous_runner_absent": true,
@@ -13,6 +12,7 @@
   "static_job_conclusion": "success",
   "static_job_id": 104887984148,
   "static_job_runner_id": 24,
+  "status": "PASS",
   "token_values_persisted": false,
   "verified_at_utc": "2026-09-16T16:55:35.532377+00:00",
   "workflow_run_id": 35123838618

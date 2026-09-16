@@ -14,6 +14,7 @@
   "schema": "omnigenis-phase2-main-final-static-summary-v1",
   "secrets_captured": false,
   "source_locator": "github-actions:repository_id=1212760346;run_id=35125654567;job_id=104894004131",
+  "status": "PASS",
   "summary_lines": [
     "2026-09-16T17:09:12.7033643Z Ran 1219 tests in 355.538s",
     "2026-09-16T17:09:12.7033872Z OK (skipped=2)",

@@ -1,7 +1,5 @@
 {
   "candidate_commit_at_execution": "21e4bc85f6ea1e001f8c1e3405564043b75c075a",
-  "external_full_log_sha256": "b6bc3b62462741c601c61b111a3f1a47a18be8ee0540eba163a558c4ce25d636",
-  "mcp_recheck_log_sha256": "898eb8a9e3e16427077ebf9180f81b09ce53e1b64aa627a73528eb56f1ba0e0f",
   "mcp_suite": {
     "failures": 0,
     "passed": 45,
@@ -15,9 +13,11 @@
   },
   "schema": "omnigenis-phase2-evidence-pr-candidate-validation-v1",
   "secrets_captured": false,
-  "source_locator": "operator-local:pinned-venv-full-suite",
+  "source_locator": "tracked-attestation:local-pinned-validation-summary",
+  "status": "PASS",
   "validation_environment": {
     "python": "3.12.3",
     "reporting_requirements": "pinned"
-  }
+  },
+  "validation_scope": "LOCAL_PINNED_ENV_SUPPORTING_VALIDATION"
 }

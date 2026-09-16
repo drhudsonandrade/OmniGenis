@@ -80,10 +80,10 @@
       },
       "source_artifact": {
         "path": "docs/superpowers/evidence/phase2-final-operational-sources/candidate-validation-summary.json",
-        "sha256": "fd6ab08ee4bc5639091552d550278c942efab3e031a39163780d54839909d2ba"
+        "sha256": "ebd2c87cf4a6e63059ca34e1a2c66b8e210862c9aa7a99283eef4c0fedf55dfd"
       },
       "validated_commit_sha": "21e4bc85f6ea1e001f8c1e3405564043b75c075a",
-      "validation_scope": "LOCAL_PINNED_ENV_BASELINE_CANDIDATE"
+      "validation_scope": "LOCAL_PINNED_ENV_SUPPORTING_VALIDATION"
     },
     "main_operational_canary": {
       "mcp_suite": {
@@ -99,7 +99,7 @@
       },
       "source_artifact": {
         "path": "docs/superpowers/evidence/phase2-final-operational-sources/main-final-static-summary.json",
-        "sha256": "89dc619314d3308db79f0a1200df355863362ed6eecb97c2289abeaf7a49658a"
+        "sha256": "4c456d7901ff7121de9f54685f8211164969fb4140370a0d7c8ecf5f0c4c9055"
       },
       "source_job_id": 104894004131
     }

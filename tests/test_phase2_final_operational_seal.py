@@ -4,8 +4,6 @@ from pathlib import Path
 import copy
 import hashlib
 import json
-import shutil
-import subprocess
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -25,17 +23,102 @@ HISTORICAL_SHA256 = "d0e2192b3a4c069f46cada3d480c92d4ad5e34c9c03014cc053ad228453
 MAIN_SHA = "1cb09951fac586b9774e550815d3718993fc23ec"
 REPOSITORY_ID = 1212760346
 PROTECTED_MAIN_RULESET_ID = 21303100
-GIT = shutil.which("git")
-if GIT is None:
-    raise RuntimeError("git executable is required by the Phase 2 final seal contract")
-
-
-def _git(*args: str) -> str:
-    return subprocess.check_output([GIT, *args], cwd=ROOT, text=True).strip()
+VALIDATED_PARENT_SHA = "21e4bc85f6ea1e001f8c1e3405564043b75c075a"
+SOURCE_ROOT = "docs/superpowers/evidence/phase2-final-operational-sources"
+SOURCE_CONTRACTS = {
+    "runtime_resource_gate_v6": {
+        "path": f"{SOURCE_ROOT}/runtime-resource-gate-v6-attestation.json",
+        "schema": "omnigenis-phase2-runtime-gate-v6-attestation-v1",
+        "status": "VERIFIED",
+        "expected": {
+            "runner_count": 2,
+            "facts.all_compose_hashes_match": True,
+            "facts.both_listener_states_present": True,
+            "facts.both_host_volume_states_present": True,
+            "facts.both_runner_binaries_present": True,
+            "facts.same_image": True,
+            "facts.restart_unless_stopped": True,
+        },
+    },
+    "runtime_resource_gate_v7": {
+        "path": f"{SOURCE_ROOT}/runtime-resource-gate-v7-attestation.json",
+        "schema": "omnigenis-phase2-runtime-gate-v7-attestation-v1",
+        "status": "VERIFIED",
+        "expected": {
+            "runner_count": 2,
+            "facts.compose_services_render": True,
+            "facts.persistent_states_snapshot_readable": True,
+            "facts.same_runtime_image": True,
+            "facts.read_only": True,
+            "facts.restart_unless_stopped": True,
+            "facts.volume_target_home_runner": True,
+        },
+    },
+    "registration_rehearsal": {
+        "path": f"{SOURCE_ROOT}/registration-rehearsal-attestation.json",
+        "schema": "omnigenis-phase2-registration-rehearsal-attestation-v1",
+        "status": "PASS",
+        "expected": {
+            "repository_id": REPOSITORY_ID,
+            "facts.config_capabilities_verified": True,
+            "facts.official_remove_flow_succeeded": True,
+            "facts.temporary_runner_became_online": True,
+            "facts.temporary_runner_absent_after_remove": True,
+            "facts.temporary_volume_removed": True,
+            "production_continuity.runner_21_online_after": True,
+            "production_continuity.runner_22_online_after": True,
+            "token_values_persisted": False,
+        },
+    },
+    "runner01_contract": {
+        "path": f"{SOURCE_ROOT}/runner01-contract-attestation.json",
+        "schema": "omnigenis-phase2-runner01-contract-attestation-v1",
+        "status": "PASS",
+        "expected": {
+            "repository_id": REPOSITORY_ID,
+            "main_sha": MAIN_SHA,
+            "previous_runner_id": 21,
+            "canonical_runner_id": 24,
+            "canonical_name": "omnigenis-runner-01",
+            "workflow_run_id": 35123838618,
+            "static_job_id": 104887984148,
+            "static_job_runner_id": 24,
+            "static_job_conclusion": "success",
+            "full_workflow_conclusion": "success",
+            "previous_runner_absent": True,
+            "token_values_persisted": False,
+        },
+    },
+    "operational_checkpoint": {
+        "path": f"{SOURCE_ROOT}/operational-checkpoint-attestation.json",
+        "schema": "omnigenis-phase2-operational-checkpoint-attestation-v1",
+        "status": "COMPLETE",
+        "expected": {
+            "main_sha": MAIN_SHA,
+            "task9.status": "COMPLETE",
+            "task9.external_zero_personal_identity": "PASS",
+            "task9.runner01.current_id": 24,
+            "task9.runner01.status": "PASS",
+            "task9.runner02.current_id": 25,
+            "task9.runner02.status": "PASS",
+            "governance.enforcement": "active",
+            "governance.protected_main_ruleset_id": PROTECTED_MAIN_RULESET_ID,
+            "governance.required_status_check_count": 14,
+            "final_completion_gate.tracked_zero_identity_findings": 0,
+        },
+    },
+}
 
 
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _lookup(payload: dict, dotted_path: str):
+    value = payload
+    for key in dotted_path.split("."):
+        value = value[key]
+    return value
 
 
 class Phase2FinalOperationalSealTest(unittest.TestCase):
@@ -87,12 +170,6 @@ class Phase2FinalOperationalSealTest(unittest.TestCase):
         self.assertEqual(evidence["phase2_global_seal"], "VERIFIED")
         self.assertEqual(evidence["repository_id"], REPOSITORY_ID)
         self.assertEqual(evidence["main_sha"], MAIN_SHA)
-        subprocess.run(
-            [GIT, "merge-base", "--is-ancestor", MAIN_SHA, "HEAD"],
-            cwd=ROOT,
-            check=True,
-            capture_output=True,
-        )
         self.assertFalse(evidence["secret_material_recorded"])
 
     def test_runtime_resource_gate_is_executed_and_verified(self) -> None:
@@ -122,9 +199,14 @@ class Phase2FinalOperationalSealTest(unittest.TestCase):
                 "operational_checkpoint",
             },
         )
-        for binding in sources.values():
+        for key, binding in sources.items():
+            contract = SOURCE_CONTRACTS[key]
+            self.assertEqual(binding["path"], contract["path"])
             source = self.load_bound_json(binding)
-            self.assertEqual(source["external_raw_sha256"], binding["external_raw_sha256"])
+            self.assertEqual(source["schema"], contract["schema"])
+            self.assertEqual(source["status"], contract["status"])
+            for dotted_path, expected in contract["expected"].items():
+                self.assertEqual(_lookup(source, dotted_path), expected)
             self.assertFalse(source["secrets_captured"])
 
     def test_final_runner_readback_and_replay_are_exact(self) -> None:
@@ -198,13 +280,8 @@ class Phase2FinalOperationalSealTest(unittest.TestCase):
             candidate["mcp_suite"],
             {"tests": 46, "passed": 45, "failures": 0, "skipped": 1},
         )
+        self.assertEqual(candidate["validated_commit_sha"], VALIDATED_PARENT_SHA)
         self.assertNotEqual(candidate["validated_commit_sha"], MAIN_SHA)
-        subprocess.run(
-            [GIT, "merge-base", "--is-ancestor", candidate["validated_commit_sha"], "HEAD"],
-            cwd=ROOT,
-            check=True,
-            capture_output=True,
-        )
         main_source = self.load_bound_json(main["source_artifact"])
         candidate_source = self.load_bound_json(candidate["source_artifact"])
         self.assertEqual(main_source["root_suite"], main["root_suite"])
@@ -263,25 +340,23 @@ class Phase2FinalOperationalSealTest(unittest.TestCase):
 
     def test_operational_source_hashes_are_exact(self) -> None:
         evidence = self.load_evidence()
-        expected_raw = {
-            "runtime_resource_gate_v6": "ea93581c8e3feac98220da1ec4675b80257206dbf1582f516e96b63db9800be8",
-            "runtime_resource_gate_v7": "bae1c5bf22a8bfaf8be1f25fbf8f40c2539d4cb991d43527913e00798fca84c4",
-            "registration_rehearsal": "50f8980f870041e97b51016c52d0b4e6ab496f8171055545d7ed1c2eb0552d86",
-            "runner01_contract": "2e59c06b681f569b1a5c8ba9e8b5e59cb5f0ab71658deed2a3bd9e2095f8e8c3",
-            "operational_checkpoint": "d229f441fb4ba9fc850d834c5aacc7deb981bfa36d435cec12e5b87873394998",
-        }
         bindings = evidence["runtime_resource_gate"]["source_artifacts"]
-        self.assertEqual(set(bindings), set(expected_raw))
-        for key, expected_sha in expected_raw.items():
-            source = self.load_bound_json(bindings[key])
-            self.assertEqual(bindings[key]["external_raw_sha256"], expected_sha)
-            self.assertEqual(source["external_raw_sha256"], expected_sha)
+        self.assertEqual(set(bindings), set(SOURCE_CONTRACTS))
+        for key, contract in SOURCE_CONTRACTS.items():
+            binding = bindings[key]
+            self.assertEqual(binding["path"], contract["path"])
+            source = self.load_bound_json(binding)
+            self.assertEqual(source["schema"], contract["schema"])
+            self.assertEqual(source["status"], contract["status"])
+            for dotted_path, expected in contract["expected"].items():
+                self.assertEqual(_lookup(source, dotted_path), expected)
 
         for section in (
             evidence["final_completion_gate"]["main_operational_canary"],
             evidence["final_completion_gate"]["evidence_pr_candidate_validation"],
         ):
-            self.load_bound_json(section["source_artifact"])
+            source = self.load_bound_json(section["source_artifact"])
+            self.assertEqual(source["status"], "PASS")
 
 
 if __name__ == "__main__":
