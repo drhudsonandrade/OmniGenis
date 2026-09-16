@@ -1074,6 +1074,10 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
                 evidence_record["bundle_record_sha256"],
                 hashlib.sha256(_canonical_json_bytes(bundle_record)).hexdigest(),
             )
+            self.assertEqual(
+                evidence_record["replay_bundle_record_sha256"],
+                hashlib.sha256(_canonical_json_bytes(replay_record)).hexdigest(),
+            )
             neutralized[key] = normalized
 
         self.assertEqual(neutralized, expected)
@@ -1146,11 +1150,19 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
         )
         for key, record in bundle["canary_run_readbacks"].items():
             self.assertEqual(_live_canary_run_output(int(key)), record["raw_output"])
+        expected_rulesets = _expected_ruleset_semantics()
         for key, record in bundle["ruleset_readbacks"].items():
             live_raw = _live_ruleset_detail_output(int(key))
             self.assertEqual(
                 hashlib.sha256(live_raw.encode("utf-8")).hexdigest(),
                 record["raw_output_sha256"],
+            )
+            live_semantics = _neutralize_ruleset(
+                json.loads(live_raw), expected_rulesets[key]
+            )
+            self.assertEqual(
+                _canonical_json_bytes(live_semantics).decode("utf-8"),
+                record["semantic_output"],
             )
         self.assertEqual(
             evidence["repository_identity"],
@@ -1453,6 +1465,10 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
         self.assertEqual(
             provenance["validation_bundle_record_sha256"],
             hashlib.sha256(_canonical_json_bytes(captured)).hexdigest(),
+        )
+        self.assertEqual(
+            provenance["replay_bundle_record_sha256"],
+            hashlib.sha256(_canonical_json_bytes(replay)).hexdigest(),
         )
         self.assertEqual(
             hashlib.sha256(sanitized.encode("utf-8")).hexdigest(),
