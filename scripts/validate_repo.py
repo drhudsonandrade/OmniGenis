@@ -34,6 +34,8 @@ CANONICAL_RULESET_SHA256 = EXPECTED_SHA
 FALLOW_ACTION_SHA = "45fd28766199acb1f939f6862274a37aad12770b"
 PRODUCTION_WITNESS_CAPABILITY_GUARD = "${{ vars.GENOMA_PRODUCTION_WITNESS_ENABLED == 'true' }}"
 REQUIRED_PATHS = (
+    "LICENSE", "COPYRIGHT.md", "AUTHORS.md", "THIRD_PARTY_NOTICES.md",
+    "docs/compliance/LICENSING_POLICY.md", "docs/compliance/DEPENDENCY_POLICY.md", "licenses/README.md",
     ".fallowrc.json", ".github/workflows/fallow.yml", ".github/workflows/scaffold-validation.yml",
     ".github/workflows/genoma-policy-engine.yml", ".github/workflows/genoma-production-ceremony.yml",
     ".github/workflows/genoma-production-witness.yml", ".github/workflows/genoma-ngs-runtime-gate.yml",

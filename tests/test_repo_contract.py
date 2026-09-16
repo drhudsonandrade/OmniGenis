@@ -64,6 +64,19 @@ class RepoContractTest(unittest.TestCase):
         ):
             self.assertIn(relative, validator.REQUIRED_PATHS)
 
+    def test_compliance_baseline_paths_are_required(self):
+        validator = load_validator()
+        for relative in (
+            "LICENSE",
+            "COPYRIGHT.md",
+            "AUTHORS.md",
+            "THIRD_PARTY_NOTICES.md",
+            "docs/compliance/LICENSING_POLICY.md",
+            "docs/compliance/DEPENDENCY_POLICY.md",
+            "licenses/README.md",
+        ):
+            self.assertIn(relative, validator.REQUIRED_PATHS)
+
     def test_official_validator_rejects_each_prohibited_fingerprint_class(self):
         validator = load_validator()
         policy_source = Path(__file__).resolve().parents[1] / "config" / "zero_identity_policy.json"
