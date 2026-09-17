@@ -877,7 +877,7 @@
       "category": "localized",
       "reason": "Portuguese here is pt-BR report/runtime explanatory or serialized output text; implementation identifiers, comments, and docstrings are guarded separately.",
       "count": 1,
-      "fingerprint": "a3c7312f71aa773b592bf58cea9d2bbee8cf655b8d34ffe173ba8316c1949347"
+      "fingerprint": "8d4a0b9ab733ea0375efb88230e7bdd45a9196d2a8ade5fee789891633ede992"
     },
     {
       "path": "reporting/section_attestations.py",

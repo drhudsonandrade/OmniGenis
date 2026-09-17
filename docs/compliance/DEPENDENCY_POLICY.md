@@ -20,7 +20,7 @@ A package name is not sufficient evidence: classification applies to the exact v
 
 ## Existing remediation debt
 
-PyMuPDF/MuPDF and Poppler are unresolved licensing items. Their current presence must not be interpreted as approval or as a permanent exception.
+PyMuPDF/MuPDF was removed from the active editorial coordinate-compiler runtime in Stage 2 rather than granted a standing exception. The replacement `pypdfium2==5.13.0` / PDFium boundary is technically accepted for Stage 2 only for the exact artifact and bundled notices recorded in `licenses/pypdfium2-5.13.0/README.md`; this does not replace the later transitive inventory, SBOM, or legal review. Poppler remains unresolved and must not be interpreted as approved or as a permanent exception.
 
 ## Enforcement boundary
 

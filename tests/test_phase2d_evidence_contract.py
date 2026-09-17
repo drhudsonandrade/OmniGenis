@@ -77,6 +77,11 @@ def _git(*args: str) -> str:
     return subprocess.check_output([GIT, *args], cwd=ROOT, text=True).strip()
 
 
+def _git_bytes(*args: str) -> bytes:
+    """Read byte-exact historical Git content without normalizing line endings."""
+    return subprocess.check_output([GIT, *args], cwd=ROOT)
+
+
 def _gh_api_json(endpoint: str, *options: str) -> object:
     """Read one allowlisted GitHub REST endpoint without invoking a shell."""
     if GH is None:
@@ -1305,10 +1310,13 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
         """Require a recorded venv setup rooted in the versioned requirements lock."""
         evidence = self.load()
         environment = evidence["validation_environment"]
-        requirements = ROOT / environment["requirements_file"]
         self.assertEqual(environment["requirements_file"], "reporting/requirements.txt")
+        historical_requirements = _git_bytes(
+            "show",
+            f"{evidence['implementation_head_sha']}:{environment['requirements_file']}",
+        )
         self.assertEqual(
-            hashlib.sha256(requirements.read_bytes()).hexdigest(),
+            hashlib.sha256(historical_requirements).hexdigest(),
             environment["requirements_sha256"],
         )
         setup = environment["setup_command"]
@@ -1339,10 +1347,11 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
             hashlib.sha256(receipt["raw_output"].encode("utf-8")).hexdigest(),
             receipt["raw_output_sha256"],
         )
+        historical_requirements_text = historical_requirements.decode("utf-8")
         locked = {
             match.group(1).lower().replace("_", "-"): match.group(2).strip()
             for match in re.finditer(
-                r"(?m)^([A-Za-z0-9_.-]+)==([^\s\\]+)", requirements.read_text(encoding="utf-8")
+                r"(?m)^([A-Za-z0-9_.-]+)==([^\s\\]+)", historical_requirements_text
             )
         }
         self.assertTrue(locked)

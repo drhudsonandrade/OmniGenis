@@ -336,7 +336,21 @@ def _field_value(fields: dict[str, Any], item: dict[str, Any]) -> Any | None:
     Tried in order: the field id, then `token#occurrence`, then the bare token — so a caller
     may address one occurrence of a repeated token without affecting the others.
     """
-    keys = (item["field_id"], f"{item['token']}#{item['occurrence']}", item["token"])
+    legacy = item.get("legacy_field_ids")
+    if legacy is None:
+        aliases: tuple[str, ...] = ()
+    elif not isinstance(legacy, list) or not all(
+        isinstance(value, str) and value for value in legacy
+    ):
+        raise TemplateV3Error("invalid legacy field aliases in template coordinate manifest")
+    else:
+        aliases = tuple(legacy)
+    keys = (
+        item["field_id"],
+        *aliases,
+        f"{item['token']}#{item['occurrence']}",
+        item["token"],
+    )
     for key in keys:
         if key in fields:
             return fields[key]

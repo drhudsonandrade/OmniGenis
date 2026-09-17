@@ -36,6 +36,7 @@ PRODUCTION_WITNESS_CAPABILITY_GUARD = "${{ vars.GENOMA_PRODUCTION_WITNESS_ENABLE
 REQUIRED_PATHS = (
     "LICENSE", "COPYRIGHT.md", "AUTHORS.md", "THIRD_PARTY_NOTICES.md",
     "docs/compliance/LICENSING_POLICY.md", "docs/compliance/DEPENDENCY_POLICY.md", "licenses/README.md",
+    "licenses/pypdfium2-5.13.0/README.md", "docs/evidence/PDFIUM_COORDINATE_MIGRATION_2026-09-17.json",
     "policy_engine/LICENSE",
     ".fallowrc.json", ".github/workflows/fallow.yml", ".github/workflows/scaffold-validation.yml",
     ".github/workflows/genoma-policy-engine.yml", ".github/workflows/genoma-production-ceremony.yml",
@@ -51,7 +52,7 @@ REQUIRED_PATHS = (
     "normative/sealed/MANIFEST.json", "normative/sealed/README.md",
     "scripts/__init__.py", "scripts/sealed_ruleset.py", "scripts/code_language_guard.py",
     "scripts/residual_language_audit.py", "scripts/project_identity_guard.py",
-    "scripts/zero_identity_guard.py",
+    "scripts/zero_identity_guard.py", "scripts/pdfium_backend.py",
     "scripts/check_versions.sh", "scripts/fetch_grch38.sh",
     "scripts/build_bwa_mem2_index.sh", "scripts/validate_grch38.sh", "scripts/validate_bwa_mem2_functional.sh",
     "scripts/generate_canary.py", "scripts/score_variants.py", "scripts/run_canary.sh", "scripts/verify_ruleset.sh",
@@ -65,7 +66,8 @@ REQUIRED_PATHS = (
     "scripts/verify_supply_chain_lock.py", "scripts/generate_report.py", "scripts/generate_all_reports.py",
     "reporting/__init__.py", "reporting/catalog.json", "reporting/engine.py", "reporting/editorial_v3.py",
     "reporting/editorial_v3_hifi.py", "reporting/locale_pt_br.py",
-    "reporting/requirements.txt", "reporting/reference_v3_manifest.json",
+    "reporting/requirements.in", "reporting/requirements.txt", "reporting/reference_v3_manifest.json",
+    "reporting/legacy_field_aliases.json",
     "template_store/v3.0/MANIFEST.json", "locks/actions-lock.json", "locks/runtime-lock.json",
     "evidence_adapters/__init__.py", "policy_engine/pyproject.toml", "policy_engine/genoma_policy/engine.py",
     "policy_engine/genoma_policy/attestation.py", "policy_engine/genoma_policy/ledger.py",
@@ -436,7 +438,7 @@ def _missing_path_error(relative: str) -> str:
 
 #: The surfaces the "core has no external runtime dependency" claim is about. `reporting` and
 #: `scripts` deliberately carry pinned renderer dependencies (python-docx, reportlab, pypdf,
-#: PyMuPDF); the scientific core does not, and that is the property checked below.
+#: pypdfium2/PDFium); the scientific core does not, and that is the property checked below.
 CORE_PACKAGES = ("array_pipeline", "normative")
 
 #: Packages that live in this repository but are optional by contract — `.coderabbit.yaml`
