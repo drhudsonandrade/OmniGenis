@@ -77,6 +77,17 @@ class RepoContractTest(unittest.TestCase):
         ):
             self.assertIn(relative, validator.REQUIRED_PATHS)
 
+    def test_policy_engine_distribution_has_local_authorized_license(self):
+        validator = load_validator()
+        root = Path(__file__).resolve().parents[1]
+        self.assertIn("policy_engine/LICENSE", validator.REQUIRED_PATHS)
+        self.assertEqual(
+            (root / "policy_engine" / "LICENSE").read_bytes(),
+            (root / "LICENSE").read_bytes(),
+        )
+        pyproject = (root / "policy_engine" / "pyproject.toml").read_text(encoding="utf-8")
+        self.assertIn('license = {file = "LICENSE"}', pyproject)
+
     def test_official_validator_rejects_each_prohibited_fingerprint_class(self):
         validator = load_validator()
         policy_source = Path(__file__).resolve().parents[1] / "config" / "zero_identity_policy.json"

@@ -36,6 +36,7 @@ PRODUCTION_WITNESS_CAPABILITY_GUARD = "${{ vars.GENOMA_PRODUCTION_WITNESS_ENABLE
 REQUIRED_PATHS = (
     "LICENSE", "COPYRIGHT.md", "AUTHORS.md", "THIRD_PARTY_NOTICES.md",
     "docs/compliance/LICENSING_POLICY.md", "docs/compliance/DEPENDENCY_POLICY.md", "licenses/README.md",
+    "policy_engine/LICENSE",
     ".fallowrc.json", ".github/workflows/fallow.yml", ".github/workflows/scaffold-validation.yml",
     ".github/workflows/genoma-policy-engine.yml", ".github/workflows/genoma-production-ceremony.yml",
     ".github/workflows/genoma-production-witness.yml", ".github/workflows/genoma-ngs-runtime-gate.yml",

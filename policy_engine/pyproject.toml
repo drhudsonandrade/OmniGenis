@@ -9,7 +9,7 @@ description = "Executable policy engine for GENOMA ruleset v3.4"
 readme = "README_GENOMA_POLICY.md"
 requires-python = ">=3.11"
 authors = [{name = "Projeto GENOMA"}]
-license = {text = "Proprietary - see repository root LICENSE"}
+license = {file = "LICENSE"}
 dependencies = []
 
 [project.scripts]
