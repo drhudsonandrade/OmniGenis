@@ -72,7 +72,7 @@
       "category": "normative",
       "reason": "Closed normative taxonomy, canonical runtime identifier, or policy/workflow wire value is intentionally preserved for contract compatibility.",
       "count": 4,
-      "fingerprint": "5dbbc257ad25e9143cae80e62377e9a75390d8e5a260b38e24e42739e5ae8777"
+      "fingerprint": "e428aec4d0704bb721534f85339b793233ef2992e12cd64b438b60f6ed4f695d"
     },
     {
       "path": ".github/workflows/materialize-template-pdfs.yml",
@@ -523,6 +523,13 @@
       "fingerprint": "c24d47f1fc0af508f383cfd968e0910c4d37260aa84b124f5895fee493009193"
     },
     {
+      "path": "docs/evidence/PDFIUM_STATIC_PIXEL_QA_200DPI_2026-09-17.json",
+      "category": "compatibility-preserved",
+      "reason": "Versioned editorial QA evidence preserves canonical Portuguese template filenames and the established status value; these are compatibility identifiers, not implementation prose.",
+      "count": 10,
+      "fingerprint": "076f3f1ff64879896f402a4da2d60ec413f9c0cd769572d25a84f6e4e3e4ca4b"
+    },
+    {
       "path": "docs/superpowers/plans/2026-08-14-magalu-private-mcp.md",
       "category": "historical",
       "reason": "Implementation-plan record is retained as historical development evidence and is not active runtime or user-facing technical documentation.",
@@ -877,7 +884,7 @@
       "category": "localized",
       "reason": "Portuguese here is pt-BR report/runtime explanatory or serialized output text; implementation identifiers, comments, and docstrings are guarded separately.",
       "count": 1,
-      "fingerprint": "a3c7312f71aa773b592bf58cea9d2bbee8cf655b8d34ffe173ba8316c1949347"
+      "fingerprint": "8d4a0b9ab733ea0375efb88230e7bdd45a9196d2a8ade5fee789891633ede992"
     },
     {
       "path": "reporting/section_attestations.py",
@@ -1104,6 +1111,13 @@
       "fingerprint": "91d54032cbc57f2a13957d32a226d2b0130a21e3b68a4b6d3078877954bf04a6"
     },
     {
+      "path": "scripts/run_pdfium_static_pixel_qa.py",
+      "category": "compatibility-preserved",
+      "reason": "The pixel-QA producer must match canonical pt-BR template filenames and controlled source strings exactly; these values are content-addressed compatibility inputs, not implementation prose.",
+      "count": 14,
+      "fingerprint": "a9b2b184e689edceae1f269a53587f126e7478f52fd7591ec6a373a2a3bb7504"
+    },
+    {
       "path": "scripts/run_snp_array.py",
       "category": "localized",
       "reason": "Portuguese here is pt-BR operator/report output or a canonical serialized value; the executable implementation language remains English-first.",
@@ -1128,8 +1142,8 @@
       "path": "scripts/validate_repo.py",
       "category": "localized",
       "reason": "Portuguese here is pt-BR operator/report output or a canonical serialized value; the executable implementation language remains English-first.",
-      "count": 10,
-      "fingerprint": "59d4c75bd4211b761bec81ab69e1c78c13ea4e34f9283bc2d49182fd86e71caf"
+      "count": 11,
+      "fingerprint": "60a89330b26d5217cbb5cdd07b07ed7df635e651793acabb99110b2d5d8f8032"
     },
     {
       "path": "scripts/verify_prebuilt_bwa_mem2_bundle.py",

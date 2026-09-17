@@ -1,0 +1,10 @@
+{
+  "aliases": [
+    {
+      "current_field_id_sha256": "7d315ae6393bc07659a6831e86624534dcb5c1c0c8accebd5e8da9c0e09aac58",
+      "legacy_field_id_sha256": "2ac96d9bdfa4080c2828ae8a4e0335a627c668c72de54504fb71f554ab534925",
+      "legacy_field_id_utf8_b64": "MDE6UDA2OkNBTElCUkFDQU9fQU5DRVNUUkFMSURBREVdXUNhbXBvc2VtYXp1bHPDo29wbGFjZWhvbGRlcnNvYnJpZ2F0w7NyaW9zb3Vjb25kaWNpb25haXM7cHJlZW5jaGVyY29tZGFkb3Jhc3RyZcOhdmVsb3VkZWNsYXJhck7Dg09ESVNQT07DjVZFTC5OZWdhdGl2b3NjbGluaWNhbWVudGVpbmZvcm1hdGl2b3NQZXJndW50YUdlbmVzL3JlZ2nDtWVzL2NsYXNzZXNUZWNub2xvZ2lhQ29iZXJ0dXJhL0xPRE7Do29kZXRlY3RhZG9PcXVlbsOjb2ZvaWV4Y2x1aWRvW1tJTkRJQ0FDQU86MDAx"
+    }
+  ],
+  "schema": "omnigenis-legacy-template-field-aliases-v1"
+}

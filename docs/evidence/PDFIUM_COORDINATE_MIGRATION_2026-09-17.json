@@ -1,0 +1,103 @@
+{
+  "candidate_backend": {
+    "backend": "PDFium",
+    "bundled_build_license_files": 16,
+    "compiler_id": "pypdfium2-5.13.0-pdfium-genoma-v3",
+    "linux_x86_64_wheel": "pypdfium2-5.13.0-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+    "linux_x86_64_wheel_sha256": "81df25c1ab4c13ff773102d3cbea1967511d079123b067fc077bd0c4d57d91d8",
+    "package": "pypdfium2",
+    "version": "5.13.0"
+  },
+  "candidate_coordinate_artifacts": {
+    "compressed_detail_sha256": "2eea3539647d772f5dfd14640791cf773ff10a49ee92dd0589512dfaa50f5933",
+    "manifest_sha256": "cb91138cfa38912569dc556e684f302752eebbf64b0f656e97ec0a0c889a8bd6"
+  },
+  "coordinate_equivalence": {
+    "background_mismatches": 0,
+    "caller_addressability_preserved": true,
+    "cell_bbox_mismatches": 0,
+    "common_field_ids_compared": 1129,
+    "controlled_span_background_mismatches": 0,
+    "controlled_span_source_or_order_mismatches": 0,
+    "controlled_spans_compared": 341,
+    "legacy_field_id_aliases_preserved": 1,
+    "max_common_field_bbox_delta_pt": 0.001,
+    "max_control_bbox_delta_pt": 0.027,
+    "placeholder_count_mismatches": 0,
+    "placeholders_total": 1130
+  },
+  "date": "2026-09-17",
+  "legacy_backend": {
+    "compiler_id": "fitz-1.26.7-genoma-v2",
+    "package": "PyMuPDF",
+    "retained_for_runtime": false,
+    "version": "1.26.7"
+  },
+  "legacy_field_alias_registry": {
+    "aliases": 1,
+    "encoding": "base64-encoded UTF-8 with SHA-256 binding",
+    "path": "reporting/legacy_field_aliases.json",
+    "sha256": "3ef4d585c25f76b81ca856031dd6dcef5c4628117fe761690b2e39db212076c4"
+  },
+  "legacy_semantics_compatibility": [
+    {
+      "page": 6,
+      "report_id": "01",
+      "rule": "Preserve the legacy fillable-field boundary while normalizing the split calibration marker; do not newly expose INDICACAO during this licensing-only migration."
+    },
+    {
+      "page": 5,
+      "report_id": "07",
+      "rule": "Preserve the legacy fillable-field boundary by retaining IDENTIFICADOR and not newly exposing the split MONOGENICO_PRS_ASSOCIACAO marker during this migration."
+    }
+  ],
+  "limitations": [
+    "This is technical migration evidence, not a legal opinion or a repository-wide license-clean certification.",
+    "The exact installed wheel and bundled license notices remain subject to the repository dependency and future SBOM gates."
+  ],
+  "not_claimed": [
+    "repository-wide transitive license cleanliness or SBOM completeness",
+    "legal certification or legal opinion"
+  ],
+  "pixel_qa": {
+    "evidence_path": "docs/evidence/PDFIUM_STATIC_PIXEL_QA_200DPI_2026-09-17.json",
+    "evidence_sha256": "d658d625e5b3dd85b5eae80970bb4ebb343af7de24cdefb19f281ace8359c9b7",
+    "legacy_evidence": "docs/evidence/EDITORIAL_V3_STATIC_PIXEL_QA_200DPI_2026-08-16.json",
+    "pdfium_candidate_status": "PASS",
+    "producer_path": "scripts/run_pdfium_static_pixel_qa.py",
+    "producer_sha256": "424a555004ac7eda9fe2ac9286410c50b1482477f8d767928af1f5f9ef60103d",
+    "provenance_bundle_sha256": "352450d27a426fb23a447a2b3173638012eaa89a0dd96da1fff595349534b29f",
+    "statement": "Independent PDFium candidate pixel QA passed at 200 DPI; legacy MuPDF QA remains separately bound to the legacy coordinate artifacts."
+  },
+  "runtime_lock_verification": {
+    "allowed_pypdfium2_archive_hashes": 1,
+    "audited_pypdfium2_wheel_sha256": "81df25c1ab4c13ff773102d3cbea1967511d079123b067fc077bd0c4d57d91d8",
+    "fitz_module": "ABSENT",
+    "machine": "x86_64",
+    "pip_check": "PASS",
+    "pip_require_hashes": "PASS",
+    "platform": "linux",
+    "pymupdf_distribution": "ABSENT",
+    "pypdfium2_version": "5.13.0",
+    "requirements_file": "reporting/requirements.txt",
+    "status": "EXECUTED_PASS"
+  },
+  "schema": "omnigenis-pdf-backend-migration-evidence-v1",
+  "scope": "PyMuPDF/MuPDF removal from the active editorial coordinate compiler",
+  "source_templates": {
+    "pages": 100,
+    "private_template_bytes_committed": false,
+    "reports": 11,
+    "sha256_matches_reference_manifest": 11,
+    "suite": "GENOMA v3.0"
+  },
+  "status": "VERIFIED",
+  "verification_scope": [
+    "exact reporting dependency replacement in the active coordinate compiler",
+    "exact Linux x86_64 wheel identity and bundled license-file presence",
+    "coordinate equivalence against all 11 SHA-pinned private v3.0 templates",
+    "legacy caller field-id addressability for the one normalized historical field",
+    "fresh Linux x86_64 hashed-lock install with PyMuPDF/fitz absent",
+    "independent 200 DPI PDFium candidate pixel QA over all 11 canonical templates"
+  ]
+}

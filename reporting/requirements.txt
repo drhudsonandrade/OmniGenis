@@ -436,19 +436,12 @@ pillow==12.3.0 \
     # via
     #   -r reporting/requirements.in
     #   reportlab
-pymupdf==1.26.7 \
-    --hash=sha256:07085718dfdae5ab83b05eb5eb397f863bcc538fe05135318a01ea353e7a1353 \
-    --hash=sha256:1d5106f46e1ca0d64d46bd51892372a4f82076bdc14a9678d33d630702abca36 \
-    --hash=sha256:31aa9c8377ea1eea02934b92f4dcf79fb2abba0bf41f8a46d64c3e31546a3c02 \
-    --hash=sha256:425b1befe40d41b72eb0fe211711c7ae334db5eb60307e9dd09066ed060cceba \
-    --hash=sha256:69dfc78f206a96e5b3ac22741263ebab945fdf51f0dbe7c5757c3511b23d9d72 \
-    --hash=sha256:71add8bdc8eb1aaa207c69a13400693f06ad9b927bea976f5d5ab9df0bb489c3 \
-    --hash=sha256:7c9645b6f5452629c747690190350213d3e5bbdb6b2eca227d82702b327f6eee \
-    --hash=sha256:e419b609996434a14a80fa060adec72c434a1cca6a511ec54db9841bc5d51b3c
-    # via -r reporting/requirements.in
 pypdf==6.16.2 \
     --hash=sha256:595647f6191de6f402cfde1d0c455d6cbccbd509aac32b34783009c032de5d6e \
     --hash=sha256:c8b09a59399062fb45a1b8156c18a787a10a3dae03ac9674397a226712c94604
+    # via -r reporting/requirements.in
+pypdfium2==5.13.0 \
+    --hash=sha256:81df25c1ab4c13ff773102d3cbea1967511d079123b067fc077bd0c4d57d91d8
     # via -r reporting/requirements.in
 python-docx==1.2.0 \
     --hash=sha256:3fd478f3250fbbbfd3b94fe1e985955737c145627498896a8a6bf81f4baf66c7 \
