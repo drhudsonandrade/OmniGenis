@@ -1115,7 +1115,7 @@
       "category": "compatibility-preserved",
       "reason": "The pixel-QA producer must match canonical pt-BR template filenames and controlled source strings exactly; these values are content-addressed compatibility inputs, not implementation prose.",
       "count": 14,
-      "fingerprint": "14f6fb9f1fd506640daa7d89ddba1fae84b16355eef5d9a42bfec3ff65e46cd9"
+      "fingerprint": "a9b2b184e689edceae1f269a53587f126e7478f52fd7591ec6a373a2a3bb7504"
     },
     {
       "path": "scripts/run_snp_array.py",
@@ -1142,8 +1142,8 @@
       "path": "scripts/validate_repo.py",
       "category": "localized",
       "reason": "Portuguese here is pt-BR operator/report output or a canonical serialized value; the executable implementation language remains English-first.",
-      "count": 10,
-      "fingerprint": "59d4c75bd4211b761bec81ab69e1c78c13ea4e34f9283bc2d49182fd86e71caf"
+      "count": 11,
+      "fingerprint": "60a89330b26d5217cbb5cdd07b07ed7df635e651793acabb99110b2d5d8f8032"
     },
     {
       "path": "scripts/verify_prebuilt_bwa_mem2_bundle.py",

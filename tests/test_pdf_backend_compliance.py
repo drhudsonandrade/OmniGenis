@@ -5,6 +5,7 @@ import hashlib
 import importlib.metadata
 import importlib.util
 import json
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
@@ -14,8 +15,9 @@ from reportlab.lib.colors import Color
 from reportlab.pdfgen import canvas
 
 import scripts.pdfium_backend as pdf_backend
-from scripts.build_report_coordinate_pack import compile_pack
+import scripts.run_pdfium_static_pixel_qa as pixel_qa
 from reporting.template_v3 import TemplateV3Error, _field_value
+from scripts.build_report_coordinate_pack import compile_pack
 
 ROOT = Path(__file__).resolve().parents[1]
 REFERENCE = json.loads((ROOT / "reporting" / "reference_v3_manifest.json").read_text(encoding="utf-8"))
@@ -108,6 +110,98 @@ class PdfBackendComplianceTest(unittest.TestCase):
             REFERENCE["legacy_generated_coordinate_manifest"]["sha256"],
             "1d2e6b745b338b18530d5dc0e42cb542a01947a81a0515bece4882b4e09539a5",
         )
+
+    def test_pixel_qa_producer_binds_full_producer_payload(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source_dir = root / "source"
+            candidate_dir = root / "candidate"
+            source_dir.mkdir()
+            candidate_dir.mkdir()
+            source = source_dir / "fixture.pdf"
+            pdf = canvas.Canvas(str(source), pagesize=(300, 400))
+            pdf.drawString(30, 340, "[[CASE_ID]]")
+            pdf.save()
+            candidate = candidate_dir / "qa-01.pdf"
+            shutil.copy2(source, candidate)
+            output = root / "evidence.json"
+            mask_manifest = root / "masks.json"
+            log = root / "qa.log"
+            expected = {
+                "01": (
+                    source.name,
+                    hashlib.sha256(source.read_bytes()).hexdigest(),
+                    1,
+                )
+            }
+            argv = [
+                "run_pdfium_static_pixel_qa.py",
+                "--template-dir", str(source_dir),
+                "--candidate-dir", str(candidate_dir),
+                "--output", str(output),
+                "--mask-manifest", str(mask_manifest),
+                "--log", str(log),
+            ]
+            with mock.patch.object(pixel_qa, "EXPECTED", expected), mock.patch("sys.argv", argv):
+                self.assertEqual(pixel_qa.main(), 0)
+            evidence = json.loads(output.read_text(encoding="utf-8"))
+            bundle = {
+                "provenance": evidence["producer"],
+                "aggregate": evidence["aggregate"],
+                "reports": evidence["reports"],
+            }
+            self.assertEqual(evidence["evidence_sha256"], pixel_qa.canonical_hash(bundle))
+
+    def _copy_stage2_contract_files(self, root: Path) -> None:
+        for relative in (
+            "docs/evidence/PDFIUM_COORDINATE_MIGRATION_2026-09-17.json",
+            "docs/evidence/PDFIUM_STATIC_PIXEL_QA_200DPI_2026-09-17.json",
+            "reporting/legacy_field_aliases.json",
+            "reporting/reference_v3_manifest.json",
+            "reporting/requirements.txt",
+            "scripts/run_pdfium_static_pixel_qa.py",
+        ):
+            target = root / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(ROOT / relative, target)
+
+    def test_stage2_validator_accepts_current_semantic_contracts(self) -> None:
+        validator = _load_validator()
+        errors: list[str] = []
+        validator.validate_stage2_pdf_contract(ROOT, errors)
+        self.assertEqual(errors, [])
+
+    def test_stage2_validator_rejects_semantically_empty_contracts(self) -> None:
+        validator = _load_validator()
+        for relative in (
+            "docs/evidence/PDFIUM_COORDINATE_MIGRATION_2026-09-17.json",
+            "docs/evidence/PDFIUM_STATIC_PIXEL_QA_200DPI_2026-09-17.json",
+            "reporting/legacy_field_aliases.json",
+        ):
+            with self.subTest(path=relative), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                self._copy_stage2_contract_files(root)
+                (root / relative).write_text("{}\n", encoding="utf-8")
+                errors: list[str] = []
+                validator.validate_stage2_pdf_contract(root, errors)
+                self.assertTrue(errors, relative)
+
+    def test_stage2_validator_rejects_pdfium_lock_drift(self) -> None:
+        validator = _load_validator()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._copy_stage2_contract_files(root)
+            lock = root / "reporting/requirements.txt"
+            lock.write_text(
+                lock.read_text(encoding="utf-8").replace(
+                    "81df25c1ab4c13ff773102d3cbea1967511d079123b067fc077bd0c4d57d91d8",
+                    "0" * 64,
+                ),
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            validator.validate_stage2_pdf_contract(root, errors)
+            self.assertTrue(any("pypdfium2" in error for error in errors))
 
     def test_installed_pdfium_wheel_preserves_bundled_license_notices(self) -> None:
         files = {str(item) for item in (importlib.metadata.distribution("pypdfium2").files or [])}
@@ -310,6 +404,7 @@ class PdfBackendComplianceTest(unittest.TestCase):
         validator = _load_validator()
         for relative in (
             "scripts/pdfium_backend.py",
+            "scripts/build_report_coordinate_pack.py",
             "scripts/run_pdfium_static_pixel_qa.py",
             "reporting/requirements.in",
             "reporting/legacy_field_aliases.json",

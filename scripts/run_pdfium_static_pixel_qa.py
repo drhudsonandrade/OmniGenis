@@ -12,11 +12,16 @@ from pathlib import Path
 from typing import Any
 
 import pypdfium2 as pdfium  # type: ignore[import-untyped]
-from pypdfium2 import raw  # type: ignore[import-untyped]
 from PIL import Image, ImageChops, ImageDraw, ImageOps
+from pypdfium2 import raw  # type: ignore[import-untyped]
 
 DPI = 200
 SCALE = DPI / 72.0
+COORDINATE_COMPILER = {
+    "id": "pypdfium2-5.13.0-pdfium-genoma-v3",
+    "manifest_sha256": "cb91138cfa38912569dc556e684f302752eebbf64b0f656e97ec0a0c889a8bd6",
+    "compressed_detail_sha256": "2eea3539647d772f5dfd14640791cf773ff10a49ee92dd0589512dfaa50f5933",
+}
 EXPECTED = {
     "01": ("01_RELATORIO_GENOMA_CLINICO_v3.0.pdf", "812a7e9ff15a1f6b368d924e78dd0456145d0f22e0d24af5ea0a9faa9d458797", 10),
     "02": ("02_RELATORIO_ANCESTRALIDADE_GENEALOGIA_v3.0.pdf", "2ede76a59e74a6425f22be31f7b96fa6bc1b0ce3fb74b03fa15775e0e6dbe496", 10),
@@ -195,8 +200,36 @@ def main() -> int:
     args.log.write_text("\n".join(log_lines) + f"\nTOTAL\tpages={page_total}\toutside={outside_total}\tchanged={changed_total}\n", encoding="utf-8")
     producer_hash = sha256(Path(__file__))
     provenance = {"producer_sha256": producer_hash, "command": command, "log_sha256": sha256(args.log), "mask_manifest_sha256": sha256(args.mask_manifest), "candidate_set_sha256": canonical_hash(candidate_hashes)}
-    evidence = {"schema": "omnigenis-pdfium-static-pixel-qa-v2", "status": "VERIFICADO" if outside_total == 0 else "FALHOU", "executed_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "dpi": DPI, "producer": {"path": "scripts/run_pdfium_static_pixel_qa.py", **provenance}, "aggregate": {"reports": len(reports), "reference_pages": page_total, "outside_changed_pixels": outside_total, "changed_pixels": changed_total, "result": "PASS" if outside_total == 0 else "FAIL"}, "reports": reports}
-    evidence["evidence_sha256"] = canonical_hash({"provenance": provenance, "aggregate": evidence["aggregate"], "reports": reports})
+    producer = {"path": "scripts/run_pdfium_static_pixel_qa.py", **provenance}
+    evidence = {
+        "schema": "omnigenis-pdfium-static-pixel-qa-v2",
+        "status": "VERIFICADO" if outside_total == 0 else "FALHOU",
+        "scope": "Independent 200 DPI static-pixel QA for the PDFium Stage 2 coordinate candidate",
+        "executed_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "dpi": DPI,
+        "coordinate_compiler": COORDINATE_COMPILER,
+        "private_templates": {
+            "bytes_committed": False,
+            "reports": len(reports),
+            "pages": page_total,
+            "sha256_matches_reference_manifest": len(reports),
+        },
+        "producer": producer,
+        "aggregate": {
+            "reports": len(reports),
+            "reference_pages": page_total,
+            "outside_changed_pixels": outside_total,
+            "changed_pixels": changed_total,
+            "result": "PASS" if outside_total == 0 else "FAIL",
+        },
+        "reports": reports,
+        "limitations": [
+            "QA is editorial and geometric only; it does not validate scientific interpretation.",
+            "Private template bytes, candidate PDFs, mask manifest, and execution log are not committed; their SHA-256 identities are retained in this evidence.",
+            "The producer derives masks from the SHA-pinned source PDFs, not from the pixel diff, and fails closed on source hash or page-count drift.",
+        ],
+    }
+    evidence["evidence_sha256"] = canonical_hash({"provenance": producer, "aggregate": evidence["aggregate"], "reports": reports})
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(evidence, indent=2, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps({"status": evidence["status"], "outside_changed_pixels": outside_total, "evidence_sha256": evidence["evidence_sha256"], **provenance}, sort_keys=True))

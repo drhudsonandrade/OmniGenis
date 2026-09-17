@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import ast
+import base64
 import csv
+import hashlib
 import json
 import re
 import sys
@@ -14,19 +16,25 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.code_language_guard import LanguagePolicyError, validate_code_language  # noqa: E402
-from scripts.residual_language_audit import ResidualLanguageError, audit_repository  # noqa: E402
+from scripts.code_language_guard import (  # noqa: E402
+    LanguagePolicyError,
+    validate_code_language,
+)
 from scripts.project_identity_guard import validate_project_identity  # noqa: E402
-from scripts.zero_identity_guard import (  # noqa: E402
-    PolicyError,
-    RepositoryScanError,
-    validate_zero_identity,
+from scripts.residual_language_audit import (  # noqa: E402
+    ResidualLanguageError,
+    audit_repository,
 )
 from scripts.sealed_ruleset import (  # noqa: E402
     EXPECTED_NAME,
     EXPECTED_SHA,
     SealedRulesetError,
     verify_transport,
+)
+from scripts.zero_identity_guard import (  # noqa: E402
+    PolicyError,
+    RepositoryScanError,
+    validate_zero_identity,
 )
 
 CANONICAL_RULESET = EXPECTED_NAME
@@ -53,7 +61,8 @@ REQUIRED_PATHS = (
     "normative/sealed/MANIFEST.json", "normative/sealed/README.md",
     "scripts/__init__.py", "scripts/sealed_ruleset.py", "scripts/code_language_guard.py",
     "scripts/residual_language_audit.py", "scripts/project_identity_guard.py",
-    "scripts/zero_identity_guard.py", "scripts/pdfium_backend.py", "scripts/run_pdfium_static_pixel_qa.py",
+    "scripts/zero_identity_guard.py", "scripts/pdfium_backend.py", "scripts/build_report_coordinate_pack.py",
+    "scripts/run_pdfium_static_pixel_qa.py",
     "scripts/check_versions.sh", "scripts/fetch_grch38.sh",
     "scripts/build_bwa_mem2_index.sh", "scripts/validate_grch38.sh", "scripts/validate_bwa_mem2_functional.sh",
     "scripts/generate_canary.py", "scripts/score_variants.py", "scripts/run_canary.sh", "scripts/verify_ruleset.sh",
@@ -618,6 +627,228 @@ def validate_core_runtime_dependencies(root: Path, errors: list[str]) -> None:
                     )
 
 
+STAGE2_PDFIUM_VERSION = "5.13.0"
+STAGE2_PDFIUM_COMPILER_ID = "pypdfium2-5.13.0-pdfium-genoma-v3"
+STAGE2_PDFIUM_WHEEL = "pypdfium2-5.13.0-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl"
+STAGE2_PDFIUM_WHEEL_SHA256 = "81df25c1ab4c13ff773102d3cbea1967511d079123b067fc077bd0c4d57d91d8"
+STAGE2_PIXEL_QA_PATH = "docs/evidence/PDFIUM_STATIC_PIXEL_QA_200DPI_2026-09-17.json"
+STAGE2_MIGRATION_PATH = "docs/evidence/PDFIUM_COORDINATE_MIGRATION_2026-09-17.json"
+STAGE2_ALIAS_PATH = "reporting/legacy_field_aliases.json"
+STAGE2_PRODUCER_PATH = "scripts/run_pdfium_static_pixel_qa.py"
+STAGE2_ALIAS_CURRENT_SHA256 = "7d315ae6393bc07659a6831e86624534dcb5c1c0c8accebd5e8da9c0e09aac58"
+STAGE2_ALIAS_LEGACY_SHA256 = "2ac96d9bdfa4080c2828ae8a4e0335a627c668c72de54504fb71f554ab534925"
+
+
+def _sha256_file(path: Path) -> str:
+    """Return the SHA-256 digest for one repository artifact."""
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _canonical_json_sha256(value: object) -> str:
+    """Hash a JSON-compatible value using the Stage 2 canonical encoding."""
+    encoded = json.dumps(
+        value, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _load_json_object(path: Path, label: str, errors: list[str]) -> dict[str, object] | None:
+    """Load a required Stage 2 JSON object and report parse/type failures."""
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        errors.append(f"{label} is unavailable or invalid: {type(exc).__name__}: {exc}")
+        return None
+    if not isinstance(payload, dict):
+        errors.append(f"{label} must be a JSON object")
+        return None
+    return payload
+
+
+def _stage2_pdfium_lock_hashes(text: str) -> list[str]:
+    """Return hashes attached to the single pypdfium2 5.13.0 lock entry."""
+    lines = text.splitlines()
+    starts = [index for index, line in enumerate(lines) if line.startswith("pypdfium2==")]
+    if len(starts) != 1:
+        return []
+    header = lines[starts[0]].rstrip()
+    if not header.startswith("pypdfium2==5.13.0") or not header.endswith(chr(92)):
+        return []
+    hashes: list[str] = []
+    for line in lines[starts[0] + 1 :]:
+        stripped = line.strip()
+        if not stripped.startswith("--hash=sha256:"):
+            break
+        value = stripped.removeprefix("--hash=sha256:").rstrip()
+        if value.endswith(chr(92)):
+            value = value[:-1].rstrip()
+        hashes.append(value)
+    return hashes
+
+
+def validate_stage2_pdf_contract(root: Path, errors: list[str]) -> None:
+    """Enforce the Stage 2 PDFium runtime, evidence, and alias contracts fail-closed."""
+    migration_path = root / STAGE2_MIGRATION_PATH
+    qa_path = root / STAGE2_PIXEL_QA_PATH
+    alias_path = root / STAGE2_ALIAS_PATH
+    reference_path = root / "reporting/reference_v3_manifest.json"
+    requirements_path = root / "reporting/requirements.txt"
+    producer_path = root / STAGE2_PRODUCER_PATH
+    required = (migration_path, qa_path, alias_path, reference_path, requirements_path, producer_path)
+    if any(not path.is_file() for path in required):
+        return
+
+    migration = _load_json_object(migration_path, "Stage 2 migration evidence", errors)
+    qa = _load_json_object(qa_path, "Stage 2 pixel-QA evidence", errors)
+    aliases = _load_json_object(alias_path, "Stage 2 legacy alias registry", errors)
+    reference = _load_json_object(reference_path, "Stage 2 reference manifest", errors)
+    if None in (migration, qa, aliases, reference):
+        return
+    assert migration is not None and qa is not None and aliases is not None and reference is not None
+
+    lock_hashes = _stage2_pdfium_lock_hashes(requirements_path.read_text(encoding="utf-8"))
+    if lock_hashes != [STAGE2_PDFIUM_WHEEL_SHA256]:
+        errors.append("Stage 2 pypdfium2 lock must contain only the audited Linux x86_64 wheel hash")
+
+    candidate_backend = migration.get("candidate_backend")
+    if not isinstance(candidate_backend, dict) or any(
+        candidate_backend.get(key) != value
+        for key, value in (
+            ("backend", "PDFium"),
+            ("compiler_id", STAGE2_PDFIUM_COMPILER_ID),
+            ("package", "pypdfium2"),
+            ("version", STAGE2_PDFIUM_VERSION),
+            ("linux_x86_64_wheel", STAGE2_PDFIUM_WHEEL),
+            ("linux_x86_64_wheel_sha256", STAGE2_PDFIUM_WHEEL_SHA256),
+        )
+    ):
+        errors.append("Stage 2 migration candidate backend identity mismatch")
+    if migration.get("schema") != "omnigenis-pdf-backend-migration-evidence-v1" or migration.get("status") != "VERIFIED":
+        errors.append("Stage 2 migration evidence schema/status mismatch")
+
+    reports = reference.get("reports")
+    generated_manifest = reference.get("generated_coordinate_manifest")
+    generated_detail = reference.get("generated_coordinate_detail")
+    if not isinstance(reports, dict) or set(reports) != {f"{index:02d}" for index in range(1, 12)}:
+        errors.append("Stage 2 reference manifest must contain report IDs 01..11")
+        reports = {}
+    candidate_artifacts = migration.get("candidate_coordinate_artifacts")
+    if (
+        not isinstance(candidate_artifacts, dict)
+        or not isinstance(generated_manifest, dict)
+        or not isinstance(generated_detail, dict)
+        or candidate_artifacts.get("manifest_sha256") != generated_manifest.get("sha256")
+        or candidate_artifacts.get("compressed_detail_sha256") != generated_detail.get("sha256")
+    ):
+        errors.append("Stage 2 coordinate artifact links do not match the reference manifest")
+
+    producer = qa.get("producer")
+    aggregate = qa.get("aggregate")
+    qa_reports = qa.get("reports")
+    if qa.get("schema") != "omnigenis-pdfium-static-pixel-qa-v2" or qa.get("status") != "VERIFICADO" or qa.get("dpi") != 200:
+        errors.append("Stage 2 pixel-QA schema/status/DPI mismatch")
+    if not isinstance(producer, dict):
+        errors.append("Stage 2 pixel-QA producer metadata missing")
+        producer = {}
+    if not isinstance(aggregate, dict) or any(
+        aggregate.get(key) != value
+        for key, value in (("reports", 11), ("reference_pages", 100), ("outside_changed_pixels", 0), ("result", "PASS"))
+    ):
+        errors.append("Stage 2 pixel-QA aggregate contract mismatch")
+        aggregate = {}
+    if not isinstance(qa_reports, dict) or set(qa_reports) != {f"{index:02d}" for index in range(1, 12)}:
+        errors.append("Stage 2 pixel-QA must contain report IDs 01..11")
+        qa_reports = {}
+
+    required_producer_keys = {"path", "producer_sha256", "command", "log_sha256", "mask_manifest_sha256", "candidate_set_sha256"}
+    if producer.get("path") != STAGE2_PRODUCER_PATH or not required_producer_keys <= producer.keys():
+        errors.append("Stage 2 pixel-QA producer provenance is incomplete")
+    elif producer.get("producer_sha256") != _sha256_file(producer_path):
+        errors.append("Stage 2 pixel-QA producer hash mismatch")
+    for key in ("producer_sha256", "log_sha256", "mask_manifest_sha256", "candidate_set_sha256"):
+        value = producer.get(key)
+        if not isinstance(value, str) or re.fullmatch(r"[0-9a-f]{64}", value) is None:
+            errors.append(f"Stage 2 pixel-QA producer digest invalid: {key}")
+
+    bundle = {"provenance": producer, "aggregate": aggregate, "reports": qa_reports}
+    bundle_sha = _canonical_json_sha256(bundle)
+    if qa.get("evidence_sha256") != bundle_sha:
+        errors.append("Stage 2 pixel-QA provenance bundle hash mismatch")
+
+    pixel_link = migration.get("pixel_qa")
+    if (
+        not isinstance(pixel_link, dict)
+        or pixel_link.get("evidence_path") != STAGE2_PIXEL_QA_PATH
+        or pixel_link.get("evidence_sha256") != _sha256_file(qa_path)
+        or pixel_link.get("producer_path") != STAGE2_PRODUCER_PATH
+        or pixel_link.get("producer_sha256") != producer.get("producer_sha256")
+        or pixel_link.get("provenance_bundle_sha256") != bundle_sha
+        or pixel_link.get("pdfium_candidate_status") != "PASS"
+    ):
+        errors.append("Stage 2 migration pixel-QA cross-artifact link mismatch")
+
+    for report_id, meta in reports.items():
+        qa_report = qa_reports.get(report_id) if isinstance(qa_reports, dict) else None
+        if not isinstance(meta, dict) or not isinstance(qa_report, dict):
+            continue
+        if (
+            qa_report.get("sha256") != meta.get("sha256")
+            or qa_report.get("pages") != meta.get("page_count")
+            or qa_report.get("outside_changed_pixels") != 0
+            or re.fullmatch(r"[0-9a-f]{64}", str(qa_report.get("candidate_sha256", ""))) is None
+        ):
+            errors.append(f"Stage 2 pixel-QA report contract mismatch: {report_id}")
+
+    alias_records = aliases.get("aliases")
+    if aliases.get("schema") != "omnigenis-legacy-template-field-aliases-v1" or not isinstance(alias_records, list) or len(alias_records) != 1:
+        errors.append("Stage 2 legacy alias registry schema/count mismatch")
+    else:
+        record = alias_records[0]
+        if not isinstance(record, dict):
+            errors.append("Stage 2 legacy alias registry entry must be an object")
+        else:
+            current = record.get("current_field_id_sha256")
+            legacy = record.get("legacy_field_id_sha256")
+            encoded = record.get("legacy_field_id_utf8_b64")
+            if current != STAGE2_ALIAS_CURRENT_SHA256 or legacy != STAGE2_ALIAS_LEGACY_SHA256 or not isinstance(encoded, str):
+                errors.append("Stage 2 mandatory legacy alias identity mismatch")
+            else:
+                try:
+                    decoded = base64.b64decode(encoded, validate=True)
+                except ValueError:
+                    decoded = b""
+                if hashlib.sha256(decoded).hexdigest() != STAGE2_ALIAS_LEGACY_SHA256:
+                    errors.append("Stage 2 legacy alias payload hash mismatch")
+
+    alias_link = migration.get("legacy_field_alias_registry")
+    if (
+        not isinstance(alias_link, dict)
+        or alias_link.get("path") != STAGE2_ALIAS_PATH
+        or alias_link.get("aliases") != 1
+        or alias_link.get("sha256") != _sha256_file(alias_path)
+    ):
+        errors.append("Stage 2 legacy alias registry cross-artifact link mismatch")
+
+    runtime_lock = migration.get("runtime_lock_verification")
+    if (
+        not isinstance(runtime_lock, dict)
+        or runtime_lock.get("status") != "EXECUTED_PASS"
+        or runtime_lock.get("platform") != "linux"
+        or runtime_lock.get("machine") != "x86_64"
+        or runtime_lock.get("pypdfium2_version") != STAGE2_PDFIUM_VERSION
+        or runtime_lock.get("audited_pypdfium2_wheel_sha256") != STAGE2_PDFIUM_WHEEL_SHA256
+        or runtime_lock.get("allowed_pypdfium2_archive_hashes") != 1
+        or runtime_lock.get("requirements_file") != "reporting/requirements.txt"
+        or runtime_lock.get("pymupdf_distribution") != "ABSENT"
+        or runtime_lock.get("fitz_module") != "ABSENT"
+    ):
+        errors.append("Stage 2 runtime lock evidence mismatch")
+
+
 def validate_language_policy(root: Path, errors: list[str]) -> None:
     try:
         validate_code_language(root, errors)
@@ -803,6 +1034,7 @@ def validate(root: Path) -> list[str]:
     )
     validate_superseded_identity_locations(root, errors)
     validate_core_runtime_dependencies(root, errors)
+    validate_stage2_pdf_contract(root, errors)
 
     active = []
     for candidate in root.rglob("REGRAS_PROJETO_GENOMA*.txt"):

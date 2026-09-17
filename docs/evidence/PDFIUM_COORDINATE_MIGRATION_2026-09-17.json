@@ -61,12 +61,12 @@
   ],
   "pixel_qa": {
     "evidence_path": "docs/evidence/PDFIUM_STATIC_PIXEL_QA_200DPI_2026-09-17.json",
-    "evidence_sha256": "1a2f225ac2d7867e3d5ced488cb8bea4544063f5a42b5798037911dadeaf530e",
+    "evidence_sha256": "0a35518d1434d2f6f6d37aa73c29daa92a6475d865d75f4b93c7835d087d266a",
     "legacy_evidence": "docs/evidence/EDITORIAL_V3_STATIC_PIXEL_QA_200DPI_2026-08-16.json",
     "pdfium_candidate_status": "PASS",
     "producer_path": "scripts/run_pdfium_static_pixel_qa.py",
-    "producer_sha256": "a7f2440046ccda1af08daa6bafe74f0de65a13f70ed0db78ef042a8b0c992987",
-    "provenance_bundle_sha256": "45cfc29ffe28416c4320ecbc849b69c98277f3f5efc846fccb961adf0ddffea5",
+    "producer_sha256": "3ee24b61470ea9f6d89efc379eb91b3101c639a6a4a3b51734a0cf664f596990",
+    "provenance_bundle_sha256": "c24892c577a8d496f89b514d1cedefebbae79be00dc64e7732a5bc2f1791b25b",
     "statement": "Independent PDFium candidate pixel QA passed at 200 DPI; legacy MuPDF QA remains separately bound to the legacy coordinate artifacts."
   },
   "runtime_lock_verification": {
