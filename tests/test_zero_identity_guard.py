@@ -66,11 +66,14 @@ class ZeroIdentityGuardTest(unittest.TestCase):
             return
         self.fail("PolicyError not raised")
 
-    def set_authorizations(self, root: Path, authorizations: list[dict[str, object]]) -> None:
+    @staticmethod
+    def set_authorizations(root: Path, authorizations: list[dict[str, object]]) -> None:
         payload = json.dumps(
             {"schema": AUTHORIZATION_SCHEMA, "authorizations": authorizations}
         ).encode("utf-8")
-        self.track(root, "config/identity_provenance_authorizations.json", payload)
+        ZeroIdentityGuardTest.track(
+            root, "config/identity_provenance_authorizations.json", payload
+        )
 
     def test_authorized_license_blob_suppresses_only_declared_personal_class(self) -> None:
         root = self.make_repo()
