@@ -15,6 +15,7 @@ from scripts import pdfium_backend as pdf_backend
 from scripts.build_report_coordinate_pack import (
     CANONICAL_RULESET_CONTROL,
     _controls,
+    _preserve_legacy_field_semantics,
     _ruleset_control_occurrences,
     _ruleset_control_sources,
     compile_pack,
@@ -72,7 +73,7 @@ class ReportCoordinatePackRulesetMarkerTests(unittest.TestCase):
             )
             pdf = Path(td) / "legacy.pdf"
             _write_text_pdf(pdf, [(72, 72, synthetic)])
-            doc = pdf_backend.open(pdf)
+            doc = pdf_backend.open_document(pdf)
             page = doc[0]
             try:
                 controls = [
@@ -143,6 +144,135 @@ class ReportCoordinatePackRulesetMarkerTests(unittest.TestCase):
         with mock.patch.object(coordinate_pack, "_spans", return_value=synthetic_spans):
             controls = _ruleset_control_occurrences(object())
         self.assertEqual(controls, [])
+
+    def test_report_01_page_06_legacy_field_semantics_preserve_order(self) -> None:
+        combined = "[[SYNTHETIC_COMBINED]]"
+        calibration = "[[CALIBRATION]]"
+        with tempfile.TemporaryDirectory() as td:
+            pdf = Path(td) / "legacy-01.pdf"
+            _write_text_pdf(
+                pdf,
+                [
+                    (72, 72, "[[IMPACTO_CLINICO]]"),
+                    (72, 96, calibration),
+                ],
+                width=300,
+                height=400,
+            )
+            doc = pdf_backend.open_document(pdf)
+            page = doc[0]
+            meta = {"size": 8.0, "font": "Synthetic", "color": 0}
+            tokens = [
+                (combined, pdf_backend.Rect(10, 10, 20, 20), meta),
+                ("[[INDICACAO]]", pdf_backend.Rect(20, 10, 30, 20), meta),
+                ("[[STATUS]]", pdf_backend.Rect(30, 10, 40, 20), meta),
+            ]
+            try:
+                with (
+                    mock.patch.object(
+                        coordinate_pack,
+                        "LEGACY_REPORT_01_PAGE_06_COMBINED_SHA256",
+                        hashlib.sha256(combined.encode()).hexdigest(),
+                    ),
+                    mock.patch.object(
+                        coordinate_pack,
+                        "LEGACY_REPORT_01_PAGE_06_CALIBRATION_SHA256",
+                        hashlib.sha256(calibration.encode()).hexdigest(),
+                    ),
+                    mock.patch.object(
+                        coordinate_pack,
+                        "LEGACY_REPORT_01_PAGE_06_CALIBRATION_LENGTH",
+                        len(calibration),
+                    ),
+                ):
+                    rebuilt = _preserve_legacy_field_semantics("01", 6, page, tokens)
+            finally:
+                page.close()
+                doc.close()
+        self.assertEqual(
+            [item[0] for item in rebuilt],
+            ["[[IMPACTO_CLINICO]]", "[[STATUS]]", calibration],
+        )
+
+    def test_report_01_page_06_legacy_field_semantics_fail_closed_on_bad_counts(self) -> None:
+        combined = "[[SYNTHETIC_COMBINED]]"
+        calibration = "[[CALIBRATION]]"
+        with tempfile.TemporaryDirectory() as td:
+            pdf = Path(td) / "legacy-01-fail.pdf"
+            _write_text_pdf(
+                pdf,
+                [(72, 72, "[[IMPACTO_CLINICO]]"), (72, 96, calibration)],
+                width=300,
+                height=400,
+            )
+            doc = pdf_backend.open_document(pdf)
+            page = doc[0]
+            meta = {"size": 8.0, "font": "Synthetic", "color": 0}
+            base = [
+                (combined, pdf_backend.Rect(10, 10, 20, 20), meta),
+                ("[[STATUS]]", pdf_backend.Rect(30, 10, 40, 20), meta),
+            ]
+            try:
+                with (
+                    mock.patch.object(
+                        coordinate_pack,
+                        "LEGACY_REPORT_01_PAGE_06_COMBINED_SHA256",
+                        hashlib.sha256(combined.encode()).hexdigest(),
+                    ),
+                    mock.patch.object(
+                        coordinate_pack,
+                        "LEGACY_REPORT_01_PAGE_06_CALIBRATION_SHA256",
+                        hashlib.sha256(calibration.encode()).hexdigest(),
+                    ),
+                    mock.patch.object(
+                        coordinate_pack,
+                        "LEGACY_REPORT_01_PAGE_06_CALIBRATION_LENGTH",
+                        len(calibration),
+                    ),
+                ):
+                    with self.assertRaisesRegex(RuntimeError, "legacy field compatibility mismatch"):
+                        _preserve_legacy_field_semantics("01", 6, page, base)
+                    duplicated = base + [
+                        (combined, pdf_backend.Rect(40, 10, 50, 20), meta),
+                        ("[[INDICACAO]]", pdf_backend.Rect(50, 10, 60, 20), meta),
+                    ]
+                    with self.assertRaisesRegex(RuntimeError, "legacy field compatibility mismatch"):
+                        _preserve_legacy_field_semantics("01", 6, page, duplicated)
+            finally:
+                page.close()
+                doc.close()
+
+    def test_report_07_page_05_legacy_field_semantics_preserve_identifier(self) -> None:
+        combined = "[[MONOGENICO_PRS_ASSOCIACAO]][[IDENTIFICADOR]]"
+        with tempfile.TemporaryDirectory() as td:
+            pdf = Path(td) / "legacy-07.pdf"
+            _write_text_pdf(pdf, [(72, 72, "[[IDENTIFICADOR]]")], width=300, height=400)
+            doc = pdf_backend.open_document(pdf)
+            page = doc[0]
+            meta = {"size": 8.0, "font": "Synthetic", "color": 0}
+            try:
+                rebuilt = _preserve_legacy_field_semantics(
+                    "07",
+                    5,
+                    page,
+                    [(combined, pdf_backend.Rect(10, 10, 20, 20), meta)],
+                )
+                self.assertEqual([item[0] for item in rebuilt], ["[[IDENTIFICADOR]]"])
+                with self.assertRaisesRegex(RuntimeError, "legacy field compatibility mismatch"):
+                    _preserve_legacy_field_semantics("07", 5, page, [])
+                with self.assertRaisesRegex(RuntimeError, "legacy field compatibility mismatch"):
+                    _preserve_legacy_field_semantics(
+                        "07",
+                        5,
+                        page,
+                        [
+                            (combined, pdf_backend.Rect(10, 10, 20, 20), meta),
+                            (combined, pdf_backend.Rect(20, 10, 30, 20), meta),
+                        ],
+                    )
+            finally:
+                page.close()
+                doc.close()
 
     def test_compile_pack_fails_closed_if_canonical_occurrence_lacks_controlled_span(self) -> None:
         with tempfile.TemporaryDirectory() as td:

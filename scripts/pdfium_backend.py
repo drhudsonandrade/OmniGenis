@@ -7,11 +7,12 @@ remain stable while the AGPL/commercial MuPDF runtime dependency is removed.
 from __future__ import annotations
 
 import ctypes
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
-from typing import Any, Iterable, Iterator
+from typing import Any, cast
 
-import pypdfium2 as pdfium
-import pypdfium2.raw as pdfium_raw
+import pypdfium2 as pdfium  # type: ignore[import-untyped]
+import pypdfium2.raw as pdfium_raw  # type: ignore[import-untyped]
 
 _BASE14_MUPDF_METRICS: dict[str, tuple[float, float]] = {
     "Helvetica": (1.075, -0.299),
@@ -36,23 +37,34 @@ class Point:
 
 
 class Rect:
-    __slots__ = ("x0", "y0", "x1", "y1")
+    __slots__ = ("x0", "x1", "y0", "y1")
+    x0: float
+    y0: float
+    x1: float
+    y1: float
 
     def __init__(self, *args: object) -> None:
+        coords: tuple[float, float, float, float]
         if len(args) == 1:
             value = args[0]
             if isinstance(value, Rect):
                 coords = (value.x0, value.y0, value.x1, value.y1)
-            elif all(hasattr(value, name) for name in ("x0", "y0", "x1", "y1")):
-                coords = tuple(float(getattr(value, name)) for name in ("x0", "y0", "x1", "y1"))
+            elif isinstance(value, Iterable) and not isinstance(value, (str, bytes, bytearray)):
+                raw = tuple(cast(Iterable[Any], value))
+                if len(raw) != 4:
+                    raise ValueError("Rect requires four coordinates")
+                coords = (float(raw[0]), float(raw[1]), float(raw[2]), float(raw[3]))
             else:
-                coords = tuple(float(item) for item in value)  # type: ignore[arg-type]
+                raise TypeError("Rect expects one four-value object or four coordinates")
         elif len(args) == 4:
-            coords = tuple(float(item) for item in args)
+            coords = (
+                float(cast(Any, args[0])),
+                float(cast(Any, args[1])),
+                float(cast(Any, args[2])),
+                float(cast(Any, args[3])),
+            )
         else:
             raise TypeError("Rect expects one four-value object or four coordinates")
-        if len(coords) != 4:
-            raise ValueError("Rect requires four coordinates")
         self.x0, self.y0, self.x1, self.y1 = coords
 
     @property
@@ -69,7 +81,7 @@ class Rect:
     def get_area(self) -> float:
         return max(0.0, self.width) * max(0.0, self.height)
 
-    def __and__(self, other: object) -> "Rect":
+    def __and__(self, other: object) -> Rect:
         right = Rect(other)
         return Rect(
             max(self.x0, right.x0),
@@ -223,11 +235,13 @@ def _text_spans(page: Any) -> list[dict[str, Any]]:
                 previous_pointer = None
                 previous_size = None
                 continue
-            try:
-                legacy_rect = _legacy_char_rect(text_page, index, page_height)
-                box = (legacy_rect.x0, page_height - legacy_rect.y1, legacy_rect.x1, page_height - legacy_rect.y0)
-            except Exception:
-                continue
+            legacy_rect = _legacy_char_rect(text_page, index, page_height)
+            box = (
+                legacy_rect.x0,
+                page_height - legacy_rect.y1,
+                legacy_rect.x1,
+                page_height - legacy_rect.y0,
+            )
             pointer = _pointer_value(text_object)
             size = float(text_object.get_font_size())
             discontinuity = False
@@ -236,7 +250,7 @@ def _text_spans(page: Any) -> list[dict[str, Any]]:
                     discontinuity = True
                 elif previous_box is not None:
                     previous_left, previous_bottom, previous_right, previous_top = previous_box
-                    left, bottom, right, top = box
+                    left, bottom, _right, top = box
                     vertical_center_delta = abs(
                         ((bottom + top) - (previous_bottom + previous_top)) / 2.0
                     )
@@ -276,7 +290,6 @@ class Page:
     def get_text(self, mode: str, *, sort: bool = False) -> dict[str, Any]:
         if mode != "dict":
             raise ValueError("PDFium facade supports only dictionary text extraction")
-        del sort
         spans = _text_spans(self._page)
         return {
             "blocks": [
@@ -295,17 +308,26 @@ class Page:
         if alpha or colorspace is not csRGB or matrix.x != matrix.y:
             raise ValueError("unsupported PDFium facade pixmap request")
         bitmap = self._page.render(scale=float(matrix.x), rotation=0, rev_byteorder=True)
-        image = bitmap.to_pil().convert("RGB")
-        return Pixmap(image.width, image.height, 3, image.tobytes())
+        source_image = None
+        image = None
+        try:
+            source_image = bitmap.to_pil()
+            image = source_image.convert("RGB")
+            width, height = image.width, image.height
+            samples = image.tobytes()
+        finally:
+            if image is not None and image is not source_image:
+                image.close()
+            if source_image is not None:
+                source_image.close()
+            bitmap.close()
+        return Pixmap(width, height, 3, samples)
 
     def get_drawings(self) -> list[dict[str, Rect]]:
         page_height = float(self._page.get_height())
         drawings: list[dict[str, Rect]] = []
         for page_object in self._page.get_objects(filter=[pdfium_raw.FPDF_PAGEOBJ_PATH]):
-            try:
-                drawings.append({"rect": _path_geometry_rect(page_object, page_height)})
-            except Exception:
-                continue
+            drawings.append({"rect": _path_geometry_rect(page_object, page_height)})
         return drawings
 
     def search_for(self, text: str) -> list[Rect]:
@@ -326,12 +348,7 @@ class Page:
                 start, count = hit
                 boxes: list[Rect] = []
                 for index in range(start, start + count):
-                    try:
-                        boxes.append(
-                            _legacy_char_rect(text_page, index, page_height)
-                        )
-                    except Exception:
-                        continue
+                    boxes.append(_legacy_char_rect(text_page, index, page_height))
                 if boxes:
                     result.append(_union(boxes))
         finally:
@@ -350,8 +367,8 @@ class Document:
         return len(self._document)
 
     def __iter__(self) -> Iterator[Page]:
-        for index in range(len(self._document)):
-            yield Page(self._document[index])
+        for page in self._document:
+            yield Page(page)
 
     def __getitem__(self, index: int) -> Page:
         return Page(self._document[index])
@@ -360,5 +377,5 @@ class Document:
         self._document.close()
 
 
-def open(source: object) -> Document:
+def open_document(source: object) -> Document:
     return Document(source)

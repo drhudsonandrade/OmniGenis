@@ -14,3 +14,5 @@ Verified Linux x86_64 wheel:
 The binary distribution's bundled license files are part of the redistribution evidence and must remain present in installed/distributed runtime artifacts. Each bundled component remains governed by its own terms. This record is a Stage 2 technical provenance record; it is not a legal opinion and does not replace the complete transitive inventory and SBOM planned for a later compliance stage.
 
 The exact wheel, platform, and bundled notices must be reverified if the package version, platform tag, or build source changes.
+
+Stage 2 installation is fail-closed: `reporting/requirements.txt` permits only the SHA-256 above. Other pypdfium2 5.13.0 wheels and the source distribution require a new artifact/license review before their hashes may enter the lock.

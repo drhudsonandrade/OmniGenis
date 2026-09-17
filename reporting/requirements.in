@@ -2,4 +2,5 @@ python-docx==1.2.0
 reportlab==4.4.9
 pypdf==6.16.2
 Pillow==12.3.0
+# Stage 2: the compiled lock accepts only the audited Linux x86_64 wheel.
 pypdfium2==5.13.0

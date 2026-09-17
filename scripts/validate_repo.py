@@ -37,6 +37,7 @@ REQUIRED_PATHS = (
     "LICENSE", "COPYRIGHT.md", "AUTHORS.md", "THIRD_PARTY_NOTICES.md",
     "docs/compliance/LICENSING_POLICY.md", "docs/compliance/DEPENDENCY_POLICY.md", "licenses/README.md",
     "licenses/pypdfium2-5.13.0/README.md", "docs/evidence/PDFIUM_COORDINATE_MIGRATION_2026-09-17.json",
+    "docs/evidence/PDFIUM_STATIC_PIXEL_QA_200DPI_2026-09-17.json",
     "policy_engine/LICENSE",
     ".fallowrc.json", ".github/workflows/fallow.yml", ".github/workflows/scaffold-validation.yml",
     ".github/workflows/genoma-policy-engine.yml", ".github/workflows/genoma-production-ceremony.yml",

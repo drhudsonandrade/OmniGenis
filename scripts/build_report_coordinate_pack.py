@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import binascii
 import gzip
 import hashlib
 import json
@@ -67,7 +68,11 @@ def _load_legacy_field_aliases(path: Path = LEGACY_FIELD_ALIAS_REGISTRY) -> dict
         current_digest = record.get("current_field_id_sha256")
         legacy_digest = record.get("legacy_field_id_sha256")
         encoded = record.get("legacy_field_id_utf8_b64")
-        if not all(isinstance(value, str) for value in (current_digest, legacy_digest, encoded)):
+        if not isinstance(current_digest, str):
+            raise RuntimeError("legacy field alias registry entry fields must be strings")
+        if not isinstance(legacy_digest, str):
+            raise RuntimeError("legacy field alias registry entry fields must be strings")
+        if not isinstance(encoded, str):
             raise RuntimeError("legacy field alias registry entry fields must be strings")
         try:
             if len(bytes.fromhex(current_digest)) != 32 or len(bytes.fromhex(legacy_digest)) != 32:
@@ -77,7 +82,7 @@ def _load_legacy_field_aliases(path: Path = LEGACY_FIELD_ALIAS_REGISTRY) -> dict
         try:
             legacy_bytes = base64.b64decode(encoded, validate=True)
             legacy_field_id = legacy_bytes.decode("utf-8")
-        except (ValueError, UnicodeDecodeError) as exc:
+        except (ValueError, binascii.Error) as exc:
             raise RuntimeError("legacy field alias registry payload encoding invalid") from exc
         if hashlib.sha256(legacy_bytes).hexdigest() != legacy_digest:
             raise RuntimeError("legacy field alias registry payload digest mismatch")
@@ -171,17 +176,16 @@ def _tokens(page: fitz.Page) -> list[tuple[str, fitz.Rect, dict[str, Any]]]:
     found: list[tuple[str, fitz.Rect, dict[str, Any]]] = []
     for match in TOKEN_RE.finditer(text):
         token = re.sub(r"\s+", "", match.group(0))
-        indices = sorted(
-            {
-                owners[pos]
-                for pos in range(match.start(), match.end())
-                if owners[pos] is not None
-            }
-        )
+        index_set: set[int] = set()
+        for pos in range(match.start(), match.end()):
+            owner = owners[pos]
+            if owner is not None:
+                index_set.add(owner)
+        indices = sorted(index_set)
         if not indices:
             continue
-        rect = _union([spans[int(i)]["bbox"] for i in indices])
-        found.append((token, rect, spans[int(indices[0])]))
+        rect = _union([spans[index]["bbox"] for index in indices])
+        found.append((token, rect, spans[indices[0]]))
     return found
 
 
@@ -448,7 +452,12 @@ def _ruleset_control_occurrences(page: fitz.Page) -> list[tuple[str, fitz.Rect, 
 
 
 def _control_signature(rect: fitz.Rect) -> tuple[float, float, float, float]:
-    return tuple(round(value, 3) for value in (rect.x0, rect.y0, rect.x1, rect.y1))
+    return (
+        round(rect.x0, 3),
+        round(rect.y0, 3),
+        round(rect.x1, 3),
+        round(rect.y1, 3),
+    )
 
 
 def _controls(page: fitz.Page) -> list[tuple[str, fitz.Rect, dict[str, Any]]]:
@@ -474,7 +483,7 @@ def compile_pack(template_dir: Path, reference_index: Path) -> dict[str, Any]:
         actual = _sha256(source)
         if actual != expected["sha256"]:
             raise RuntimeError(f"reference PDF SHA-256 mismatch for {report_id}: {actual}")
-        doc = fitz.open(source)
+        doc = fitz.open_document(source)
         if len(doc) != int(expected["page_count"]):
             raise RuntimeError(f"reference PDF page-count mismatch for {report_id}")
         occurrence: dict[str, int] = {}

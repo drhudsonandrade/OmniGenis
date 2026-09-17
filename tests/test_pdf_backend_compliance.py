@@ -8,20 +8,21 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from reportlab.lib.colors import Color
 from reportlab.pdfgen import canvas
 
+import scripts.pdfium_backend as pdf_backend
 from scripts.build_report_coordinate_pack import compile_pack
 from reporting.template_v3 import TemplateV3Error, _field_value
 
 ROOT = Path(__file__).resolve().parents[1]
 REFERENCE = json.loads((ROOT / "reporting" / "reference_v3_manifest.json").read_text(encoding="utf-8"))
-MIGRATION = json.loads(
-    (ROOT / "docs" / "evidence" / "PDFIUM_COORDINATE_MIGRATION_2026-09-17.json").read_text(
-        encoding="utf-8"
-    )
-)
+MIGRATION_PATH = ROOT / "docs" / "evidence" / "PDFIUM_COORDINATE_MIGRATION_2026-09-17.json"
+MIGRATION = json.loads(MIGRATION_PATH.read_text(encoding="utf-8"))
+PIXEL_QA_PATH = ROOT / "docs" / "evidence" / "PDFIUM_STATIC_PIXEL_QA_200DPI_2026-09-17.json"
+LEGACY_PIXEL_QA = json.loads((ROOT / "docs" / "evidence" / "EDITORIAL_V3_STATIC_PIXEL_QA_200DPI_2026-08-16.json").read_text(encoding="utf-8"))
 
 
 def _load_validator():
@@ -53,6 +54,8 @@ class PdfBackendComplianceTest(unittest.TestCase):
             with self.subTest(path=relative):
                 text = (ROOT / relative).read_text(encoding="utf-8")
                 self.assertNotIn("import fitz", text)
+                self.assertNotIn("pymupdf", text.lower())
+                self.assertIn("pdfium", text.lower())
 
     def test_reference_manifest_declares_pdfium_compiler(self) -> None:
         compiler = REFERENCE["coordinate_compiler"]
@@ -69,8 +72,24 @@ class PdfBackendComplianceTest(unittest.TestCase):
             MIGRATION["candidate_coordinate_artifacts"]["compressed_detail_sha256"],
         )
 
-    def test_legacy_pixel_qa_is_not_relabelled_as_pdfium_evidence(self) -> None:
-        self.assertEqual(MIGRATION["pixel_qa"]["pdfium_candidate_status"], "NOT_EXECUTED")
+    def test_pdfium_pixel_qa_is_independent_and_legacy_evidence_is_preserved(self) -> None:
+        self.assertTrue(PIXEL_QA_PATH.is_file())
+        raw = PIXEL_QA_PATH.read_bytes()
+        qa = json.loads(raw.decode("utf-8"))
+        self.assertEqual(qa["status"], LEGACY_PIXEL_QA["status"])
+        self.assertEqual(qa["aggregate"], {
+            "outside_changed_pixels": 0,
+            "reference_pages": 100,
+            "reports": 11,
+            "result": "PASS",
+        })
+        self.assertEqual(qa["coordinate_compiler"]["id"], "pypdfium2-5.13.0-pdfium-genoma-v3")
+        self.assertEqual(
+            qa["coordinate_compiler"]["manifest_sha256"],
+            REFERENCE["generated_coordinate_manifest"]["sha256"],
+        )
+        self.assertEqual(MIGRATION["pixel_qa"]["pdfium_candidate_status"], "PASS")
+        self.assertEqual(MIGRATION["pixel_qa"]["evidence_sha256"], hashlib.sha256(raw).hexdigest())
         self.assertEqual(
             REFERENCE["legacy_coordinate_compiler"]["id"],
             "fitz-1.26.7-genoma-v2",
@@ -131,6 +150,110 @@ class PdfBackendComplianceTest(unittest.TestCase):
         self.assertEqual(field["cell_bbox"], [20.0, 40.0, 280.0, 100.0])
         self.assertEqual(field["background"], "#EDF2F7")
 
+    def test_lock_accepts_only_audited_linux_x86_64_pdfium_wheel(self) -> None:
+        lock = (ROOT / "reporting" / "requirements.txt").read_text(encoding="utf-8")
+        block = lock.split("pypdfium2==5.13.0", 1)[1].split("\n    # via", 1)[0]
+        hashes = [line.split("sha256:", 1)[1].strip(" \\\n") for line in block.splitlines() if "--hash=sha256:" in line]
+        self.assertEqual(
+            hashes,
+            ["81df25c1ab4c13ff773102d3cbea1967511d079123b067fc077bd0c4d57d91d8"],
+        )
+
+    def test_pixmap_closes_native_pdfium_bitmap_after_copy(self) -> None:
+        class FakeImage:
+            width = 2
+            height = 1
+
+            def convert(self, mode: str):
+                self.assert_mode = mode
+                return self
+
+            def tobytes(self) -> bytes:
+                return b"\x01\x02\x03\x04\x05\x06"
+
+            def close(self) -> None:
+                self.closed = True
+
+        image = FakeImage()
+        bitmap = mock.Mock()
+        bitmap.to_pil.return_value = image
+        raw_page = mock.Mock()
+        raw_page.render.return_value = bitmap
+        page = pdf_backend.Page(raw_page)
+        pixmap = page.get_pixmap(
+            matrix=pdf_backend.Matrix(1, 1),
+            alpha=False,
+            colorspace=pdf_backend.csRGB,
+        )
+        self.assertEqual(pixmap.samples, b"\x01\x02\x03\x04\x05\x06")
+        bitmap.close.assert_called_once_with()
+
+    def test_text_extraction_fails_closed_on_character_geometry_error(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            pdf_path = Path(directory) / "text.pdf"
+            pdf = canvas.Canvas(str(pdf_path), pagesize=(300, 400))
+            pdf.drawString(30, 340, "[[CASE_ID]]")
+            pdf.save()
+            doc = pdf_backend.open_document(pdf_path)
+            page = doc[0]
+            try:
+                with (
+                    mock.patch.object(
+                        pdf_backend,
+                        "_legacy_char_rect",
+                        side_effect=RuntimeError("geometry failed"),
+                    ),
+                    self.assertRaisesRegex(RuntimeError, "geometry failed"),
+                ):
+                    page.get_text("dict", sort=True)
+            finally:
+                page.close()
+                doc.close()
+
+    def test_search_fails_closed_on_character_geometry_error(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            pdf_path = Path(directory) / "search.pdf"
+            pdf = canvas.Canvas(str(pdf_path), pagesize=(300, 400))
+            pdf.drawString(30, 340, "CONTROL")
+            pdf.save()
+            doc = pdf_backend.open_document(pdf_path)
+            page = doc[0]
+            try:
+                with (
+                    mock.patch.object(
+                        pdf_backend,
+                        "_legacy_char_rect",
+                        side_effect=RuntimeError("search geometry failed"),
+                    ),
+                    self.assertRaisesRegex(RuntimeError, "search geometry failed"),
+                ):
+                    page.search_for("CONTROL")
+            finally:
+                page.close()
+                doc.close()
+
+    def test_drawing_extraction_fails_closed_on_path_geometry_error(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            pdf_path = Path(directory) / "drawing.pdf"
+            pdf = canvas.Canvas(str(pdf_path), pagesize=(300, 400))
+            pdf.rect(20, 300, 260, 60, fill=0, stroke=1)
+            pdf.save()
+            doc = pdf_backend.open_document(pdf_path)
+            page = doc[0]
+            try:
+                with (
+                    mock.patch.object(
+                        pdf_backend,
+                        "_path_geometry_rect",
+                        side_effect=RuntimeError("path geometry failed"),
+                    ),
+                    self.assertRaisesRegex(RuntimeError, "path geometry failed"),
+                ):
+                    page.get_drawings()
+            finally:
+                page.close()
+                doc.close()
+
     def test_template_field_lookup_accepts_legacy_field_id_alias(self) -> None:
         item = {
             "field_id": "current-field-id",
@@ -180,9 +303,16 @@ class PdfBackendComplianceTest(unittest.TestCase):
             "reporting/legacy_field_aliases.json",
             "licenses/pypdfium2-5.13.0/README.md",
             "docs/evidence/PDFIUM_COORDINATE_MIGRATION_2026-09-17.json",
+            "docs/evidence/PDFIUM_STATIC_PIXEL_QA_200DPI_2026-09-17.json",
         ):
             with self.subTest(path=relative):
                 self.assertIn(relative, validator.REQUIRED_PATHS)
+
+    def test_visual_qa_workflow_requires_pdfium_pixel_evidence(self) -> None:
+        workflow = (ROOT / ".github" / "workflows" / "genoma-visual-qa-candidates.yml").read_text(encoding="utf-8")
+        self.assertIn("PDFIUM_STATIC_PIXEL_QA_200DPI_2026-09-17.json", workflow)
+        self.assertIn("pdfium_candidate_status'] == 'PASS'", workflow)
+        self.assertNotIn("pdfium_candidate_status'] == 'NOT_EXECUTED'", workflow)
 
 
 if __name__ == "__main__":

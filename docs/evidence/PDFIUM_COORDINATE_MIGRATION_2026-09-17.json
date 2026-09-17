@@ -56,14 +56,28 @@
     "The exact installed wheel and bundled license notices remain subject to the repository dependency and future SBOM gates."
   ],
   "not_claimed": [
-    "PDFium candidate pixel-level visual equivalence; that gate remains NOT_EXECUTED",
     "repository-wide transitive license cleanliness or SBOM completeness",
     "legal certification or legal opinion"
   ],
   "pixel_qa": {
+    "evidence_path": "docs/evidence/PDFIUM_STATIC_PIXEL_QA_200DPI_2026-09-17.json",
+    "evidence_sha256": "2cadab40bf351c43613d16060dd275b2d9984e5703216ba7b021047007de8033",
     "legacy_evidence": "docs/evidence/EDITORIAL_V3_STATIC_PIXEL_QA_200DPI_2026-08-16.json",
-    "pdfium_candidate_status": "NOT_EXECUTED",
-    "statement": "Legacy pixel-QA remains bound to the legacy coordinate artifact and is not relabeled as PDFium evidence."
+    "pdfium_candidate_status": "PASS",
+    "statement": "Independent PDFium candidate pixel QA passed at 200 DPI; legacy MuPDF QA remains separately bound to the legacy coordinate artifacts."
+  },
+  "runtime_lock_verification": {
+    "allowed_pypdfium2_archive_hashes": 1,
+    "audited_pypdfium2_wheel_sha256": "81df25c1ab4c13ff773102d3cbea1967511d079123b067fc077bd0c4d57d91d8",
+    "fitz_module": "ABSENT",
+    "machine": "x86_64",
+    "pip_check": "PASS",
+    "pip_require_hashes": "PASS",
+    "platform": "linux",
+    "pymupdf_distribution": "ABSENT",
+    "pypdfium2_version": "5.13.0",
+    "requirements_file": "reporting/requirements.txt",
+    "status": "EXECUTED_PASS"
   },
   "schema": "omnigenis-pdf-backend-migration-evidence-v1",
   "scope": "PyMuPDF/MuPDF removal from the active editorial coordinate compiler",
@@ -79,6 +93,8 @@
     "exact reporting dependency replacement in the active coordinate compiler",
     "exact Linux x86_64 wheel identity and bundled license-file presence",
     "coordinate equivalence against all 11 SHA-pinned private v3.0 templates",
-    "legacy caller field-id addressability for the one normalized historical field"
+    "legacy caller field-id addressability for the one normalized historical field",
+    "fresh Linux x86_64 hashed-lock install with PyMuPDF/fitz absent",
+    "independent 200 DPI PDFium candidate pixel QA over all 11 canonical templates"
   ]
 }

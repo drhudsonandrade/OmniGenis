@@ -1311,9 +1311,14 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
         evidence = self.load()
         environment = evidence["validation_environment"]
         self.assertEqual(environment["requirements_file"], "reporting/requirements.txt")
+        _, delivery = _resolve_evidence_delivery(
+            evidence["implementation_head_sha"],
+            evidence["implementation_payload_tree_sha"],
+            evidence["base_main_sha"],
+        )
         historical_requirements = _git_bytes(
             "show",
-            f"{evidence['implementation_head_sha']}:{environment['requirements_file']}",
+            f"{delivery}:{environment['requirements_file']}",
         )
         self.assertEqual(
             hashlib.sha256(historical_requirements).hexdigest(),

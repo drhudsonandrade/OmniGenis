@@ -10,6 +10,7 @@ on:
       - 'scripts/build_report_coordinate_pack.py'
       - 'scripts/pdfium_backend.py'
       - 'docs/evidence/PDFIUM_COORDINATE_MIGRATION_2026-09-17.json'
+      - 'docs/evidence/PDFIUM_STATIC_PIXEL_QA_200DPI_2026-09-17.json'
       - 'scripts/install_report_templates.py'
       - 'scripts/verify_template_store.py'
       - 'tests/test_editorial_renderers.py'
@@ -26,6 +27,7 @@ on:
       - 'scripts/build_report_coordinate_pack.py'
       - 'scripts/pdfium_backend.py'
       - 'docs/evidence/PDFIUM_COORDINATE_MIGRATION_2026-09-17.json'
+      - 'docs/evidence/PDFIUM_STATIC_PIXEL_QA_200DPI_2026-09-17.json'
       - 'scripts/install_report_templates.py'
       - 'scripts/verify_template_store.py'
       - 'tests/test_editorial_renderers.py'
@@ -57,11 +59,14 @@ jobs:
       - name: Validate pinned v3 reference identities and static pixel QA evidence
         run: |
           python3 - <<'PY'
-          import json
+          import hashlib, json
           from pathlib import Path
           index=json.loads(Path('reporting/reference_v3_manifest.json').read_text())
-          qa=json.loads(Path('docs/evidence/EDITORIAL_V3_STATIC_PIXEL_QA_200DPI_2026-08-16.json').read_text())
+          legacy_qa=json.loads(Path('docs/evidence/EDITORIAL_V3_STATIC_PIXEL_QA_200DPI_2026-08-16.json').read_text())
           migration=json.loads(Path('docs/evidence/PDFIUM_COORDINATE_MIGRATION_2026-09-17.json').read_text())
+          pdfium_qa_path=Path('docs/evidence/PDFIUM_STATIC_PIXEL_QA_200DPI_2026-09-17.json')
+          pdfium_qa_raw=pdfium_qa_path.read_bytes()
+          pdfium_qa=json.loads(pdfium_qa_raw)
           assert set(index['reports']) == {f'{i:02d}' for i in range(1,12)}
           assert index['coordinate_compiler']['id'] == 'pypdfium2-5.13.0-pdfium-genoma-v3'
           assert index['coordinate_compiler']['backend'] == 'PDFium'
@@ -72,16 +77,25 @@ jobs:
           assert migration['coordinate_equivalence']['placeholder_count_mismatches'] == 0
           assert migration['coordinate_equivalence']['background_mismatches'] == 0
           assert migration['coordinate_equivalence']['cell_bbox_mismatches'] == 0
-          assert migration['pixel_qa']['pdfium_candidate_status'] == 'NOT_EXECUTED'
-          assert qa['status'] == 'VERIFICADO'
-          assert qa['aggregate'] == {'outside_changed_pixels': 0, 'reference_pages': 100, 'reports': 11, 'result': 'PASS'}
-          assert qa['coordinate_compiler']['manifest_sha256'] == index['legacy_generated_coordinate_manifest']['sha256']
-          assert qa['coordinate_compiler']['compressed_detail_sha256'] == index['legacy_generated_coordinate_detail']['sha256']
+          assert migration['pixel_qa']['pdfium_candidate_status'] == 'PASS'
+          assert migration['pixel_qa']['evidence_path'] == str(pdfium_qa_path)
+          assert migration['pixel_qa']['evidence_sha256'] == hashlib.sha256(pdfium_qa_raw).hexdigest()
+          assert pdfium_qa['status'] == legacy_qa['status']
+          assert pdfium_qa['aggregate'] == {'outside_changed_pixels': 0, 'reference_pages': 100, 'reports': 11, 'result': 'PASS'}
+          assert pdfium_qa['coordinate_compiler']['manifest_sha256'] == index['generated_coordinate_manifest']['sha256']
+          assert pdfium_qa['coordinate_compiler']['compressed_detail_sha256'] == index['generated_coordinate_detail']['sha256']
+          assert legacy_qa['status'] == 'VERIFICADO'
+          assert legacy_qa['aggregate'] == {'outside_changed_pixels': 0, 'reference_pages': 100, 'reports': 11, 'result': 'PASS'}
+          assert legacy_qa['coordinate_compiler']['manifest_sha256'] == index['legacy_generated_coordinate_manifest']['sha256']
+          assert legacy_qa['coordinate_compiler']['compressed_detail_sha256'] == index['legacy_generated_coordinate_detail']['sha256']
           for rid, meta in index['reports'].items():
-              assert qa['reports'][rid]['sha256'] == meta['sha256']
-              assert qa['reports'][rid]['pages'] == meta['page_count']
-              assert qa['coordinate_compiler']['field_counts'][rid] == meta['placeholder_count']
-              assert qa['reports'][rid]['qa']['outside_changed_pixels'] == 0
+              assert pdfium_qa['reports'][rid]['sha256'] == meta['sha256']
+              assert pdfium_qa['reports'][rid]['pages'] == meta['page_count']
+              assert pdfium_qa['reports'][rid]['qa']['outside_changed_pixels'] == 0
+              assert legacy_qa['reports'][rid]['sha256'] == meta['sha256']
+              assert legacy_qa['reports'][rid]['pages'] == meta['page_count']
+              assert legacy_qa['coordinate_compiler']['field_counts'][rid] == meta['placeholder_count']
+              assert legacy_qa['reports'][rid]['qa']['outside_changed_pixels'] == 0
           print('pinned v3 static pixel QA evidence: PASS')
           PY
       - name: Verify immutable private template store when materialized
