@@ -68,7 +68,8 @@ class StrongCopyleftRuntimeCleanupTest(unittest.TestCase):
 
 
 class Stage3ValidatorContractTest(unittest.TestCase):
-    def _write_valid_surfaces(self, root: Path) -> None:
+    @staticmethod
+    def _write_valid_surfaces(root: Path) -> None:
         payloads = {
             "environment.yml": "dependencies:\n  - python=3.11\n",
             "locks/runtime-lock.json": "{}\n",
