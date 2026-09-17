@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -113,13 +114,30 @@ class RepoContractTest(unittest.TestCase):
         }
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            git_executable = shutil.which("git")
+            if git_executable is None:
+                self.fail("git executable unavailable")
+            subprocess.run([git_executable, "init", "-q"], cwd=root, check=True)
             (root / "config").mkdir()
             (root / "config" / "zero_identity_policy.json").write_bytes(
                 policy_source.read_bytes()
             )
+            (root / "config" / "identity_provenance_authorizations.json").write_text(
+                json.dumps(
+                    {
+                        "schema": "omnigenis-identity-provenance-authorization-v1",
+                        "authorizations": [],
+                    }
+                ),
+                encoding="utf-8",
+            )
             subprocess.run(
-                ["git", "add", "config/zero_identity_policy.json"],
+                [
+                    git_executable,
+                    "add",
+                    "config/zero_identity_policy.json",
+                    "config/identity_provenance_authorizations.json",
+                ],
                 cwd=root,
                 check=True,
             )
@@ -128,15 +146,11 @@ class RepoContractTest(unittest.TestCase):
                     target = root / "identity-mutation.bin"
                     target.write_bytes(b"safe-" + payload + b"-fixture")
                     subprocess.run(
-                        ["git", "add", "identity-mutation.bin"],
+                        [git_executable, "add", "identity-mutation.bin"],
                         cwd=root,
                         check=True,
                     )
-                    with patch(
-                        "scripts.zero_identity_guard._load_index_authorizations",
-                        return_value=(),
-                    ):
-                        errors = validator.validate(root)
+                    errors = validator.validate(root)
                     self.assertTrue(
                         any(
                             class_id in error and "identity-mutation.bin" in error
@@ -145,7 +159,7 @@ class RepoContractTest(unittest.TestCase):
                         errors,
                     )
                     subprocess.run(
-                        ["git", "rm", "--cached", "-f", "identity-mutation.bin"],
+                        [git_executable, "rm", "--cached", "-f", "identity-mutation.bin"],
                         cwd=root,
                         check=True,
                         stdout=subprocess.DEVNULL,
