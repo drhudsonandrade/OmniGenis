@@ -9,7 +9,7 @@ import json
 import re
 from collections import Counter
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from scripts import pdfium_backend as fitz
 
@@ -50,6 +50,13 @@ def _rgbhex(color: int) -> str:
     return f"#{color & 0xFFFFFF:06X}"
 
 
+def _require_string(mapping: dict[str, Any], key: str) -> str:
+    value = mapping.get(key)
+    if not isinstance(value, str):
+        raise RuntimeError("legacy field alias registry entry fields must be strings")
+    return value
+
+
 def _load_legacy_field_aliases(path: Path = LEGACY_FIELD_ALIAS_REGISTRY) -> dict[str, tuple[str, ...]]:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
@@ -64,15 +71,10 @@ def _load_legacy_field_aliases(path: Path = LEGACY_FIELD_ALIAS_REGISTRY) -> dict
     for record in records:
         if not isinstance(record, dict):
             raise RuntimeError("legacy field alias registry entry must be an object")
-        current_digest = record.get("current_field_id_sha256")
-        legacy_digest = record.get("legacy_field_id_sha256")
-        encoded = record.get("legacy_field_id_utf8_b64")
-        if not isinstance(current_digest, str):
-            raise RuntimeError("legacy field alias registry entry fields must be strings")
-        if not isinstance(legacy_digest, str):
-            raise RuntimeError("legacy field alias registry entry fields must be strings")
-        if not isinstance(encoded, str):
-            raise RuntimeError("legacy field alias registry entry fields must be strings")
+        record_map = cast(dict[str, Any], record)
+        current_digest = _require_string(record_map, "current_field_id_sha256")
+        legacy_digest = _require_string(record_map, "legacy_field_id_sha256")
+        encoded = _require_string(record_map, "legacy_field_id_utf8_b64")
         try:
             if len(bytes.fromhex(current_digest)) != 32 or len(bytes.fromhex(legacy_digest)) != 32:
                 raise ValueError
@@ -195,13 +197,13 @@ def _compact_layout_spans(
     spans = _spans(page)
     compact_chars: list[str] = []
     owners: list[int | None] = []
-    previous_index: int | None = None
+    previous_index = -1
     for index, span in enumerate(spans):
         visible_chars = [char for char in str(span["text"]) if not char.isspace()]
         if not visible_chars:
             continue
         if (
-            previous_index is not None
+            previous_index >= 0
             and not _spans_are_geometrically_contiguous(spans[previous_index], span)
         ):
             compact_chars.append("\0")

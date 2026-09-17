@@ -61,9 +61,12 @@
   ],
   "pixel_qa": {
     "evidence_path": "docs/evidence/PDFIUM_STATIC_PIXEL_QA_200DPI_2026-09-17.json",
-    "evidence_sha256": "2cadab40bf351c43613d16060dd275b2d9984e5703216ba7b021047007de8033",
+    "evidence_sha256": "1a2f225ac2d7867e3d5ced488cb8bea4544063f5a42b5798037911dadeaf530e",
     "legacy_evidence": "docs/evidence/EDITORIAL_V3_STATIC_PIXEL_QA_200DPI_2026-08-16.json",
     "pdfium_candidate_status": "PASS",
+    "producer_path": "scripts/run_pdfium_static_pixel_qa.py",
+    "producer_sha256": "a7f2440046ccda1af08daa6bafe74f0de65a13f70ed0db78ef042a8b0c992987",
+    "provenance_bundle_sha256": "45cfc29ffe28416c4320ecbc849b69c98277f3f5efc846fccb961adf0ddffea5",
     "statement": "Independent PDFium candidate pixel QA passed at 200 DPI; legacy MuPDF QA remains separately bound to the legacy coordinate artifacts."
   },
   "runtime_lock_verification": {

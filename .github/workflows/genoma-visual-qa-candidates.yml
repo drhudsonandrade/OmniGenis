@@ -9,6 +9,7 @@ on:
       - 'template_store/**'
       - 'scripts/build_report_coordinate_pack.py'
       - 'scripts/pdfium_backend.py'
+      - 'scripts/run_pdfium_static_pixel_qa.py'
       - 'docs/evidence/PDFIUM_COORDINATE_MIGRATION_2026-09-17.json'
       - 'docs/evidence/PDFIUM_STATIC_PIXEL_QA_200DPI_2026-09-17.json'
       - 'scripts/install_report_templates.py'
@@ -26,6 +27,7 @@ on:
       - 'template_store/**'
       - 'scripts/build_report_coordinate_pack.py'
       - 'scripts/pdfium_backend.py'
+      - 'scripts/run_pdfium_static_pixel_qa.py'
       - 'docs/evidence/PDFIUM_COORDINATE_MIGRATION_2026-09-17.json'
       - 'docs/evidence/PDFIUM_STATIC_PIXEL_QA_200DPI_2026-09-17.json'
       - 'scripts/install_report_templates.py'
@@ -80,8 +82,22 @@ jobs:
           assert migration['pixel_qa']['pdfium_candidate_status'] == 'PASS'
           assert migration['pixel_qa']['evidence_path'] == str(pdfium_qa_path)
           assert migration['pixel_qa']['evidence_sha256'] == hashlib.sha256(pdfium_qa_raw).hexdigest()
+          assert pdfium_qa['schema'] == 'omnigenis-pdfium-static-pixel-qa-v2'
           assert pdfium_qa['status'] == legacy_qa['status']
-          assert pdfium_qa['aggregate'] == {'outside_changed_pixels': 0, 'reference_pages': 100, 'reports': 11, 'result': 'PASS'}
+          assert pdfium_qa['aggregate']['outside_changed_pixels'] == 0
+          assert pdfium_qa['aggregate']['reference_pages'] == 100
+          assert pdfium_qa['aggregate']['reports'] == 11
+          assert pdfium_qa['aggregate']['result'] == 'PASS'
+          assert pdfium_qa['aggregate']['changed_pixels'] > 0
+          producer=pdfium_qa['producer']
+          producer_path=Path(producer['path'])
+          assert producer_path.is_file()
+          assert hashlib.sha256(producer_path.read_bytes()).hexdigest() == producer['producer_sha256']
+          bundle={'provenance': producer, 'aggregate': pdfium_qa['aggregate'], 'reports': pdfium_qa['reports']}
+          bundle_sha=hashlib.sha256(json.dumps(bundle,ensure_ascii=False,sort_keys=True,separators=(',',':')).encode()).hexdigest()
+          assert pdfium_qa['evidence_sha256'] == bundle_sha
+          assert migration['pixel_qa']['producer_sha256'] == producer['producer_sha256']
+          assert migration['pixel_qa']['provenance_bundle_sha256'] == bundle_sha
           assert pdfium_qa['coordinate_compiler']['manifest_sha256'] == index['generated_coordinate_manifest']['sha256']
           assert pdfium_qa['coordinate_compiler']['compressed_detail_sha256'] == index['generated_coordinate_detail']['sha256']
           assert legacy_qa['status'] == 'VERIFICADO'

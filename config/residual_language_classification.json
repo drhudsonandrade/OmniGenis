@@ -1111,6 +1111,13 @@
       "fingerprint": "91d54032cbc57f2a13957d32a226d2b0130a21e3b68a4b6d3078877954bf04a6"
     },
     {
+      "path": "scripts/run_pdfium_static_pixel_qa.py",
+      "category": "compatibility-preserved",
+      "reason": "The pixel-QA producer must match canonical pt-BR template filenames and controlled source strings exactly; these values are content-addressed compatibility inputs, not implementation prose.",
+      "count": 14,
+      "fingerprint": "14f6fb9f1fd506640daa7d89ddba1fae84b16355eef5d9a42bfec3ff65e46cd9"
+    },
+    {
       "path": "scripts/run_snp_array.py",
       "category": "localized",
       "reason": "Portuguese here is pt-BR operator/report output or a canonical serialized value; the executable implementation language remains English-first.",

@@ -1,5 +1,6 @@
 {
   "aggregate": {
+    "changed_pixels": 4505930,
     "outside_changed_pixels": 0,
     "reference_pages": 100,
     "reports": 11,
@@ -11,11 +12,12 @@
     "id": "pypdfium2-5.13.0-pdfium-genoma-v3",
     "manifest_sha256": "cb91138cfa38912569dc556e684f302752eebbf64b0f656e97ec0a0c889a8bd6"
   },
-  "executed_at": "2026-09-17T16:48:28Z",
+  "evidence_sha256": "45cfc29ffe28416c4320ecbc849b69c98277f3f5efc846fccb961adf0ddffea5",
+  "executed_at": "2026-09-17T18:40:56Z",
   "limitations": [
     "QA is editorial and geometric only; it does not validate scientific interpretation.",
-    "Private template bytes and transient QA output PDFs are not committed.",
-    "The QA binds to the pinned coordinate artifacts and canonical template SHA-256 identities rather than to a machine-local template path."
+    "Private template bytes, candidate PDFs, mask manifest, and execution log are not committed; their SHA-256 identities are retained in this evidence.",
+    "The producer derives masks from the SHA-pinned source PDFs, not from the pixel diff, and fails closed on source hash or page-count drift."
   ],
   "private_templates": {
     "bytes_committed": false,
@@ -23,130 +25,138 @@
     "reports": 11,
     "sha256_matches_reference_manifest": 11
   },
+  "producer": {
+    "candidate_set_sha256": "45edc56a33744eb28da8123db6182efd083b00f0f31afa7a9d9a7b513d34c0c9",
+    "command": "python scripts/run_pdfium_static_pixel_qa.py --template-dir '$PRIVATE_TEMPLATE_DIR' --candidate-dir '$CANDIDATE_DIR' --candidate-pattern 'qa-{rid}.pdf' --output /mnt/data/PDFIUM_STATIC_PIXEL_QA_REPRODUCED.json --mask-manifest /mnt/data/PDFIUM_STATIC_PIXEL_MASKS_200DPI.json --log /mnt/data/PDFIUM_STATIC_PIXEL_QA_200DPI.log",
+    "log_sha256": "ef92369bbef931c094bb4cee3f19209da4497f35278300be45a9c6a61264334d",
+    "mask_manifest_sha256": "16f1b3f84d58b5d3a7cf028f9d99281eaf8a67d3fbfae5d3bad34c870826e0db",
+    "path": "scripts/run_pdfium_static_pixel_qa.py",
+    "producer_sha256": "a7f2440046ccda1af08daa6bafe74f0de65a13f70ed0db78ef042a8b0c992987"
+  },
   "reports": {
     "01": {
+      "candidate_sha256": "b6d6ef3f07f935c234b455e75c9f338b8260647df1b00e506f7c25e1b69b1c62",
       "filename": "01_RELATORIO_GENOMA_CLINICO_v3.0.pdf",
       "pages": 10,
       "qa": {
-        "changed_pixels_total": 763908,
-        "max_channel_diff": 240,
+        "changed_pixels_total": 545940,
         "outside_changed_pixels": 0,
         "result": "PASS"
       },
       "sha256": "812a7e9ff15a1f6b368d924e78dd0456145d0f22e0d24af5ea0a9faa9d458797"
     },
     "02": {
+      "candidate_sha256": "8a21f21bb09d28d21130683f5f045a5b0e421defdf34058e4214971d1ad2ced7",
       "filename": "02_RELATORIO_ANCESTRALIDADE_GENEALOGIA_v3.0.pdf",
       "pages": 10,
       "qa": {
-        "changed_pixels_total": 675659,
-        "max_channel_diff": 230,
+        "changed_pixels_total": 473837,
         "outside_changed_pixels": 0,
         "result": "PASS"
       },
       "sha256": "2ede76a59e74a6425f22be31f7b96fa6bc1b0ce3fb74b03fa15775e0e6dbe496"
     },
     "03": {
+      "candidate_sha256": "66298db3c9f61bdeebf1f4cfd6c9e65b8f4f1e995872809e9e97c992e78bdbcf",
       "filename": "03_RELATORIO_REPRODUTIVO_INDIVIDUAL_CASAL_v3.0.pdf",
       "pages": 10,
       "qa": {
-        "changed_pixels_total": 723281,
-        "max_channel_diff": 230,
+        "changed_pixels_total": 489127,
         "outside_changed_pixels": 0,
         "result": "PASS"
       },
       "sha256": "945007f2a9db1e6252e9fa0352e211ef6957383970913e7c7cb3f604955ab2dd"
     },
     "04": {
+      "candidate_sha256": "9a6eadf3593a778c78690d2d2ef7b25780f6424c19cccde93aef94f070f6af7a",
       "filename": "04_RELATORIO_NUTRIGENETICO_NUTRICAO_PRECISAO_v3.0.pdf",
       "pages": 10,
       "qa": {
-        "changed_pixels_total": 679358,
-        "max_channel_diff": 233,
+        "changed_pixels_total": 455790,
         "outside_changed_pixels": 0,
         "result": "PASS"
       },
       "sha256": "32687216782de91619249b3fd9aef7975fcb69544c74cbbf3a54b58cb716a394"
     },
     "05": {
+      "candidate_sha256": "a7ba8f4a8d287b96e2cf56a42cf734a86c30c0d66c4a305a29945409e7a72130",
       "filename": "05_RELATORIO_TECNICO_METODOS_QC_LIMITACOES_v3.0.pdf",
       "pages": 11,
       "qa": {
-        "changed_pixels_total": 897288,
-        "max_channel_diff": 230,
+        "changed_pixels_total": 606637,
         "outside_changed_pixels": 0,
         "result": "PASS"
       },
       "sha256": "fd9a2fbfd90534af2fc78b8a0a85c8b89262568d78b21f711dc66b0f0bf00f41"
     },
     "06": {
+      "candidate_sha256": "60d4a058f5c239582be37d71986b65f2fadd039425142488273514caf9a0e50f",
       "filename": "06_RELATORIO_FARMACOGENOMICA_CARTAO_ANESTESIA_v3.0.pdf",
       "pages": 9,
       "qa": {
-        "changed_pixels_total": 563933,
-        "max_channel_diff": 231,
+        "changed_pixels_total": 389279,
         "outside_changed_pixels": 0,
         "result": "PASS"
       },
       "sha256": "eeff08f634b3f40f3a280b6e7eeb7c3e09e8f0a4ca080a2da2882d2c9ec58fbe"
     },
     "07": {
+      "candidate_sha256": "79618d720a5562a6ef3a43fc6f334d5e2ddf8248618b13884723144bcf2361bd",
       "filename": "07_RELATORIO_LONGEVIDADE_PROTECAO_PREVENCAO_v3.0.pdf",
       "pages": 9,
       "qa": {
-        "changed_pixels_total": 536944,
-        "max_channel_diff": 248,
+        "changed_pixels_total": 366289,
         "outside_changed_pixels": 0,
         "result": "PASS"
       },
       "sha256": "60a3b80cf47e40b5405c567586800d03b0e0d882118c06775119dcc22ebf4a0a"
     },
     "08": {
+      "candidate_sha256": "f78619ee891ed3ea74a158945e51c5ffc7e66307137adaed1f0d7bf189ed90cc",
       "filename": "08_ATLAS_TRACOS_CURIOSIDADES_v3.0.pdf",
       "pages": 9,
       "qa": {
-        "changed_pixels_total": 538234,
-        "max_channel_diff": 240,
+        "changed_pixels_total": 347602,
         "outside_changed_pixels": 0,
         "result": "PASS"
       },
       "sha256": "3ebc0a412f587b08823baaae9553f88f33f5a0b53d6b74c2710ea647d3c93dd5"
     },
     "09": {
+      "candidate_sha256": "0fcc8fcc090d7647f90b510061e2d56641da02918802cfed56256f3dbc2571aa",
       "filename": "09_GENOME_COMPLETENESS_BLIND_SPOTS_v3.0.pdf",
       "pages": 9,
       "qa": {
-        "changed_pixels_total": 517474,
-        "max_channel_diff": 230,
+        "changed_pixels_total": 356957,
         "outside_changed_pixels": 0,
         "result": "PASS"
       },
       "sha256": "f1b706a0b8948f27dddbee825779d7c89c44e90ca9468813c76b647164d9dfdd"
     },
     "10": {
+      "candidate_sha256": "eb0f830c06ff8e707ea884b121eaedb62ee5570e9c703f15c618bdeae6130ea4",
       "filename": "10_RESUMO_CLINICO_UMA_PAGINA_v3.0.pdf",
       "pages": 1,
       "qa": {
-        "changed_pixels_total": 120340,
-        "max_channel_diff": 244,
+        "changed_pixels_total": 76123,
         "outside_changed_pixels": 0,
         "result": "PASS"
       },
       "sha256": "d0781af71f8855167311f9e7884c5e2d420ebe0b7da6d75f5a9cfed5b004ad59"
     },
     "11": {
+      "candidate_sha256": "c9fafa4fa77796b0610f2c97eb5384d81e0a0e7be7952d98860ddfb7622aff12",
       "filename": "11_GUIA_EDITORIAL_MATRIZ_PREENCHIMENTO_v3.0.pdf",
       "pages": 12,
       "qa": {
-        "changed_pixels_total": 548960,
-        "max_channel_diff": 244,
+        "changed_pixels_total": 398349,
         "outside_changed_pixels": 0,
         "result": "PASS"
       },
       "sha256": "d68fce73aeb7fd7bb6e0eb27679b167a3899cce92eb20b64ad5bb15352031fea"
     }
   },
-  "schema": "omnigenis-pdfium-static-pixel-qa-v1",
+  "schema": "omnigenis-pdfium-static-pixel-qa-v2",
   "scope": "Independent 200 DPI static-pixel QA for the PDFium Stage 2 coordinate candidate",
   "status": "VERIFICADO"
 }

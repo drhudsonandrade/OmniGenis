@@ -76,24 +76,34 @@ class PdfBackendComplianceTest(unittest.TestCase):
         self.assertTrue(PIXEL_QA_PATH.is_file())
         raw = PIXEL_QA_PATH.read_bytes()
         qa = json.loads(raw.decode("utf-8"))
+        self.assertEqual(qa["schema"], "omnigenis-pdfium-static-pixel-qa-v2")
         self.assertEqual(qa["status"], LEGACY_PIXEL_QA["status"])
-        self.assertEqual(qa["aggregate"], {
-            "outside_changed_pixels": 0,
-            "reference_pages": 100,
-            "reports": 11,
-            "result": "PASS",
-        })
+        self.assertEqual(qa["aggregate"]["outside_changed_pixels"], 0)
+        self.assertEqual(qa["aggregate"]["reference_pages"], 100)
+        self.assertEqual(qa["aggregate"]["reports"], 11)
+        self.assertEqual(qa["aggregate"]["result"], "PASS")
+        self.assertGreater(qa["aggregate"]["changed_pixels"], 0)
         self.assertEqual(qa["coordinate_compiler"]["id"], "pypdfium2-5.13.0-pdfium-genoma-v3")
         self.assertEqual(
             qa["coordinate_compiler"]["manifest_sha256"],
             REFERENCE["generated_coordinate_manifest"]["sha256"],
         )
+        producer = qa["producer"]
+        producer_path = ROOT / producer["path"]
+        self.assertTrue(producer_path.is_file())
+        self.assertEqual(hashlib.sha256(producer_path.read_bytes()).hexdigest(), producer["producer_sha256"])
+        bundle = {"provenance": producer, "aggregate": qa["aggregate"], "reports": qa["reports"]}
+        bundle_sha = hashlib.sha256(
+            json.dumps(bundle, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+        self.assertEqual(qa["evidence_sha256"], bundle_sha)
         self.assertEqual(MIGRATION["pixel_qa"]["pdfium_candidate_status"], "PASS")
         self.assertEqual(MIGRATION["pixel_qa"]["evidence_sha256"], hashlib.sha256(raw).hexdigest())
-        self.assertEqual(
-            REFERENCE["legacy_coordinate_compiler"]["id"],
-            "fitz-1.26.7-genoma-v2",
-        )
+        self.assertEqual(MIGRATION["pixel_qa"]["producer_sha256"], producer["producer_sha256"])
+        self.assertEqual(MIGRATION["pixel_qa"]["provenance_bundle_sha256"], bundle_sha)
+        for digest_key in ("log_sha256", "mask_manifest_sha256", "candidate_set_sha256"):
+            self.assertRegex(producer[digest_key], r"^[0-9a-f]{64}$")
+        self.assertEqual(REFERENCE["legacy_coordinate_compiler"]["id"], "fitz-1.26.7-genoma-v2")
         self.assertEqual(
             REFERENCE["legacy_generated_coordinate_manifest"]["sha256"],
             "1d2e6b745b338b18530d5dc0e42cb542a01947a81a0515bece4882b4e09539a5",
@@ -300,6 +310,7 @@ class PdfBackendComplianceTest(unittest.TestCase):
         validator = _load_validator()
         for relative in (
             "scripts/pdfium_backend.py",
+            "scripts/run_pdfium_static_pixel_qa.py",
             "reporting/requirements.in",
             "reporting/legacy_field_aliases.json",
             "licenses/pypdfium2-5.13.0/README.md",
@@ -312,6 +323,9 @@ class PdfBackendComplianceTest(unittest.TestCase):
     def test_visual_qa_workflow_requires_pdfium_pixel_evidence(self) -> None:
         workflow = (ROOT / ".github" / "workflows" / "genoma-visual-qa-candidates.yml").read_text(encoding="utf-8")
         self.assertIn("PDFIUM_STATIC_PIXEL_QA_200DPI_2026-09-17.json", workflow)
+        self.assertIn("run_pdfium_static_pixel_qa.py", workflow)
+        self.assertIn("provenance_bundle_sha256", workflow)
+        self.assertIn("producer_sha256", workflow)
         self.assertIn("pdfium_candidate_status'] == 'PASS'", workflow)
         self.assertNotIn("pdfium_candidate_status'] == 'NOT_EXECUTED'", workflow)
 

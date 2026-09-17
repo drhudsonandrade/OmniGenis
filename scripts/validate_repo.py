@@ -53,7 +53,7 @@ REQUIRED_PATHS = (
     "normative/sealed/MANIFEST.json", "normative/sealed/README.md",
     "scripts/__init__.py", "scripts/sealed_ruleset.py", "scripts/code_language_guard.py",
     "scripts/residual_language_audit.py", "scripts/project_identity_guard.py",
-    "scripts/zero_identity_guard.py", "scripts/pdfium_backend.py",
+    "scripts/zero_identity_guard.py", "scripts/pdfium_backend.py", "scripts/run_pdfium_static_pixel_qa.py",
     "scripts/check_versions.sh", "scripts/fetch_grch38.sh",
     "scripts/build_bwa_mem2_index.sh", "scripts/validate_grch38.sh", "scripts/validate_bwa_mem2_functional.sh",
     "scripts/generate_canary.py", "scripts/score_variants.py", "scripts/run_canary.sh", "scripts/verify_ruleset.sh",
