@@ -168,7 +168,8 @@ class PdfBackendComplianceTest(unittest.TestCase):
                 self.assert_mode = mode
                 return self
 
-            def tobytes(self) -> bytes:
+            @staticmethod
+            def tobytes() -> bytes:
                 return b"\x01\x02\x03\x04\x05\x06"
 
             def close(self) -> None:

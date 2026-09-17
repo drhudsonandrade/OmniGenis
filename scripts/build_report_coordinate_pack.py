@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import argparse
 import base64
-import binascii
 import gzip
 import hashlib
 import json
@@ -82,7 +81,7 @@ def _load_legacy_field_aliases(path: Path = LEGACY_FIELD_ALIAS_REGISTRY) -> dict
         try:
             legacy_bytes = base64.b64decode(encoded, validate=True)
             legacy_field_id = legacy_bytes.decode("utf-8")
-        except (ValueError, binascii.Error) as exc:
+        except ValueError as exc:
             raise RuntimeError("legacy field alias registry payload encoding invalid") from exc
         if hashlib.sha256(legacy_bytes).hexdigest() != legacy_digest:
             raise RuntimeError("legacy field alias registry payload digest mismatch")
