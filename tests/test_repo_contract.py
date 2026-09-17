@@ -66,7 +66,7 @@ class RepoContractTest(unittest.TestCase):
 
     def test_compliance_baseline_paths_are_required(self):
         validator = load_validator()
-        for relative in (
+        compliance_paths = (
             "LICENSE",
             "COPYRIGHT.md",
             "AUTHORS.md",
@@ -74,15 +74,22 @@ class RepoContractTest(unittest.TestCase):
             "docs/compliance/LICENSING_POLICY.md",
             "docs/compliance/DEPENDENCY_POLICY.md",
             "licenses/README.md",
-        ):
+            "policy_engine/LICENSE",
+            "config/identity_provenance_authorizations.json",
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            errors = validator.validate(Path(directory))
+        for relative in compliance_paths:
             self.assertIn(relative, validator.REQUIRED_PATHS)
+            self.assertIn(f"missing required path: {relative}", errors)
 
     def test_identity_provenance_authorization_registry_is_required(self):
         validator = load_validator()
-        self.assertIn(
-            "config/identity_provenance_authorizations.json",
-            validator.REQUIRED_PATHS,
-        )
+        relative = "config/identity_provenance_authorizations.json"
+        with tempfile.TemporaryDirectory() as directory:
+            errors = validator.validate(Path(directory))
+        self.assertIn(relative, validator.REQUIRED_PATHS)
+        self.assertIn(f"missing required path: {relative}", errors)
 
     def test_policy_engine_distribution_has_local_authorized_license(self):
         validator = load_validator()
@@ -111,19 +118,8 @@ class RepoContractTest(unittest.TestCase):
             (root / "config" / "zero_identity_policy.json").write_bytes(
                 policy_source.read_bytes()
             )
-            (root / "config" / "identity_provenance_authorizations.json").write_text(
-                json.dumps({
-                    "schema": "omnigenis-identity-provenance-authorization-v1",
-                    "authorizations": [],
-                }),
-                encoding="utf-8",
-            )
             subprocess.run(
-                [
-                    "git", "add",
-                    "config/zero_identity_policy.json",
-                    "config/identity_provenance_authorizations.json",
-                ],
+                ["git", "add", "config/zero_identity_policy.json"],
                 cwd=root,
                 check=True,
             )
@@ -136,7 +132,11 @@ class RepoContractTest(unittest.TestCase):
                         cwd=root,
                         check=True,
                     )
-                    errors = validator.validate(root)
+                    with patch(
+                        "scripts.zero_identity_guard._load_index_authorizations",
+                        return_value=(),
+                    ):
+                        errors = validator.validate(root)
                     self.assertTrue(
                         any(
                             class_id in error and "identity-mutation.bin" in error
@@ -151,7 +151,6 @@ class RepoContractTest(unittest.TestCase):
                         stdout=subprocess.DEVNULL,
                     )
                     target.unlink()
-
     def test_identity_contract_paths_are_required(self):
         validator = load_validator()
         for relative in (

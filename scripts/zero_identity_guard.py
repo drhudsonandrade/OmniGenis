@@ -132,12 +132,15 @@ def _parse_authorization_bytes(
             raise PolicyError(f"duplicate identity provenance authorization path: {path}")
         if not isinstance(digest, str) or _DIGEST_RE.fullmatch(digest) is None:
             raise PolicyError(f"identity provenance authorization digest invalid for {path}")
-        allowed_set = set(allowed) if isinstance(allowed, list) else set()
         if (
             not isinstance(allowed, list)
             or not allowed
             or not all(isinstance(item, str) for item in allowed)
-            or len(allowed_set) != len(allowed)
+        ):
+            raise PolicyError(f"identity provenance authorization classes invalid for {path}")
+        allowed_set = set(allowed)
+        if (
+            len(allowed_set) != len(allowed)
             or not allowed_set <= known_classes
             or not allowed_set <= _AUTHORIZED_PROVENANCE_CLASSES
         ):

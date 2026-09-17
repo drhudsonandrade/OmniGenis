@@ -41,13 +41,10 @@ class ZeroIdentityGuardTest(unittest.TestCase):
         (root / "config/zero_identity_policy.json").write_text(json.dumps(policy), encoding="utf-8")
         subprocess.run(["git", "add", "config/zero_identity_policy.json"], cwd=root, check=True)
         authorization = {"schema": AUTHORIZATION_SCHEMA, "authorizations": []}
-        (root / "config" / "identity_provenance_authorizations.json").write_text(
-            json.dumps(authorization), encoding="utf-8"
-        )
-        subprocess.run(
-            ["git", "add", "config/identity_provenance_authorizations.json"],
-            cwd=root,
-            check=True,
+        self.track(
+            root,
+            "config/identity_provenance_authorizations.json",
+            json.dumps(authorization).encode("utf-8"),
         )
         return root
 
@@ -62,21 +59,22 @@ class ZeroIdentityGuardTest(unittest.TestCase):
     def findings(root: Path):
         return scan_repository(root)
 
+    def assert_policy_error(self, root: Path) -> None:
+        try:
+            self.findings(root)
+        except PolicyError:
+            return
+        self.fail("PolicyError not raised")
+
     def set_authorizations(self, root: Path, authorizations: list[dict[str, object]]) -> None:
-        path = root / "config" / "identity_provenance_authorizations.json"
-        path.write_text(
-            json.dumps({"schema": AUTHORIZATION_SCHEMA, "authorizations": authorizations}),
-            encoding="utf-8",
-        )
-        subprocess.run(
-            ["git", "add", "config/identity_provenance_authorizations.json"],
-            cwd=root,
-            check=True,
-        )
+        payload = json.dumps(
+            {"schema": AUTHORIZATION_SCHEMA, "authorizations": authorizations}
+        ).encode("utf-8")
+        self.track(root, "config/identity_provenance_authorizations.json", payload)
 
     def test_authorized_license_blob_suppresses_only_declared_personal_class(self) -> None:
         root = self.make_repo()
-        data = b"Copyright " + MUTATIONS["P2"]
+        data = b"Copyright " + MUTATIONS["P2"] + b" " + MUTATIONS["P3"]
         self.track(root, "LICENSE", data)
         self.set_authorizations(
             root,
@@ -86,7 +84,9 @@ class ZeroIdentityGuardTest(unittest.TestCase):
                 "classes": ["P2"],
             }],
         )
-        self.assertFalse(any(f.path == "LICENSE" for f in self.findings(root)))
+        findings = self.findings(root)
+        self.assertFalse(any(f.path == "LICENSE" and f.class_id == "P2" for f in findings))
+        self.assertTrue(any(f.path == "LICENSE" and f.class_id == "P3" for f in findings))
 
     def test_authorized_license_blob_drift_is_not_exempt(self) -> None:
         root = self.make_repo()
@@ -113,8 +113,7 @@ class ZeroIdentityGuardTest(unittest.TestCase):
                 "classes": ["P2"],
             }],
         )
-        with self.assertRaises(PolicyError):
-            self.findings(root)
+        self.assert_policy_error(root)
 
     def test_authorization_registry_rejects_non_holder_fingerprint_class(self) -> None:
         root = self.make_repo()
@@ -126,8 +125,19 @@ class ZeroIdentityGuardTest(unittest.TestCase):
                 "classes": ["P1"],
             }],
         )
-        with self.assertRaises(PolicyError):
-            self.findings(root)
+        self.assert_policy_error(root)
+
+    def test_authorization_registry_rejects_unhashable_class_entry_as_policy_error(self) -> None:
+        root = self.make_repo()
+        self.set_authorizations(
+            root,
+            [{
+                "path": "LICENSE",
+                "sha256": "0" * 64,
+                "classes": ["P2", {"unexpected": "object"}],
+            }],
+        )
+        self.assert_policy_error(root)
 
     def test_each_class_is_detected_in_blob_content(self) -> None:
         for class_id, token in MUTATIONS.items():
