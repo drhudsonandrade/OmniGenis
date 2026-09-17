@@ -1,6 +1,6 @@
 {
   "aggregate": {
-    "changed_pixels": 4505930,
+    "changed_pixels": 4506832,
     "outside_changed_pixels": 0,
     "reference_pages": 100,
     "reports": 11,
@@ -12,8 +12,8 @@
     "manifest_sha256": "cb91138cfa38912569dc556e684f302752eebbf64b0f656e97ec0a0c889a8bd6"
   },
   "dpi": 200,
-  "evidence_sha256": "c24892c577a8d496f89b514d1cedefebbae79be00dc64e7732a5bc2f1791b25b",
-  "executed_at": "2026-09-17T19:16:44Z",
+  "evidence_sha256": "352450d27a426fb23a447a2b3173638012eaa89a0dd96da1fff595349534b29f",
+  "executed_at": "2026-09-17T19:47:32Z",
   "limitations": [
     "QA is editorial and geometric only; it does not validate scientific interpretation.",
     "Private template bytes, candidate PDFs, mask manifest, and execution log are not committed; their SHA-256 identities are retained in this evidence.",
@@ -27,16 +27,16 @@
   },
   "producer": {
     "candidate_set_sha256": "45edc56a33744eb28da8123db6182efd083b00f0f31afa7a9d9a7b513d34c0c9",
-    "command": "python scripts/run_pdfium_static_pixel_qa.py --template-dir '$PRIVATE_TEMPLATE_DIR' --candidate-dir '$CANDIDATE_DIR' --candidate-pattern 'qa-{rid}.pdf' --output /mnt/data/PDFIUM_STATIC_PIXEL_QA_REPRODUCED_v3.json --mask-manifest /mnt/data/PDFIUM_STATIC_PIXEL_MASKS_200DPI_v3.json --log /mnt/data/PDFIUM_STATIC_PIXEL_QA_200DPI_v3.log",
-    "log_sha256": "ef92369bbef931c094bb4cee3f19209da4497f35278300be45a9c6a61264334d",
+    "command": "python scripts/run_pdfium_static_pixel_qa.py --template-dir \"$PRIVATE_TEMPLATE_DIR\" --candidate-dir \"$CANDIDATE_DIR\" --candidate-pattern 'qa-{rid}.pdf' --output /mnt/data/PDFIUM_STATIC_PIXEL_QA_FINAL.json --mask-manifest /mnt/data/PDFIUM_STATIC_PIXEL_MASKS_FINAL.json --log /mnt/data/PDFIUM_STATIC_PIXEL_QA_FINAL.log",
+    "log_sha256": "2729879e64e16bbf7bce774e8b0d405f3b21e88e552ac08a4f782733af0be7ed",
     "mask_manifest_sha256": "16f1b3f84d58b5d3a7cf028f9d99281eaf8a67d3fbfae5d3bad34c870826e0db",
     "path": "scripts/run_pdfium_static_pixel_qa.py",
-    "producer_sha256": "3ee24b61470ea9f6d89efc379eb91b3101c639a6a4a3b51734a0cf664f596990"
+    "producer_sha256": "424a555004ac7eda9fe2ac9286410c50b1482477f8d767928af1f5f9ef60103d"
   },
   "reports": {
     "01": {
       "candidate_sha256": "b6d6ef3f07f935c234b455e75c9f338b8260647df1b00e506f7c25e1b69b1c62",
-      "changed_pixels": 545940,
+      "changed_pixels": 546022,
       "filename": "01_RELATORIO_GENOMA_CLINICO_v3.0.pdf",
       "outside_changed_pixels": 0,
       "page_metrics": [
@@ -48,55 +48,55 @@
         },
         {
           "allowed_regions": 19,
-          "changed_pixels": 78265,
+          "changed_pixels": 78272,
           "outside_changed_pixels": 0,
           "page": 2
         },
         {
           "allowed_regions": 19,
-          "changed_pixels": 57165,
+          "changed_pixels": 57169,
           "outside_changed_pixels": 0,
           "page": 3
         },
         {
           "allowed_regions": 15,
-          "changed_pixels": 66388,
+          "changed_pixels": 66395,
           "outside_changed_pixels": 0,
           "page": 4
         },
         {
           "allowed_regions": 17,
-          "changed_pixels": 60208,
+          "changed_pixels": 60215,
           "outside_changed_pixels": 0,
           "page": 5
         },
         {
           "allowed_regions": 17,
-          "changed_pixels": 48498,
+          "changed_pixels": 48500,
           "outside_changed_pixels": 0,
           "page": 6
         },
         {
           "allowed_regions": 15,
-          "changed_pixels": 42663,
+          "changed_pixels": 42677,
           "outside_changed_pixels": 0,
           "page": 7
         },
         {
           "allowed_regions": 13,
-          "changed_pixels": 38565,
+          "changed_pixels": 38575,
           "outside_changed_pixels": 0,
           "page": 8
         },
         {
           "allowed_regions": 9,
-          "changed_pixels": 58734,
+          "changed_pixels": 58737,
           "outside_changed_pixels": 0,
           "page": 9
         },
         {
           "allowed_regions": 33,
-          "changed_pixels": 77072,
+          "changed_pixels": 77100,
           "outside_changed_pixels": 0,
           "page": 10
         }
@@ -106,7 +106,7 @@
     },
     "02": {
       "candidate_sha256": "8a21f21bb09d28d21130683f5f045a5b0e421defdf34058e4214971d1ad2ced7",
-      "changed_pixels": 473837,
+      "changed_pixels": 473914,
       "filename": "02_RELATORIO_ANCESTRALIDADE_GENEALOGIA_v3.0.pdf",
       "outside_changed_pixels": 0,
       "page_metrics": [
@@ -118,55 +118,55 @@
         },
         {
           "allowed_regions": 19,
-          "changed_pixels": 78266,
+          "changed_pixels": 78273,
           "outside_changed_pixels": 0,
           "page": 2
         },
         {
           "allowed_regions": 13,
-          "changed_pixels": 45341,
+          "changed_pixels": 45349,
           "outside_changed_pixels": 0,
           "page": 3
         },
         {
           "allowed_regions": 15,
-          "changed_pixels": 51487,
+          "changed_pixels": 51491,
           "outside_changed_pixels": 0,
           "page": 4
         },
         {
           "allowed_regions": 15,
-          "changed_pixels": 34715,
+          "changed_pixels": 34731,
           "outside_changed_pixels": 0,
           "page": 5
         },
         {
           "allowed_regions": 18,
-          "changed_pixels": 45487,
+          "changed_pixels": 45491,
           "outside_changed_pixels": 0,
           "page": 6
         },
         {
           "allowed_regions": 11,
-          "changed_pixels": 35189,
+          "changed_pixels": 35194,
           "outside_changed_pixels": 0,
           "page": 7
         },
         {
           "allowed_regions": 9,
-          "changed_pixels": 29161,
+          "changed_pixels": 29163,
           "outside_changed_pixels": 0,
           "page": 8
         },
         {
           "allowed_regions": 9,
-          "changed_pixels": 58735,
+          "changed_pixels": 58738,
           "outside_changed_pixels": 0,
           "page": 9
         },
         {
           "allowed_regions": 33,
-          "changed_pixels": 77073,
+          "changed_pixels": 77101,
           "outside_changed_pixels": 0,
           "page": 10
         }
@@ -176,67 +176,67 @@
     },
     "03": {
       "candidate_sha256": "66298db3c9f61bdeebf1f4cfd6c9e65b8f4f1e995872809e9e97c992e78bdbcf",
-      "changed_pixels": 489127,
+      "changed_pixels": 489219,
       "filename": "03_RELATORIO_REPRODUTIVO_INDIVIDUAL_CASAL_v3.0.pdf",
       "outside_changed_pixels": 0,
       "page_metrics": [
         {
           "allowed_regions": 6,
-          "changed_pixels": 18397,
+          "changed_pixels": 18398,
           "outside_changed_pixels": 0,
           "page": 1
         },
         {
           "allowed_regions": 19,
-          "changed_pixels": 78280,
+          "changed_pixels": 78288,
           "outside_changed_pixels": 0,
           "page": 2
         },
         {
           "allowed_regions": 15,
-          "changed_pixels": 38831,
+          "changed_pixels": 38832,
           "outside_changed_pixels": 0,
           "page": 3
         },
         {
           "allowed_regions": 23,
-          "changed_pixels": 55893,
+          "changed_pixels": 55914,
           "outside_changed_pixels": 0,
           "page": 4
         },
         {
           "allowed_regions": 20,
-          "changed_pixels": 44120,
+          "changed_pixels": 44123,
           "outside_changed_pixels": 0,
           "page": 5
         },
         {
           "allowed_regions": 18,
-          "changed_pixels": 46217,
+          "changed_pixels": 46221,
           "outside_changed_pixels": 0,
           "page": 6
         },
         {
           "allowed_regions": 19,
-          "changed_pixels": 46009,
+          "changed_pixels": 46026,
           "outside_changed_pixels": 0,
           "page": 7
         },
         {
           "allowed_regions": 9,
-          "changed_pixels": 25544,
+          "changed_pixels": 25548,
           "outside_changed_pixels": 0,
           "page": 8
         },
         {
           "allowed_regions": 9,
-          "changed_pixels": 58749,
+          "changed_pixels": 58753,
           "outside_changed_pixels": 0,
           "page": 9
         },
         {
           "allowed_regions": 33,
-          "changed_pixels": 77087,
+          "changed_pixels": 77116,
           "outside_changed_pixels": 0,
           "page": 10
         }
@@ -246,7 +246,7 @@
     },
     "04": {
       "candidate_sha256": "9a6eadf3593a778c78690d2d2ef7b25780f6424c19cccde93aef94f070f6af7a",
-      "changed_pixels": 455790,
+      "changed_pixels": 455858,
       "filename": "04_RELATORIO_NUTRIGENETICO_NUTRICAO_PRECISAO_v3.0.pdf",
       "outside_changed_pixels": 0,
       "page_metrics": [
@@ -258,19 +258,19 @@
         },
         {
           "allowed_regions": 19,
-          "changed_pixels": 78279,
+          "changed_pixels": 78286,
           "outside_changed_pixels": 0,
           "page": 2
         },
         {
           "allowed_regions": 13,
-          "changed_pixels": 37873,
+          "changed_pixels": 37881,
           "outside_changed_pixels": 0,
           "page": 3
         },
         {
           "allowed_regions": 16,
-          "changed_pixels": 48820,
+          "changed_pixels": 48822,
           "outside_changed_pixels": 0,
           "page": 4
         },
@@ -282,31 +282,31 @@
         },
         {
           "allowed_regions": 16,
-          "changed_pixels": 54949,
+          "changed_pixels": 54963,
           "outside_changed_pixels": 0,
           "page": 6
         },
         {
           "allowed_regions": 11,
-          "changed_pixels": 26305,
+          "changed_pixels": 26306,
           "outside_changed_pixels": 0,
           "page": 7
         },
         {
           "allowed_regions": 9,
-          "changed_pixels": 25350,
+          "changed_pixels": 25355,
           "outside_changed_pixels": 0,
           "page": 8
         },
         {
           "allowed_regions": 9,
-          "changed_pixels": 58748,
+          "changed_pixels": 58751,
           "outside_changed_pixels": 0,
           "page": 9
         },
         {
           "allowed_regions": 33,
-          "changed_pixels": 77086,
+          "changed_pixels": 77114,
           "outside_changed_pixels": 0,
           "page": 10
         }
@@ -316,7 +316,7 @@
     },
     "05": {
       "candidate_sha256": "a7ba8f4a8d287b96e2cf56a42cf734a86c30c0d66c4a305a29945409e7a72130",
-      "changed_pixels": 606637,
+      "changed_pixels": 606755,
       "filename": "05_RELATORIO_TECNICO_METODOS_QC_LIMITACOES_v3.0.pdf",
       "outside_changed_pixels": 0,
       "page_metrics": [
@@ -328,7 +328,7 @@
         },
         {
           "allowed_regions": 19,
-          "changed_pixels": 78292,
+          "changed_pixels": 78299,
           "outside_changed_pixels": 0,
           "page": 2
         },
@@ -340,49 +340,49 @@
         },
         {
           "allowed_regions": 16,
-          "changed_pixels": 42897,
+          "changed_pixels": 42903,
           "outside_changed_pixels": 0,
           "page": 4
         },
         {
           "allowed_regions": 30,
-          "changed_pixels": 70065,
+          "changed_pixels": 70088,
           "outside_changed_pixels": 0,
           "page": 5
         },
         {
           "allowed_regions": 34,
-          "changed_pixels": 72127,
+          "changed_pixels": 72158,
           "outside_changed_pixels": 0,
           "page": 6
         },
         {
           "allowed_regions": 44,
-          "changed_pixels": 72806,
+          "changed_pixels": 72812,
           "outside_changed_pixels": 0,
           "page": 7
         },
         {
           "allowed_regions": 26,
-          "changed_pixels": 58527,
+          "changed_pixels": 58533,
           "outside_changed_pixels": 0,
           "page": 8
         },
         {
           "allowed_regions": 9,
-          "changed_pixels": 26731,
+          "changed_pixels": 26739,
           "outside_changed_pixels": 0,
           "page": 9
         },
         {
           "allowed_regions": 9,
-          "changed_pixels": 58767,
+          "changed_pixels": 58770,
           "outside_changed_pixels": 0,
           "page": 10
         },
         {
           "allowed_regions": 33,
-          "changed_pixels": 77099,
+          "changed_pixels": 77127,
           "outside_changed_pixels": 0,
           "page": 11
         }
@@ -392,7 +392,7 @@
     },
     "06": {
       "candidate_sha256": "60d4a058f5c239582be37d71986b65f2fadd039425142488273514caf9a0e50f",
-      "changed_pixels": 389279,
+      "changed_pixels": 389322,
       "filename": "06_RELATORIO_FARMACOGENOMICA_CARTAO_ANESTESIA_v3.0.pdf",
       "outside_changed_pixels": 0,
       "page_metrics": [
@@ -404,19 +404,19 @@
         },
         {
           "allowed_regions": 19,
-          "changed_pixels": 78246,
+          "changed_pixels": 78253,
           "outside_changed_pixels": 0,
           "page": 2
         },
         {
           "allowed_regions": 15,
-          "changed_pixels": 35899,
+          "changed_pixels": 35900,
           "outside_changed_pixels": 0,
           "page": 3
         },
         {
           "allowed_regions": 11,
-          "changed_pixels": 24761,
+          "changed_pixels": 24763,
           "outside_changed_pixels": 0,
           "page": 4
         },
@@ -434,19 +434,19 @@
         },
         {
           "allowed_regions": 9,
-          "changed_pixels": 27850,
+          "changed_pixels": 27852,
           "outside_changed_pixels": 0,
           "page": 7
         },
         {
           "allowed_regions": 9,
-          "changed_pixels": 58715,
+          "changed_pixels": 58718,
           "outside_changed_pixels": 0,
           "page": 8
         },
         {
           "allowed_regions": 33,
-          "changed_pixels": 77047,
+          "changed_pixels": 77075,
           "outside_changed_pixels": 0,
           "page": 9
         }
@@ -456,7 +456,7 @@
     },
     "07": {
       "candidate_sha256": "79618d720a5562a6ef3a43fc6f334d5e2ddf8248618b13884723144bcf2361bd",
-      "changed_pixels": 366289,
+      "changed_pixels": 366350,
       "filename": "07_RELATORIO_LONGEVIDADE_PROTECAO_PREVENCAO_v3.0.pdf",
       "outside_changed_pixels": 0,
       "page_metrics": [
@@ -468,7 +468,7 @@
         },
         {
           "allowed_regions": 19,
-          "changed_pixels": 78217,
+          "changed_pixels": 78224,
           "outside_changed_pixels": 0,
           "page": 2
         },
@@ -480,7 +480,7 @@
         },
         {
           "allowed_regions": 8,
-          "changed_pixels": 20960,
+          "changed_pixels": 20966,
           "outside_changed_pixels": 0,
           "page": 4
         },
@@ -492,25 +492,25 @@
         },
         {
           "allowed_regions": 10,
-          "changed_pixels": 27328,
+          "changed_pixels": 27337,
           "outside_changed_pixels": 0,
           "page": 6
         },
         {
           "allowed_regions": 10,
-          "changed_pixels": 25533,
+          "changed_pixels": 25541,
           "outside_changed_pixels": 0,
           "page": 7
         },
         {
           "allowed_regions": 9,
-          "changed_pixels": 58686,
+          "changed_pixels": 58689,
           "outside_changed_pixels": 0,
           "page": 8
         },
         {
           "allowed_regions": 33,
-          "changed_pixels": 77018,
+          "changed_pixels": 77046,
           "outside_changed_pixels": 0,
           "page": 9
         }
@@ -520,7 +520,7 @@
     },
     "08": {
       "candidate_sha256": "f78619ee891ed3ea74a158945e51c5ffc7e66307137adaed1f0d7bf189ed90cc",
-      "changed_pixels": 347602,
+      "changed_pixels": 347668,
       "filename": "08_ATLAS_TRACOS_CURIOSIDADES_v3.0.pdf",
       "outside_changed_pixels": 0,
       "page_metrics": [
@@ -532,7 +532,7 @@
         },
         {
           "allowed_regions": 19,
-          "changed_pixels": 78239,
+          "changed_pixels": 78246,
           "outside_changed_pixels": 0,
           "page": 2
         },
@@ -544,19 +544,19 @@
         },
         {
           "allowed_regions": 11,
-          "changed_pixels": 29631,
+          "changed_pixels": 29636,
           "outside_changed_pixels": 0,
           "page": 4
         },
         {
           "allowed_regions": 15,
-          "changed_pixels": 39770,
+          "changed_pixels": 39784,
           "outside_changed_pixels": 0,
           "page": 5
         },
         {
           "allowed_regions": 10,
-          "changed_pixels": 24188,
+          "changed_pixels": 24197,
           "outside_changed_pixels": 0,
           "page": 6
         },
@@ -568,13 +568,13 @@
         },
         {
           "allowed_regions": 9,
-          "changed_pixels": 58708,
+          "changed_pixels": 58711,
           "outside_changed_pixels": 0,
           "page": 8
         },
         {
           "allowed_regions": 33,
-          "changed_pixels": 77040,
+          "changed_pixels": 77068,
           "outside_changed_pixels": 0,
           "page": 9
         }
@@ -584,7 +584,7 @@
     },
     "09": {
       "candidate_sha256": "0fcc8fcc090d7647f90b510061e2d56641da02918802cfed56256f3dbc2571aa",
-      "changed_pixels": 356957,
+      "changed_pixels": 357009,
       "filename": "09_GENOME_COMPLETENESS_BLIND_SPOTS_v3.0.pdf",
       "outside_changed_pixels": 0,
       "page_metrics": [
@@ -596,7 +596,7 @@
         },
         {
           "allowed_regions": 19,
-          "changed_pixels": 78239,
+          "changed_pixels": 78246,
           "outside_changed_pixels": 0,
           "page": 2
         },
@@ -608,37 +608,37 @@
         },
         {
           "allowed_regions": 11,
-          "changed_pixels": 29226,
+          "changed_pixels": 29228,
           "outside_changed_pixels": 0,
           "page": 4
         },
         {
           "allowed_regions": 10,
-          "changed_pixels": 27429,
+          "changed_pixels": 27430,
           "outside_changed_pixels": 0,
           "page": 5
         },
         {
           "allowed_regions": 9,
-          "changed_pixels": 26508,
+          "changed_pixels": 26510,
           "outside_changed_pixels": 0,
           "page": 6
         },
         {
           "allowed_regions": 10,
-          "changed_pixels": 25731,
+          "changed_pixels": 25740,
           "outside_changed_pixels": 0,
           "page": 7
         },
         {
           "allowed_regions": 9,
-          "changed_pixels": 58708,
+          "changed_pixels": 58711,
           "outside_changed_pixels": 0,
           "page": 8
         },
         {
           "allowed_regions": 33,
-          "changed_pixels": 77040,
+          "changed_pixels": 77068,
           "outside_changed_pixels": 0,
           "page": 9
         }
@@ -648,13 +648,13 @@
     },
     "10": {
       "candidate_sha256": "eb0f830c06ff8e707ea884b121eaedb62ee5570e9c703f15c618bdeae6130ea4",
-      "changed_pixels": 76123,
+      "changed_pixels": 76300,
       "filename": "10_RESUMO_CLINICO_UMA_PAGINA_v3.0.pdf",
       "outside_changed_pixels": 0,
       "page_metrics": [
         {
           "allowed_regions": 31,
-          "changed_pixels": 76123,
+          "changed_pixels": 76300,
           "outside_changed_pixels": 0,
           "page": 1
         }
@@ -664,7 +664,7 @@
     },
     "11": {
       "candidate_sha256": "c9fafa4fa77796b0610f2c97eb5384d81e0a0e7be7952d98860ddfb7622aff12",
-      "changed_pixels": 398349,
+      "changed_pixels": 398415,
       "filename": "11_GUIA_EDITORIAL_MATRIZ_PREENCHIMENTO_v3.0.pdf",
       "outside_changed_pixels": 0,
       "page_metrics": [
@@ -676,7 +676,7 @@
         },
         {
           "allowed_regions": 19,
-          "changed_pixels": 78280,
+          "changed_pixels": 78287,
           "outside_changed_pixels": 0,
           "page": 2
         },
@@ -688,7 +688,7 @@
         },
         {
           "allowed_regions": 9,
-          "changed_pixels": 28502,
+          "changed_pixels": 28508,
           "outside_changed_pixels": 0,
           "page": 4
         },
@@ -712,31 +712,31 @@
         },
         {
           "allowed_regions": 8,
-          "changed_pixels": 28954,
+          "changed_pixels": 28959,
           "outside_changed_pixels": 0,
           "page": 8
         },
         {
           "allowed_regions": 10,
-          "changed_pixels": 25875,
+          "changed_pixels": 25884,
           "outside_changed_pixels": 0,
           "page": 9
         },
         {
           "allowed_regions": 10,
-          "changed_pixels": 25107,
+          "changed_pixels": 25115,
           "outside_changed_pixels": 0,
           "page": 10
         },
         {
           "allowed_regions": 9,
-          "changed_pixels": 58755,
+          "changed_pixels": 58758,
           "outside_changed_pixels": 0,
           "page": 11
         },
         {
           "allowed_regions": 33,
-          "changed_pixels": 77087,
+          "changed_pixels": 77115,
           "outside_changed_pixels": 0,
           "page": 12
         }

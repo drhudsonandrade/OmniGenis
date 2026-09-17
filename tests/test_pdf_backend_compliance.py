@@ -11,6 +11,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from PIL import Image
 from reportlab.lib.colors import Color
 from reportlab.pdfgen import canvas
 
@@ -186,6 +187,55 @@ class PdfBackendComplianceTest(unittest.TestCase):
                 errors: list[str] = []
                 validator.validate_stage2_pdf_contract(root, errors)
                 self.assertTrue(errors, relative)
+
+    def test_stage2_validator_rejects_pdfium_version_suffix(self) -> None:
+        validator = _load_validator()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._copy_stage2_contract_files(root)
+            lock = root / "reporting/requirements.txt"
+            lock.write_text(
+                lock.read_text(encoding="utf-8").replace(
+                    "pypdfium2==5.13.0 \\",
+                    "pypdfium2==5.13.0.post1 \\",
+                    1,
+                ),
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            validator.validate_stage2_pdf_contract(root, errors)
+            self.assertTrue(any("pypdfium2" in error for error in errors))
+
+    def test_stage2_validator_rejects_invalid_report_metadata(self) -> None:
+        validator = _load_validator()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._copy_stage2_contract_files(root)
+            reference = root / "reporting/reference_v3_manifest.json"
+            payload = json.loads(reference.read_text(encoding="utf-8"))
+            payload["reports"]["01"] = None
+            reference.write_text(json.dumps(payload), encoding="utf-8")
+            errors: list[str] = []
+            validator.validate_stage2_pdf_contract(root, errors)
+            self.assertIn("Stage 2 pixel-QA report record invalid: 01", errors)
+
+    def test_pixel_qa_detects_one_unit_blue_channel_change(self) -> None:
+        source = Image.new("RGB", (1, 1), (0, 0, 0))
+        candidate = Image.new("RGB", (1, 1), (0, 0, 1))
+        mask = pixel_qa.changed_pixel_mask(source, candidate)
+        self.assertEqual(mask.getpixel((0, 0)), 255)
+
+    def test_pixel_qa_reproduction_command_expands_environment_directories(self) -> None:
+        command = pixel_qa.reproduction_command(
+            candidate_pattern="qa-{rid}.pdf",
+            output=Path("/tmp/evidence.json"),
+            mask_manifest=Path("/tmp/masks.json"),
+            log=Path("/tmp/qa.log"),
+        )
+        self.assertIn('"$PRIVATE_TEMPLATE_DIR"', command)
+        self.assertIn('"$CANDIDATE_DIR"', command)
+        self.assertNotIn("'$PRIVATE_TEMPLATE_DIR'", command)
+        self.assertNotIn("'$CANDIDATE_DIR'", command)
 
     def test_stage2_validator_rejects_pdfium_lock_drift(self) -> None:
         validator = _load_validator()
@@ -423,6 +473,8 @@ class PdfBackendComplianceTest(unittest.TestCase):
         self.assertIn("provenance_bundle_sha256", workflow)
         self.assertIn("producer_sha256", workflow)
         self.assertIn("pdfium_candidate_status'] == 'PASS'", workflow)
+        self.assertIn("pdfium_qa['reports'][rid]['outside_changed_pixels']", workflow)
+        self.assertNotIn("pdfium_qa['reports'][rid]['qa']['outside_changed_pixels']", workflow)
         self.assertNotIn("pdfium_candidate_status'] == 'NOT_EXECUTED'", workflow)
 
 

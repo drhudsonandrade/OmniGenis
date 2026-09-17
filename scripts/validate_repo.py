@@ -676,7 +676,8 @@ def _stage2_pdfium_lock_hashes(text: str) -> list[str]:
     if len(starts) != 1:
         return []
     header = lines[starts[0]].rstrip()
-    if not header.startswith("pypdfium2==5.13.0") or not header.endswith(chr(92)):
+    expected_header = "pypdfium2==5.13.0 " + chr(92)
+    if header != expected_header:
         return []
     hashes: list[str] = []
     for line in lines[starts[0] + 1 :]:
@@ -793,12 +794,22 @@ def validate_stage2_pdf_contract(root: Path, errors: list[str]) -> None:
     for report_id, meta in reports.items():
         qa_report = qa_reports.get(report_id) if isinstance(qa_reports, dict) else None
         if not isinstance(meta, dict) or not isinstance(qa_report, dict):
+            errors.append(f"Stage 2 pixel-QA report record invalid: {report_id}")
             continue
+        source_sha = meta.get("sha256")
+        page_count = meta.get("page_count")
+        candidate_sha = qa_report.get("candidate_sha256")
         if (
-            qa_report.get("sha256") != meta.get("sha256")
-            or qa_report.get("pages") != meta.get("page_count")
+            not isinstance(source_sha, str)
+            or re.fullmatch(r"[0-9a-f]{64}", source_sha) is None
+            or not isinstance(page_count, int)
+            or isinstance(page_count, bool)
+            or page_count <= 0
+            or qa_report.get("sha256") != source_sha
+            or qa_report.get("pages") != page_count
             or qa_report.get("outside_changed_pixels") != 0
-            or re.fullmatch(r"[0-9a-f]{64}", str(qa_report.get("candidate_sha256", ""))) is None
+            or not isinstance(candidate_sha, str)
+            or re.fullmatch(r"[0-9a-f]{64}", candidate_sha) is None
         ):
             errors.append(f"Stage 2 pixel-QA report contract mismatch: {report_id}")
 

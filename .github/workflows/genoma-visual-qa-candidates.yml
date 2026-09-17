@@ -107,7 +107,7 @@ jobs:
           for rid, meta in index['reports'].items():
               assert pdfium_qa['reports'][rid]['sha256'] == meta['sha256']
               assert pdfium_qa['reports'][rid]['pages'] == meta['page_count']
-              assert pdfium_qa['reports'][rid]['qa']['outside_changed_pixels'] == 0
+              assert pdfium_qa['reports'][rid]['outside_changed_pixels'] == 0
               assert legacy_qa['reports'][rid]['sha256'] == meta['sha256']
               assert legacy_qa['reports'][rid]['pages'] == meta['page_count']
               assert legacy_qa['coordinate_compiler']['field_counts'][rid] == meta['placeholder_count']

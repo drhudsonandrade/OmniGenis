@@ -135,12 +135,47 @@ def render(page: Any) -> Image.Image:
     return image
 
 
+def changed_pixel_mask(source: Image.Image, candidate: Image.Image) -> Image.Image:
+    """Return a binary mask of any RGB-channel change without grayscale rounding."""
+    rgb_diff = ImageChops.difference(source, candidate)
+    red, green, blue = rgb_diff.split()
+    maximum = ImageChops.lighter(ImageChops.lighter(red, green), blue)
+    return maximum.point(lambda value: 255 if value else 0)
+
+
+def reproduction_command(
+    *,
+    candidate_pattern: str,
+    output: Path,
+    mask_manifest: Path,
+    log: Path,
+) -> str:
+    """Return a shell command whose private-directory variables expand at execution time."""
+    parts = [
+        "python",
+        "scripts/run_pdfium_static_pixel_qa.py",
+        "--template-dir",
+        '"$PRIVATE_TEMPLATE_DIR"',
+        "--candidate-dir",
+        '"$CANDIDATE_DIR"',
+        "--candidate-pattern",
+        shlex.quote(candidate_pattern),
+        "--output",
+        shlex.quote(str(output)),
+        "--mask-manifest",
+        shlex.quote(str(mask_manifest)),
+        "--log",
+        shlex.quote(str(log)),
+    ]
+    return " ".join(parts)
+
+
 def compare_page(source_page: Any, candidate_page: Any, allowed: list[dict[str, Any]]) -> tuple[int, int]:
     source = render(source_page)
     candidate = render(candidate_page)
     if source.size != candidate.size:
         raise RuntimeError("source/candidate raster size mismatch")
-    diff = ImageChops.difference(source, candidate).convert("L").point(lambda value: 255 if value else 0)
+    diff = changed_pixel_mask(source, candidate)
     mask = Image.new("L", source.size, 0)
     draw = ImageDraw.Draw(mask)
     sx = source.width / float(source_page.get_width())
@@ -161,7 +196,12 @@ def main() -> int:
     parser.add_argument("--mask-manifest", type=Path, required=True)
     parser.add_argument("--log", type=Path, required=True)
     args = parser.parse_args()
-    command = " ".join(shlex.quote(part) for part in ["python", "scripts/run_pdfium_static_pixel_qa.py", "--template-dir", "$PRIVATE_TEMPLATE_DIR", "--candidate-dir", "$CANDIDATE_DIR", "--candidate-pattern", args.candidate_pattern, "--output", str(args.output), "--mask-manifest", str(args.mask_manifest), "--log", str(args.log)])
+    command = reproduction_command(
+        candidate_pattern=args.candidate_pattern,
+        output=args.output,
+        mask_manifest=args.mask_manifest,
+        log=args.log,
+    )
     reports: dict[str, Any] = {}
     mask_payload: dict[str, Any] = {"schema": "omnigenis-pdfium-static-pixel-mask-v1", "dpi": DPI, "reports": {}}
     log_lines = []
