@@ -706,9 +706,8 @@ def validate_stage2_pdf_contract(root: Path, errors: list[str]) -> None:
     qa = _load_json_object(qa_path, "Stage 2 pixel-QA evidence", errors)
     aliases = _load_json_object(alias_path, "Stage 2 legacy alias registry", errors)
     reference = _load_json_object(reference_path, "Stage 2 reference manifest", errors)
-    if None in (migration, qa, aliases, reference):
+    if migration is None or qa is None or aliases is None or reference is None:
         return
-    assert migration is not None and qa is not None and aliases is not None and reference is not None
 
     lock_hashes = _stage2_pdfium_lock_hashes(requirements_path.read_text(encoding="utf-8"))
     if lock_hashes != [STAGE2_PDFIUM_WHEEL_SHA256]:

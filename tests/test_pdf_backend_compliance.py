@@ -152,7 +152,8 @@ class PdfBackendComplianceTest(unittest.TestCase):
             }
             self.assertEqual(evidence["evidence_sha256"], pixel_qa.canonical_hash(bundle))
 
-    def _copy_stage2_contract_files(self, root: Path) -> None:
+    @staticmethod
+    def _copy_stage2_contract_files(root: Path) -> None:
         for relative in (
             "docs/evidence/PDFIUM_COORDINATE_MIGRATION_2026-09-17.json",
             "docs/evidence/PDFIUM_STATIC_PIXEL_QA_200DPI_2026-09-17.json",
