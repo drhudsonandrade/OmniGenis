@@ -46,7 +46,7 @@ REQUIRED_PATHS = (
     "config/code_language_policy.json", "config/code_language_legacy_baseline.json",
     "config/residual_language_classification.json",
     "config/project_identity.json", "config/legacy_identity_ledger.json",
-    "config/zero_identity_policy.json",
+    "config/zero_identity_policy.json", "config/identity_provenance_authorizations.json",
     "manifests/GRCh38.sources.tsv", "manifests/GRCh38.lock.sha256.example", "manifests/RULESET_V3.4.sha256",
     "normative/sealed/MANIFEST.json", "normative/sealed/README.md",
     "scripts/__init__.py", "scripts/sealed_ruleset.py", "scripts/code_language_guard.py",

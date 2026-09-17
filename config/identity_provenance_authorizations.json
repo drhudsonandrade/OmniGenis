@@ -1,0 +1,19 @@
+{
+  "schema": "omnigenis-identity-provenance-authorization-v1",
+  "authorizations": [
+    {
+      "path": "LICENSE",
+      "sha256": "6df6a664747e22c2f6adbeca5e78b85dbbebe7c9e36c2f7f63e9aab710f1cdd5",
+      "classes": [
+        "P2"
+      ]
+    },
+    {
+      "path": "policy_engine/LICENSE",
+      "sha256": "6df6a664747e22c2f6adbeca5e78b85dbbebe7c9e36c2f7f63e9aab710f1cdd5",
+      "classes": [
+        "P2"
+      ]
+    }
+  ]
+}

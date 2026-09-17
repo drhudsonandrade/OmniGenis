@@ -77,6 +77,13 @@ class RepoContractTest(unittest.TestCase):
         ):
             self.assertIn(relative, validator.REQUIRED_PATHS)
 
+    def test_identity_provenance_authorization_registry_is_required(self):
+        validator = load_validator()
+        self.assertIn(
+            "config/identity_provenance_authorizations.json",
+            validator.REQUIRED_PATHS,
+        )
+
     def test_policy_engine_distribution_has_local_authorized_license(self):
         validator = load_validator()
         root = Path(__file__).resolve().parents[1]
@@ -104,8 +111,19 @@ class RepoContractTest(unittest.TestCase):
             (root / "config" / "zero_identity_policy.json").write_bytes(
                 policy_source.read_bytes()
             )
+            (root / "config" / "identity_provenance_authorizations.json").write_text(
+                json.dumps({
+                    "schema": "omnigenis-identity-provenance-authorization-v1",
+                    "authorizations": [],
+                }),
+                encoding="utf-8",
+            )
             subprocess.run(
-                ["git", "add", "config/zero_identity_policy.json"],
+                [
+                    "git", "add",
+                    "config/zero_identity_policy.json",
+                    "config/identity_provenance_authorizations.json",
+                ],
                 cwd=root,
                 check=True,
             )

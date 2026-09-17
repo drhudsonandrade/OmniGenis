@@ -2,11 +2,11 @@
 
 OmniGenis uses repository history as the canonical technical record of authorship and contribution provenance.
 
-## Canonical evidence
+## Creator attribution
 
-For any source file or project artifact, inspect the Git commit history, associated pull requests, review records, and signed or verified commit metadata where available.
+During the Alpha phase, the repository intentionally does not duplicate the natural-person creator's legal name across product, code, documentation, configuration, or public identifiers. The legal copyright-holder identity is confined to the copyright line of the project license and its authorized package-local copy.
 
-This file intentionally does not duplicate personal names from Git history. The repository remains the evidence-bearing source for contributor identity and chronology.
+Creator attribution, copyright ownership, contribution provenance, and public product identity are separate concepts. Git history, pull requests, review records, and signed or verified commit metadata remain the evidence-bearing record for technical contribution chronology.
 
 ## Interpretation boundary
 

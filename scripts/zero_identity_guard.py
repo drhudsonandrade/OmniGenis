@@ -4,7 +4,7 @@ import argparse
 from dataclasses import dataclass
 import hashlib
 import json
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import re
 import subprocess
 import sys
@@ -13,6 +13,10 @@ from typing import Iterable
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_POLICY = ROOT / "config/zero_identity_policy.json"
 _SCHEMA = "omnigenis-zero-identity-policy-v1"
+_AUTHORIZATION_SCHEMA = "omnigenis-identity-provenance-authorization-v1"
+_AUTHORIZATION_RELATIVE = b"config/identity_provenance_authorizations.json"
+_AUTHORIZED_PROVENANCE_PATHS = frozenset({"LICENSE", "policy_engine/LICENSE"})
+_AUTHORIZED_PROVENANCE_CLASSES = frozenset({"P2"})
 _REQUIRED_CLASS_IDS = frozenset({"P1", "P2", "P3", "P4"})
 _DIGEST_RE = re.compile(r"^[0-9a-f]{64}$")
 
@@ -37,6 +41,13 @@ class Finding:
     class_id: str
     path: str
     offset: int
+
+
+@dataclass(frozen=True)
+class AuthorizedBlob:
+    path: str
+    sha256: str
+    classes: frozenset[str]
 
 
 def _parse_policy_bytes(data: bytes) -> tuple[FingerprintClass, ...]:
@@ -86,6 +97,54 @@ def load_policy(path: Path = DEFAULT_POLICY) -> tuple[FingerprintClass, ...]:
     except OSError as exc:
         raise PolicyError(f"unable to load zero-identity policy: {exc}") from exc
     return _parse_policy_bytes(data)
+
+
+def _parse_authorization_bytes(
+    data: bytes, classes: tuple[FingerprintClass, ...]
+) -> tuple[AuthorizedBlob, ...]:
+    """Parse narrow path/blob/class exemptions for explicit public provenance."""
+    try:
+        payload = json.loads(data.decode("utf-8"))
+    except ValueError as exc:
+        raise PolicyError(f"unable to parse identity provenance authorizations: {exc}") from exc
+    if not isinstance(payload, dict) or payload.get("schema") != _AUTHORIZATION_SCHEMA:
+        raise PolicyError("identity provenance authorization schema mismatch")
+    raw_items = payload.get("authorizations")
+    if not isinstance(raw_items, list):
+        raise PolicyError("identity provenance authorizations must be a list")
+    known_classes = {item.class_id for item in classes}
+    seen_paths: set[str] = set()
+    authorizations: list[AuthorizedBlob] = []
+    for raw in raw_items:
+        if not isinstance(raw, dict):
+            raise PolicyError("identity provenance authorization must be an object")
+        path = raw.get("path")
+        digest = raw.get("sha256")
+        allowed = raw.get("classes")
+        if not isinstance(path, str) or not path or "\\" in path:
+            raise PolicyError("identity provenance authorization path invalid")
+        parsed = PurePosixPath(path)
+        if parsed.is_absolute() or ".." in parsed.parts or parsed.as_posix() != path:
+            raise PolicyError("identity provenance authorization path must be repository-relative")
+        if path not in _AUTHORIZED_PROVENANCE_PATHS:
+            raise PolicyError(f"identity provenance authorization path not permitted: {path}")
+        if path in seen_paths:
+            raise PolicyError(f"duplicate identity provenance authorization path: {path}")
+        if not isinstance(digest, str) or _DIGEST_RE.fullmatch(digest) is None:
+            raise PolicyError(f"identity provenance authorization digest invalid for {path}")
+        allowed_set = set(allowed) if isinstance(allowed, list) else set()
+        if (
+            not isinstance(allowed, list)
+            or not allowed
+            or not all(isinstance(item, str) for item in allowed)
+            or len(allowed_set) != len(allowed)
+            or not allowed_set <= known_classes
+            or not allowed_set <= _AUTHORIZED_PROVENANCE_CLASSES
+        ):
+            raise PolicyError(f"identity provenance authorization classes invalid for {path}")
+        seen_paths.add(path)
+        authorizations.append(AuthorizedBlob(path, digest, frozenset(allowed)))
+    return tuple(authorizations)
 
 
 _ASCII_LOWER_TABLE = bytes.maketrans(
@@ -232,6 +291,14 @@ def _load_index_policy(root: Path) -> tuple[FingerprintClass, ...]:
     return _parse_policy_bytes(data)
 
 
+def _load_index_authorizations(
+    root: Path, classes: tuple[FingerprintClass, ...]
+) -> tuple[AuthorizedBlob, ...]:
+    """Load provenance exemptions from the same index as the scanned blobs."""
+    data = _read_index_blob(root, _AUTHORIZATION_RELATIVE, classes)
+    return _parse_authorization_bytes(data, classes)
+
+
 def _safe_diagnostic_path(path: str, classes: tuple[FingerprintClass, ...]) -> str:
     """Redact only path components that themselves contain prohibited fingerprints."""
     raw = path.encode("utf-8", "surrogateescape")
@@ -248,14 +315,28 @@ def _safe_diagnostic_path(path: str, classes: tuple[FingerprintClass, ...]) -> s
 def scan_repository(root: Path, policy_path: Path | None = None) -> list[Finding]:
     """Scan every tracked path and blob for fingerprint matches."""
     root = root.resolve()
-    classes = load_policy(policy_path) if policy_path is not None else _load_index_policy(root)
+    if policy_path is not None:
+        classes = load_policy(policy_path)
+        authorizations: tuple[AuthorizedBlob, ...] = ()
+    else:
+        classes = _load_index_policy(root)
+        authorizations = _load_index_authorizations(root, classes)
+    authorized_by_path = {item.path: item for item in authorizations}
     findings: list[Finding] = []
     for path_bytes in _tracked_paths(root):
         path = path_bytes.decode("utf-8", "surrogateescape")
         for class_id, offset in _find_matches(path_bytes, classes):
             findings.append(Finding(class_id, path, offset))
         blob = _read_index_blob(root, path_bytes, classes)
-        for class_id, offset in _find_matches(blob, classes):
+        matches = _find_matches(blob, classes)
+        authorization = authorized_by_path.get(path)
+        if authorization is not None and hashlib.sha256(blob).hexdigest() == authorization.sha256:
+            matches = [
+                (class_id, offset)
+                for class_id, offset in matches
+                if class_id not in authorization.classes
+            ]
+        for class_id, offset in matches:
             findings.append(Finding(class_id, path, offset))
     return sorted(findings, key=lambda item: (item.path, item.offset, item.class_id))
 

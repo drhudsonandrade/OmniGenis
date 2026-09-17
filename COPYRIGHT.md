@@ -2,6 +2,8 @@
 
 Repository-native OmniGenis source code, documentation, tests, configuration, schemas, prompts, and original project artifacts are protected by copyright and remain subject to the root `LICENSE`.
 
+During the Alpha phase, the current natural-person copyright holder is identified only in the copyright line of the root `LICENSE` and the authorized package-local license copy required for distribution. This file intentionally does not duplicate the holder's personal identity.
+
 Public repository access is not a dedication to the public domain and does not by itself make OmniGenis open source.
 
 ## Provenance
