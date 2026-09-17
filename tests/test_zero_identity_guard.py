@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 import subprocess
@@ -16,6 +17,8 @@ from scripts.zero_identity_guard import (
     scan_repository,
     validate_zero_identity,
 )
+
+AUTHORIZATION_SCHEMA = "omnigenis-identity-provenance-authorization-v1"
 
 MUTATIONS = {
     "P1": bytes.fromhex("6472687564736f6e"),
@@ -37,6 +40,12 @@ class ZeroIdentityGuardTest(unittest.TestCase):
         policy = json.loads((Path(__file__).parents[1] / "config/zero_identity_policy.json").read_text())
         (root / "config/zero_identity_policy.json").write_text(json.dumps(policy), encoding="utf-8")
         subprocess.run(["git", "add", "config/zero_identity_policy.json"], cwd=root, check=True)
+        authorization = {"schema": AUTHORIZATION_SCHEMA, "authorizations": []}
+        self.track(
+            root,
+            "config/identity_provenance_authorizations.json",
+            json.dumps(authorization).encode("utf-8"),
+        )
         return root
 
     @staticmethod
@@ -49,6 +58,89 @@ class ZeroIdentityGuardTest(unittest.TestCase):
     @staticmethod
     def findings(root: Path):
         return scan_repository(root)
+
+    def assert_policy_error(self, root: Path) -> None:
+        try:
+            self.findings(root)
+        except PolicyError:
+            return
+        self.fail("PolicyError not raised")
+
+    @staticmethod
+    def set_authorizations(root: Path, authorizations: list[dict[str, object]]) -> None:
+        payload = json.dumps(
+            {"schema": AUTHORIZATION_SCHEMA, "authorizations": authorizations}
+        ).encode("utf-8")
+        ZeroIdentityGuardTest.track(
+            root, "config/identity_provenance_authorizations.json", payload
+        )
+
+    def test_authorized_license_blob_suppresses_only_declared_personal_class(self) -> None:
+        root = self.make_repo()
+        data = b"Copyright " + MUTATIONS["P2"] + b" " + MUTATIONS["P3"]
+        self.track(root, "LICENSE", data)
+        self.set_authorizations(
+            root,
+            [{
+                "path": "LICENSE",
+                "sha256": hashlib.sha256(data).hexdigest(),
+                "classes": ["P2"],
+            }],
+        )
+        findings = self.findings(root)
+        self.assertFalse(any(f.path == "LICENSE" and f.class_id == "P2" for f in findings))
+        self.assertTrue(any(f.path == "LICENSE" and f.class_id == "P3" for f in findings))
+
+    def test_authorized_license_blob_drift_is_not_exempt(self) -> None:
+        root = self.make_repo()
+        authorized = b"Copyright " + MUTATIONS["P2"]
+        self.set_authorizations(
+            root,
+            [{
+                "path": "LICENSE",
+                "sha256": hashlib.sha256(authorized).hexdigest(),
+                "classes": ["P2"],
+            }],
+        )
+        self.track(root, "LICENSE", authorized + b" changed")
+        findings = self.findings(root)
+        self.assertTrue(any(f.path == "LICENSE" and f.class_id == "P2" for f in findings))
+
+    def test_authorization_registry_rejects_non_license_path(self) -> None:
+        root = self.make_repo()
+        self.set_authorizations(
+            root,
+            [{
+                "path": "AUTHORS.md",
+                "sha256": "0" * 64,
+                "classes": ["P2"],
+            }],
+        )
+        self.assert_policy_error(root)
+
+    def test_authorization_registry_rejects_non_holder_fingerprint_class(self) -> None:
+        root = self.make_repo()
+        self.set_authorizations(
+            root,
+            [{
+                "path": "LICENSE",
+                "sha256": "0" * 64,
+                "classes": ["P1"],
+            }],
+        )
+        self.assert_policy_error(root)
+
+    def test_authorization_registry_rejects_unhashable_class_entry_as_policy_error(self) -> None:
+        root = self.make_repo()
+        self.set_authorizations(
+            root,
+            [{
+                "path": "LICENSE",
+                "sha256": "0" * 64,
+                "classes": ["P2", {"unexpected": "object"}],
+            }],
+        )
+        self.assert_policy_error(root)
 
     def test_each_class_is_detected_in_blob_content(self) -> None:
         for class_id, token in MUTATIONS.items():

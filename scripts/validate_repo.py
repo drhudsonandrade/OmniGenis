@@ -34,6 +34,9 @@ CANONICAL_RULESET_SHA256 = EXPECTED_SHA
 FALLOW_ACTION_SHA = "45fd28766199acb1f939f6862274a37aad12770b"
 PRODUCTION_WITNESS_CAPABILITY_GUARD = "${{ vars.GENOMA_PRODUCTION_WITNESS_ENABLED == 'true' }}"
 REQUIRED_PATHS = (
+    "LICENSE", "COPYRIGHT.md", "AUTHORS.md", "THIRD_PARTY_NOTICES.md",
+    "docs/compliance/LICENSING_POLICY.md", "docs/compliance/DEPENDENCY_POLICY.md", "licenses/README.md",
+    "policy_engine/LICENSE",
     ".fallowrc.json", ".github/workflows/fallow.yml", ".github/workflows/scaffold-validation.yml",
     ".github/workflows/genoma-policy-engine.yml", ".github/workflows/genoma-production-ceremony.yml",
     ".github/workflows/genoma-production-witness.yml", ".github/workflows/genoma-ngs-runtime-gate.yml",
@@ -43,7 +46,7 @@ REQUIRED_PATHS = (
     "config/code_language_policy.json", "config/code_language_legacy_baseline.json",
     "config/residual_language_classification.json",
     "config/project_identity.json", "config/legacy_identity_ledger.json",
-    "config/zero_identity_policy.json",
+    "config/zero_identity_policy.json", "config/identity_provenance_authorizations.json",
     "manifests/GRCh38.sources.tsv", "manifests/GRCh38.lock.sha256.example", "manifests/RULESET_V3.4.sha256",
     "normative/sealed/MANIFEST.json", "normative/sealed/README.md",
     "scripts/__init__.py", "scripts/sealed_ruleset.py", "scripts/code_language_guard.py",

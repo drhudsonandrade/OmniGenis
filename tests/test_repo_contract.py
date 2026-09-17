@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -64,6 +65,44 @@ class RepoContractTest(unittest.TestCase):
         ):
             self.assertIn(relative, validator.REQUIRED_PATHS)
 
+    def test_compliance_baseline_paths_are_required(self):
+        validator = load_validator()
+        compliance_paths = (
+            "LICENSE",
+            "COPYRIGHT.md",
+            "AUTHORS.md",
+            "THIRD_PARTY_NOTICES.md",
+            "docs/compliance/LICENSING_POLICY.md",
+            "docs/compliance/DEPENDENCY_POLICY.md",
+            "licenses/README.md",
+            "policy_engine/LICENSE",
+            "config/identity_provenance_authorizations.json",
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            errors = validator.validate(Path(directory))
+        for relative in compliance_paths:
+            self.assertIn(relative, validator.REQUIRED_PATHS)
+            self.assertIn(f"missing required path: {relative}", errors)
+
+    def test_identity_provenance_authorization_registry_is_required(self):
+        validator = load_validator()
+        relative = "config/identity_provenance_authorizations.json"
+        with tempfile.TemporaryDirectory() as directory:
+            errors = validator.validate(Path(directory))
+        self.assertIn(relative, validator.REQUIRED_PATHS)
+        self.assertIn(f"missing required path: {relative}", errors)
+
+    def test_policy_engine_distribution_has_local_authorized_license(self):
+        validator = load_validator()
+        root = Path(__file__).resolve().parents[1]
+        self.assertIn("policy_engine/LICENSE", validator.REQUIRED_PATHS)
+        self.assertEqual(
+            (root / "policy_engine" / "LICENSE").read_bytes(),
+            (root / "LICENSE").read_bytes(),
+        )
+        pyproject = (root / "policy_engine" / "pyproject.toml").read_text(encoding="utf-8")
+        self.assertIn('license = {file = "LICENSE"}', pyproject)
+
     def test_official_validator_rejects_each_prohibited_fingerprint_class(self):
         validator = load_validator()
         policy_source = Path(__file__).resolve().parents[1] / "config" / "zero_identity_policy.json"
@@ -75,13 +114,30 @@ class RepoContractTest(unittest.TestCase):
         }
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            git_executable = shutil.which("git")
+            if git_executable is None:
+                self.fail("git executable unavailable")
+            subprocess.run([git_executable, "init", "-q"], cwd=root, check=True)
             (root / "config").mkdir()
             (root / "config" / "zero_identity_policy.json").write_bytes(
                 policy_source.read_bytes()
             )
+            (root / "config" / "identity_provenance_authorizations.json").write_text(
+                json.dumps(
+                    {
+                        "schema": "omnigenis-identity-provenance-authorization-v1",
+                        "authorizations": [],
+                    }
+                ),
+                encoding="utf-8",
+            )
             subprocess.run(
-                ["git", "add", "config/zero_identity_policy.json"],
+                [
+                    git_executable,
+                    "add",
+                    "config/zero_identity_policy.json",
+                    "config/identity_provenance_authorizations.json",
+                ],
                 cwd=root,
                 check=True,
             )
@@ -90,7 +146,7 @@ class RepoContractTest(unittest.TestCase):
                     target = root / "identity-mutation.bin"
                     target.write_bytes(b"safe-" + payload + b"-fixture")
                     subprocess.run(
-                        ["git", "add", "identity-mutation.bin"],
+                        [git_executable, "add", "identity-mutation.bin"],
                         cwd=root,
                         check=True,
                     )
@@ -103,13 +159,12 @@ class RepoContractTest(unittest.TestCase):
                         errors,
                     )
                     subprocess.run(
-                        ["git", "rm", "--cached", "-f", "identity-mutation.bin"],
+                        [git_executable, "rm", "--cached", "-f", "identity-mutation.bin"],
                         cwd=root,
                         check=True,
                         stdout=subprocess.DEVNULL,
                     )
                     target.unlink()
-
     def test_identity_contract_paths_are_required(self):
         validator = load_validator()
         for relative in (

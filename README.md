@@ -26,3 +26,9 @@ There must be exactly one active runtime copy of `REGRAS_..._v3.4_2026-08-17.txt
 - **Optional interfaces:** `an agent interface, a web UI, an ingress tunnel, a durable orchestrator and an evidence index. Named by capability: none is a runtime dependency.`
 
 Post-deployment status is evidence-driven. Never infer it from README text; use the most recent `genoma-post-deployment-evidence-<commit>` artifact and the ruleset-defined gate.
+
+## Licensing
+
+Repository-native OmniGenis material is proprietary and subject to the root `LICENSE`. Third-party software, datasets, standards, and scientific resources retain their own terms and are tracked separately under the repository compliance policy.
+
+See `COPYRIGHT.md`, `AUTHORS.md`, `THIRD_PARTY_NOTICES.md`, and `docs/compliance/` for provenance and licensing boundaries. Public repository visibility does not by itself make OmniGenis open source.
