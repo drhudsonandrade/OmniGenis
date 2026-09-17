@@ -1,0 +1,130 @@
+from __future__ import annotations
+
+import tempfile
+import unittest
+from pathlib import Path
+
+from PIL import Image
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+class StrongCopyleftRuntimeCleanupTest(unittest.TestCase):
+    def test_active_runtime_has_no_poppler_dependency_or_commands(self) -> None:
+        active = (
+            "environment.yml",
+            "locks/runtime-lock.json",
+            "scripts/runtime_stack.py",
+            "scripts/check_versions.sh",
+            "scripts/run_canary.sh",
+            "reporting/template_v3.py",
+        )
+        prohibited = ("poppler", "pdftoppm", "pdftocairo")
+        for relative in active:
+            text = (ROOT / relative).read_text(encoding="utf-8").lower()
+            with self.subTest(path=relative):
+                for token in prohibited:
+                    self.assertNotIn(token, text)
+
+    def test_docx_background_renderer_uses_pdfium_at_print_resolution(self) -> None:
+        from reporting.template_v3 import (
+            DOCX_BACKGROUND_DPI,
+            _render_template_pages_pdfium,
+        )
+
+        self.assertEqual(DOCX_BACKGROUND_DPI, 288)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source.pdf"
+            writer = canvas.Canvas(str(source), pagesize=A4)
+            writer.drawString(72, 760, "OmniGenis PDFium DOCX background test")
+            writer.save()
+
+            outputs = _render_template_pages_pdfium(source, root / "work", 1)
+            self.assertEqual(len(outputs), 1)
+            self.assertTrue(outputs[0].is_file())
+            with Image.open(outputs[0]) as image:
+                self.assertEqual(image.mode, "RGB")
+                self.assertGreaterEqual(image.width, 2300)
+                self.assertGreaterEqual(image.height, 3300)
+
+    def test_docx_runtime_no_longer_uses_svg_patch(self) -> None:
+        source = (ROOT / "reporting/template_v3.py").read_text(encoding="utf-8")
+        self.assertNotIn("_patch_docx_svg", source)
+        self.assertNotIn("template-v3-svg-docx", source)
+        self.assertIn("template-v3-pdfium-raster-docx", source)
+
+    def test_editorial_canary_and_version_gate_use_pdfium(self) -> None:
+        canary = (ROOT / "scripts/run_canary.sh").read_text(encoding="utf-8").lower()
+        versions = (ROOT / "scripts/check_versions.sh").read_text(encoding="utf-8").lower()
+        self.assertIn("pypdfium2", canary)
+        self.assertIn("pypdfium2", versions)
+        self.assertNotIn("pdftoppm", canary)
+        self.assertNotIn("pdftocairo", canary)
+        self.assertNotIn("pdftoppm", versions)
+        self.assertNotIn("pdftocairo", versions)
+
+
+class Stage3ValidatorContractTest(unittest.TestCase):
+    def _write_valid_surfaces(self, root: Path) -> None:
+        payloads = {
+            "environment.yml": "dependencies:\n  - python=3.11\n",
+            "locks/runtime-lock.json": "{}\n",
+            "scripts/runtime_stack.py": "MANAGED_RUNTIME_PACKAGES = ('python',)\n",
+            "scripts/check_versions.sh": "check_python_package pypdfium2 '5.13.0'\n",
+            "scripts/run_canary.sh": (
+                "import pypdfium2 as pdfium\n"
+                'payload = {"renderer": "PDFium"}\n'
+            ),
+            "reporting/template_v3.py": (
+                "DOCX_BACKGROUND_DPI = 288\n"
+                "def _render_template_pages_pdfium(): pass\n"
+                "MODE = 'template-v3-pdfium-raster-docx'\n"
+            ),
+        }
+        for relative, content in payloads.items():
+            path = root / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(content, encoding="utf-8")
+
+    def test_stage3_validator_accepts_remediated_runtime(self) -> None:
+        from scripts.validate_repo import validate_stage3_copyleft_contract
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_valid_surfaces(root)
+            errors: list[str] = []
+            validate_stage3_copyleft_contract(root, errors)
+            self.assertEqual(errors, [])
+
+    def test_stage3_validator_rejects_poppler_reintroduction(self) -> None:
+        from scripts.validate_repo import validate_stage3_copyleft_contract
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_valid_surfaces(root)
+            (root / "environment.yml").write_text(
+                "dependencies:\n  - poppler=26.07.0\n", encoding="utf-8"
+            )
+            errors: list[str] = []
+            validate_stage3_copyleft_contract(root, errors)
+            self.assertTrue(any("reintroduced" in error for error in errors), errors)
+
+    def test_stage3_validator_rejects_missing_pdfium_contract(self) -> None:
+        from scripts.validate_repo import validate_stage3_copyleft_contract
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_valid_surfaces(root)
+            (root / "reporting/template_v3.py").write_text(
+                "DOCX_BACKGROUND_DPI = 288\n", encoding="utf-8"
+            )
+            errors: list[str] = []
+            validate_stage3_copyleft_contract(root, errors)
+            self.assertTrue(any("PDFium DOCX contract missing" in error for error in errors), errors)
+
+
+if __name__ == "__main__":
+    unittest.main()

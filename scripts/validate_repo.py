@@ -46,6 +46,7 @@ REQUIRED_PATHS = (
     "docs/compliance/LICENSING_POLICY.md", "docs/compliance/DEPENDENCY_POLICY.md", "licenses/README.md",
     "licenses/pypdfium2-5.13.0/README.md", "docs/evidence/PDFIUM_COORDINATE_MIGRATION_2026-09-17.json",
     "docs/evidence/PDFIUM_STATIC_PIXEL_QA_200DPI_2026-09-17.json",
+    "docs/evidence/STRONG_COPYLEFT_RUNTIME_CLEANUP_2026-09-17.json",
     "policy_engine/LICENSE",
     ".fallowrc.json", ".github/workflows/fallow.yml", ".github/workflows/scaffold-validation.yml",
     ".github/workflows/genoma-policy-engine.yml", ".github/workflows/genoma-production-ceremony.yml",
@@ -859,6 +860,80 @@ def validate_stage2_pdf_contract(root: Path, errors: list[str]) -> None:
         errors.append("Stage 2 runtime lock evidence mismatch")
 
 
+
+
+STAGE3_COPYLEFT_ACTIVE_SURFACES = (
+    "environment.yml",
+    "locks/runtime-lock.json",
+    "scripts/runtime_stack.py",
+    "scripts/check_versions.sh",
+    "scripts/run_canary.sh",
+    "reporting/template_v3.py",
+)
+
+
+def validate_stage3_copyleft_contract(root: Path, errors: list[str]) -> None:
+    """Keep the remediated application runtime free of the retired Poppler dependency."""
+    prohibited = ("poppler", "pdftoppm", "pdftocairo")
+    for relative in STAGE3_COPYLEFT_ACTIVE_SURFACES:
+        path = root / relative
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8", errors="replace").lower()
+        for token in prohibited:
+            if token in text:
+                errors.append(f"Stage 3 retired PDF runtime dependency reintroduced: {relative}: {token}")
+
+    evidence_path = root / "docs/evidence/STRONG_COPYLEFT_RUNTIME_CLEANUP_2026-09-17.json"
+    if evidence_path.is_file():
+        try:
+            evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+            errors.append(f"Stage 3 cleanup evidence invalid: {type(exc).__name__}: {exc}")
+        else:
+            removed = evidence.get("removed_runtime_component")
+            replacement = evidence.get("replacement")
+            verification = evidence.get("verification")
+            if (
+                evidence.get("schema") != "omnigenis-stage3-strong-copyleft-runtime-cleanup-v1"
+                or evidence.get("status") != "VERIFIED"
+                or not isinstance(removed, dict)
+                or removed.get("name") != "Poppler"
+                or removed.get("version") != "26.07.0"
+                or not isinstance(replacement, dict)
+                or replacement.get("wrapper") != "pypdfium2"
+                or replacement.get("version") != "5.13.0"
+                or replacement.get("backend") != "PDFium"
+                or replacement.get("docx_static_background_dpi") != 288
+                or replacement.get("audited_linux_x86_64_wheel_sha256") != STAGE2_PDFIUM_WHEEL_SHA256
+                or not isinstance(verification, dict)
+                or verification.get("directed_tests") != "PASS"
+                or verification.get("repository_validator") != "PASS"
+                or verification.get("supply_chain_gate") != "PASS"
+                or verification.get("residual_language_gate") != "PASS"
+                or verification.get("full_test_suite") != "PASS"
+                or not re.fullmatch(r"[0-9a-f]{40}", str(verification.get("pre_attestation_tested_tree_sha", "")))
+            ):
+                errors.append("Stage 3 cleanup evidence contract mismatch")
+
+    template = root / "reporting/template_v3.py"
+    if template.is_file():
+        text = template.read_text(encoding="utf-8")
+        for token in (
+            "DOCX_BACKGROUND_DPI = 288",
+            "template-v3-pdfium-raster-docx",
+            "_render_template_pages_pdfium",
+        ):
+            if token not in text:
+                errors.append(f"Stage 3 PDFium DOCX contract missing: {token}")
+
+    canary = root / "scripts/run_canary.sh"
+    if canary.is_file():
+        text = canary.read_text(encoding="utf-8")
+        for token in ('import pypdfium2 as pdfium', '"renderer": "PDFium"'):
+            if token not in text:
+                errors.append(f"Stage 3 editorial canary contract missing: {token}")
+
 def validate_language_policy(root: Path, errors: list[str]) -> None:
     try:
         validate_code_language(root, errors)
@@ -1045,6 +1120,7 @@ def validate(root: Path) -> list[str]:
     validate_superseded_identity_locations(root, errors)
     validate_core_runtime_dependencies(root, errors)
     validate_stage2_pdf_contract(root, errors)
+    validate_stage3_copyleft_contract(root, errors)
 
     active = []
     for candidate in root.rglob("REGRAS_PROJETO_GENOMA*.txt"):

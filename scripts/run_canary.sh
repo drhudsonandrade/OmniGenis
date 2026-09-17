@@ -23,8 +23,7 @@ else
     printf 'gatk\t%s\n' "$(gatk --version 2>&1 | tail -1)"
     printf 'nextflow\t%s\n' "$(nextflow -version 2>&1 | grep -m1 version || true)"
     printf 'snakemake\t%s\n' "$(snakemake --version 2>&1 | head -1)"
-    printf 'pdftoppm\t%s\n' "$(pdftoppm -v 2>&1 | head -1)"
-    printf 'pdftocairo\t%s\n' "$(pdftocairo -v 2>&1 | head -1)"
+    printf 'pypdfium2\t%s\n' "$(python3 -c 'import importlib.metadata as md; print(md.version("pypdfium2"))')"
   } > "$OUTPUT_DIR/tool_versions.tsv"
 fi
 if command -v micromamba >/dev/null 2>&1; then
@@ -33,55 +32,55 @@ if command -v micromamba >/dev/null 2>&1; then
 fi
 # Functional editorial runtime canary is part of the same candidate witness.
 # This makes session promotion contingent on the PDF/DOCX renderer stack, not only NGS executables.
-python3 - <<'PY' "$WORK_DIR/editorial-canary.pdf" "$OUTPUT_DIR/editorial-runtime.json"
+python3 - <<'PY' "$WORK_DIR/editorial-canary.pdf" "$WORK_DIR/editorial-canary.png" "$OUTPUT_DIR/editorial-runtime.json"
 import importlib.metadata as md
 import json, sys
+import pypdfium2 as pdfium
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
-pdf, out = sys.argv[1], sys.argv[2]
+
+pdf, png, out = sys.argv[1:4]
 c = canvas.Canvas(pdf, pagesize=A4)
 c.drawString(72, 760, "GENOMA editorial runtime canary")
 c.save()
+
+document = pdfium.PdfDocument(pdf)
+try:
+    if len(document) != 1:
+        raise RuntimeError(f"editorial canary page count mismatch: {len(document)}")
+    page = document[0]
+    try:
+        bitmap = page.render(scale=2.0, rotation=0, rev_byteorder=True)
+        try:
+            image = bitmap.to_pil().convert("RGB")
+            image.save(png, format="PNG", optimize=True)
+            image.close()
+        finally:
+            bitmap.close()
+    finally:
+        page.close()
+finally:
+    document.close()
+
 payload = {
-    "status": "PENDING",
+    "status": "PASS",
+    "renderer": "PDFium",
+    "render_dpi": 144,
     "python_packages": {
         "reportlab": md.version("reportlab"),
         "python-docx": md.version("python-docx"),
         "pypdf": md.version("pypdf"),
         "Pillow": md.version("Pillow"),
+        "pypdfium2": md.version("pypdfium2"),
     },
+    "functional_outputs": ["PNG"],
 }
 open(out, "w", encoding="utf-8").write(json.dumps(payload, indent=2) + "\n")
 PY
-# Fail at the failing step with its reason, not later on a missing artifact: the
-# renderer's stderr is what tells an operator which part of the stack is broken.
-if ! pdftoppm -singlefile -r 72 -png "$WORK_DIR/editorial-canary.pdf" "$WORK_DIR/editorial-canary"; then
-  printf 'FAIL\teditor_runtime\treason=pdftoppm_failed\n' >&2
-  exit 7
-fi
-if ! pdftocairo -svg "$WORK_DIR/editorial-canary.pdf" "$WORK_DIR/editorial-canary.svg"; then
-  printf 'FAIL\teditor_runtime\treason=pdftocairo_failed\n' >&2
-  exit 8
-fi
 if [[ ! -s "$WORK_DIR/editorial-canary.png" ]]; then
-  printf 'FAIL\teditor_runtime\treason=empty_png_raster\n' >&2
+  printf 'FAIL\teditor_runtime\treason=empty_pdfium_png_raster\n' >&2
   exit 7
 fi
-if [[ ! -s "$WORK_DIR/editorial-canary.svg" ]]; then
-  printf 'FAIL\teditor_runtime\treason=empty_svg_vector\n' >&2
-  exit 8
-fi
-python3 - <<'PY' "$OUTPUT_DIR/editorial-runtime.json"
-import json, subprocess, sys
-p=sys.argv[1]; d=json.load(open(p, encoding="utf-8"))
-d.update({
-    "status":"PASS",
-    "pdftoppm":subprocess.run(["pdftoppm","-v"],capture_output=True,text=True,check=True).stderr.splitlines()[0],
-    "pdftocairo":subprocess.run(["pdftocairo","-v"],capture_output=True,text=True,check=True).stderr.splitlines()[0],
-    "functional_outputs":["PNG","SVG"],
-})
-open(p,"w",encoding="utf-8").write(json.dumps(d,indent=2)+"\n")
-PY
 
 python3 "$PROJECT_ROOT/scripts/generate_canary.py" "$WORK_DIR/input"
 

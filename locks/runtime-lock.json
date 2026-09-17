@@ -22,8 +22,7 @@
     "bwa-mem2": "2.3",
     "gatk4": "4.6.2.0",
     "nextflow": "26.04.6",
-    "snakemake-minimal": "7.32.4",
-    "poppler": "26.07.0"
+    "snakemake-minimal": "7.32.4"
   },
   "python_requirements": "reporting/requirements.txt",
   "npm_lock": "mcp/package-lock.json",

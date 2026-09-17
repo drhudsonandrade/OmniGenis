@@ -11,10 +11,17 @@ Third-party software, datasets, standards, reference resources, and documentatio
 - PDFium uses a BSD-style license. Binary PDFium distributions also carry licenses for bundled dependencies, each of which remains governed by its own terms; the inspected pypdfium2 wheel preserves those notices in its installed license directory.
 - Stage 2 technically accepts only this exact verified artifact boundary for the active coordinate-compiler runtime. This is not a repository-wide license-clean certification or a legal opinion. A different package version, platform wheel, or custom PDFium build requires renewed license review.
 
+## Stage 3 application-runtime copyleft remediation
+
+- Poppler 26.07.0 and its `pdftoppm`/`pdftocairo` executables are removed from the active OmniGenis application runtime, runtime lock, runtime version gate, functional editorial canary, and DOCX renderer. No standing Poppler exception is granted.
+- The DOCX static page plate is now rendered through the Stage 2 reviewed PDFium boundary at 288 DPI. Dynamic report fields remain editable Word text boxes; the former SVG page-plate patch is retired.
+- Historical evidence and documentation may retain Poppler references when they describe the software actually used for an earlier validation event. Those references are provenance, not active-runtime authorization.
+- This cleanup does not assert that the container, operating-system layer, or repository is free of GPL/LGPL or other copyleft software. System packages and transitive dependencies remain subject to the complete inventory, SBOM, notice, redistribution, and source-obligation analysis planned for Stage 4.
+
 ## Known remediation items
 
-- Poppler remains a known licensing remediation item and is not treated as license-cleared by this stage.
 - Scientific datasets and scoring resources may carry per-resource or per-score restrictions that must be evaluated independently.
+- Operating-system, system-utility, and transitive dependency licensing remains to be reconciled by the Stage 4 inventory and SBOM.
 
 ## Required handling
 

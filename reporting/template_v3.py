@@ -9,15 +9,9 @@ import math
 import os
 import re
 import shutil
-
-# Imported to drive poppler's `pdftocairo`/`pdftoppm` when a DOCX is built from the
-# template pack. Bandit's B404 is an advisory on the import alone; `_run_poppler`, the
-# single call site, states why its argv is trusted.
-import subprocess  # nosec B404
 import tempfile
-import zipfile
 import zlib
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from typing import Any
 
 from pypdf import PdfReader, PdfWriter
@@ -31,7 +25,7 @@ CURRENT_RULESET_TEMPLATE_SOURCE = "GENOMA-RULESET-v3.4"
 CURRENT_RULESET_TEMPLATE_LABEL = "GENOMA-RULESET-v3.4"
 LEGACY_RULESET_TEMPLATE_SOURCE_SHA256 = "e9d2e43c9c775b9bef05e7d33cd18ada3ef9e1e4bbfeda4db2617de1ab75cd97"
 SINGLE_LINE_LEADING = 1.2
-POPPLER_TIMEOUT_SECONDS = 120
+DOCX_BACKGROUND_DPI = 288
 
 SYSTEM_REPLACEMENTS = {
     "MODELO REUTILIZÁVEL v3.0": "RESULTADO GENÔMICO v3.0",
@@ -793,225 +787,62 @@ def _add_vml_textbox(
     paragraph._p.append(run)
 
 
-def _run_poppler(command: list[str], page: int, *, allowed: frozenset[str]) -> None:
-    """Run one poppler conversion, turning a non-zero exit or a timeout into a refusal.
-
-    stderr is captured and reported: a silent conversion failure would leave a missing page
-    image that the DOCX then renders as a blank.
-
-    `allowed` is the set of absolute paths `_convert_template_pages` resolved for the two
-    poppler tools, and it is checked here rather than assumed. Raised in review: a comment
-    saying the executable came from `shutil.which` is a statement about today's callers, not
-    a property of this function — `command` is a plain list, and a future caller passing a
-    different program would be executed with the suppression above still in place. The set is
-    passed in rather than re-resolved so that the binary this gate admits is the same object
-    `shutil.which` returned, not a second PATH lookup that could answer differently.
-    """
-    if not command or command[0] not in allowed:
-        raise TemplateV3Error(
-            f"refusing to execute {(command[0] if command else '')!r}: not one of the poppler "
-            "binaries resolved for this conversion"
-        )
-    try:
-        # Bandit's B603 asks a human to confirm the argv is trusted. It is, and the check
-        # above is that confirmation rather than a claim about it: `command[0]` has just been
-        # tested against the two absolute paths `shutil.which` returned for pdftocairo and
-        # pdftoppm, and every remaining element is a page number this loop produced or a path
-        # under the caller's temporary working directory. The list form goes straight to
-        # execve with no shell.
-        result = subprocess.run(  # nosec B603  # nosemgrep
-            command,
-            check=False,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.PIPE,
-            timeout=POPPLER_TIMEOUT_SECONDS,
-        )
-    except subprocess.TimeoutExpired as exc:
-        raise TemplateV3Error(
-            f"{command[0]} timed out on template page {page} after {POPPLER_TIMEOUT_SECONDS}s"
-        ) from exc
-    if result.returncode != 0:
-        detail = (result.stderr or b"").decode("utf-8", errors="replace").strip()
-        raise TemplateV3Error(
-            f"{command[0]} failed on template page {page} with exit code {result.returncode}"
-            + (f": {detail[-500:]}" if detail else "")
-        )
-
-
-def _convert_template_pages(
+def _render_template_pages_pdfium(
     template_pdf: Path,
     work: Path,
     page_count: int,
-) -> tuple[list[Path], list[Path]]:
-    """Render each template page to SVG and PNG for embedding in a DOCX.
+) -> list[Path]:
+    """Render exact template pages to print-resolution PNG backgrounds with PDFium.
 
-    Both are produced because Word needs the raster for display and the vector for print
-    fidelity. Refuses up front when poppler is absent rather than emitting a partial pack.
+    The DOCX keeps dynamic fields editable, while the approved static page plate is
+    rasterized at 288 DPI (4 PDF pixels per point). This deliberately avoids a second
+    strong-copyleft PDF renderer in the active runtime. Any page-count or rendering error
+    fails closed instead of emitting a partial Word document.
     """
-    pdftocairo = shutil.which("pdftocairo")
-    pdftoppm = shutil.which("pdftoppm")
-    if pdftocairo is None or pdftoppm is None:
-        raise TemplateV3Error(
-            "DOCX template-v3 mode requires pdftocairo and pdftoppm (poppler-utils)"
-        )
-    # Resolved once, here, and handed to every call as the gate they are checked against.
-    allowed = frozenset({pdftocairo, pdftoppm})
-    svgs: list[Path] = []
-    pngs: list[Path] = []
-    for page in range(1, page_count + 1):
-        svg = work / f"page-{page}.svg"
-        raw = work / f"page-{page}.svg.raw"
-        _run_poppler(
-            [pdftocairo, "-f", str(page), "-l", str(page), "-svg", str(template_pdf), str(raw)],
-            page,
-            allowed=allowed,
-        )
-        raw.rename(svg)
-        stem = work / f"page-{page}-fallback"
-        _run_poppler(
-            [
-                pdftoppm,
-                "-f",
-                str(page),
-                "-l",
-                str(page),
-                "-singlefile",
-                "-r",
-                "144",
-                "-png",
-                str(template_pdf),
-                str(stem),
-            ],
-            page,
-            allowed=allowed,
-        )
-        svgs.append(svg)
-        pngs.append(Path(str(stem) + ".png"))
-    return svgs, pngs
+    import pypdfium2 as pdfium
 
-
-def _patch_docx_svg(docx_path: Path, svgs: list[Path]) -> None:
-    """Attach the SVG page images to a DOCX that already carries the PNG fallbacks.
-
-    python-docx cannot write `asvg:svgBlip`, so the package is reopened and the relationship
-    added directly. Entry names are resolved against the archive root before extraction, so
-    a crafted DOCX cannot write outside the temporary directory.
-    """
-    from lxml import etree
-
-    temp_dir = Path(tempfile.mkdtemp(prefix="genoma-docx-svg-"))
+    work.mkdir(parents=True, exist_ok=True)
     try:
-        with zipfile.ZipFile(docx_path) as archive:
-            base = temp_dir.resolve()
-            seen: set[str] = set()
-            for member in archive.infolist():
-                member_path = PurePosixPath(member.filename)
-                if member_path.is_absolute() or ".." in member_path.parts:
-                    raise TemplateV3Error(f"unsafe DOCX archive member: {member.filename}")
-                target = (base / Path(*member_path.parts)).resolve()
-                if target != base and base not in target.parents:
-                    raise TemplateV3Error(f"unsafe DOCX archive member: {member.filename}")
-                normalized_target = target.relative_to(base).as_posix()
-                if normalized_target in seen:
-                    raise TemplateV3Error(
-                        f"duplicate DOCX extraction target: {member.filename} -> {normalized_target}"
-                    )
-                seen.add(normalized_target)
-            archive.extractall(temp_dir)
-        media = temp_dir / "word" / "media"
-        media.mkdir(parents=True, exist_ok=True)
-        content_types = temp_dir / "[Content_Types].xml"
-        tree = etree.parse(str(content_types))
-        root = tree.getroot()
-        content_type_ns = "{http://schemas.openxmlformats.org/package/2006/content-types}"
-        if not any(
-            element.get("Extension") == "svg"
-            for element in root.findall(content_type_ns + "Default")
-        ):
-            element = etree.Element(content_type_ns + "Default")
-            element.set("Extension", "svg")
-            element.set("ContentType", "image/svg+xml")
-            root.append(element)
-        tree.write(
-            str(content_types),
-            xml_declaration=True,
-            encoding="UTF-8",
-            standalone="yes",
-        )
-
-        relationships_path = temp_dir / "word" / "_rels" / "document.xml.rels"
-        tree = etree.parse(str(relationships_path))
-        relationships = tree.getroot()
-        relationship_ns = "{http://schemas.openxmlformats.org/package/2006/relationships}"
-        identifiers: list[int] = []
-        for element in relationships.findall(relationship_ns + "Relationship"):
-            relation_id = element.get("Id", "")
-            if relation_id.startswith("rId"):
+        document = pdfium.PdfDocument(str(template_pdf))
+    except Exception as exc:
+        raise TemplateV3Error(f"PDFium could not open DOCX template background: {template_pdf.name}") from exc
+    outputs: list[Path] = []
+    try:
+        if len(document) != page_count:
+            raise TemplateV3Error(
+                f"DOCX template page-count mismatch: expected {page_count}, observed {len(document)}"
+            )
+        scale = DOCX_BACKGROUND_DPI / 72.0
+        for page_index in range(page_count):
+            page_number = page_index + 1
+            page = document[page_index]
+            try:
+                bitmap = page.render(scale=scale, rotation=0, rev_byteorder=True)
                 try:
-                    identifiers.append(int(relation_id[3:]))
-                except ValueError:
-                    pass
-        next_id = max(identifiers or [0]) + 1
-        svg_relation_ids: list[str] = []
-        for index, source in enumerate(svgs, 1):
-            name = f"genoma-page-{index}.svg"
-            shutil.copy(source, media / name)
-            relation_id = f"rId{next_id}"
-            next_id += 1
-            svg_relation_ids.append(relation_id)
-            element = etree.Element(relationship_ns + "Relationship")
-            element.set("Id", relation_id)
-            element.set(
-                "Type",
-                "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image",
-            )
-            element.set("Target", "media/" + name)
-            relationships.append(element)
-        tree.write(
-            str(relationships_path),
-            xml_declaration=True,
-            encoding="UTF-8",
-            standalone="yes",
-        )
-
-        document = temp_dir / "word" / "document.xml"
-        parser = etree.XMLParser(remove_blank_text=False)
-        tree = etree.parse(str(document), parser)
-        document_root = tree.getroot()
-        drawing_ns = "http://schemas.openxmlformats.org/drawingml/2006/main"
-        relationship_attribute_ns = (
-            "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
-        )
-        svg_ns = "http://schemas.microsoft.com/office/drawing/2016/SVG/main"
-        blips = document_root.xpath("//a:blip", namespaces={"a": drawing_ns})
-        if len(blips) < len(svg_relation_ids):
-            raise TemplateV3Error("DOCX SVG patch could not find every page background")
-        for blip, relation_id in zip(blips[: len(svg_relation_ids)], svg_relation_ids):
-            extension_list = etree.SubElement(blip, f"{{{drawing_ns}}}extLst")
-            extension = etree.SubElement(extension_list, f"{{{drawing_ns}}}ext")
-            extension.set("uri", "{96DAC541-7B7A-43D3-8B79-37D633B846F1}")
-            svg_blip = etree.SubElement(
-                extension,
-                f"{{{svg_ns}}}svgBlip",
-                nsmap={"asvg": svg_ns},
-            )
-            svg_blip.set(f"{{{relationship_attribute_ns}}}embed", relation_id)
-        tree.write(
-            str(document),
-            xml_declaration=True,
-            encoding="UTF-8",
-            standalone="yes",
-        )
-
-        patched = docx_path.with_suffix(".svgpatch.docx")
-        with zipfile.ZipFile(patched, "w", zipfile.ZIP_DEFLATED) as archive:
-            for file in temp_dir.rglob("*"):
-                if file.is_file():
-                    archive.write(file, file.relative_to(temp_dir))
-        patched.replace(docx_path)
+                    image = bitmap.to_pil().convert("RGB")
+                    try:
+                        output = work / f"page-{page_number}.png"
+                        image.save(output, format="PNG", optimize=True)
+                    finally:
+                        image.close()
+                finally:
+                    bitmap.close()
+            except TemplateV3Error:
+                raise
+            except Exception as exc:
+                raise TemplateV3Error(
+                    f"PDFium failed to render DOCX template page {page_number}"
+                ) from exc
+            finally:
+                page.close()
+            if not output.is_file() or output.stat().st_size == 0:
+                raise TemplateV3Error(
+                    f"PDFium produced an empty DOCX template background for page {page_number}"
+                )
+            outputs.append(output)
     finally:
-        shutil.rmtree(temp_dir, ignore_errors=True)
-
+        document.close()
+    return outputs
 
 def render_docx_from_template(
     rendered: dict[str, Any],
@@ -1043,7 +874,7 @@ def render_docx_from_template(
     replaced_controls = 0
     work = Path(tempfile.mkdtemp(prefix=f"genoma-v3-{report_id}-"))
     try:
-        svgs, pngs = _convert_template_pages(template, work, int(meta["page_count"]))
+        pngs = _render_template_pages_pdfium(template, work, int(meta["page_count"]))
         doc = Document()
         section = doc.sections[0]
         section.page_width = Mm(210)
@@ -1138,7 +969,6 @@ def render_docx_from_template(
                 page_break.add_run().add_break(WD_BREAK.PAGE)
         path.parent.mkdir(parents=True, exist_ok=True)
         doc.save(path)
-        _patch_docx_svg(path, svgs)
     finally:
         shutil.rmtree(work, ignore_errors=True)
     if strict and unresolved:
@@ -1147,7 +977,7 @@ def render_docx_from_template(
             f"strict v3 DOCX rendering refused: {len(unresolved)} unresolved fields"
         )
     return {
-        "mode": "template-v3-svg-docx",
+        "mode": "template-v3-pdfium-raster-docx",
         "template": template.name,
         "template_sha256": meta["sha256"],
         "template_status": "VERIFICADO",
@@ -1157,7 +987,7 @@ def render_docx_from_template(
         "unresolved_fields": unresolved,
         "strict": strict,
         "editable_dynamic_fields": True,
-        "static_chrome": "SVG page plate generated from the exact v3 reference PDF",
+        "static_chrome": "288-DPI PDFium page plate generated from the exact v3 reference PDF",
         "pixel_identity_note": "DOCX is renderer-dependent; exact PDF pixel identity is tested separately and must not be inferred from DOCX structure.",
     }
 

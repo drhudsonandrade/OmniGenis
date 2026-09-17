@@ -1,0 +1,50 @@
+{
+  "schema": "omnigenis-stage3-strong-copyleft-runtime-cleanup-v1",
+  "status": "VERIFIED",
+  "base_main_sha": "6ea2a8879cb0cadc953cef25084acb21f5d60900",
+  "scope": "application-runtime cleanup; not an operating-system or repository-wide copyleft clearance",
+  "removed_runtime_component": {
+    "name": "Poppler",
+    "version": "26.07.0",
+    "license_review": "GPL-2.0-or-later indicated by upstream source headers; removal chosen instead of a standing exception",
+    "removed_surfaces": [
+      "environment.yml",
+      "locks/runtime-lock.json",
+      "scripts/runtime_stack.py",
+      "scripts/check_versions.sh",
+      "scripts/run_canary.sh",
+      "reporting/template_v3.py"
+    ]
+  },
+  "replacement": {
+    "wrapper": "pypdfium2",
+    "version": "5.13.0",
+    "backend": "PDFium",
+    "audited_linux_x86_64_wheel_sha256": "81df25c1ab4c13ff773102d3cbea1967511d079123b067fc077bd0c4d57d91d8",
+    "pdfium_license": "BSD-style",
+    "docx_static_background_dpi": 288,
+    "dynamic_fields_remain_editable": true,
+    "svg_page_plate_removed": true
+  },
+  "enforcement": {
+    "validator": "scripts/validate_repo.py:validate_stage3_copyleft_contract",
+    "test": "tests/test_strong_copyleft_runtime_cleanup.py"
+  },
+  "limitations": [
+    "This stage does not claim that the container, operating-system layer, or repository is GPL-free or copyleft-free.",
+    "System utilities and transitive dependencies remain pending the Stage 4 inventory, SBOM, notices, redistribution, and source-obligation reconciliation.",
+    "This evidence is technical compliance evidence, not a legal opinion and not a LICENSE-CLEAN certification."
+  ],
+  "verification": {
+    "directed_tests": "PASS",
+    "directed_test_count": 75,
+    "directed_skipped": 1,
+    "repository_validator": "PASS",
+    "supply_chain_gate": "PASS",
+    "residual_language_gate": "PASS",
+    "full_test_suite": "PASS",
+    "full_test_count": 1265,
+    "full_test_skipped": 2,
+    "pre_attestation_tested_tree_sha": "9da5395e9207ed304637a3c4aae730663dc28ff5"
+  }
+}
