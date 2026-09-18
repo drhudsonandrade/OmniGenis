@@ -27,6 +27,7 @@ ACTIVE_DOCUMENTATION_EXCLUDED_PREFIXES = (
     "normative/",
     "template_store/",
     "vendor/",
+    "licenses/",
 )
 ACTIVE_DOCUMENTATION_EXCLUDED_PARTS = frozenset({
     ".git", "node_modules", "dist", "build", "generated", ".venv", "__pycache__"
@@ -341,6 +342,7 @@ class DeveloperDocumentationLanguageTest(unittest.TestCase):
                 "normative/sealed/README.md",
                 "template_store/v3.0/report-01/README.md",
                 "vendor/example/README.md",
+                "licenses/example/NOTICE.md",
                 "generated/output/README.md",
             )
             for relative in included + excluded:

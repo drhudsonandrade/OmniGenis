@@ -36,46 +36,60 @@
     "This evidence is technical compliance evidence, not a legal opinion and not a LICENSE-CLEAN certification."
   ],
   "verification": {
-    "pre_attestation_tested_tree_sha": "e40989a70cc336992ac34c6df2a9103c999e3e05",
+    "pre_attestation_tested_tree_sha": "aad15cdfe7aa0cbdaf684b3b07dd8b4f1c01bc26",
     "gates": {
       "directed_tests": {
         "status": "PASS",
-        "command": "python -m unittest tests.test_strong_copyleft_runtime_cleanup tests.test_template_v3_contract tests.test_workflow_contracts tests.test_reference_manifest_contract -q",
+        "command": "python -m unittest tests.test_strong_copyleft_runtime_cleanup tests.test_pdfium_upstream_notice_contract tests.test_template_v3_contract tests.test_workflow_contracts tests.test_reference_manifest_contract tests.test_developer_documentation_language -q",
         "exit_code": 0,
-        "output_sha256": "1f221ead8f51f4d44c83f59972613545f74f54f836cf11c5fd1f1896bcabc9d8",
-        "tested_tree_sha": "e40989a70cc336992ac34c6df2a9103c999e3e05",
-        "result": "75 tests OK; 1 skipped"
+        "output_sha256": "69c442821e525d6ed85da366ae289faa7fc7cebe4d18855954311f03b2be3e5b",
+        "tested_tree_sha": "aad15cdfe7aa0cbdaf684b3b07dd8b4f1c01bc26",
+        "result": "113 tests OK; 1 skipped"
       },
       "repository_validator": {
         "status": "PASS",
         "command": "python scripts/validate_repo.py",
         "exit_code": 0,
         "output_sha256": "3c0dc015021366a6895ca1777bd4be46995994861b27bb8fcaa7cb47a143f2fd",
-        "tested_tree_sha": "e40989a70cc336992ac34c6df2a9103c999e3e05"
+        "tested_tree_sha": "aad15cdfe7aa0cbdaf684b3b07dd8b4f1c01bc26"
       },
       "supply_chain_gate": {
         "status": "PASS",
         "command": "python scripts/verify_supply_chain_lock.py",
         "exit_code": 0,
         "output_sha256": "3ffbf1e78306655dbb2f214974a4e24c842e6378da0e2d8840d43b2eb4939c7c",
-        "tested_tree_sha": "e40989a70cc336992ac34c6df2a9103c999e3e05"
+        "tested_tree_sha": "aad15cdfe7aa0cbdaf684b3b07dd8b4f1c01bc26"
       },
       "residual_language_gate": {
         "status": "PASS",
         "command": "python scripts/residual_language_audit.py --check",
         "exit_code": 0,
-        "output_sha256": "c8761b8ecd9eef6f0a7fbd19d7876a921a653c8bdf179bf9a98868d22cc676f6",
-        "tested_tree_sha": "e40989a70cc336992ac34c6df2a9103c999e3e05",
+        "output_sha256": "71600ef31adf565d7c4b0f79eb983de10eb145e7c278449cfe7387800e6e87bb",
+        "tested_tree_sha": "aad15cdfe7aa0cbdaf684b3b07dd8b4f1c01bc26",
         "result": "clean=true; unclassified=0; drift=0"
       },
       "full_test_suite": {
         "status": "PASS",
-        "command": "python -m unittest discover -s tests -v",
+        "command": "python -m unittest discover -s tests -p 'test_*.py'",
         "exit_code": 0,
-        "output_sha256": "3fc98a99fe58b1bccd374a940f094b5681e4084fc808fcaf7b13f61f4c725efd",
-        "tested_tree_sha": "e40989a70cc336992ac34c6df2a9103c999e3e05",
-        "result": "1265 tests OK; 2 skipped"
+        "output_sha256": "7557833055cf9d61a665b1f81d5a6213d840adb8d4801e5815d131ca190d6e7c",
+        "tested_tree_sha": "aad15cdfe7aa0cbdaf684b3b07dd8b4f1c01bc26",
+        "result": "1276 tests OK; 2 skipped"
       }
     }
+  },
+  "third_party_notice_evidence": {
+    "status": "VERIFIED",
+    "scope": "audited pypdfium2 5.13.0 Linux x86_64 wheel and bundled PDFium notices",
+    "notice_path": "licenses/pypdfium2-5.13.0/NOTICE.md",
+    "notice_sha256": "07264a685a3be2485b6de897de0f6d950c487c987ab3d7010589d2325b91214e",
+    "upstream_license_manifest_path": "licenses/pypdfium2-5.13.0/UPSTREAM_LICENSES.sha256",
+    "upstream_license_manifest_sha256": "3792e6b56f5e0355be5e9089aaf9766943cf63f169cfd672370076d249d719e6",
+    "verbatim_upstream_license_files": 19,
+    "upstream_metadata_manifest_path": "licenses/pypdfium2-5.13.0/UPSTREAM_METADATA.sha256",
+    "upstream_metadata_manifest_sha256": "f377443334cc7949b109ebb1dfd4925b5f3d52c6f5eb4a38be7331b778a208f1",
+    "third_party_notices_path": "THIRD_PARTY_NOTICES.md",
+    "third_party_notices_sha256": "059564e00f5c79f81a2b756aa062f816920fa0e0c6a6765314aa8ab960bcc36f",
+    "rule": "verbatim upstream license/notice files control over the human-readable summary; OmniGenis does not relicense third-party material"
   }
 }

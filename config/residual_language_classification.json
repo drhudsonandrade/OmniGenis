@@ -600,6 +600,13 @@
       "fingerprint": "fff80fdfc00a82982d5da390625d1419cefcf18d4ea46dae2661933aad2279a2"
     },
     {
+      "path": "licenses/pypdfium2-5.13.0/NOTICE.md",
+      "category": "compatibility-preserved",
+      "reason": "Exact upstream third-party copyright-holder spelling is preserved for legal attribution and must not be normalized or translated.",
+      "count": 1,
+      "fingerprint": "e08cf2fe25bb3d6223203cfb829b0282061bbb9fedbe20b72e4cca690e19f030"
+    },
+    {
       "path": "manifests/RULESET_V3.4.sha256",
       "category": "canonical",
       "reason": "Canonical or sealed identity content retains exact identifiers/bytes; translating it would alter an integrity or template contract.",

@@ -923,8 +923,8 @@ def _stage3_python_violations(text: str, relative: str) -> list[str]:
         return [f"Stage 3 active Python surface is not parseable: {relative}: {exc}"]
     env: dict[str, str] = {}
     for statement in tree.body:
-        target = None
-        value = None
+        target: str | None = None
+        value: ast.expr | None = None
 
         if (
             isinstance(statement, ast.Assign)
@@ -936,13 +936,13 @@ def _stage3_python_violations(text: str, relative: str) -> list[str]:
         elif isinstance(statement, ast.AnnAssign) and isinstance(statement.target, ast.Name):
             target = statement.target.id
             value = statement.value
-        if target and value is not None:
+        if target is not None and value is not None:
             folded = _stage3_py_string(value, env)
             if folded is not None:
                 env[target] = folded
     errors: list[str] = []
-    for name, value in env.items():
-        for token in _stage3_prohibited(value):
+    for name, folded_value in env.items():
+        for token in _stage3_prohibited(folded_value):
             errors.append(
                 f"Stage 3 retired PDF identifier constructed in Python: {relative}:{name}:{token}"
             )

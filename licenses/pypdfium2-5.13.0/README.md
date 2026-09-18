@@ -10,6 +10,9 @@ Verified Linux x86_64 wheel:
 - pypdfium2 documentation/example licensing: CC-BY-4.0 where identified by the upstream distribution
 - PDFium licensing: BSD-style
 - installed wheel contains the pypdfium2 Apache-2.0 and BSD-3-Clause texts and 16 bundled PDFium build-license files for the inspected Linux artifact
+- the exact upstream license/notice files are snapshotted verbatim under `upstream/` and integrity-pinned by `UPSTREAM_LICENSES.sha256`
+- the wheel `METADATA` that records upstream author/license metadata is preserved as `upstream/METADATA.gz` and integrity-pinned by `UPSTREAM_METADATA.sha256`
+- human-readable attribution for the audited PDF boundary is recorded in `NOTICE.md`; verbatim upstream files remain controlling
 
 The binary distribution's bundled license files are part of the redistribution evidence and must remain present in installed/distributed runtime artifacts. Each bundled component remains governed by its own terms. This record is a Stage 2 technical provenance record; it is not a legal opinion and does not replace the complete transitive inventory and SBOM planned for a later compliance stage.
 
