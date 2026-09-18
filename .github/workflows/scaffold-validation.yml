@@ -154,6 +154,18 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Build pinned tool image
         run: docker build --tag omnigenis-genome:${{ github.sha }} .
+      - name: Generate and validate Stage 4 final-image SBOMs
+        run: |
+          mkdir -p ci-results/sbom
+          scripts/generate_stage4_sbom.sh "omnigenis-genome:${{ github.sha }}" ci-results/sbom
+      - name: Upload Stage 4 SBOM bundle
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: stage4-sbom-${{ github.sha }}
+          path: ci-results/sbom/
+          if-no-files-found: error
+          retention-days: 90
       - name: Run non-sensitive canary
         run: |
           mkdir -p ci-results
@@ -194,6 +206,8 @@ jobs:
         with:
           context: .
           push: true
+          provenance: mode=max
+          sbom: true
           tags: ghcr.io/${{ github.repository_owner }}/omnigenis-genome:${{ github.sha }}
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}

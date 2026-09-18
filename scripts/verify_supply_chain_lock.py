@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import sys
@@ -74,6 +75,25 @@ def _verify_external_secret_scanner(runtime: dict[str, object], ruleset: dict[st
         fail(f"secret scanner identity mismatch for {context}: expected integration_id={integration_id}")
 
 
+def _verify_compliance_locks(root: Path, runtime: dict[str, object]) -> None:
+    records = runtime.get("compliance_locks")
+    if not isinstance(records, dict) or not records:
+        fail("runtime-lock compliance_locks missing")
+    for name, record in records.items():
+        if not isinstance(record, dict):
+            fail(f"compliance lock record invalid: {name}")
+        relative = record.get("path")
+        expected = record.get("sha256")
+        if not isinstance(relative, str) or not re.fullmatch(r"[0-9a-f]{64}", str(expected)):
+            fail(f"compliance lock identity invalid: {name}")
+        path = root / relative
+        if not path.is_file():
+            fail(f"compliance lock artifact missing: {relative}")
+        actual = hashlib.sha256(path.read_bytes()).hexdigest()
+        if actual != expected:
+            fail(f"compliance lock hash mismatch: {name}")
+
+
 def main() -> int:
     actions = json.loads((ROOT / "locks/actions-lock.json").read_text(encoding="utf-8"))["actions"]
     runtime = json.loads((ROOT / "locks/runtime-lock.json").read_text(encoding="utf-8"))
@@ -104,9 +124,15 @@ def main() -> int:
     base = runtime["base_image"]["reference"]
     if not dockerfile.startswith(f"FROM {base}\n"):
         fail("Dockerfile base image is not the immutable runtime-lock reference")
+    conda_explicit = runtime.get("conda_explicit_lock")
+    if not isinstance(conda_explicit, str) or conda_explicit not in dockerfile:
+        fail("Dockerfile does not install the runtime-lock explicit Conda artifact")
+    if "micromamba install --yes --name base --file /tmp/environment.yml" in dockerfile:
+        fail("Dockerfile still resolves mutable transitive Conda dependencies")
 
     _verify_required_check_schema(ruleset)
     _verify_external_secret_scanner(runtime, ruleset)
+    _verify_compliance_locks(ROOT, runtime)
 
     env = (ROOT / "environment.yml").read_text(encoding="utf-8")
     for package, version in runtime["conda"].items():
@@ -121,6 +147,7 @@ def main() -> int:
     print("PASS\tcontainer_digests\tbase image")
     print(f"PASS\texternal_secret_scanner\t{runtime['secret_scanner']['context']}@{runtime['secret_scanner']['integration_id']}")
     print("PASS\truntime_versions\texact critical conda pins")
+    print(f"PASS\tcompliance_locks\t{len(runtime['compliance_locks'])} artifacts")
     return 0
 
 

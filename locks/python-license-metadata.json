@@ -1,0 +1,58 @@
+{
+  "package_count": 8,
+  "packages": [
+    {
+      "license": "MIT",
+      "name": "charset-normalizer",
+      "source": "https://pypi.org/pypi/charset-normalizer/3.5.1/json",
+      "version": "3.5.1"
+    },
+    {
+      "license": "BSD-3-Clause",
+      "name": "lxml",
+      "source": "https://pypi.org/pypi/lxml/6.1.3/json",
+      "version": "6.1.3"
+    },
+    {
+      "license": "MIT-CMU",
+      "name": "pillow",
+      "source": "https://pypi.org/pypi/pillow/12.3.0/json",
+      "version": "12.3.0"
+    },
+    {
+      "license": "BSD-3-Clause",
+      "name": "pypdf",
+      "source": "https://pypi.org/pypi/pypdf/6.16.2/json",
+      "version": "6.16.2"
+    },
+    {
+      "license": "BSD-3-Clause, Apache-2.0, dependency licenses",
+      "license_evidence": "licenses/pypdfium2-5.13.0/NOTICE.md",
+      "name": "pypdfium2",
+      "source": "https://pypi.org/pypi/pypdfium2/5.13.0/json",
+      "version": "5.13.0"
+    },
+    {
+      "license": "MIT",
+      "name": "python-docx",
+      "source": "https://pypi.org/pypi/python-docx/1.2.0/json",
+      "version": "1.2.0"
+    },
+    {
+      "license": "BSD license (see license.txt for details), Copyright (c) 2000-2025, ReportLab Inc.",
+      "name": "reportlab",
+      "source": "https://pypi.org/pypi/reportlab/4.4.9/json",
+      "version": "4.4.9"
+    },
+    {
+      "license": "PSF-2.0",
+      "name": "typing-extensions",
+      "source": "https://pypi.org/pypi/typing-extensions/4.16.0/json",
+      "version": "4.16.0"
+    }
+  ],
+  "retrieved_date": "2026-09-18",
+  "schema": "omnigenis-python-license-metadata-v1",
+  "source_lock": "reporting/requirements.txt",
+  "source_lock_sha256": "7285e2896491a7368ae83acf473939b236126c46d5d52f886b52ed522c33a28a"
+}

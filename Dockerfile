@@ -3,8 +3,8 @@ FROM mambaorg/micromamba:2.3.2-ubuntu22.04@sha256:0e87302b8b802b595c947f408e02c4
 ARG MAMBA_DOCKERFILE_ACTIVATE=1
 WORKDIR /opt/omnigenis
 
-COPY --chown=$MAMBA_USER:$MAMBA_USER environment.yml /tmp/environment.yml
-RUN micromamba install --yes --name base --file /tmp/environment.yml \
+COPY --chown=$MAMBA_USER:$MAMBA_USER locks/conda-linux-64-explicit.txt /tmp/conda-linux-64-explicit.txt
+RUN micromamba install --yes --name base --file /tmp/conda-linux-64-explicit.txt \
     && micromamba clean --all --yes
 
 COPY --chown=$MAMBA_USER:$MAMBA_USER reporting/requirements.txt /tmp/reporting-requirements.txt
@@ -22,7 +22,8 @@ RUN chmod 0755 /opt/omnigenis/scripts/*.sh /opt/omnigenis/scripts/*.py \
 USER $MAMBA_USER
 
 RUN cd /opt/omnigenis/mcp \
-    && npm run build
+    && npm run build \
+    && npm prune --omit=dev --ignore-scripts
 
 ENV PORT=3000 \
     REF_ROOT=/refs \

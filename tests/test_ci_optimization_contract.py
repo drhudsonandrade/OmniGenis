@@ -121,6 +121,8 @@ NGS_TRIGGER_SCRIPT_PATHS = (
     "scripts/build_array_case_manifest.py",
     "scripts/build_bwa_mem2_index.sh",
     "scripts/build_wgs_curated_manifest.py",
+    "scripts/build_third_party_registry.py",
+    "scripts/validate_stage4_compliance.py",
     "scripts/check_versions.sh",
     "scripts/code_language_guard.py",
     "scripts/freshness_gate.py",
@@ -784,6 +786,8 @@ class CIOptimizationContractTest(unittest.TestCase):
         """Keep the Phase 2B NGS workflow pinned to its approved semantics."""
         workflow = _read("genoma-ngs-runtime-gate.yml")
         allowed_lines = (
+            "      - 'scripts/build_third_party_registry.py'\n",
+            "      - 'scripts/validate_stage4_compliance.py'\n",
             "      - 'scripts/project_identity_guard.py'\n",
             "      - 'scripts/governance_context_identity.py'\n",
             "      - 'scripts/zero_identity_guard.py'\n",

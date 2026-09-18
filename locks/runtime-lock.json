@@ -1,32 +1,67 @@
 {
-  "schema": "genoma-runtime-lock-v1",
-  "checked_at": "2026-08-22T21:48:00Z",
-  "ruleset_sha256": "ab7a5f0ba9709e2f92a11ae4630f82ebae70385eab877ad3464fac6bd44a3580",
+  "actions_lock": "locks/actions-lock.json",
   "base_image": {
+    "digest": "sha256:0e87302b8b802b595c947f408e02c436c1d49aa582132ddaa4cd5e1c991a4871",
     "reference": "mambaorg/micromamba:2.3.2-ubuntu22.04@sha256:0e87302b8b802b595c947f408e02c436c1d49aa582132ddaa4cd5e1c991a4871",
-    "version": "2.3.2-ubuntu22.04",
-    "digest": "sha256:0e87302b8b802b595c947f408e02c436c1d49aa582132ddaa4cd5e1c991a4871"
+    "version": "2.3.2-ubuntu22.04"
   },
-  "secret_scanner": {
-    "context": "GitGuardian Security Checks",
-    "integration_id": 46505,
-    "execution": "external_github_app"
+  "base_image_software_inventory": "locks/base-image-software.json",
+  "checked_at": "2026-09-18T00:00:00Z",
+  "compliance_locks": {
+    "action_license_metadata": {
+      "path": "locks/action-license-metadata.json",
+      "sha256": "35e1964c565c85fc327763bfb0e69d08e37b9b0b4c79e3b12990b9f9e160968c"
+    },
+    "base_image_software": {
+      "path": "locks/base-image-software.json",
+      "sha256": "3c3b6254d444dbce3a9eb59921f8d743d3ebcac049cc6e9bd847ffdb97efd0bc"
+    },
+    "conda_explicit": {
+      "path": "locks/conda-linux-64-explicit.txt",
+      "sha256": "7709b0e793122560136755c8198fd37b3c5fcf7a600e368bd0dde58b850e6b7f"
+    },
+    "conda_resolution": {
+      "path": "locks/conda-linux-64-resolution.json",
+      "sha256": "b41b9e4c3b74977478549e114d8ddf98c2f681f7a26ef923ba8cae4dbf135240"
+    },
+    "python_license_metadata": {
+      "path": "locks/python-license-metadata.json",
+      "sha256": "3d3aff74d8332c02cb9d29abc2a750e1cdf6cd3c887f8b91b09863d1979eb5ed"
+    },
+    "sbom_tool": {
+      "path": "locks/sbom-tool-lock.json",
+      "sha256": "0328af732b1b2b0c5d2e6ca934cea0920107c8c2f7a5dea4c75004dc07a8af5f"
+    },
+    "third_party_registry": {
+      "path": "config/third_party_software_registry.json",
+      "sha256": "b45062a0333ca1a313e6cd0eb8a878611d409e65c9ee061cb7660147f94cb6c9"
+    }
   },
   "conda": {
-    "python": "3.11",
-    "openjdk": "17",
-    "nodejs": "22",
-    "samtools": "1.24",
     "bcftools": "1.24",
-    "htslib": "1.24",
     "bwa-mem2": "2.3",
     "gatk4": "4.6.2.0",
+    "htslib": "1.24",
     "nextflow": "26.04.6",
+    "nodejs": "22",
+    "openjdk": "17",
+    "python": "3.11",
+    "samtools": "1.24",
     "snakemake-minimal": "7.32.4"
   },
-  "python_requirements": "reporting/requirements.txt",
+  "conda_explicit_lock": "locks/conda-linux-64-explicit.txt",
+  "conda_resolution_metadata": "locks/conda-linux-64-resolution.json",
   "npm_lock": "mcp/package-lock.json",
-  "actions_lock": "locks/actions-lock.json",
+  "policy": "Version fields are human-readable constraints. Immutable action commit SHAs, container digests, package lockfiles, source manifests and external GitHub App context/integration IDs are the executable identities. Mutable scientific databases are intentionally not frozen and must pass RECENCY-FIRST on each analysis.",
+  "python_requirements": "reporting/requirements.txt",
+  "ruleset_sha256": "ab7a5f0ba9709e2f92a11ae4630f82ebae70385eab877ad3464fac6bd44a3580",
+  "sbom_tool_lock": "locks/sbom-tool-lock.json",
+  "schema": "genoma-runtime-lock-v1",
+  "secret_scanner": {
+    "context": "GitGuardian Security Checks",
+    "execution": "external_github_app",
+    "integration_id": 46505
+  },
   "template_manifest": "template_store/v3.0/MANIFEST.json",
-  "policy": "Version fields are human-readable constraints. Immutable action commit SHAs, container digests, package lockfiles, source manifests and external GitHub App context/integration IDs are the executable identities. Mutable scientific databases are intentionally not frozen and must pass RECENCY-FIRST on each analysis."
+  "third_party_software_registry": "config/third_party_software_registry.json"
 }
