@@ -1,9 +1,9 @@
 {
   "artifacts": {
-    "config/third_party_software_registry.json": "b45062a0333ca1a313e6cd0eb8a878611d409e65c9ee061cb7660147f94cb6c9",
-    "locks/action-license-metadata.json": "35e1964c565c85fc327763bfb0e69d08e37b9b0b4c79e3b12990b9f9e160968c",
+    "config/third_party_software_registry.json": "0d56489ef78b4db32b6c0c384cb3baeb63607272cc9bc88b5671a412a0f040d2",
+    "locks/action-license-metadata.json": "46b8d13c5f258faf2e810600ccdaafa6c4c3df60d0aa6de3070389fdeeb91b47",
     "locks/base-image-software.json": "3c3b6254d444dbce3a9eb59921f8d743d3ebcac049cc6e9bd847ffdb97efd0bc",
-    "locks/conda-linux-64-explicit.txt": "7709b0e793122560136755c8198fd37b3c5fcf7a600e368bd0dde58b850e6b7f",
+    "locks/conda-linux-64-explicit.txt": "250ec10d9c3de57427374f7b0b753d059919f568ac686a385729f284a35927cd",
     "locks/conda-linux-64-resolution.json": "b41b9e4c3b74977478549e114d8ddf98c2f681f7a26ef923ba8cae4dbf135240",
     "locks/python-license-metadata.json": "3d3aff74d8332c02cb9d29abc2a750e1cdf6cd3c887f8b91b09863d1979eb5ed",
     "locks/sbom-tool-lock.json": "0328af732b1b2b0c5d2e6ca934cea0920107c8c2f7a5dea4c75004dc07a8af5f"
@@ -69,8 +69,10 @@
       "status": "PASS"
     },
     "stage4_inventory_gate": {
+      "blocked_default": 51,
       "command": "python scripts/validate_stage4_compliance.py",
       "components": 417,
+      "review_required": 95,
       "status": "PASS"
     },
     "supply_chain_gate": {
@@ -92,9 +94,9 @@
     },
     "by_policy_status": {
       "BLOCKED_BY_DEFAULT": 51,
-      "PERMISSIVE": 284,
+      "PERMISSIVE": 270,
       "REVIEWED_ACCEPTED_EXACT_ARTIFACT": 1,
-      "REVIEW_REQUIRED": 81
+      "REVIEW_REQUIRED": 95
     },
     "by_scope": {
       "build_dependency_pruned_after_build": 44,

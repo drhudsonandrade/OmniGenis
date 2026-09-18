@@ -11,12 +11,24 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1] if Path(__file__).name != "build_registry.py" else Path.cwd()
 OUT = ROOT / "config/third_party_software_registry.json"
 
-PERMISSIVE_MARKERS = {
-    "0BSD", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause", "BSD-4-Clause",
-    "ISC", "MIT", "MIT-CMU", "PSF-2.0", "Python-2.0", "Zlib", "zlib-acknowledgement",
-    "HPND", "X11", "TCL", "curl", "blessing", "bzip2-1.0.6", "OFL-1.1",
-    "LicenseRef-Public-Domain", "public-domain", "Expat", "FTL",
+PERMISSIVE_LICENSE_IDS = {
+    "0BSD",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "BSD-4-Clause",
+    "CC0-1.0",
+    "HPND",
+    "ISC",
+    "MIT",
+    "MIT-CMU",
+    "PSF-2.0",
+    "Python-2.0",
+    "X11",
+    "Zlib",
+    "public-domain",
 }
+
 REVIEW_MARKERS = ("LGPL", "MPL", "EPL", "CC-BY", "LicenseRef-", "Artistic")
 BLOCK_MARKERS = ("AGPL", "SSPL", "NON-COMMERCIAL", "NONCOMMERCIAL", "RESEARCH-ONLY", "ACADEMIC-ONLY")
 
@@ -42,8 +54,22 @@ def license_policy(value: str) -> str:
         return "BLOCKED_BY_DEFAULT"
     if any(marker.upper() in upper for marker in REVIEW_MARKERS):
         return "REVIEW_REQUIRED"
-    # Known permissive identifiers are accepted after copyleft/review markers above.
-    if any(marker.lower() in text.lower() for marker in PERMISSIVE_MARKERS):
+    # A permissive result requires the complete expression to contain only
+    # recognized permissive identifiers and boolean operators. Unknown/custom
+    # terms never inherit permissive status from a substring match.
+    if re.search(r"[^A-Za-z0-9.+()\-\s]", text):
+        return "REVIEW_REQUIRED"
+    tokens = re.findall(r"\(|\)|[A-Za-z0-9.+-]+", text)
+    terms = [
+        token
+        for token in tokens
+        if token not in {"AND", "OR", "(", ")"}
+    ]
+    if (
+        terms
+        and "WITH" not in tokens
+        and all(term in PERMISSIVE_LICENSE_IDS for term in terms)
+    ):
         return "PERMISSIVE"
     return "REVIEW_REQUIRED"
 
@@ -196,7 +222,7 @@ def build_payload(root: Path = ROOT) -> dict[str, Any]:
     counts=Counter(r["policy_status"] for r in records)
     scopes=Counter(r["scope"] for r in records)
     ecosystems=Counter(r["ecosystem"] for r in records)
-    payload={
+    payload: dict[str, Any] = {
         "schema":"omnigenis-third-party-software-registry-v1",
         "generated_date":"2026-09-18",
         "scope_note":"Software/container inventory only. Dataset, score, model and scientific-resource terms are governed by the later scientific-data licensing stage.",

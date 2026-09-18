@@ -28,7 +28,9 @@ url="${meta[1]}"
 expected="${meta[2]}"
 archive="$work/syft.tgz"
 
-curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 "$url" -o "$archive"
+curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 \
+  --retry 3 --retry-delay 2 --retry-connrefused --max-time 300 \
+  "$url" -o "$archive"
 printf '%s  %s\n' "$expected" "$archive" | sha256sum --check --strict
 tar -xzf "$archive" -C "$work" syft
 observed="$("$work/syft" version | awk '/^Version:/ {print $2}')"

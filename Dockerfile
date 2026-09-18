@@ -1,10 +1,11 @@
 FROM mambaorg/micromamba:2.3.2-ubuntu22.04@sha256:0e87302b8b802b595c947f408e02c436c1d49aa582132ddaa4cd5e1c991a4871
 
 ARG MAMBA_DOCKERFILE_ACTIVATE=1
+ARG OMNIGENIS_CONDA_SPEC=locks/conda-linux-64-explicit.txt
 WORKDIR /opt/omnigenis
 
-COPY --chown=$MAMBA_USER:$MAMBA_USER locks/conda-linux-64-explicit.txt /tmp/conda-linux-64-explicit.txt
-RUN micromamba install --yes --name base --file /tmp/conda-linux-64-explicit.txt \
+COPY --chown=$MAMBA_USER:$MAMBA_USER ${OMNIGENIS_CONDA_SPEC} /tmp/omnigenis-conda-spec
+RUN micromamba install --yes --name base --file /tmp/omnigenis-conda-spec \
     && micromamba clean --all --yes
 
 COPY --chown=$MAMBA_USER:$MAMBA_USER reporting/requirements.txt /tmp/reporting-requirements.txt

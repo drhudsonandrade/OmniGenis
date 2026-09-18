@@ -72,7 +72,7 @@ def collect_errors(root: Path = ROOT) -> list[str]:
             errors.append(f"Stage 4 Conda source URL is not HTTPS: {identity}")
         if not license_id or license_id == "UNKNOWN":
             errors.append(f"Stage 4 Conda license missing: {identity}")
-        expected_explicit.append(f"{url}#sha256={digest}")
+        expected_explicit.append(f"{url}#sha256:{digest}")
 
     actual_explicit = (root / "locks/conda-linux-64-explicit.txt").read_text(
         encoding="utf-8"
@@ -141,7 +141,14 @@ def collect_errors(root: Path = ROOT) -> list[str]:
             errors.append("Stage 4 GitHub Action license coverage mismatch")
         for name, locked in actions_lock.items():
             record = by_action.get(name, {})
-            if record.get("sha") != locked.get("sha") or not record.get("license"):
+            locked_sha = locked.get("sha")
+            license_url = record.get("license_url")
+            if (
+                record.get("sha") != locked_sha
+                or not record.get("license")
+                or not isinstance(license_url, str)
+                or f"/blob/{locked_sha}/" not in license_url
+            ):
                 errors.append(f"Stage 4 action license metadata mismatch: {name}")
 
     if (
@@ -169,8 +176,15 @@ def collect_errors(root: Path = ROOT) -> list[str]:
         errors.append("Stage 4 registry lost known default-blocked license findings")
 
     dockerfile = (root / "Dockerfile").read_text(encoding="utf-8")
-    if "locks/conda-linux-64-explicit.txt" not in dockerfile:
-        errors.append("Stage 4 Dockerfile does not install the audited explicit Conda lock")
+    if "ARG OMNIGENIS_CONDA_SPEC=locks/conda-linux-64-explicit.txt" not in dockerfile:
+        errors.append("Stage 4 Dockerfile default is not the audited explicit Conda lock")
+    if "${OMNIGENIS_CONDA_SPEC}" not in dockerfile:
+        errors.append("Stage 4 Dockerfile does not consume the selected Conda specification")
+    runtime_workflow = (root / ".github/workflows/genoma-ngs-runtime-gate.yml").read_text(
+        encoding="utf-8"
+    )
+    if runtime_workflow.count("--build-arg OMNIGENIS_CONDA_SPEC=environment.yml") < 2:
+        errors.append("Stage 4 runtime gate does not build the generated latest Conda candidate")
     if "npm prune --omit=dev --ignore-scripts" not in dockerfile:
         errors.append("Stage 4 Dockerfile does not prune npm development dependencies")
 

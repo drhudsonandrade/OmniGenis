@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.build_third_party_registry import render_payload
+from scripts.build_third_party_registry import license_policy, render_payload
 from scripts.validate_stage4_compliance import REQUIRED, collect_errors
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -23,6 +23,7 @@ class Stage4ThirdPartyComplianceTest(unittest.TestCase):
             "mcp/package.json",
             "mcp/package-lock.json",
             "Dockerfile",
+            ".github/workflows/genoma-ngs-runtime-gate.yml",
         }
         for relative in sorted(relative_paths):
             source = ROOT / relative
@@ -32,6 +33,25 @@ class Stage4ThirdPartyComplianceTest(unittest.TestCase):
 
     def test_stage4_contract_passes_current_repository(self) -> None:
         self.assertEqual(collect_errors(ROOT), [])
+
+    def test_license_policy_never_inherits_permissive_from_mixed_text(self) -> None:
+        self.assertEqual(license_policy("MIT"), "PERMISSIVE")
+        self.assertEqual(
+            license_policy("MIT AND BSD-3-Clause"),
+            "PERMISSIVE",
+        )
+        self.assertEqual(
+            license_policy("MIT AND LicenseRef-Custom-Terms"),
+            "REVIEW_REQUIRED",
+        )
+        self.assertEqual(
+            license_policy("IJG AND BSD-3-Clause AND Zlib"),
+            "REVIEW_REQUIRED",
+        )
+        self.assertEqual(
+            license_policy("BSD-3-Clause, Apache-2.0, dependency licenses"),
+            "REVIEW_REQUIRED",
+        )
 
     def test_registry_is_deterministically_rebuildable(self) -> None:
         expected = render_payload(ROOT)
@@ -102,7 +122,7 @@ class Stage4ThirdPartyComplianceTest(unittest.TestCase):
         self.assertEqual(lines[0], "@EXPLICIT")
         self.assertEqual(len(lines) - 1, resolution["package_count"])
         expected = [
-            f"{item['url']}#sha256={item['sha256']}"
+            f"{item['url']}#sha256:{item['sha256']}"
             for item in resolution["packages"]
         ]
         self.assertEqual(lines[1:], expected)
@@ -110,10 +130,20 @@ class Stage4ThirdPartyComplianceTest(unittest.TestCase):
     def test_docker_and_ci_use_stage4_artifacts(self) -> None:
         dockerfile = (ROOT / "Dockerfile").read_text()
         workflow = (ROOT / ".github/workflows/scaffold-validation.yml").read_text()
-        self.assertIn("locks/conda-linux-64-explicit.txt", dockerfile)
-        self.assertNotIn(
-            "micromamba install --yes --name base --file /tmp/environment.yml",
+        runtime_workflow = (
+            ROOT / ".github/workflows/genoma-ngs-runtime-gate.yml"
+        ).read_text()
+        self.assertIn(
+            "ARG OMNIGENIS_CONDA_SPEC=locks/conda-linux-64-explicit.txt",
             dockerfile,
+        )
+        self.assertIn("${OMNIGENIS_CONDA_SPEC}", dockerfile)
+        self.assertIn("--file /tmp/omnigenis-conda-spec", dockerfile)
+        self.assertEqual(
+            runtime_workflow.count(
+                "--build-arg OMNIGENIS_CONDA_SPEC=environment.yml"
+            ),
+            2,
         )
         self.assertIn("npm prune --omit=dev --ignore-scripts", dockerfile)
         self.assertIn("scripts/generate_stage4_sbom.sh", workflow)
