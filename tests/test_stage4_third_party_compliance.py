@@ -138,10 +138,20 @@ class Stage4ThirdPartyComplianceTest(unittest.TestCase):
             dockerfile,
         )
         self.assertIn("${OMNIGENIS_CONDA_SPEC}", dockerfile)
-        self.assertIn("--file /tmp/omnigenis-conda-spec", dockerfile)
+        self.assertIn(
+            "ARG OMNIGENIS_CONDA_SPEC_FILE=conda-linux-64-explicit.txt",
+            dockerfile,
+        )
+        self.assertIn("/tmp/${OMNIGENIS_CONDA_SPEC_FILE}", dockerfile)
         self.assertEqual(
             runtime_workflow.count(
                 "--build-arg OMNIGENIS_CONDA_SPEC=environment.yml"
+            ),
+            2,
+        )
+        self.assertEqual(
+            runtime_workflow.count(
+                "--build-arg OMNIGENIS_CONDA_SPEC_FILE=environment.yml"
             ),
             2,
         )
@@ -149,6 +159,7 @@ class Stage4ThirdPartyComplianceTest(unittest.TestCase):
         self.assertIn("scripts/generate_stage4_sbom.sh", workflow)
         sbom_script = (ROOT / "scripts/generate_stage4_sbom.sh").read_text()
         self.assertIn("micromamba list --name base --json", sbom_script)
+        self.assertIn("locks/python-license-metadata.json", sbom_script)
         self.assertIn("omnigenis.conda.json", sbom_script)
         self.assertIn("name: stage4-sbom-${{ github.sha }}", workflow)
         self.assertIn("provenance: mode=max", workflow)

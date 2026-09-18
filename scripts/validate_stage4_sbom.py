@@ -38,6 +38,29 @@ def _conda_identity(item: dict[str, Any]) -> tuple[str, str, str]:
     )
 
 
+def _is_pypi_record(item: dict[str, Any]) -> bool:
+    channel = str(item.get("channel") or "").casefold()
+    base_url = str(item.get("base_url") or "").casefold()
+    return channel == "pypi" or base_url.startswith("https://pypi.org/")
+
+
+def _python_lock_versions(payload: Any) -> dict[str, str]:
+    if not isinstance(payload, dict):
+        return {}
+    packages = payload.get("packages")
+    if not isinstance(packages, list):
+        return {}
+    versions: dict[str, str] = {}
+    for item in packages:
+        if not isinstance(item, dict):
+            continue
+        name = str(item.get("name") or "")
+        version = str(item.get("version") or "")
+        if name and version:
+            versions[name] = version
+    return versions
+
+
 def _versions_by_name(
     items: list[Any],
     *,
@@ -121,10 +144,10 @@ def _validate_image_identity(
 
 
 def main() -> int:
-    if len(sys.argv) != 6:
+    if len(sys.argv) != 7:
         print(
             "usage: validate_stage4_sbom.py "
-            "SYFT_JSON SPDX_JSON CYCLONEDX_JSON CONDA_LOCK CONDA_INVENTORY",
+            "SYFT_JSON SPDX_JSON CYCLONEDX_JSON CONDA_LOCK PYTHON_LOCK CONDA_INVENTORY",
             file=sys.stderr,
         )
         return 2
@@ -133,7 +156,8 @@ def main() -> int:
     spdx = _load(sys.argv[2])
     cdx = _load(sys.argv[3])
     conda_lock = _load(sys.argv[4])
-    conda_inventory = _load(sys.argv[5])
+    python_lock = _load(sys.argv[5])
+    conda_inventory = _load(sys.argv[6])
     errors: list[str] = []
 
     if not isinstance(syft, dict):
@@ -175,18 +199,27 @@ def main() -> int:
         conda_lock = {}
     expected_records = _conda_records(conda_lock)
     actual_records = _conda_records(conda_inventory)
+    actual_nonvirtual_records = [
+        item
+        for item in actual_records
+        if str(item.get("name") or "")
+        and not str(item.get("name") or "").startswith("__")
+    ]
+    actual_pypi_records = [
+        item for item in actual_nonvirtual_records if _is_pypi_record(item)
+    ]
+    actual_conda_records = [
+        item for item in actual_nonvirtual_records if not _is_pypi_record(item)
+    ]
     expected = {_conda_identity(item) for item in expected_records}
-    actual = {_conda_identity(item) for item in actual_records}
-    actual_nonvirtual = {
-        identity for identity in actual if identity[0] and not identity[0].startswith("__")
-    }
+    actual_conda = {_conda_identity(item) for item in actual_conda_records}
     if len(expected) < 150:
         errors.append("audited Conda lock coverage is unexpectedly small")
-    if len(actual_nonvirtual) < 150:
+    if len(actual_conda) < 150:
         errors.append("final-image Conda inventory coverage is unexpectedly small")
 
-    missing = sorted(expected - actual_nonvirtual)
-    unexpected = sorted(actual_nonvirtual - expected)
+    missing = sorted(expected - actual_conda)
+    unexpected = sorted(actual_conda - expected)
     if missing:
         errors.append(
             f"final-image Conda inventory is missing {len(missing)} locked packages"
@@ -196,8 +229,32 @@ def main() -> int:
             f"final-image Conda inventory has {len(unexpected)} unexpected packages"
         )
 
+    python_versions = _python_lock_versions(python_lock)
+    if len(python_versions) < 8:
+        errors.append("audited Python lock coverage is unexpectedly small")
+    runtime_versions = _versions_by_name(
+        actual_nonvirtual_records,
+        name_key="name",
+        version_key="version",
+    )
+    for name, version in sorted(python_versions.items()):
+        if version not in runtime_versions.get(name, set()):
+            errors.append(
+                f"final-image Python runtime is missing locked package: {name}=={version}"
+            )
+    unexpected_pypi = sorted(
+        (str(item.get("name") or ""), str(item.get("version") or ""))
+        for item in actual_pypi_records
+        if python_versions.get(str(item.get("name") or ""))
+        != str(item.get("version") or "")
+    )
+    if unexpected_pypi:
+        errors.append(
+            f"final-image PyPI inventory has {len(unexpected_pypi)} unexpected packages"
+        )
+
     retired_conda = sorted(
-        identity for identity in actual_nonvirtual if identity[0].casefold() in RETIRED
+        identity for identity in actual_conda if identity[0].casefold() in RETIRED
     )
     if retired_conda:
         errors.append(
@@ -250,7 +307,8 @@ def main() -> int:
         "PASS\tstage4_final_image_sbom\t"
         f"syft_artifacts={len(typed_artifacts)} "
         f"deb_packages={deb_count} "
-        f"conda_packages={len(actual_nonvirtual)} "
+        f"conda_packages={len(actual_conda)} "
+        f"pypi_packages={len(actual_pypi_records)} "
         f"spdx_packages={len(spdx_packages)} "
         f"cdx_components={len(cdx_components)}"
     )

@@ -55,6 +55,7 @@ python3 "$ROOT/scripts/validate_stage4_sbom.py" \
   "$OUTPUT_DIR/omnigenis.spdx.json" \
   "$OUTPUT_DIR/omnigenis.cdx.json" \
   "$ROOT/locks/conda-linux-64-resolution.json" \
+  "$ROOT/locks/python-license-metadata.json" \
   "$OUTPUT_DIR/omnigenis.conda.json"
 
 (

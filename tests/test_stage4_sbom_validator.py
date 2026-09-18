@@ -5,12 +5,49 @@ import unittest
 from scripts.validate_stage4_sbom import (
     RETIRED,
     SCANNER_EXPECTED,
+    _is_pypi_record,
+    _python_lock_versions,
     _validate_image_identity,
     _validate_required_components,
 )
 
 
 class Stage4SbomValidatorTest(unittest.TestCase):
+    def test_micromamba_pypi_records_are_classified_separately(self) -> None:
+        self.assertTrue(
+            _is_pypi_record(
+                {
+                    "name": "pypdfium2",
+                    "version": "5.13.0",
+                    "channel": "pypi",
+                    "base_url": "https://pypi.org/",
+                    "build_string": "pypi_0",
+                }
+            )
+        )
+        self.assertFalse(
+            _is_pypi_record(
+                {
+                    "name": "samtools",
+                    "version": "1.24",
+                    "channel": "bioconda",
+                    "base_url": "https://conda.anaconda.org/bioconda",
+                }
+            )
+        )
+
+    def test_python_lock_versions_preserve_exact_runtime_versions(self) -> None:
+        payload = {
+            "packages": [
+                {"name": "pypdfium2", "version": "5.13.0"},
+                {"name": "reportlab", "version": "4.4.9"},
+            ]
+        }
+        self.assertEqual(
+            _python_lock_versions(payload),
+            {"pypdfium2": "5.13.0", "reportlab": "4.4.9"},
+        )
+
     def test_poppler_utils_is_explicitly_retired(self) -> None:
         self.assertIn("poppler-utils", RETIRED)
 

@@ -178,13 +178,17 @@ def collect_errors(root: Path = ROOT) -> list[str]:
     dockerfile = (root / "Dockerfile").read_text(encoding="utf-8")
     if "ARG OMNIGENIS_CONDA_SPEC=locks/conda-linux-64-explicit.txt" not in dockerfile:
         errors.append("Stage 4 Dockerfile default is not the audited explicit Conda lock")
-    if "${OMNIGENIS_CONDA_SPEC}" not in dockerfile:
-        errors.append("Stage 4 Dockerfile does not consume the selected Conda specification")
+    if "ARG OMNIGENIS_CONDA_SPEC_FILE=conda-linux-64-explicit.txt" not in dockerfile:
+        errors.append("Stage 4 Dockerfile default Conda spec filename is not the audited explicit lock")
+    if "${OMNIGENIS_CONDA_SPEC}" not in dockerfile or "${OMNIGENIS_CONDA_SPEC_FILE}" not in dockerfile:
+        errors.append("Stage 4 Dockerfile does not consume the selected Conda specification and filename")
     runtime_workflow = (root / ".github/workflows/genoma-ngs-runtime-gate.yml").read_text(
         encoding="utf-8"
     )
     if runtime_workflow.count("--build-arg OMNIGENIS_CONDA_SPEC=environment.yml") < 2:
         errors.append("Stage 4 runtime gate does not build the generated latest Conda candidate")
+    if runtime_workflow.count("--build-arg OMNIGENIS_CONDA_SPEC_FILE=environment.yml") < 2:
+        errors.append("Stage 4 runtime gate does not preserve YAML parsing for the latest candidate")
     if "npm prune --omit=dev --ignore-scripts" not in dockerfile:
         errors.append("Stage 4 Dockerfile does not prune npm development dependencies")
 
