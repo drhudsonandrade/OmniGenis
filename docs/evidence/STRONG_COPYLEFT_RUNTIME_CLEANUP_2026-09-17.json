@@ -87,24 +87,32 @@
     "status": "VERIFIED",
     "scope": "audited pypdfium2 5.13.0 Linux x86_64 wheel and bundled PDFium notices",
     "notice_path": "licenses/pypdfium2-5.13.0/NOTICE.md",
-    "notice_sha256": "07264a685a3be2485b6de897de0f6d950c487c987ab3d7010589d2325b91214e",
+    "notice_sha256": "eeb1359e5883601ae9717caac79ff44eadbe63f31779a074fe79055d9fa45728",
     "upstream_license_manifest_path": "licenses/pypdfium2-5.13.0/UPSTREAM_LICENSES.sha256",
     "upstream_license_manifest_sha256": "3792e6b56f5e0355be5e9089aaf9766943cf63f169cfd672370076d249d719e6",
     "verbatim_upstream_license_files": 19,
     "upstream_metadata_manifest_path": "licenses/pypdfium2-5.13.0/UPSTREAM_METADATA.sha256",
     "upstream_metadata_manifest_sha256": "f377443334cc7949b109ebb1dfd4925b5f3d52c6f5eb4a38be7331b778a208f1",
     "third_party_notices_path": "THIRD_PARTY_NOTICES.md",
-    "third_party_notices_sha256": "059564e00f5c79f81a2b756aa062f816920fa0e0c6a6765314aa8ab960bcc36f",
-    "rule": "verbatim upstream license/notice files control over the human-readable summary; OmniGenis does not relicense third-party material"
+    "third_party_notices_sha256": "ea67233cd1c43c19c5d70307444dece4b5b4bd490f185670432fb10c5f284ad4",
+    "rule": "verbatim upstream license/notice files control over the human-readable summary; OmniGenis does not relicense third-party material",
+    "upstream_build_license_manifest_path": "licenses/pypdfium2-5.13.0/UPSTREAM_BUILD_LICENSES.sha256",
+    "upstream_build_license_manifest_sha256": "23d7820bf962c2b65cbe1d5e2559ef71943380d5f6ec6355150f41b3fcbf4cec",
+    "upstream_build_license_archive_path": "licenses/pypdfium2-5.13.0/upstream/BUILD_LICENSES.tar.gz",
+    "upstream_build_license_archive_sha256": "ce6db66ac577f75830f74b1cf93ed44037ba16ac6f0cc9d730c6d8197b167cb8"
   },
   "attribution_bundle": {
     "pypdfium2_notice_path": "licenses/pypdfium2-5.13.0/NOTICE.md",
-    "pypdfium2_notice_sha256": "07264a685a3be2485b6de897de0f6d950c487c987ab3d7010589d2325b91214e",
+    "pypdfium2_notice_sha256": "eeb1359e5883601ae9717caac79ff44eadbe63f31779a074fe79055d9fa45728",
     "upstream_license_manifest_path": "licenses/pypdfium2-5.13.0/UPSTREAM_LICENSES.sha256",
     "upstream_license_manifest_sha256": "3792e6b56f5e0355be5e9089aaf9766943cf63f169cfd672370076d249d719e6",
     "upstream_metadata_manifest_path": "licenses/pypdfium2-5.13.0/UPSTREAM_METADATA.sha256",
     "upstream_metadata_manifest_sha256": "f377443334cc7949b109ebb1dfd4925b5f3d52c6f5eb4a38be7331b778a208f1",
     "upstream_license_files": 19,
-    "notice_policy": "verbatim upstream notices control over summary text"
+    "notice_policy": "verbatim upstream notices control over summary text",
+    "upstream_build_license_manifest_path": "licenses/pypdfium2-5.13.0/UPSTREAM_BUILD_LICENSES.sha256",
+    "upstream_build_license_manifest_sha256": "23d7820bf962c2b65cbe1d5e2559ef71943380d5f6ec6355150f41b3fcbf4cec",
+    "upstream_build_license_archive_path": "licenses/pypdfium2-5.13.0/upstream/BUILD_LICENSES.tar.gz",
+    "upstream_build_license_archive_sha256": "ce6db66ac577f75830f74b1cf93ed44037ba16ac6f0cc9d730c6d8197b167cb8"
   }
 }

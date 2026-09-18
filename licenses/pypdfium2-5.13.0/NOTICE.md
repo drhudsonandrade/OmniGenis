@@ -5,9 +5,10 @@ wheel accepted by OmniGenis Stage 2/3. It does not transfer ownership of any
 third-party material to OmniGenis and does not replace the controlling upstream
 license texts.
 
-The verbatim upstream license/notice files from the audited wheel are preserved
-under `upstream/`. Their SHA-256 values are recorded in
-`UPSTREAM_LICENSES.sha256`. If this summary and a verbatim upstream notice ever
+The verbatim upstream license/notice payloads from the audited wheel are preserved
+as three direct license files plus deterministic `upstream/BUILD_LICENSES.tar.gz`.
+Their logical SHA-256 values are recorded in `UPSTREAM_LICENSES.sha256`; the
+archive itself is pinned by `UPSTREAM_BUILD_LICENSES.sha256`. If this summary and a verbatim upstream notice ever
 differ, the applicable upstream license/notice is the controlling notice.
 
 ## Direct runtime components
