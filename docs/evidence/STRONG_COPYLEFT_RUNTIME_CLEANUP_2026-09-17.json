@@ -36,15 +36,15 @@
     "This evidence is technical compliance evidence, not a legal opinion and not a LICENSE-CLEAN certification."
   ],
   "verification": {
-    "pre_attestation_tested_tree_sha": "0cd8895fa390578a4fdfe5f5c11a11feb36f09e9",
+    "pre_attestation_tested_tree_sha": "001d6f105b6a88f58e96ba6b278d21683795074e",
     "gates": {
       "directed_tests": {
         "status": "PASS",
         "command": "python -m unittest tests.test_strong_copyleft_runtime_cleanup tests.test_pdfium_upstream_notice_contract tests.test_template_v3_contract tests.test_workflow_contracts tests.test_reference_manifest_contract tests.test_developer_documentation_language -q",
         "exit_code": 0,
-        "output_sha256": "4ce30bd04b4be044502f606f124483b80be2f78980173cf538aff9dae5f3db3a",
-        "tested_tree_sha": "0cd8895fa390578a4fdfe5f5c11a11feb36f09e9",
-        "result": "126 tests OK; 1 skipped",
+        "output_sha256": "d5570f2f73d672a16969a9fe4df7bc8395fbec43a947db8f4d858bb0490ef8a0",
+        "tested_tree_sha": "001d6f105b6a88f58e96ba6b278d21683795074e",
+        "result": "133 tests OK; 1 skipped",
         "output_path": "docs/evidence/stage3/directed_tests.log"
       },
       "repository_validator": {
@@ -52,7 +52,7 @@
         "command": "python scripts/validate_repo.py",
         "exit_code": 0,
         "output_sha256": "3c0dc015021366a6895ca1777bd4be46995994861b27bb8fcaa7cb47a143f2fd",
-        "tested_tree_sha": "0cd8895fa390578a4fdfe5f5c11a11feb36f09e9",
+        "tested_tree_sha": "001d6f105b6a88f58e96ba6b278d21683795074e",
         "output_path": "docs/evidence/stage3/repository_validator.log"
       },
       "supply_chain_gate": {
@@ -60,7 +60,7 @@
         "command": "python scripts/verify_supply_chain_lock.py",
         "exit_code": 0,
         "output_sha256": "3ffbf1e78306655dbb2f214974a4e24c842e6378da0e2d8840d43b2eb4939c7c",
-        "tested_tree_sha": "0cd8895fa390578a4fdfe5f5c11a11feb36f09e9",
+        "tested_tree_sha": "001d6f105b6a88f58e96ba6b278d21683795074e",
         "output_path": "docs/evidence/stage3/supply_chain_gate.log"
       },
       "residual_language_gate": {
@@ -68,7 +68,7 @@
         "command": "python scripts/residual_language_audit.py --check",
         "exit_code": 0,
         "output_sha256": "ccc014ae1f7813459f396733228e1a882ba6f0d1d2f93b44a142d948cdfdfc82",
-        "tested_tree_sha": "0cd8895fa390578a4fdfe5f5c11a11feb36f09e9",
+        "tested_tree_sha": "001d6f105b6a88f58e96ba6b278d21683795074e",
         "result": "clean=true; unclassified=0; drift=0",
         "output_path": "docs/evidence/stage3/residual_language_gate.log"
       },
@@ -76,9 +76,9 @@
         "status": "PASS",
         "command": "python -m unittest discover -s tests -p 'test_*.py'",
         "exit_code": 0,
-        "output_sha256": "42bca4280fbbb8f5797c7acf8ae2d47ce43e49b115a49c4b1ce813db4787c4e8",
-        "tested_tree_sha": "0cd8895fa390578a4fdfe5f5c11a11feb36f09e9",
-        "result": "1289 tests OK; 2 skipped",
+        "output_sha256": "727d367704141b6e10cff1347ba5f5f2b486049ad692f4c9640fb77ddaf81b05",
+        "tested_tree_sha": "001d6f105b6a88f58e96ba6b278d21683795074e",
+        "result": "1296 tests OK; 2 skipped",
         "output_path": "docs/evidence/stage3/full_test_suite.log"
       }
     }

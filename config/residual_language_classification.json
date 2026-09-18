@@ -534,7 +534,7 @@
       "category": "historical",
       "reason": "Immutable Stage 3 execution evidence preserves localized runtime wire-status values exactly as emitted by the verified test run.",
       "count": 6,
-      "fingerprint": "1db0c81cf1abe8c6681aad4e23f65890803f24ded1f909060c816a2f3b77ff9a"
+      "fingerprint": "c5d78a5371a0c3fd059843e4d02ce1f56e3687d920cbfa596531ab9f663d0891"
     },
     {
       "path": "docs/superpowers/plans/2026-08-14-magalu-private-mcp.md",

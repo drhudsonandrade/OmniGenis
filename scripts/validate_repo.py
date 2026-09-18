@@ -982,6 +982,15 @@ def _stage3_python_violations(text: str, relative: str) -> list[str]:
         "importlib.import_module": 0,
         "__import__": 0,
     }
+    executable_keyword_calls = {
+        "subprocess.run",
+        "subprocess.Popen",
+        "subprocess.call",
+        "subprocess.check_call",
+        "subprocess.check_output",
+        "asyncio.create_subprocess_exec",
+        "asyncio.create_subprocess_shell",
+    }
     import_aliases: dict[str, str] = {}
     for imported in ast.walk(tree):
         if isinstance(imported, ast.Import):
@@ -1027,6 +1036,31 @@ def _stage3_python_violations(text: str, relative: str) -> list[str]:
                 f"Stage 3 retired PDF identifier constructed in Python command: "
                 f"{relative}:{call_name}:{token}"
             )
+        if call_name not in executable_keyword_calls:
+            continue
+        if any(keyword.arg is None for keyword in node.keywords):
+            errors.append(
+                f"Stage 3 unresolved executable keyword arguments on active Python surface: "
+                f"{relative}:{call_name}"
+            )
+        executable_keywords = [
+            keyword for keyword in node.keywords if keyword.arg == "executable"
+        ]
+        for keyword in executable_keywords:
+            if isinstance(keyword.value, ast.Constant) and keyword.value.value is None:
+                continue
+            executable = _stage3_py_string(keyword.value, env)
+            if executable is None:
+                errors.append(
+                    f"Stage 3 unresolved executable override on active Python surface: "
+                    f"{relative}:{call_name}"
+                )
+                continue
+            for token in _stage3_prohibited(executable):
+                errors.append(
+                    f"Stage 3 retired PDF identifier constructed in Python executable override: "
+                    f"{relative}:{call_name}:{token}"
+                )
     return errors
 
 _STAGE3_SHELL_ASSIGNMENT = re.compile(
@@ -1039,7 +1073,8 @@ _STAGE3_SHELL_VARIABLE = re.compile(
 def _stage3_shell_violations(text: str, relative: str) -> list[str]:
     env: dict[str, str | None] = {}
     errors: list[str] = []
-    continued = False
+    pending_command = ""
+    pending_command_line = 0
 
     def expand(value: str) -> tuple[str, bool]:
         unresolved = False
@@ -1053,9 +1088,68 @@ def _stage3_shell_violations(text: str, relative: str) -> list[str]:
             return resolved
         return _STAGE3_SHELL_VARIABLE.sub(replace, value), unresolved
 
+    def unresolved_env_executable(raw_line: str) -> str | None:
+        try:
+            parts = shlex.split(raw_line, comments=True, posix=True)
+        except ValueError:
+            return "<env-parse>" if raw_line.lstrip().startswith("env ") else None
+        if not parts or parts[0] != "env":
+            return None
+        index = 1
+        no_value_options = {
+            "-i", "--ignore-environment", "-0", "--null", "-v", "--debug",
+        }
+        value_options = {"-u", "--unset", "-C", "--chdir", "--argv0"}
+        assignment_pattern = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
+        while index < len(parts):
+            token = parts[index]
+            if token == "--":
+                index += 1
+                break
+            if token in no_value_options:
+                index += 1
+                continue
+            if token in value_options:
+                if index + 1 >= len(parts):
+                    return "<env-option>"
+                index += 2
+                continue
+            if token.startswith(("--unset=", "--chdir=", "--argv0=")):
+                index += 1
+                continue
+            if token in {"-S", "--split-string"}:
+                if index + 1 >= len(parts):
+                    return "<env-split-string>"
+                split_command = parts[index + 1]
+                for match in _STAGE3_SHELL_VARIABLE.finditer(split_command):
+                    name = match.group(1) or match.group(2)
+                    if env.get(name) is None:
+                        return name
+                return None
+            if token.startswith("--split-string="):
+                split_command = token.split("=", 1)[1]
+                for match in _STAGE3_SHELL_VARIABLE.finditer(split_command):
+                    name = match.group(1) or match.group(2)
+                    if env.get(name) is None:
+                        return name
+                return None
+            if assignment_pattern.match(token):
+                index += 1
+                continue
+            if token.startswith("-"):
+                return "<env-option>"
+            break
+        if index >= len(parts):
+            return None
+        command = parts[index]
+        for match in _STAGE3_SHELL_VARIABLE.finditer(command):
+            name = match.group(1) or match.group(2)
+            if env.get(name) is None:
+                return name
+        return None
+
     for line_number, raw_line in enumerate(text.splitlines(), 1):
-        is_continuation = continued
-        continued = raw_line.rstrip().endswith("\\")
+        line_continues = raw_line.rstrip().endswith("\\")
         stripped = raw_line.strip()
         if not stripped or stripped.startswith("#"):
             continue
@@ -1078,36 +1172,55 @@ def _stage3_shell_violations(text: str, relative: str) -> list[str]:
                             f"{relative}:{line_number}:{name}:{token}"
                         )
 
-        expanded, _ = expand(raw_line)
+        if not pending_command:
+            pending_command_line = line_number
+        command_piece = raw_line.rstrip()
+        logical_command = (
+            pending_command + command_piece.lstrip()
+            if pending_command
+            else raw_line
+        )
+        if line_continues:
+            pending_command = logical_command.rstrip()[:-1] + " "
+            continue
+        pending_command = ""
+
+        expanded, _ = expand(logical_command)
         for token in _stage3_prohibited(expanded):
             errors.append(
                 f"Stage 3 retired PDF identifier constructed in shell command: "
-                f"{relative}:{line_number}:{token}"
+                f"{relative}:{pending_command_line}:{token}"
             )
         command_var = re.match(
             r"^\s*[\"']?\$(?:\{)?([A-Za-z_][A-Za-z0-9_]*)",
-            raw_line,
+            logical_command,
         )
         wrapper_var = re.match(
             r"^\s*(?:command|exec|env)\s+(?:--\s+)?[\"']?"
             r"\$(?:\{)?([A-Za-z_][A-Za-z0-9_]*)",
-            raw_line,
+            logical_command,
         )
         shell_c_var = re.match(
             r"^\s*(?:bash|sh)\s+-c\s+[\"']?"
             r"\$(?:\{)?([A-Za-z_][A-Za-z0-9_]*)",
-            raw_line,
+            logical_command,
         )
-        unresolved_command_var = None
-        for match in (command_var, wrapper_var, shell_c_var):
-            if match and env.get(match.group(1)) is None:
-                unresolved_command_var = match.group(1)
-                break
-        if not is_continuation and unresolved_command_var is not None:
+        unresolved_command_var = unresolved_env_executable(logical_command)
+        if unresolved_command_var is None:
+            for match in (command_var, wrapper_var, shell_c_var):
+                if match and env.get(match.group(1)) is None:
+                    unresolved_command_var = match.group(1)
+                    break
+        if unresolved_command_var is not None:
             errors.append(
                 f"Stage 3 unresolved shell executable on active surface: "
-                f"{relative}:{line_number}:{unresolved_command_var}"
+                f"{relative}:{pending_command_line}:{unresolved_command_var}"
             )
+    if pending_command:
+        errors.append(
+            f"Stage 3 unterminated shell continuation on active surface: "
+            f"{relative}:{pending_command_line}"
+        )
     return errors
 
 def _stage3_structured_violations(text: str, relative: str) -> list[str]:
