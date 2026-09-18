@@ -951,9 +951,20 @@ def _stage3_python_violations(text: str, relative: str) -> list[str]:
         "subprocess.check_call", "subprocess.check_output",
         "os.system", "os.popen", "importlib.import_module", "__import__",
     }
+    import_aliases: dict[str, str] = {}
+    for imported in ast.walk(tree):
+        if isinstance(imported, ast.Import):
+            for alias in imported.names:
+                local_name = alias.asname or alias.name.split(".")[0]
+                import_aliases[local_name] = alias.name
+        elif isinstance(imported, ast.ImportFrom) and imported.module:
+            for alias in imported.names:
+                local_name = alias.asname or alias.name
+                import_aliases[local_name] = f"{imported.module}.{alias.name}"
+
     def dotted(node: ast.AST) -> str | None:
         if isinstance(node, ast.Name):
-            return node.id
+            return import_aliases.get(node.id, node.id)
         if isinstance(node, ast.Attribute):
             base = dotted(node.value)
             return f"{base}.{node.attr}" if base else None
@@ -1076,7 +1087,38 @@ def _stage3_structured_violations(text: str, relative: str) -> list[str]:
                     f"Stage 3 unresolved environment dependency syntax: "
                     f"{relative}:{line_number}"
                 ]
-            values.append(stripped[2:].strip().strip("\"'"))
+            scalar = stripped[2:].strip()
+            if scalar.startswith('"'):
+                try:
+                    decoded = json.loads(scalar)
+                except json.JSONDecodeError:
+                    return [
+                        f"Stage 3 unresolved environment dependency syntax: "
+                        f"{relative}:{line_number}"
+                    ]
+                if not isinstance(decoded, str):
+                    return [
+                        f"Stage 3 unresolved environment dependency syntax: "
+                        f"{relative}:{line_number}"
+                    ]
+                values.append(decoded)
+            elif scalar.startswith("'"):
+                if len(scalar) < 2 or not scalar.endswith("'"):
+                    return [
+                        f"Stage 3 unresolved environment dependency syntax: "
+                        f"{relative}:{line_number}"
+                    ]
+                values.append(scalar[1:-1].replace("''", "'"))
+            else:
+                comment = re.search(r"\s+#", scalar)
+                if comment:
+                    scalar = scalar[:comment.start()].rstrip()
+                if not scalar or any(marker in scalar for marker in ("[", "]", "{", "}")):
+                    return [
+                        f"Stage 3 unresolved environment dependency syntax: "
+                        f"{relative}:{line_number}"
+                    ]
+                values.append(scalar)
     elif relative.endswith(".json"):
         try:
             payload = json.loads(text)
@@ -1106,13 +1148,16 @@ def _stage3_structured_violations(text: str, relative: str) -> list[str]:
     return errors
 
 
-def _stage3_gate_provenance_errors(verification: dict[str, object]) -> list[str]:
+def _stage3_gate_provenance_errors(
+    root: Path, verification: dict[str, object]
+) -> list[str]:
     tree_sha = str(verification.get("pre_attestation_tested_tree_sha", ""))
     gates = verification.get("gates")
     if not re.fullmatch(r"[0-9a-f]{40}", tree_sha):
         return ["Stage 3 verification provenance has invalid pre-attestation tree SHA"]
     if not isinstance(gates, dict) or set(gates) != set(STAGE3_GATE_NAMES):
         return ["Stage 3 verification provenance gate set mismatch"]
+
     errors: list[str] = []
     for name in STAGE3_GATE_NAMES:
         record = gates.get(name)
@@ -1121,6 +1166,7 @@ def _stage3_gate_provenance_errors(verification: dict[str, object]) -> list[str]
             continue
         command = record.get("command")
         output_sha = str(record.get("output_sha256", ""))
+        output_path_value = record.get("output_path")
         if (
             record.get("status") != "PASS"
             or not isinstance(command, str)
@@ -1128,9 +1174,30 @@ def _stage3_gate_provenance_errors(verification: dict[str, object]) -> list[str]
             or record.get("exit_code") != 0
             or not re.fullmatch(r"[0-9a-f]{64}", output_sha)
             or record.get("tested_tree_sha") != tree_sha
+            or not isinstance(output_path_value, str)
+            or not output_path_value
         ):
             errors.append(f"Stage 3 verification provenance incomplete: {name}")
+            continue
+
+        output_path = Path(output_path_value)
+        if (
+            output_path.is_absolute()
+            or ".." in output_path.parts
+            or not output_path.as_posix().startswith("docs/evidence/stage3/")
+        ):
+            errors.append(f"Stage 3 verification output artifact path invalid: {name}")
+            continue
+
+        artifact = root / output_path
+        if not artifact.is_file():
+            errors.append(f"Stage 3 verification output artifact missing: {name}")
+            continue
+        actual_sha = hashlib.sha256(artifact.read_bytes()).hexdigest()
+        if actual_sha != output_sha:
+            errors.append(f"Stage 3 verification output hash mismatch: {name}")
     return errors
+
 
 def validate_stage3_copyleft_contract(root: Path, errors: list[str]) -> None:
     """Keep the remediated application runtime free of retired PDF executables."""
@@ -1178,7 +1245,7 @@ def validate_stage3_copyleft_contract(root: Path, errors: list[str]) -> None:
             ):
                 errors.append("Stage 3 cleanup evidence contract mismatch")
             elif isinstance(verification, dict):
-                errors.extend(_stage3_gate_provenance_errors(verification))
+                errors.extend(_stage3_gate_provenance_errors(root, verification))
 
     template = root / "reporting/template_v3.py"
     if template.is_file():

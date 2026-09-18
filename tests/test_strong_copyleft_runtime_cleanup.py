@@ -90,25 +90,29 @@ class Stage3ValidatorContractTest(unittest.TestCase):
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(content, encoding="utf-8")
 
+        import hashlib
         import json
+
         tree = "1" * 40
-        output_hash = "a" * 64
-        gates = {
-            name: {
+        gates = {}
+        for name in (
+            "directed_tests",
+            "repository_validator",
+            "supply_chain_gate",
+            "residual_language_gate",
+            "full_test_suite",
+        ):
+            output_path = root / "docs/evidence/stage3/test" / f"{name}.log"
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(f"PASS {name}\n", encoding="utf-8")
+            gates[name] = {
                 "status": "PASS",
                 "command": f"test-command-{name}",
                 "exit_code": 0,
-                "output_sha256": output_hash,
+                "output_path": output_path.relative_to(root).as_posix(),
+                "output_sha256": hashlib.sha256(output_path.read_bytes()).hexdigest(),
                 "tested_tree_sha": tree,
             }
-            for name in (
-                "directed_tests",
-                "repository_validator",
-                "supply_chain_gate",
-                "residual_language_gate",
-                "full_test_suite",
-            )
-        }
         evidence = {
             "schema": "omnigenis-stage3-strong-copyleft-runtime-cleanup-v2",
             "status": "VERIFIED",
@@ -173,6 +177,44 @@ class Stage3ValidatorContractTest(unittest.TestCase):
             validate_stage3_copyleft_contract(root, errors)
             self.assertTrue(any("constructed" in error for error in errors), errors)
 
+    def test_stage3_validator_rejects_module_alias_unresolved_command(self) -> None:
+        from scripts.validate_repo import validate_stage3_copyleft_contract
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_valid_surfaces(root)
+            (root / "reporting/template_v3.py").write_text(
+                "DOCX_BACKGROUND_DPI = 288\n"
+                "def _render_template_pages_pdfium(): pass\n"
+                "MODE = 'template-v3-pdfium-raster-docx'\n"
+                "import os\n"
+                "import subprocess as sp\n"
+                "sp.run([os.environ['PDF_TOOL']], check=True)\n",
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            validate_stage3_copyleft_contract(root, errors)
+            self.assertTrue(any("unresolved executable" in error for error in errors), errors)
+
+    def test_stage3_validator_rejects_from_import_unresolved_command(self) -> None:
+        from scripts.validate_repo import validate_stage3_copyleft_contract
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_valid_surfaces(root)
+            (root / "reporting/template_v3.py").write_text(
+                "DOCX_BACKGROUND_DPI = 288\n"
+                "def _render_template_pages_pdfium(): pass\n"
+                "MODE = 'template-v3-pdfium-raster-docx'\n"
+                "import os\n"
+                "from subprocess import run\n"
+                "run([os.environ['PDF_TOOL']], check=True)\n",
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            validate_stage3_copyleft_contract(root, errors)
+            self.assertTrue(any("unresolved executable" in error for error in errors), errors)
+
     def test_stage3_validator_rejects_shell_constructed_retired_command(self) -> None:
         from scripts.validate_repo import validate_stage3_copyleft_contract
 
@@ -210,6 +252,39 @@ class Stage3ValidatorContractTest(unittest.TestCase):
             validate_stage3_copyleft_contract(root, errors)
             self.assertTrue(any("unresolved executable" in error for error in errors), errors)
 
+    def test_stage3_validator_rejects_missing_gate_output_artifact(self) -> None:
+        import json
+
+        from scripts.validate_repo import validate_stage3_copyleft_contract
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_valid_surfaces(root)
+            evidence = root / "docs/evidence/STRONG_COPYLEFT_RUNTIME_CLEANUP_2026-09-17.json"
+            payload = json.loads(evidence.read_text(encoding="utf-8"))
+            record = payload["verification"]["gates"]["full_test_suite"]
+            (root / record["output_path"]).unlink()
+            evidence.write_text(json.dumps(payload), encoding="utf-8")
+            errors: list[str] = []
+            validate_stage3_copyleft_contract(root, errors)
+            self.assertTrue(any("output artifact" in error for error in errors), errors)
+
+    def test_stage3_validator_rejects_gate_output_hash_mismatch(self) -> None:
+        import json
+
+        from scripts.validate_repo import validate_stage3_copyleft_contract
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_valid_surfaces(root)
+            evidence = root / "docs/evidence/STRONG_COPYLEFT_RUNTIME_CLEANUP_2026-09-17.json"
+            payload = json.loads(evidence.read_text(encoding="utf-8"))
+            record = payload["verification"]["gates"]["full_test_suite"]
+            (root / record["output_path"]).write_text("tampered\n", encoding="utf-8")
+            errors: list[str] = []
+            validate_stage3_copyleft_contract(root, errors)
+            self.assertTrue(any("output hash mismatch" in error for error in errors), errors)
+
     def test_stage3_validator_rejects_incomplete_gate_provenance(self) -> None:
         import json
 
@@ -225,6 +300,20 @@ class Stage3ValidatorContractTest(unittest.TestCase):
             errors: list[str] = []
             validate_stage3_copyleft_contract(root, errors)
             self.assertTrue(any("provenance" in error for error in errors), errors)
+
+    def test_stage3_validator_rejects_yaml_escaped_dependency(self) -> None:
+        from scripts.validate_repo import validate_stage3_copyleft_contract
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_valid_surfaces(root)
+            (root / "environment.yml").write_text(
+                'dependencies:\n  - "pop\\u0070ler=26.07.0"\n',
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            validate_stage3_copyleft_contract(root, errors)
+            self.assertTrue(any("structured surface" in error for error in errors), errors)
 
     def test_stage3_validator_rejects_obfuscated_structured_dependency(self) -> None:
         from scripts.validate_repo import validate_stage3_copyleft_contract

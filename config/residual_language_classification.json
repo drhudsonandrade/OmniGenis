@@ -530,6 +530,13 @@
       "fingerprint": "076f3f1ff64879896f402a4da2d60ec413f9c0cd769572d25a84f6e4e3e4ca4b"
     },
     {
+      "path": "docs/evidence/stage3/full_test_suite.log",
+      "category": "historical",
+      "reason": "Immutable Stage 3 execution evidence preserves localized runtime wire-status values exactly as emitted by the verified test run.",
+      "count": 6,
+      "fingerprint": "be5678aabdef840106a07ce26dec7cc3dc5af0a178a65be439552e539804de2b"
+    },
+    {
       "path": "docs/superpowers/plans/2026-08-14-magalu-private-mcp.md",
       "category": "historical",
       "reason": "Implementation-plan record is retained as historical development evidence and is not active runtime or user-facing technical documentation.",
