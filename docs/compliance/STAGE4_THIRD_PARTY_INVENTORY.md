@@ -94,10 +94,12 @@ The script:
 1. downloads the exact Syft archive from the locked upstream release;
 2. verifies its SHA-256 before execution;
 3. generates Syft JSON, SPDX 2.3 JSON, and CycloneDX 1.7 JSON from the built image;
-4. validates minimum package coverage and required runtime components;
-5. rejects reintroduction of the retired Poppler runtime;
-6. writes SHA-256 hashes for all generated SBOM files;
-7. uploads the SBOM bundle as CI evidence.
+4. extracts the installed Conda environment from the same built image with `micromamba list --json`;
+5. reconciles every non-virtual installed Conda package against the audited 161-package lock;
+6. validates scanner-visible package coverage and required Python/npm runtime components;
+7. rejects reintroduction of the retired Poppler runtime in both scanner and Conda inventories;
+8. writes SHA-256 hashes for all generated evidence files;
+9. uploads the SBOM/evidence bundle as CI evidence.
 
 The published main image also enables BuildKit provenance and SBOM attestations.
 

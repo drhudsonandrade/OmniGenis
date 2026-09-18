@@ -12,7 +12,8 @@ from scripts.validate_stage4_compliance import REQUIRED, collect_errors
 ROOT = Path(__file__).resolve().parents[1]
 
 class Stage4ThirdPartyComplianceTest(unittest.TestCase):
-    def _copy_contract_root(self, destination: Path) -> None:
+    @staticmethod
+    def _copy_contract_root(destination: Path) -> None:
         relative_paths = set(REQUIRED) | {
             "locks/runtime-lock.json",
             "locks/actions-lock.json",
@@ -64,21 +65,16 @@ class Stage4ThirdPartyComplianceTest(unittest.TestCase):
             (ROOT / "config/third_party_software_registry.json").read_text()
         )
         by_id = {item["id"]: item for item in payload["components"]}
-        bcftools = next(
-            item
+        conda_by_name = {
+            item["name"]: item
             for item in by_id.values()
-            if item["ecosystem"] == "conda" and item["name"] == "bcftools"
-        )
-        coreutils = next(
-            item
-            for item in by_id.values()
-            if item["ecosystem"] == "conda" and item["name"] == "coreutils"
-        )
-        openjdk = next(
-            item
-            for item in by_id.values()
-            if item["ecosystem"] == "conda" and item["name"] == "openjdk"
-        )
+            if item["ecosystem"] == "conda"
+        }
+        for required in ("bcftools", "coreutils", "openjdk"):
+            self.assertIn(required, conda_by_name)
+        bcftools = conda_by_name["bcftools"]
+        coreutils = conda_by_name["coreutils"]
+        openjdk = conda_by_name["openjdk"]
         self.assertEqual(bcftools["policy_status"], "BLOCKED_BY_DEFAULT")
         self.assertEqual(coreutils["policy_status"], "BLOCKED_BY_DEFAULT")
         self.assertEqual(openjdk["policy_status"], "REVIEW_REQUIRED")
@@ -87,11 +83,9 @@ class Stage4ThirdPartyComplianceTest(unittest.TestCase):
         payload = json.loads(
             (ROOT / "config/third_party_software_registry.json").read_text()
         )
-        record = next(
-            item
-            for item in payload["components"]
-            if item["id"] == "pypi:pypdfium2@5.13.0"
-        )
+        by_id = {item["id"]: item for item in payload["components"]}
+        self.assertIn("pypi:pypdfium2@5.13.0", by_id)
+        record = by_id["pypi:pypdfium2@5.13.0"]
         self.assertEqual(
             record["policy_status"], "REVIEWED_ACCEPTED_EXACT_ARTIFACT"
         )
@@ -123,6 +117,9 @@ class Stage4ThirdPartyComplianceTest(unittest.TestCase):
         )
         self.assertIn("npm prune --omit=dev --ignore-scripts", dockerfile)
         self.assertIn("scripts/generate_stage4_sbom.sh", workflow)
+        sbom_script = (ROOT / "scripts/generate_stage4_sbom.sh").read_text()
+        self.assertIn("micromamba list --name base --json", sbom_script)
+        self.assertIn("omnigenis.conda.json", sbom_script)
         self.assertIn("name: stage4-sbom-${{ github.sha }}", workflow)
         self.assertIn("provenance: mode=max", workflow)
         self.assertIn("sbom: true", workflow)
@@ -161,7 +158,9 @@ class Stage4ThirdPartyComplianceTest(unittest.TestCase):
             self._copy_contract_root(root)
             lock = root / "mcp/package-lock.json"
             payload = json.loads(lock.read_text())
-            path = next(path for path in payload["packages"] if path)
+            package_paths = [path for path in payload["packages"] if path]
+            self.assertTrue(package_paths)
+            path = package_paths[0]
             payload["packages"][path].pop("license", None)
             lock.write_text(json.dumps(payload))
             errors = collect_errors(root)

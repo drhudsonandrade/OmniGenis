@@ -6,6 +6,7 @@ import json
 import re
 from collections import Counter
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1] if Path(__file__).name != "build_registry.py" else Path.cwd()
 OUT = ROOT / "config/third_party_software_registry.json"
@@ -20,8 +21,8 @@ REVIEW_MARKERS = ("LGPL", "MPL", "EPL", "CC-BY", "LicenseRef-", "Artistic")
 BLOCK_MARKERS = ("AGPL", "SSPL", "NON-COMMERCIAL", "NONCOMMERCIAL", "RESEARCH-ONLY", "ACADEMIC-ONLY")
 
 
-def load(path: str):
-    return json.loads((ROOT / path).read_text(encoding="utf-8"))
+def load(root: Path, path: str) -> dict[str, Any]:
+    return json.loads((root / path).read_text(encoding="utf-8"))
 
 
 def sha256(path: Path) -> str:
@@ -41,16 +42,13 @@ def license_policy(value: str) -> str:
         return "BLOCKED_BY_DEFAULT"
     if any(marker.upper() in upper for marker in REVIEW_MARKERS):
         return "REVIEW_REQUIRED"
-    # Composite permissive expressions are accepted only if each recognizable term is permissive.
-    tokens = set(re.findall(r"[A-Za-z0-9.+-]+", text))
-    ignored = {"AND", "OR", "WITH", "license", "see", "txt", "for", "details", "Copyright", "c", "ReportLab", "Inc"}
-    meaningful = {t for t in tokens if t not in ignored and not t.isdigit()}
+    # Known permissive identifiers are accepted after copyleft/review markers above.
     if any(marker.lower() in text.lower() for marker in PERMISSIVE_MARKERS):
         return "PERMISSIVE"
     return "REVIEW_REQUIRED"
 
 
-def component(entry: dict) -> dict:
+def component(entry: dict[str, Any]) -> dict[str, Any]:
     licenses = entry.get("licenses") or [entry.get("license") or "UNKNOWN"]
     statuses = {license_policy(x) for x in licenses}
     if "BLOCKED_BY_DEFAULT" in statuses:
@@ -67,18 +65,18 @@ def component(entry: dict) -> dict:
     return entry
 
 
-def parse_python_lock() -> dict[str, str]:
+def parse_python_lock(root: Path) -> dict[str, str]:
     result = {}
-    for line in (ROOT / "reporting/requirements.txt").read_text(encoding="utf-8").splitlines():
+    for line in (root / "reporting/requirements.txt").read_text(encoding="utf-8").splitlines():
         m = re.match(r"^([A-Za-z0-9_.-]+)==([^ \\]+)", line)
         if m:
             result[m.group(1).lower()] = m.group(2)
     return result
 
 
-def direct_python() -> set[str]:
+def direct_python(root: Path) -> set[str]:
     names=set()
-    for raw in (ROOT/"reporting/requirements.in").read_text(encoding="utf-8").splitlines():
+    for raw in (root/"reporting/requirements.in").read_text(encoding="utf-8").splitlines():
         raw=raw.strip()
         if not raw or raw.startswith("#"):
             continue
@@ -86,13 +84,10 @@ def direct_python() -> set[str]:
     return names
 
 
-def build_payload(root: Path = ROOT) -> dict[str, object]:
-    global ROOT
-    original_root = ROOT
-    ROOT = root
-    records=[]
+def build_payload(root: Path = ROOT) -> dict[str, Any]:
+    records: list[dict[str, Any]] = []
 
-    base=load("locks/base-image-software.json")
+    base = load(root, "locks/base-image-software.json")
     for item in base["components"]:
         records.append(component({
             "id": f"base:{item['purl'] or item['name'] + '@' + item['version']}",
@@ -107,9 +102,9 @@ def build_payload(root: Path = ROOT) -> dict[str, object]:
             "evidence": item.get("license_evidence_paths") or [],
         }))
 
-    conda=load("locks/conda-linux-64-resolution.json")
+    conda = load(root, "locks/conda-linux-64-resolution.json")
     env_names=set()
-    for raw in (ROOT/"environment.yml").read_text(encoding="utf-8").splitlines():
+    for raw in (root/"environment.yml").read_text(encoding="utf-8").splitlines():
         raw=raw.strip()
         if raw.startswith("- "):
             token=raw[2:].strip()
@@ -130,9 +125,9 @@ def build_payload(root: Path = ROOT) -> dict[str, object]:
             "evidence": ["locks/conda-linux-64-resolution.json"],
         }))
 
-    py_meta=load("locks/python-license-metadata.json")
-    py_lock=parse_python_lock()
-    py_direct=direct_python()
+    py_meta = load(root, "locks/python-license-metadata.json")
+    py_lock = parse_python_lock(root)
+    py_direct = direct_python(root)
     metadata_by_name={x["name"].lower():x for x in py_meta["packages"]}
     if set(py_lock) != set(metadata_by_name):
         raise SystemExit("python license metadata coverage mismatch")
@@ -159,9 +154,9 @@ def build_payload(root: Path = ROOT) -> dict[str, object]:
             record["legal_review_required"]=False
         records.append(record)
 
-    package_json=load("mcp/package.json")
+    package_json = load(root, "mcp/package.json")
     npm_direct=set(package_json.get("dependencies",{})) | set(package_json.get("devDependencies",{}))
-    package_lock=load("mcp/package-lock.json")
+    package_lock = load(root, "mcp/package-lock.json")
     for path,meta in sorted(package_lock.get("packages",{}).items()):
         if not path:
             continue
@@ -182,7 +177,7 @@ def build_payload(root: Path = ROOT) -> dict[str, object]:
             "evidence": ["mcp/package-lock.json"],
         }))
 
-    actions=load("locks/action-license-metadata.json")
+    actions = load(root, "locks/action-license-metadata.json")
     for item in actions["actions"]:
         records.append(component({
             "id": f"github-action:{item['name']}@{item['sha']}",
@@ -220,7 +215,6 @@ def build_payload(root: Path = ROOT) -> dict[str, object]:
         },
         "components":records,
     }
-    ROOT = original_root
     return payload
 
 

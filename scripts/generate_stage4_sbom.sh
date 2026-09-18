@@ -32,16 +32,34 @@ curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 "$url" -
 printf '%s  %s\n' "$expected" "$archive" | sha256sum --check --strict
 tar -xzf "$archive" -C "$work" syft
 observed="$("$work/syft" version | awk '/^Version:/ {print $2}')"
-[[ "$observed" == "$version" ]] || {
+[[ "$observed" = "$version" ]] || {
   echo "Syft version mismatch: expected=$version observed=$observed" >&2
   exit 3
 }
 
-"$work/syft" scan "$IMAGE_REF" -q   -o "syft-json=$OUTPUT_DIR/omnigenis.syft.json"   -o "spdx-json=$OUTPUT_DIR/omnigenis.spdx.json"   -o "cyclonedx-json=$OUTPUT_DIR/omnigenis.cdx.json"
+"$work/syft" scan "$IMAGE_REF" -q \
+  -o "syft-json=$OUTPUT_DIR/omnigenis.syft.json" \
+  -o "spdx-json=$OUTPUT_DIR/omnigenis.spdx.json" \
+  -o "cyclonedx-json=$OUTPUT_DIR/omnigenis.cdx.json"
 
-python3 "$ROOT/scripts/validate_stage4_sbom.py"   "$OUTPUT_DIR/omnigenis.syft.json"   "$OUTPUT_DIR/omnigenis.spdx.json"   "$OUTPUT_DIR/omnigenis.cdx.json"
+# Syft does not currently expose the Conda package database as a first-class
+# package catalog. Capture the installed environment from the built image and
+# reconcile it byte-independently against the audited explicit Conda lock.
+docker run --rm "$IMAGE_REF" \
+  micromamba list --name base --json > "$OUTPUT_DIR/omnigenis.conda.json"
+
+python3 "$ROOT/scripts/validate_stage4_sbom.py" \
+  "$OUTPUT_DIR/omnigenis.syft.json" \
+  "$OUTPUT_DIR/omnigenis.spdx.json" \
+  "$OUTPUT_DIR/omnigenis.cdx.json" \
+  "$ROOT/locks/conda-linux-64-resolution.json" \
+  "$OUTPUT_DIR/omnigenis.conda.json"
 
 (
   cd "$OUTPUT_DIR"
-  sha256sum omnigenis.syft.json omnigenis.spdx.json omnigenis.cdx.json > SHA256SUMS
+  sha256sum \
+    omnigenis.syft.json \
+    omnigenis.spdx.json \
+    omnigenis.cdx.json \
+    omnigenis.conda.json > SHA256SUMS
 )

@@ -6,6 +6,7 @@ import json
 import re
 import sys
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -24,7 +25,7 @@ REQUIRED = (
     "config/third_party_software_registry.json",
 )
 
-def _load(root: Path, relative: str) -> dict[str, object]:
+def _load(root: Path, relative: str) -> dict[str, Any]:
     return json.loads((root / relative).read_text(encoding="utf-8"))
 
 def _sha256(path: Path) -> str:
@@ -32,9 +33,9 @@ def _sha256(path: Path) -> str:
 
 def collect_errors(root: Path = ROOT) -> list[str]:
     errors: list[str] = []
-    for relative in REQUIRED:
-        if not (root / relative).is_file():
-            errors.append(f"Stage 4 required artifact missing: {relative}")
+    for required_path in REQUIRED:
+        if not (root / required_path).is_file():
+            errors.append(f"Stage 4 required artifact missing: {required_path}")
     if errors:
         return errors
 
@@ -181,10 +182,13 @@ def collect_errors(root: Path = ROOT) -> list[str]:
             if not isinstance(record, dict):
                 errors.append(f"Stage 4 compliance lock invalid: {key}")
                 continue
-            relative = record.get("path")
+            artifact_relative = record.get("path")
             expected = record.get("sha256")
-            path = root / str(relative)
-            if not path.is_file() or not SHA256.fullmatch(str(expected)):
+            if not isinstance(artifact_relative, str) or not isinstance(expected, str):
+                errors.append(f"Stage 4 compliance lock path/hash invalid: {key}")
+                continue
+            path = root / artifact_relative
+            if not path.is_file() or not SHA256.fullmatch(expected):
                 errors.append(f"Stage 4 compliance lock path/hash invalid: {key}")
                 continue
             if _sha256(path) != expected:
@@ -199,12 +203,19 @@ def main() -> int:
             print(f"FAIL\t{error}")
         return 1
     registry = _load(ROOT, "config/third_party_software_registry.json")
-    summary = registry["summary"]
+    summary = registry.get("summary")
+    if not isinstance(summary, dict):
+        print("FAIL\tStage 4 registry summary missing")
+        return 1
+    policy_status = summary.get("by_policy_status")
+    if not isinstance(policy_status, dict):
+        print("FAIL\tStage 4 registry policy summary missing")
+        return 1
     print(
         "PASS\tstage4_third_party_inventory\t"
-        f"components={summary['component_records']} "
-        f"blocked_default={summary['by_policy_status']['BLOCKED_BY_DEFAULT']} "
-        f"review_required={summary['by_policy_status']['REVIEW_REQUIRED']}"
+        f"components={summary.get('component_records')} "
+        f"blocked_default={policy_status.get('BLOCKED_BY_DEFAULT')} "
+        f"review_required={policy_status.get('REVIEW_REQUIRED')}"
     )
     return 0
 
