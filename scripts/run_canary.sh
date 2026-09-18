@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-readonly PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+readonly PROJECT_ROOT
 readonly OUTPUT_DIR="${1:-${PROJECT_ROOT}/results/canary}"
 readonly WORK_DIR="$OUTPUT_DIR/work"
 readonly CANARY_SCOPE="${2:-full}"

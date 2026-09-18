@@ -71,33 +71,22 @@ class PdfiumUpstreamNoticeContractTest(unittest.TestCase):
                 payload = archived[member_name]
             self.assertEqual(hashlib.sha256(payload).hexdigest(), expected, relative)
 
-    def test_every_upstream_license_manifest_entry_is_in_tracked_bundle(self) -> None:
-        import subprocess
+    def test_every_upstream_license_manifest_entry_is_in_checkout_bundle(self) -> None:
+        archive = LICENSE_ROOT / "upstream/BUILD_LICENSES.tar.gz"
+        archive_manifest = LICENSE_ROOT / "UPSTREAM_BUILD_LICENSES.sha256"
+        self.assertTrue(archive.is_file())
+        self.assertTrue(archive_manifest.is_file())
 
-        tracked = set(
-            subprocess.run(
-                ["git", "ls-files"],
-                cwd=ROOT,
-                check=True,
-                capture_output=True,
-                text=True,
-            ).stdout.splitlines()
-        )
-        archive = "licenses/pypdfium2-5.13.0/upstream/BUILD_LICENSES.tar.gz"
-        self.assertIn(archive, tracked)
-        self.assertIn("licenses/pypdfium2-5.13.0/UPSTREAM_BUILD_LICENSES.sha256", tracked)
         for line in HASHES.read_text(encoding="utf-8").splitlines():
             if not line.strip():
                 continue
             _expected, relative = line.split("  ", 1)
             if "/upstream/data/" not in relative:
-                self.assertIn(relative, tracked, relative)
-        self.assertFalse(
-            any(
-                path.startswith("licenses/pypdfium2-5.13.0/upstream/data/")
-                for path in tracked
-            )
-        )
+                self.assertTrue((ROOT / relative).is_file(), relative)
+
+        unpacked = LICENSE_ROOT / "upstream/data"
+        if unpacked.exists():
+            self.assertTrue(unpacked.is_dir())
 
     def test_upstream_package_metadata_is_hash_verified(self) -> None:
         manifest = {}

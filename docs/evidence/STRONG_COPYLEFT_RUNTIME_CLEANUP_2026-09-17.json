@@ -36,15 +36,15 @@
     "This evidence is technical compliance evidence, not a legal opinion and not a LICENSE-CLEAN certification."
   ],
   "verification": {
-    "pre_attestation_tested_tree_sha": "2fb62dffbe54079369a32909d395a29773dca400",
+    "pre_attestation_tested_tree_sha": "c1478c8f31056dd4cdbdb9d73f692dcb4d682c31",
     "gates": {
       "directed_tests": {
         "status": "PASS",
         "command": "python -m unittest tests.test_strong_copyleft_runtime_cleanup tests.test_pdfium_upstream_notice_contract tests.test_template_v3_contract tests.test_workflow_contracts tests.test_reference_manifest_contract tests.test_developer_documentation_language -q",
         "exit_code": 0,
-        "output_sha256": "ce558f3401561a91dba635ac72709b618d2e4079e2518c5c91c2cbe7ce2d9046",
-        "tested_tree_sha": "2fb62dffbe54079369a32909d395a29773dca400",
-        "result": "120 tests OK; 1 skipped",
+        "output_sha256": "20982ff753ebd2e8a9c06a71ee76a4a9f89743c158972675cb8d7e9805eece40",
+        "tested_tree_sha": "c1478c8f31056dd4cdbdb9d73f692dcb4d682c31",
+        "result": "121 tests OK; 1 skipped",
         "output_path": "docs/evidence/stage3/directed_tests.log"
       },
       "repository_validator": {
@@ -52,7 +52,7 @@
         "command": "python scripts/validate_repo.py",
         "exit_code": 0,
         "output_sha256": "3c0dc015021366a6895ca1777bd4be46995994861b27bb8fcaa7cb47a143f2fd",
-        "tested_tree_sha": "2fb62dffbe54079369a32909d395a29773dca400",
+        "tested_tree_sha": "c1478c8f31056dd4cdbdb9d73f692dcb4d682c31",
         "output_path": "docs/evidence/stage3/repository_validator.log"
       },
       "supply_chain_gate": {
@@ -60,7 +60,7 @@
         "command": "python scripts/verify_supply_chain_lock.py",
         "exit_code": 0,
         "output_sha256": "3ffbf1e78306655dbb2f214974a4e24c842e6378da0e2d8840d43b2eb4939c7c",
-        "tested_tree_sha": "2fb62dffbe54079369a32909d395a29773dca400",
+        "tested_tree_sha": "c1478c8f31056dd4cdbdb9d73f692dcb4d682c31",
         "output_path": "docs/evidence/stage3/supply_chain_gate.log"
       },
       "residual_language_gate": {
@@ -68,7 +68,7 @@
         "command": "python scripts/residual_language_audit.py --check",
         "exit_code": 0,
         "output_sha256": "ccc014ae1f7813459f396733228e1a882ba6f0d1d2f93b44a142d948cdfdfc82",
-        "tested_tree_sha": "2fb62dffbe54079369a32909d395a29773dca400",
+        "tested_tree_sha": "c1478c8f31056dd4cdbdb9d73f692dcb4d682c31",
         "result": "clean=true; unclassified=0; drift=0",
         "output_path": "docs/evidence/stage3/residual_language_gate.log"
       },
@@ -76,9 +76,9 @@
         "status": "PASS",
         "command": "python -m unittest discover -s tests -p 'test_*.py'",
         "exit_code": 0,
-        "output_sha256": "592b4a4c308802181922159a2d7336b08de877eb929fd8ab0240e8a46639e4e9",
-        "tested_tree_sha": "2fb62dffbe54079369a32909d395a29773dca400",
-        "result": "1283 tests OK; 2 skipped",
+        "output_sha256": "d283e51865b170fb3387ab8c2dbfcc4b9904a55ef21eeb3369e0f9b3d07d6b5a",
+        "tested_tree_sha": "c1478c8f31056dd4cdbdb9d73f692dcb4d682c31",
+        "result": "1284 tests OK; 2 skipped",
         "output_path": "docs/evidence/stage3/full_test_suite.log"
       }
     }
@@ -87,7 +87,7 @@
     "status": "VERIFIED",
     "scope": "audited pypdfium2 5.13.0 Linux x86_64 wheel and bundled PDFium notices",
     "notice_path": "licenses/pypdfium2-5.13.0/NOTICE.md",
-    "notice_sha256": "eeb1359e5883601ae9717caac79ff44eadbe63f31779a074fe79055d9fa45728",
+    "notice_sha256": "6a11d2ab373f54ceec1f692e435dfb75e6ebe45165eb525c92fc4ac59286b5b5",
     "upstream_license_manifest_path": "licenses/pypdfium2-5.13.0/UPSTREAM_LICENSES.sha256",
     "upstream_license_manifest_sha256": "3792e6b56f5e0355be5e9089aaf9766943cf63f169cfd672370076d249d719e6",
     "verbatim_upstream_license_files": 19,
@@ -103,7 +103,7 @@
   },
   "attribution_bundle": {
     "pypdfium2_notice_path": "licenses/pypdfium2-5.13.0/NOTICE.md",
-    "pypdfium2_notice_sha256": "eeb1359e5883601ae9717caac79ff44eadbe63f31779a074fe79055d9fa45728",
+    "pypdfium2_notice_sha256": "6a11d2ab373f54ceec1f692e435dfb75e6ebe45165eb525c92fc4ac59286b5b5",
     "upstream_license_manifest_path": "licenses/pypdfium2-5.13.0/UPSTREAM_LICENSES.sha256",
     "upstream_license_manifest_sha256": "3792e6b56f5e0355be5e9089aaf9766943cf63f169cfd672370076d249d719e6",
     "upstream_metadata_manifest_path": "licenses/pypdfium2-5.13.0/UPSTREAM_METADATA.sha256",

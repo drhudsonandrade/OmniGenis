@@ -43,6 +43,7 @@ differ, the applicable upstream license/notice is the controlling notice.
   `upstream/data/linux_x64/BUILD_LICENSES/pdfium-binaries.txt`.
 - That notice requires preservation of its copyright and permission notice in
   copies or substantial portions of the software.
+
 ## Bundled dependency notices in the audited wheel
 
 The audited binary wheel also ships third-party dependency notices. OmniGenis
@@ -78,6 +79,7 @@ verbatim upstream file is preserved as the authoritative notice for that
 artifact.
 
 ## Redistribution rule
+
 When an OmniGenis distribution includes the audited pypdfium2/PDFium binary
 artifact, the applicable upstream license and attribution notices must remain
 available with that distribution in the form required by their respective

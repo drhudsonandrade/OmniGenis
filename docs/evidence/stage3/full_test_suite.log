@@ -50,25 +50,25 @@ Traceback (most recent call last):
   File "/srv/remote-desktop-commander-workspace/codework-audit/Codework/.worktrees/omnigenis-stage3-copyleft/evidence_adapters/__init__.py", line 203, in query
     raise EvidenceResponseTooLargeError(
 evidence_adapters.EvidenceResponseTooLargeError: evidence response exceeds 16777216 bytes
-....................................................................................................................................................................................................................................................................................s.................................../usr/lib/python3.12/tempfile.py:1075: ResourceWarning: Implicitly cleaning up <TemporaryDirectory '/tmp/tmpqhhg9euc'>
+....................................................................................................................................................................................................................................................................................s.................................../usr/lib/python3.12/tempfile.py:1075: ResourceWarning: Implicitly cleaning up <TemporaryDirectory '/tmp/tmpkmmciie6'>
   _warnings.warn(warn_message, ResourceWarning)
-...................................................................................................................................................................................................................................................................................................................................................................................................................................................................s..................................................................................NÃO DISPONÍVEL: verified input refused by secure containment: input path escapes the sample directory
+....................................................................................................................................................................................................................................................................................................................................................................................................................................................................s..................................................................................NÃO DISPONÍVEL: verified input refused by secure containment: input path escapes the sample directory
 ...NÃO DISPONÍVEL: verified input is missing: input is not present: [Errno 2] No such file or directory: 'missing.fastq'
 ..NÃO DISPONÍVEL: verified input is unreadable: input could not be opened: [Errno 13] permission denied
 ..............................................................................
 ----------------------------------------------------------------------
-Ran 1283 tests in 344.729s
+Ran 1284 tests in 329.610s
 
 OK (skipped=2)
 {
-  "written": "/tmp/tmpdd_dcyai/bootstrap.json",
+  "written": "/tmp/tmps6rzove_/bootstrap.json",
   "sha256": "2e5f9250bd2af0546d76ee28f9120451b3e0fb591a5e1cda34593bd9e97edbb3"
 }
-{"candidate_set_sha256": "4487d3ee75c209740ef3818ad0208220b7b6632f4abd1be6a0370faf021bb9db", "command": "python scripts/run_pdfium_static_pixel_qa.py --template-dir \"$PRIVATE_TEMPLATE_DIR\" --candidate-dir \"$CANDIDATE_DIR\" --candidate-pattern 'qa-{rid}.pdf' --output /tmp/tmpyy_gtaxm/evidence.json --mask-manifest /tmp/tmpyy_gtaxm/masks.json --log /tmp/tmpyy_gtaxm/qa.log", "evidence_sha256": "fc1765642e6c00b807605c7f7b2103547dd7e5182927c638a127a91e0af85671", "log_sha256": "14647551372747ee6b06d2f69d9137bb936329efea5c5da8352efa59232cb088", "mask_manifest_sha256": "5094cee6ae28b62d3e227270d02a50bb7ae01968cf007a360bd29d16fef63cb1", "outside_changed_pixels": 0, "producer_sha256": "424a555004ac7eda9fe2ac9286410c50b1482477f8d767928af1f5f9ef60103d", "status": "VERIFICADO"}
+{"candidate_set_sha256": "7cd80566ceb0712fb8e1575f6befbb5120bfc8835fe7c430a19ffac70a06dead", "command": "python scripts/run_pdfium_static_pixel_qa.py --template-dir \"$PRIVATE_TEMPLATE_DIR\" --candidate-dir \"$CANDIDATE_DIR\" --candidate-pattern 'qa-{rid}.pdf' --output /tmp/tmpc2ce2n5g/evidence.json --mask-manifest /tmp/tmpc2ce2n5g/masks.json --log /tmp/tmpc2ce2n5g/qa.log", "evidence_sha256": "3811cc6751a0187d1248db340c6aabed5a88c5afbe26ce2b222a8374c76ef1e1", "log_sha256": "1e061075f57af372d20923b8b8272f0fc3e7310d59b878ef36b07c6de9895d92", "mask_manifest_sha256": "5094cee6ae28b62d3e227270d02a50bb7ae01968cf007a360bd29d16fef63cb1", "outside_changed_pixels": 0, "producer_sha256": "424a555004ac7eda9fe2ac9286410c50b1482477f8d767928af1f5f9ef60103d", "status": "VERIFICADO"}
 {
-  "matrix": "/tmp/tmpcsd1x9qp/matrix-cli.json",
-  "passport": "/tmp/tmpcsd1x9qp/passport-cli.json",
-  "payload": "/tmp/tmpcsd1x9qp/payload-cli.json",
+  "matrix": "/tmp/tmp0dvrhb0i/matrix-cli.json",
+  "passport": "/tmp/tmp0dvrhb0i/passport-cli.json",
+  "payload": "/tmp/tmp0dvrhb0i/payload-cli.json",
   "operational_status": "NÃO DISPONÍVEL",
   "totals": {
     "genes": 2,
