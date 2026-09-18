@@ -940,6 +940,8 @@ def _stage3_python_violations(text: str, relative: str) -> list[str]:
             folded = _stage3_py_string(value, env)
             if folded is not None:
                 env[target] = folded
+            else:
+                env.pop(target, None)
     errors: list[str] = []
     for name, folded_value in env.items():
         for token in _stage3_prohibited(folded_value):

@@ -47,12 +47,16 @@ class PdfiumUpstreamNoticeContractTest(unittest.TestCase):
             archive_expected,
         )
         with tarfile.open(archive, mode="r:gz") as bundle:
+            archived_members = [
+                member for member in bundle.getmembers() if member.isfile()
+            ]
+            self.assertEqual(len(archived_members), 16)
+            archived_names = [member.name for member in archived_members]
+            self.assertEqual(len(set(archived_names)), len(archived_names))
             archived = {
                 member.name: bundle.extractfile(member).read()
-                for member in bundle.getmembers()
-                if member.isfile()
+                for member in archived_members
             }
-        self.assertEqual(len(archived), 16)
 
         prefix = "licenses/pypdfium2-5.13.0/upstream/"
         for line in lines:

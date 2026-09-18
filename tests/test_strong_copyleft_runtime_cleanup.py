@@ -234,6 +234,29 @@ class Stage3ValidatorContractTest(unittest.TestCase):
             validate_stage3_copyleft_contract(root, errors)
             self.assertTrue(any("constructed" in error for error in errors), errors)
 
+    def test_stage3_validator_rejects_dynamic_reassignment_after_static_value(self) -> None:
+        from scripts.validate_repo import validate_stage3_copyleft_contract
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_valid_surfaces(root)
+            (root / "reporting/template_v3.py").write_text(
+                "DOCX_BACKGROUND_DPI = 288\n"
+                "def _render_template_pages_pdfium(): pass\n"
+                "MODE = 'template-v3-pdfium-raster-docx'\n"
+                "import os, subprocess\n"
+                "tool = 'safe'\n"
+                "tool = os.environ['PDF_TOOL']\n"
+                "subprocess.run([tool], check=True)\n",
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            validate_stage3_copyleft_contract(root, errors)
+            self.assertTrue(
+                any("unresolved executable" in error for error in errors),
+                errors,
+            )
+
     def test_stage3_validator_rejects_unresolved_python_command(self) -> None:
         from scripts.validate_repo import validate_stage3_copyleft_contract
 
