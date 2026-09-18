@@ -3,13 +3,10 @@ import gzip
 import hashlib
 import json
 import os
-import sys
 import tempfile
 import unittest
 import zipfile
 from pathlib import Path
-from types import SimpleNamespace
-from unittest.mock import patch
 
 from ruleset_test_support import RULESET
 
@@ -219,123 +216,33 @@ class TemplateV3ContractTest(unittest.TestCase):
                 with self.assertRaises(RuntimeError):
                     _ruleset_control_sources(marker)
 
-    def test_docx_svg_patch_rejects_zip_slip_member(self):
-        """A DOCX member whose path escapes the archive root is refused."""
-        from reporting.template_v3 import TemplateV3Error, _patch_docx_svg
+    def test_pdfium_docx_renderer_rejects_page_count_mismatch(self):
+        """A partial or unexpected PDF never becomes a partial DOCX background set."""
+        from reportlab.lib.pagesizes import A4
+        from reportlab.pdfgen import canvas
+
+        from reporting.template_v3 import TemplateV3Error, _render_template_pages_pdfium
 
         with tempfile.TemporaryDirectory() as td:
-            malicious = Path(td) / "malicious.docx"
-            with zipfile.ZipFile(malicious, "w") as archive:
-                archive.writestr("../escaped.txt", "no")
-            with self.assertRaisesRegex(TemplateV3Error, "unsafe DOCX archive member"):
-                _patch_docx_svg(malicious, [])
+            root = Path(td)
+            source = root / "one-page.pdf"
+            writer = canvas.Canvas(str(source), pagesize=A4)
+            writer.drawString(72, 760, "one page")
+            writer.save()
+            with self.assertRaisesRegex(TemplateV3Error, "page-count mismatch"):
+                _render_template_pages_pdfium(source, root / "rendered", 2)
 
-    def test_docx_svg_patch_rejects_duplicate_archive_members(self):
-        """Duplicate archive members are refused rather than last-one-wins."""
-        from reporting.template_v3 import TemplateV3Error, _patch_docx_svg
+    def test_pdfium_docx_renderer_does_not_spawn_external_pdf_tools(self):
+        """The DOCX page-plate renderer stays inside the reviewed PDFium Python boundary."""
+        import inspect
 
-        with tempfile.TemporaryDirectory() as td:
-            duplicated = Path(td) / "duplicated.docx"
-            with zipfile.ZipFile(duplicated, "w") as archive:
-                archive.writestr("word/document.xml", "<original/>")
-                archive.writestr("word/document.xml", "<replacement/>")
-            with self.assertRaisesRegex(TemplateV3Error, "duplicate DOCX extraction target"):
-                _patch_docx_svg(duplicated, [])
+        from reporting.template_v3 import _render_template_pages_pdfium
 
-    def test_docx_svg_patch_rejects_members_with_same_normalized_target(self):
-        """Members that normalize to the same target are refused."""
-        from reporting.template_v3 import TemplateV3Error, _patch_docx_svg
-
-        with tempfile.TemporaryDirectory() as td:
-            duplicated = Path(td) / "normalized-duplicate.docx"
-            with zipfile.ZipFile(duplicated, "w") as archive:
-                archive.writestr("word/document.xml", "<original/>")
-                archive.writestr("word/./document.xml", "<replacement/>")
-            with self.assertRaisesRegex(TemplateV3Error, "duplicate DOCX extraction target"):
-                _patch_docx_svg(duplicated, [])
-
-    def test_poppler_failure_keeps_the_converter_diagnostics(self):
-        """A poppler failure keeps the converter's diagnostics instead of discarding them."""
-        # The exception class is reached through the module under test rather than by
-        # importing `subprocess` here. That removes a B404 suppression this file could not
-        # justify — `subprocess` was only ever used for exception types, never to execute —
-        # and it asserts against the very class the code would have raised. (Written without
-        # the literal directive: Bandit reads one anywhere in a comment, so spelling it out
-        # here would silence this line while explaining why nothing needs silencing.)
-        from reporting import template_v3
-        from reporting.template_v3 import TemplateV3Error, _run_poppler
-
-        with self.assertRaises(TemplateV3Error) as caught:
-            _run_poppler(
-                [
-                    sys.executable,
-                    "-c",
-                    "import sys; sys.stderr.write('Syntax Error: Couldn\\'t find trailer dictionary\\n'); sys.exit(3)",
-                ],
-                7,
-                allowed=frozenset({sys.executable}),
-            )
-        message = str(caught.exception)
-        self.assertIn("exit code 3", message)
-        self.assertIn("template page 7", message)
-        self.assertIn("Couldn't find trailer dictionary", message)
-        self.assertNotIsInstance(caught.exception, template_v3.subprocess.CalledProcessError)
-
-    def test_poppler_timeout_fails_closed_with_page_context(self):
-        """A poppler timeout fails closed and names the page it was on."""
-        from reporting import template_v3
-        from reporting.template_v3 import POPPLER_TIMEOUT_SECONDS, TemplateV3Error, _run_poppler
-
-        with patch(
-            "reporting.template_v3.subprocess.run",
-            # Semgrep's subprocess audit matches the name `TimeoutExpired`, but this
-            # constructs the exception used as a `side_effect`; nothing is executed, and
-            # the real call it stands in for is patched out by this very statement.
-            side_effect=template_v3.subprocess.TimeoutExpired(  # nosemgrep: python.lang.security.audit.dangerous-subprocess-use.dangerous-subprocess-use
-                cmd=["pdftoppm"], timeout=POPPLER_TIMEOUT_SECONDS
-            ),
-        ):
-            with self.assertRaisesRegex(
-                TemplateV3Error,
-                rf"pdftoppm timed out on template page 4 after {POPPLER_TIMEOUT_SECONDS}s",
-            ):
-                _run_poppler(["pdftoppm"], 4, allowed=frozenset({"pdftoppm"}))
-
-    def test_only_a_resolved_poppler_binary_is_executed(self):
-        """The executable allowlist is a gate, not a comment about who calls this.
-
-        Raised in review: `_run_poppler` took a plain list, and its justification for the
-        Bandit and Semgrep suppressions was that `command[0]` had come from `shutil.which`.
-        That was true of the two call sites and of nothing else — a future caller passing a
-        different program would have been executed with the suppression still in place. The
-        set of admissible binaries is now resolved once by `_convert_template_pages` and
-        checked here, so the suppression rests on a test rather than on a premise.
-        """
-        from reporting.template_v3 import TemplateV3Error, _run_poppler
-
-        allowed = frozenset({"/usr/bin/pdftocairo", "/usr/bin/pdftoppm"})
-        for refused in (
-            ["/bin/sh", "-c", "echo pwned"],
-            ["pdftoppm"],                       # the bare name, not the resolved path
-            ["/tmp/pdftoppm"],                  # a lookalike somewhere else  # nosec B108
-            [],
-        ):
-            with self.subTest(refused=refused):
-                with patch("reporting.template_v3.subprocess.run") as ran:
-                    with self.assertRaisesRegex(TemplateV3Error, "refusing to execute"):
-                        _run_poppler(refused, 1, allowed=allowed)
-                    # The refusal happens before the process is started, not after.
-                    ran.assert_not_called()
-
-    def test_a_resolved_poppler_binary_is_still_executed(self):
-        """The negative control: the gate must not refuse the two calls that are legitimate."""
-        from reporting.template_v3 import _run_poppler
-
-        allowed = frozenset({"/usr/bin/pdftocairo"})
-        with patch("reporting.template_v3.subprocess.run") as ran:
-            ran.return_value = SimpleNamespace(returncode=0, stderr=b"")
-            _run_poppler(["/usr/bin/pdftocairo", "-svg", "in.pdf", "out.svg"], 1, allowed=allowed)
-        ran.assert_called_once()
+        source = inspect.getsource(_render_template_pages_pdfium).lower()
+        self.assertNotIn("subprocess", source)
+        self.assertNotIn("pdftoppm", source)
+        self.assertNotIn("pdftocairo", source)
+        self.assertIn("pypdfium2", source)
 
     def test_single_line_fit_shrinks_for_the_box_height_too(self):
         """The single-line fit shrinks for the box height as well as its width."""
@@ -428,7 +335,13 @@ class TemplateV3ContractTest(unittest.TestCase):
             with zipfile.ZipFile(paths["docx"]) as zf:
                 xml = zf.read("word/document.xml").decode("utf-8")
                 self.assertIn("GENOMA_FIELD_", xml)
-                self.assertIn("svgBlip", xml)
+                self.assertNotIn("svgBlip", xml)
+                media = [
+                    name for name in zf.namelist()
+                    if name.startswith("word/media/")
+                ]
+                self.assertTrue(media)
+                self.assertTrue(all(name.lower().endswith(".png") for name in media))
 
 
 if __name__ == "__main__":

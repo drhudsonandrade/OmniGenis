@@ -1,0 +1,4 @@
+PASS	actions_immutable	10 action identities observed
+PASS	container_digests	base image
+PASS	external_secret_scanner	GitGuardian Security Checks@46505
+PASS	runtime_versions	exact critical conda pins

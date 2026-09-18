@@ -1,0 +1,118 @@
+{
+  "schema": "omnigenis-stage3-strong-copyleft-runtime-cleanup-v2",
+  "status": "VERIFIED",
+  "base_main_sha": "6ea2a8879cb0cadc953cef25084acb21f5d60900",
+  "scope": "application-runtime cleanup; not an operating-system or repository-wide copyleft clearance",
+  "removed_runtime_component": {
+    "name": "Poppler",
+    "version": "26.07.0",
+    "license_review": "GPL-2.0-or-later indicated by upstream source headers; removal chosen instead of a standing exception",
+    "removed_surfaces": [
+      "environment.yml",
+      "locks/runtime-lock.json",
+      "scripts/runtime_stack.py",
+      "scripts/check_versions.sh",
+      "scripts/run_canary.sh",
+      "reporting/template_v3.py"
+    ]
+  },
+  "replacement": {
+    "wrapper": "pypdfium2",
+    "version": "5.13.0",
+    "backend": "PDFium",
+    "audited_linux_x86_64_wheel_sha256": "81df25c1ab4c13ff773102d3cbea1967511d079123b067fc077bd0c4d57d91d8",
+    "pdfium_license": "BSD-style",
+    "docx_static_background_dpi": 288,
+    "dynamic_fields_remain_editable": true,
+    "svg_page_plate_removed": true
+  },
+  "enforcement": {
+    "validator": "scripts/validate_repo.py:validate_stage3_copyleft_contract",
+    "test": "tests/test_strong_copyleft_runtime_cleanup.py"
+  },
+  "limitations": [
+    "This stage does not claim that the container, operating-system layer, or repository is GPL-free or copyleft-free.",
+    "System utilities and transitive dependencies remain pending the Stage 4 inventory, SBOM, notices, redistribution, and source-obligation reconciliation.",
+    "This evidence is technical compliance evidence, not a legal opinion and not a LICENSE-CLEAN certification."
+  ],
+  "verification": {
+    "pre_attestation_tested_tree_sha": "001d6f105b6a88f58e96ba6b278d21683795074e",
+    "gates": {
+      "directed_tests": {
+        "status": "PASS",
+        "command": "python -m unittest tests.test_strong_copyleft_runtime_cleanup tests.test_pdfium_upstream_notice_contract tests.test_template_v3_contract tests.test_workflow_contracts tests.test_reference_manifest_contract tests.test_developer_documentation_language -q",
+        "exit_code": 0,
+        "output_sha256": "d5570f2f73d672a16969a9fe4df7bc8395fbec43a947db8f4d858bb0490ef8a0",
+        "tested_tree_sha": "001d6f105b6a88f58e96ba6b278d21683795074e",
+        "result": "133 tests OK; 1 skipped",
+        "output_path": "docs/evidence/stage3/directed_tests.log"
+      },
+      "repository_validator": {
+        "status": "PASS",
+        "command": "python scripts/validate_repo.py",
+        "exit_code": 0,
+        "output_sha256": "3c0dc015021366a6895ca1777bd4be46995994861b27bb8fcaa7cb47a143f2fd",
+        "tested_tree_sha": "001d6f105b6a88f58e96ba6b278d21683795074e",
+        "output_path": "docs/evidence/stage3/repository_validator.log"
+      },
+      "supply_chain_gate": {
+        "status": "PASS",
+        "command": "python scripts/verify_supply_chain_lock.py",
+        "exit_code": 0,
+        "output_sha256": "3ffbf1e78306655dbb2f214974a4e24c842e6378da0e2d8840d43b2eb4939c7c",
+        "tested_tree_sha": "001d6f105b6a88f58e96ba6b278d21683795074e",
+        "output_path": "docs/evidence/stage3/supply_chain_gate.log"
+      },
+      "residual_language_gate": {
+        "status": "PASS",
+        "command": "python scripts/residual_language_audit.py --check",
+        "exit_code": 0,
+        "output_sha256": "ccc014ae1f7813459f396733228e1a882ba6f0d1d2f93b44a142d948cdfdfc82",
+        "tested_tree_sha": "001d6f105b6a88f58e96ba6b278d21683795074e",
+        "result": "clean=true; unclassified=0; drift=0",
+        "output_path": "docs/evidence/stage3/residual_language_gate.log"
+      },
+      "full_test_suite": {
+        "status": "PASS",
+        "command": "python -m unittest discover -s tests -p 'test_*.py'",
+        "exit_code": 0,
+        "output_sha256": "727d367704141b6e10cff1347ba5f5f2b486049ad692f4c9640fb77ddaf81b05",
+        "tested_tree_sha": "001d6f105b6a88f58e96ba6b278d21683795074e",
+        "result": "1296 tests OK; 2 skipped",
+        "output_path": "docs/evidence/stage3/full_test_suite.log"
+      }
+    }
+  },
+  "third_party_notice_evidence": {
+    "status": "VERIFIED",
+    "scope": "audited pypdfium2 5.13.0 Linux x86_64 wheel and bundled PDFium notices",
+    "notice_path": "licenses/pypdfium2-5.13.0/NOTICE.md",
+    "notice_sha256": "6a11d2ab373f54ceec1f692e435dfb75e6ebe45165eb525c92fc4ac59286b5b5",
+    "upstream_license_manifest_path": "licenses/pypdfium2-5.13.0/UPSTREAM_LICENSES.sha256",
+    "upstream_license_manifest_sha256": "3792e6b56f5e0355be5e9089aaf9766943cf63f169cfd672370076d249d719e6",
+    "verbatim_upstream_license_files": 19,
+    "upstream_metadata_manifest_path": "licenses/pypdfium2-5.13.0/UPSTREAM_METADATA.sha256",
+    "upstream_metadata_manifest_sha256": "f377443334cc7949b109ebb1dfd4925b5f3d52c6f5eb4a38be7331b778a208f1",
+    "third_party_notices_path": "THIRD_PARTY_NOTICES.md",
+    "third_party_notices_sha256": "ea67233cd1c43c19c5d70307444dece4b5b4bd490f185670432fb10c5f284ad4",
+    "rule": "verbatim upstream license/notice files control over the human-readable summary; OmniGenis does not relicense third-party material",
+    "upstream_build_license_manifest_path": "licenses/pypdfium2-5.13.0/UPSTREAM_BUILD_LICENSES.sha256",
+    "upstream_build_license_manifest_sha256": "23d7820bf962c2b65cbe1d5e2559ef71943380d5f6ec6355150f41b3fcbf4cec",
+    "upstream_build_license_archive_path": "licenses/pypdfium2-5.13.0/upstream/BUILD_LICENSES.tar.gz",
+    "upstream_build_license_archive_sha256": "ce6db66ac577f75830f74b1cf93ed44037ba16ac6f0cc9d730c6d8197b167cb8"
+  },
+  "attribution_bundle": {
+    "pypdfium2_notice_path": "licenses/pypdfium2-5.13.0/NOTICE.md",
+    "pypdfium2_notice_sha256": "6a11d2ab373f54ceec1f692e435dfb75e6ebe45165eb525c92fc4ac59286b5b5",
+    "upstream_license_manifest_path": "licenses/pypdfium2-5.13.0/UPSTREAM_LICENSES.sha256",
+    "upstream_license_manifest_sha256": "3792e6b56f5e0355be5e9089aaf9766943cf63f169cfd672370076d249d719e6",
+    "upstream_metadata_manifest_path": "licenses/pypdfium2-5.13.0/UPSTREAM_METADATA.sha256",
+    "upstream_metadata_manifest_sha256": "f377443334cc7949b109ebb1dfd4925b5f3d52c6f5eb4a38be7331b778a208f1",
+    "upstream_license_files": 19,
+    "notice_policy": "verbatim upstream notices control over summary text",
+    "upstream_build_license_manifest_path": "licenses/pypdfium2-5.13.0/UPSTREAM_BUILD_LICENSES.sha256",
+    "upstream_build_license_manifest_sha256": "23d7820bf962c2b65cbe1d5e2559ef71943380d5f6ec6355150f41b3fcbf4cec",
+    "upstream_build_license_archive_path": "licenses/pypdfium2-5.13.0/upstream/BUILD_LICENSES.tar.gz",
+    "upstream_build_license_archive_sha256": "ce6db66ac577f75830f74b1cf93ed44037ba16ac6f0cc9d730c6d8197b167cb8"
+  }
+}

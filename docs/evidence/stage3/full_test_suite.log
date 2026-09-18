@@ -1,0 +1,93 @@
+....................................................................................................................................................usage: python -m unittest [-h] [--sealed SEALED] [--output OUTPUT]
+                          [--verified-at VERIFIED_AT]
+                          [--result-locator RESULT_LOCATOR] [--write]
+python -m unittest: error: --verified-at is required with --write
+......................................................................................................................................................................................................evidence retrieval failed adapter=clinvar error_class=EvidenceURLPolicyError
+Traceback (most recent call last):
+  File "/srv/remote-desktop-commander-workspace/OmniGenis-pr76/evidence_adapters/__init__.py", line 200, in query
+    _validate_request(request, expected_host=expected_host)
+  File "/srv/remote-desktop-commander-workspace/OmniGenis-pr76/evidence_adapters/__init__.py", line 120, in _validate_request
+    _validate_url(request.full_url, expected_host=expected_host)
+  File "/srv/remote-desktop-commander-workspace/OmniGenis-pr76/evidence_adapters/__init__.py", line 108, in _validate_url
+    raise EvidenceURLPolicyError("evidence request changed its configured host")
+evidence_adapters.EvidenceURLPolicyError: evidence request changed its configured host
+.evidence retrieval failed adapter=clinvar error_class=OSError
+Traceback (most recent call last):
+  File "/srv/remote-desktop-commander-workspace/OmniGenis-pr76/evidence_adapters/__init__.py", line 201, in query
+    payload, headers = self.transport(request)
+                       ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/srv/remote-desktop-commander-workspace/OmniGenis-pr76/tests/test_evidence_adapters.py", line 60, in failing
+    raise OSError("offline")
+OSError: offline
+...evidence retrieval failed adapter=clinvar error_class=OSError
+Traceback (most recent call last):
+  File "/srv/remote-desktop-commander-workspace/OmniGenis-pr76/evidence_adapters/__init__.py", line 201, in query
+    payload, headers = self.transport(request)
+                       ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/srv/remote-desktop-commander-workspace/OmniGenis-pr76/tests/test_evidence_adapters.py", line 91, in failing
+    raise OSError(f"upstream error token={secret}")
+OSError: upstream error token=sensitive-token-should-not-leak
+..evidence retrieval failed adapter=clinvar error_class=EvidenceURLPolicyError
+Traceback (most recent call last):
+  File "/srv/remote-desktop-commander-workspace/OmniGenis-pr76/evidence_adapters/__init__.py", line 200, in query
+    _validate_request(request, expected_host=expected_host)
+  File "/srv/remote-desktop-commander-workspace/OmniGenis-pr76/evidence_adapters/__init__.py", line 120, in _validate_request
+    _validate_url(request.full_url, expected_host=expected_host)
+  File "/srv/remote-desktop-commander-workspace/OmniGenis-pr76/evidence_adapters/__init__.py", line 106, in _validate_url
+    raise EvidenceURLPolicyError("evidence host is not allowlisted")
+evidence_adapters.EvidenceURLPolicyError: evidence host is not allowlisted
+.evidence retrieval failed adapter=clinvar error_class=EvidenceURLPolicyError
+Traceback (most recent call last):
+  File "/srv/remote-desktop-commander-workspace/OmniGenis-pr76/evidence_adapters/__init__.py", line 200, in query
+    _validate_request(request, expected_host=expected_host)
+  File "/srv/remote-desktop-commander-workspace/OmniGenis-pr76/evidence_adapters/__init__.py", line 120, in _validate_request
+    _validate_url(request.full_url, expected_host=expected_host)
+  File "/srv/remote-desktop-commander-workspace/OmniGenis-pr76/evidence_adapters/__init__.py", line 102, in _validate_url
+    raise EvidenceURLPolicyError("evidence adapters require HTTPS")
+evidence_adapters.EvidenceURLPolicyError: evidence adapters require HTTPS
+.evidence retrieval failed adapter=clinvar error_class=EvidenceResponseTooLargeError
+Traceback (most recent call last):
+  File "/srv/remote-desktop-commander-workspace/OmniGenis-pr76/evidence_adapters/__init__.py", line 203, in query
+    raise EvidenceResponseTooLargeError(
+evidence_adapters.EvidenceResponseTooLargeError: evidence response exceeds 16777216 bytes
+....................................................................................................................................................................................................................................................................................s.................................../usr/lib/python3.12/tempfile.py:1075: ResourceWarning: Implicitly cleaning up <TemporaryDirectory '/tmp/tmp74xvzaan'>
+  _warnings.warn(warn_message, ResourceWarning)
+................................................................................................................................................................................................................................................................................................................................................................................................................................................................................s..................................................................................NÃO DISPONÍVEL: verified input refused by secure containment: input path escapes the sample directory
+...NÃO DISPONÍVEL: verified input is missing: input is not present: [Errno 2] No such file or directory: 'missing.fastq'
+..NÃO DISPONÍVEL: verified input is unreadable: input could not be opened: [Errno 13] permission denied
+..............................................................................
+----------------------------------------------------------------------
+Ran 1296 tests in 329.930s
+
+OK (skipped=2)
+{
+  "written": "/tmp/tmpfch_3axt/bootstrap.json",
+  "sha256": "2e5f9250bd2af0546d76ee28f9120451b3e0fb591a5e1cda34593bd9e97edbb3"
+}
+{"candidate_set_sha256": "50f7a4d109d3a0e6c90ff94d1524b800727aca630bd9389b747a2274d5606c49", "command": "python scripts/run_pdfium_static_pixel_qa.py --template-dir \"$PRIVATE_TEMPLATE_DIR\" --candidate-dir \"$CANDIDATE_DIR\" --candidate-pattern 'qa-{rid}.pdf' --output /tmp/tmp4ng8fqat/evidence.json --mask-manifest /tmp/tmp4ng8fqat/masks.json --log /tmp/tmp4ng8fqat/qa.log", "evidence_sha256": "0f177a9c385bd4f769652ef865bacc52ac94e6bee3287115476587b4f9fb2cbb", "log_sha256": "b7c27ed4482799c3b98b0a0dc2629126ef97a013c71f93af301cb212055c8d2e", "mask_manifest_sha256": "5094cee6ae28b62d3e227270d02a50bb7ae01968cf007a360bd29d16fef63cb1", "outside_changed_pixels": 0, "producer_sha256": "424a555004ac7eda9fe2ac9286410c50b1482477f8d767928af1f5f9ef60103d", "status": "VERIFICADO"}
+{
+  "matrix": "/tmp/tmpqh4lojvy/matrix-cli.json",
+  "passport": "/tmp/tmpqh4lojvy/passport-cli.json",
+  "payload": "/tmp/tmpqh4lojvy/payload-cli.json",
+  "operational_status": "NÃO DISPONÍVEL",
+  "totals": {
+    "genes": 2,
+    "loci": 4,
+    "interrogated_loci": 4,
+    "interrogated_fraction": 1.0,
+    "genes_with_diplotype": 0,
+    "genes_with_phenotype": 0,
+    "genes_with_conditional_diplotype": 0,
+    "genes_with_conditional_phenotype": 0,
+    "defining_positions_total": 0,
+    "defining_positions_interpretable": 0,
+    "alleles_catalogued": 0,
+    "alleles_discriminable": 0
+  },
+  "anesthesia_card": "NÃO DISPONÍVEL"
+}
+FAIL	secret scanner identity mismatch for GitGuardian Security Checks: expected integration_id=46506
+FAIL	secret scanner identity mismatch for GitGuardian Security Checks spoofed: expected integration_id=46505
+FAIL	secret scanner must execute as an external GitHub App
+FAIL	main ruleset required check identity schema invalid
+FAIL	main ruleset must contain exactly one required_status_checks rule

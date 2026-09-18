@@ -1,0 +1,12 @@
+PASS	repository_contract
+PASS	ruleset_manifest_contract	v3.4 raw SHA-256 pinned
+PASS	repository_active_rulesets	0
+PASS	sealed_normative_transport	shared decoder
+PASS	grch38_manifest	9/9
+PASS	pre_dna_readiness_contract	latest-tested candidate + canaries + freshness + runtime/resource gate
+PASS	wgs_scientific_data_plane_contract	real SNV/indel path + explicit unsupported classes
+PASS	array_scientific_data_plane_contract	QC + target-first evidence + policy/report handoff
+PASS	evidence_adapter_contract	ClinVar/ClinGen/CPIC/ClinPGx/gnomAD/PGS Catalog
+PASS	supply_chain_contract	workflow/action/container lock paths present
+PASS	reporting_contract	11-model deterministic renderer and reference identities
+PASS	optional_adapters	core has no external runtime dependency

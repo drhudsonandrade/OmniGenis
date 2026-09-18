@@ -8,6 +8,7 @@ import csv
 import hashlib
 import json
 import re
+import shlex
 import sys
 from collections.abc import Iterator
 from pathlib import Path
@@ -46,6 +47,7 @@ REQUIRED_PATHS = (
     "docs/compliance/LICENSING_POLICY.md", "docs/compliance/DEPENDENCY_POLICY.md", "licenses/README.md",
     "licenses/pypdfium2-5.13.0/README.md", "docs/evidence/PDFIUM_COORDINATE_MIGRATION_2026-09-17.json",
     "docs/evidence/PDFIUM_STATIC_PIXEL_QA_200DPI_2026-09-17.json",
+    "docs/evidence/STRONG_COPYLEFT_RUNTIME_CLEANUP_2026-09-17.json",
     "policy_engine/LICENSE",
     ".fallowrc.json", ".github/workflows/fallow.yml", ".github/workflows/scaffold-validation.yml",
     ".github/workflows/genoma-policy-engine.yml", ".github/workflows/genoma-production-ceremony.yml",
@@ -859,6 +861,567 @@ def validate_stage2_pdf_contract(root: Path, errors: list[str]) -> None:
         errors.append("Stage 2 runtime lock evidence mismatch")
 
 
+
+
+STAGE3_COPYLEFT_ACTIVE_SURFACES = (
+    "environment.yml",
+    "locks/runtime-lock.json",
+    "scripts/runtime_stack.py",
+    "scripts/check_versions.sh",
+    "scripts/run_canary.sh",
+    "reporting/template_v3.py",
+)
+STAGE3_PROHIBITED_IDENTIFIERS = ("poppler", "pdftoppm", "pdftocairo")
+STAGE3_GATE_NAMES = (
+    "directed_tests",
+    "repository_validator",
+    "supply_chain_gate",
+    "residual_language_gate",
+    "full_test_suite",
+)
+
+def _stage3_prohibited(value: str) -> tuple[str, ...]:
+    lowered = value.lower()
+    compact = re.sub(r"[^a-z0-9]+", "", lowered)
+    return tuple(
+        token for token in STAGE3_PROHIBITED_IDENTIFIERS
+        if token in lowered or token in compact
+    )
+
+def _stage3_py_string(node: ast.AST, env: dict[str, str]) -> str | None:
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return node.value
+    if isinstance(node, ast.Name):
+        return env.get(node.id)
+
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+        left = _stage3_py_string(node.left, env)
+        right = _stage3_py_string(node.right, env)
+        return left + right if left is not None and right is not None else None
+    if isinstance(node, ast.JoinedStr):
+        parts: list[str] = []
+        for part in node.values:
+            if isinstance(part, ast.Constant) and isinstance(part.value, str):
+                parts.append(part.value)
+            elif isinstance(part, ast.FormattedValue):
+                rendered = _stage3_py_string(part.value, env)
+                if rendered is None:
+                    literal = _constant_value(part.value)
+                    if literal is None:
+                        return None
+                    rendered = str(literal)
+                parts.append(rendered)
+            else:
+                return None
+        return "".join(parts)
+    return None
+
+def _stage3_python_violations(text: str, relative: str) -> list[str]:
+    try:
+        tree = ast.parse(text)
+    except SyntaxError as exc:
+        return [f"Stage 3 active Python surface is not parseable: {relative}: {exc}"]
+    env: dict[str, str] = {}
+    for statement in tree.body:
+        target: str | None = None
+        value: ast.expr | None = None
+
+        if (
+            isinstance(statement, ast.Assign)
+            and len(statement.targets) == 1
+            and isinstance(statement.targets[0], ast.Name)
+        ):
+            target = statement.targets[0].id
+            value = statement.value
+        elif isinstance(statement, ast.AnnAssign) and isinstance(statement.target, ast.Name):
+            target = statement.target.id
+            value = statement.value
+        if target is not None and value is not None:
+            folded = _stage3_py_string(value, env)
+            if folded is not None:
+                env[target] = folded
+            else:
+                env.pop(target, None)
+    errors: list[str] = []
+    for name, folded_value in env.items():
+        for token in _stage3_prohibited(folded_value):
+            errors.append(
+                f"Stage 3 retired PDF identifier constructed in Python: {relative}:{name}:{token}"
+            )
+    command_calls = {
+        "subprocess.run": 0,
+        "subprocess.Popen": 0,
+        "subprocess.call": 0,
+        "subprocess.check_call": 0,
+        "subprocess.check_output": 0,
+        "subprocess.getoutput": 0,
+        "subprocess.getstatusoutput": 0,
+        "os.system": 0,
+        "os.popen": 0,
+        "os.execl": 0,
+        "os.execle": 0,
+        "os.execlp": 0,
+        "os.execlpe": 0,
+        "os.execv": 0,
+        "os.execve": 0,
+        "os.execvp": 0,
+        "os.execvpe": 0,
+        "os.posix_spawn": 0,
+        "os.posix_spawnp": 0,
+        "os.spawnl": 1,
+        "os.spawnle": 1,
+        "os.spawnlp": 1,
+        "os.spawnlpe": 1,
+        "os.spawnv": 1,
+        "os.spawnve": 1,
+        "os.spawnvp": 1,
+        "os.spawnvpe": 1,
+        "asyncio.create_subprocess_exec": 0,
+        "asyncio.create_subprocess_shell": 0,
+        "pty.spawn": 0,
+        "importlib.import_module": 0,
+        "__import__": 0,
+    }
+    executable_keyword_calls = {
+        "subprocess.run",
+        "subprocess.Popen",
+        "subprocess.call",
+        "subprocess.check_call",
+        "subprocess.check_output",
+        "asyncio.create_subprocess_exec",
+        "asyncio.create_subprocess_shell",
+    }
+    import_aliases: dict[str, str] = {}
+    for imported in ast.walk(tree):
+        if isinstance(imported, ast.Import):
+            for alias in imported.names:
+                local_name = alias.asname or alias.name.split(".")[0]
+                import_aliases[local_name] = alias.name
+        elif isinstance(imported, ast.ImportFrom) and imported.module:
+            for alias in imported.names:
+                local_name = alias.asname or alias.name
+                import_aliases[local_name] = f"{imported.module}.{alias.name}"
+
+    def dotted(node: ast.AST) -> str | None:
+        if isinstance(node, ast.Name):
+            return import_aliases.get(node.id, node.id)
+        if isinstance(node, ast.Attribute):
+            base = dotted(node.value)
+            return f"{base}.{node.attr}" if base else None
+        return None
+
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        call_name = dotted(node.func)
+        if call_name not in command_calls:
+            continue
+        argument_index = command_calls[call_name]
+        expression = node.args[argument_index] if len(node.args) > argument_index else None
+        if expression is None:
+            errors.append(
+                f"Stage 3 unresolved executable/module on active Python surface: {relative}:{call_name}"
+            )
+            continue
+        if isinstance(expression, (ast.List, ast.Tuple)):
+            expression = expression.elts[0] if expression.elts else None
+        resolved = _stage3_py_string(expression, env) if expression is not None else None
+        if resolved is None:
+            errors.append(
+                f"Stage 3 unresolved executable/module on active Python surface: {relative}:{call_name}"
+            )
+            continue
+        for token in _stage3_prohibited(resolved):
+            errors.append(
+                f"Stage 3 retired PDF identifier constructed in Python command: "
+                f"{relative}:{call_name}:{token}"
+            )
+        if call_name not in executable_keyword_calls:
+            continue
+        if any(keyword.arg is None for keyword in node.keywords):
+            errors.append(
+                f"Stage 3 unresolved executable keyword arguments on active Python surface: "
+                f"{relative}:{call_name}"
+            )
+        executable_keywords = [
+            keyword for keyword in node.keywords if keyword.arg == "executable"
+        ]
+        for keyword in executable_keywords:
+            if isinstance(keyword.value, ast.Constant) and keyword.value.value is None:
+                continue
+            executable = _stage3_py_string(keyword.value, env)
+            if executable is None:
+                errors.append(
+                    f"Stage 3 unresolved executable override on active Python surface: "
+                    f"{relative}:{call_name}"
+                )
+                continue
+            for token in _stage3_prohibited(executable):
+                errors.append(
+                    f"Stage 3 retired PDF identifier constructed in Python executable override: "
+                    f"{relative}:{call_name}:{token}"
+                )
+    return errors
+
+_STAGE3_SHELL_ASSIGNMENT = re.compile(
+    r"^\s*(?:(?:readonly|export|local)\s+)?([A-Za-z_][A-Za-z0-9_]*)=(.*)$"
+)
+_STAGE3_SHELL_VARIABLE = re.compile(
+    r"\$(?:\{([A-Za-z_][A-Za-z0-9_]*)\}|([A-Za-z_][A-Za-z0-9_]*))"
+)
+
+def _stage3_shell_violations(text: str, relative: str) -> list[str]:
+    env: dict[str, str | None] = {}
+    errors: list[str] = []
+    pending_command = ""
+    pending_command_line = 0
+
+    def expand(value: str) -> tuple[str, bool]:
+        unresolved = False
+        def replace(match: re.Match[str]) -> str:
+            nonlocal unresolved
+            name = match.group(1) or match.group(2)
+            resolved = env.get(name)
+            if resolved is None:
+                unresolved = True
+                return match.group(0)
+            return resolved
+        return _STAGE3_SHELL_VARIABLE.sub(replace, value), unresolved
+
+    def unresolved_env_executable(raw_line: str) -> str | None:
+        try:
+            parts = shlex.split(raw_line, comments=True, posix=True)
+        except ValueError:
+            return "<env-parse>" if raw_line.lstrip().startswith("env ") else None
+        if not parts or parts[0] != "env":
+            return None
+        index = 1
+        no_value_options = {
+            "-i", "--ignore-environment", "-0", "--null", "-v", "--debug",
+        }
+        value_options = {"-u", "--unset", "-C", "--chdir", "--argv0"}
+        assignment_pattern = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
+        while index < len(parts):
+            token = parts[index]
+            if token == "--":
+                index += 1
+                break
+            if token in no_value_options:
+                index += 1
+                continue
+            if token in value_options:
+                if index + 1 >= len(parts):
+                    return "<env-option>"
+                index += 2
+                continue
+            if token.startswith(("--unset=", "--chdir=", "--argv0=")):
+                index += 1
+                continue
+            if token in {"-S", "--split-string"}:
+                if index + 1 >= len(parts):
+                    return "<env-split-string>"
+                split_command = parts[index + 1]
+                for match in _STAGE3_SHELL_VARIABLE.finditer(split_command):
+                    name = match.group(1) or match.group(2)
+                    if env.get(name) is None:
+                        return name
+                return None
+            if token.startswith("--split-string="):
+                split_command = token.split("=", 1)[1]
+                for match in _STAGE3_SHELL_VARIABLE.finditer(split_command):
+                    name = match.group(1) or match.group(2)
+                    if env.get(name) is None:
+                        return name
+                return None
+            if assignment_pattern.match(token):
+                index += 1
+                continue
+            if token.startswith("-"):
+                return "<env-option>"
+            break
+        if index >= len(parts):
+            return None
+        command = parts[index]
+        for match in _STAGE3_SHELL_VARIABLE.finditer(command):
+            name = match.group(1) or match.group(2)
+            if env.get(name) is None:
+                return name
+        return None
+
+    for line_number, raw_line in enumerate(text.splitlines(), 1):
+        line_continues = raw_line.rstrip().endswith("\\")
+        stripped = raw_line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        assignment = _STAGE3_SHELL_ASSIGNMENT.match(raw_line)
+        if assignment:
+            name, expression = assignment.groups()
+            if "$(" in expression or "`" in expression or "${!" in expression:
+                env[name] = None
+            else:
+                expanded, unresolved = expand(expression)
+                try:
+                    parts = shlex.split(expanded, comments=True, posix=True)
+                except ValueError:
+                    parts = []
+                env[name] = parts[0] if not unresolved and len(parts) == 1 else None
+                if env[name] is not None:
+                    for token in _stage3_prohibited(env[name] or ""):
+                        errors.append(
+                            f"Stage 3 retired PDF identifier constructed in shell: "
+                            f"{relative}:{line_number}:{name}:{token}"
+                        )
+
+        if not pending_command:
+            pending_command_line = line_number
+        command_piece = raw_line.rstrip()
+        logical_command = (
+            pending_command + command_piece.lstrip()
+            if pending_command
+            else raw_line
+        )
+        if line_continues:
+            pending_command = logical_command.rstrip()[:-1] + " "
+            continue
+        pending_command = ""
+
+        expanded, _ = expand(logical_command)
+        for token in _stage3_prohibited(expanded):
+            errors.append(
+                f"Stage 3 retired PDF identifier constructed in shell command: "
+                f"{relative}:{pending_command_line}:{token}"
+            )
+        command_var = re.match(
+            r"^\s*[\"']?\$(?:\{)?([A-Za-z_][A-Za-z0-9_]*)",
+            logical_command,
+        )
+        wrapper_var = re.match(
+            r"^\s*(?:command|exec|env)\s+(?:--\s+)?[\"']?"
+            r"\$(?:\{)?([A-Za-z_][A-Za-z0-9_]*)",
+            logical_command,
+        )
+        shell_c_var = re.match(
+            r"^\s*(?:bash|sh)\s+-c\s+[\"']?"
+            r"\$(?:\{)?([A-Za-z_][A-Za-z0-9_]*)",
+            logical_command,
+        )
+        unresolved_command_var = unresolved_env_executable(logical_command)
+        if unresolved_command_var is None:
+            for match in (command_var, wrapper_var, shell_c_var):
+                if match and env.get(match.group(1)) is None:
+                    unresolved_command_var = match.group(1)
+                    break
+        if unresolved_command_var is not None:
+            errors.append(
+                f"Stage 3 unresolved shell executable on active surface: "
+                f"{relative}:{pending_command_line}:{unresolved_command_var}"
+            )
+    if pending_command:
+        errors.append(
+            f"Stage 3 unterminated shell continuation on active surface: "
+            f"{relative}:{pending_command_line}"
+        )
+    return errors
+
+def _stage3_structured_violations(text: str, relative: str) -> list[str]:
+    """Inspect package identities structurally on the active YAML/JSON dependency surfaces."""
+    values: list[str] = []
+    if relative == "environment.yml":
+        in_dependencies = False
+        for line_number, raw_line in enumerate(text.splitlines(), 1):
+            stripped = raw_line.strip()
+            if stripped == "dependencies:":
+                in_dependencies = True
+                continue
+            if not in_dependencies or not stripped or stripped.startswith("#"):
+                continue
+            if not raw_line.startswith((" ", "\t")):
+                in_dependencies = False
+                continue
+            if not stripped.startswith("- "):
+                return [
+                    f"Stage 3 unresolved environment dependency syntax: "
+                    f"{relative}:{line_number}"
+                ]
+            scalar = stripped[2:].strip()
+            if scalar.startswith('"'):
+                try:
+                    decoded = json.loads(scalar)
+                except json.JSONDecodeError:
+                    return [
+                        f"Stage 3 unresolved environment dependency syntax: "
+                        f"{relative}:{line_number}"
+                    ]
+                if not isinstance(decoded, str):
+                    return [
+                        f"Stage 3 unresolved environment dependency syntax: "
+                        f"{relative}:{line_number}"
+                    ]
+                values.append(decoded)
+            elif scalar.startswith("'"):
+                if len(scalar) < 2 or not scalar.endswith("'"):
+                    return [
+                        f"Stage 3 unresolved environment dependency syntax: "
+                        f"{relative}:{line_number}"
+                    ]
+                values.append(scalar[1:-1].replace("''", "'"))
+            else:
+                comment = re.search(r"\s+#", scalar)
+                if comment:
+                    scalar = scalar[:comment.start()].rstrip()
+                if not scalar or any(marker in scalar for marker in ("[", "]", "{", "}")):
+                    return [
+                        f"Stage 3 unresolved environment dependency syntax: "
+                        f"{relative}:{line_number}"
+                    ]
+                values.append(scalar)
+    elif relative.endswith(".json"):
+        try:
+            payload = json.loads(text)
+        except json.JSONDecodeError as exc:
+            return [f"Stage 3 active JSON surface invalid: {relative}: {exc}"]
+
+        def walk(value: object) -> None:
+            if isinstance(value, str):
+                values.append(value)
+            elif isinstance(value, dict):
+                for key, item in value.items():
+                    values.append(str(key))
+                    walk(item)
+            elif isinstance(value, list):
+                for item in value:
+                    walk(item)
+
+        walk(payload)
+
+    errors: list[str] = []
+    for value in values:
+        for token in _stage3_prohibited(value):
+            errors.append(
+                f"Stage 3 retired PDF dependency present in structured surface: "
+                f"{relative}:{token}"
+            )
+    return errors
+
+
+def _stage3_gate_provenance_errors(
+    root: Path, verification: dict[str, object]
+) -> list[str]:
+    tree_sha = str(verification.get("pre_attestation_tested_tree_sha", ""))
+    gates = verification.get("gates")
+    if not re.fullmatch(r"[0-9a-f]{40}", tree_sha):
+        return ["Stage 3 verification provenance has invalid pre-attestation tree SHA"]
+    if not isinstance(gates, dict) or set(gates) != set(STAGE3_GATE_NAMES):
+        return ["Stage 3 verification provenance gate set mismatch"]
+
+    errors: list[str] = []
+    for name in STAGE3_GATE_NAMES:
+        record = gates.get(name)
+        if not isinstance(record, dict):
+            errors.append(f"Stage 3 verification provenance record invalid: {name}")
+            continue
+        command = record.get("command")
+        output_sha = str(record.get("output_sha256", ""))
+        output_path_value = record.get("output_path")
+        if (
+            record.get("status") != "PASS"
+            or not isinstance(command, str)
+            or not command.strip()
+            or record.get("exit_code") != 0
+            or not re.fullmatch(r"[0-9a-f]{64}", output_sha)
+            or record.get("tested_tree_sha") != tree_sha
+            or not isinstance(output_path_value, str)
+            or not output_path_value
+        ):
+            errors.append(f"Stage 3 verification provenance incomplete: {name}")
+            continue
+
+        output_path = Path(output_path_value)
+        if (
+            output_path.is_absolute()
+            or ".." in output_path.parts
+            or not output_path.as_posix().startswith("docs/evidence/stage3/")
+        ):
+            errors.append(f"Stage 3 verification output artifact path invalid: {name}")
+            continue
+
+        artifact = root / output_path
+        if not artifact.is_file():
+            errors.append(f"Stage 3 verification output artifact missing: {name}")
+            continue
+        actual_sha = hashlib.sha256(artifact.read_bytes()).hexdigest()
+        if actual_sha != output_sha:
+            errors.append(f"Stage 3 verification output hash mismatch: {name}")
+    return errors
+
+
+def validate_stage3_copyleft_contract(root: Path, errors: list[str]) -> None:
+    """Keep the remediated application runtime free of retired PDF executables."""
+    for relative in STAGE3_COPYLEFT_ACTIVE_SURFACES:
+        path = root / relative
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8", errors="replace")
+        for token in STAGE3_PROHIBITED_IDENTIFIERS:
+            if token in text.lower():
+                errors.append(
+                    f"Stage 3 retired PDF runtime dependency reintroduced: {relative}: {token}"
+                )
+        if path.suffix == ".py":
+            errors.extend(_stage3_python_violations(text, relative))
+        elif path.suffix == ".sh":
+            errors.extend(_stage3_shell_violations(text, relative))
+        elif relative in {"environment.yml", "locks/runtime-lock.json"}:
+            errors.extend(_stage3_structured_violations(text, relative))
+
+    evidence_path = root / "docs/evidence/STRONG_COPYLEFT_RUNTIME_CLEANUP_2026-09-17.json"
+    if evidence_path.is_file():
+        try:
+            evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+            errors.append(f"Stage 3 cleanup evidence invalid: {type(exc).__name__}: {exc}")
+        else:
+            removed = evidence.get("removed_runtime_component")
+            replacement = evidence.get("replacement")
+            verification = evidence.get("verification")
+            if (
+                evidence.get("schema") != "omnigenis-stage3-strong-copyleft-runtime-cleanup-v2"
+                or evidence.get("status") != "VERIFIED"
+                or not isinstance(removed, dict)
+                or removed.get("name") != "Poppler"
+                or removed.get("version") != "26.07.0"
+                or not isinstance(replacement, dict)
+                or replacement.get("wrapper") != "pypdfium2"
+                or replacement.get("version") != "5.13.0"
+                or replacement.get("backend") != "PDFium"
+                or replacement.get("docx_static_background_dpi") != 288
+                or replacement.get("audited_linux_x86_64_wheel_sha256")
+                != STAGE2_PDFIUM_WHEEL_SHA256
+                or not isinstance(verification, dict)
+            ):
+                errors.append("Stage 3 cleanup evidence contract mismatch")
+            elif isinstance(verification, dict):
+                errors.extend(_stage3_gate_provenance_errors(root, verification))
+
+    template = root / "reporting/template_v3.py"
+    if template.is_file():
+        text = template.read_text(encoding="utf-8")
+        for token in (
+            "DOCX_BACKGROUND_DPI = 288",
+            "template-v3-pdfium-raster-docx",
+            "_render_template_pages_pdfium",
+        ):
+            if token not in text:
+                errors.append(f"Stage 3 PDFium DOCX contract missing: {token}")
+
+    canary = root / "scripts/run_canary.sh"
+    if canary.is_file():
+        text = canary.read_text(encoding="utf-8")
+        for token in ('import pypdfium2 as pdfium', '"renderer": "PDFium"'):
+            if token not in text:
+                errors.append(f"Stage 3 editorial canary contract missing: {token}")
+
+
 def validate_language_policy(root: Path, errors: list[str]) -> None:
     try:
         validate_code_language(root, errors)
@@ -1045,6 +1608,7 @@ def validate(root: Path) -> list[str]:
     validate_superseded_identity_locations(root, errors)
     validate_core_runtime_dependencies(root, errors)
     validate_stage2_pdf_contract(root, errors)
+    validate_stage3_copyleft_contract(root, errors)
 
     active = []
     for candidate in root.rglob("REGRAS_PROJETO_GENOMA*.txt"):

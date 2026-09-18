@@ -28,6 +28,22 @@ check_version() {
   printf '%s\tPASS\texpected=%s\tobserved=%s\tpath=%s\n' \
     "$tool" "$expected" "$first_line" "$(command -v "$tool")"
 }
+check_python_package() {
+  local package="$1"
+  local expected="$2"
+  local output
+  if ! output=$(python3 -c 'import importlib.metadata as md, sys; print(md.version(sys.argv[1]))' "$package" 2>&1); then
+    printf '%s\tMISSING\texpected=%s\n' "$package" "$expected"
+    failures=$((failures + 1))
+    return
+  fi
+  if [[ "$output" != "$expected" ]]; then
+    printf '%s\tMISMATCH\texpected=%s\tobserved=%s\n' "$package" "$expected" "$output"
+    failures=$((failures + 1))
+    return
+  fi
+  printf '%s\tPASS\texpected=%s\tobserved=%s\n' "$package" "$expected" "$output"
+}
 
 check_version java '17.' java -version
 check_version samtools '1.24' samtools --version
@@ -36,8 +52,7 @@ check_version bwa-mem2 '2.2.1' bwa-mem2 version
 check_version gatk '4.6.2.0' gatk --version
 check_version nextflow '26.04.6' nextflow -version
 check_version snakemake '7.32.4' snakemake --version
-check_version pdftoppm '26.07.0' pdftoppm -v
-check_version pdftocairo '26.07.0' pdftocairo -v
+check_python_package pypdfium2 '5.13.0'
 
 if (( failures > 0 )); then
   printf 'runtime_gate\tFAIL\tfailures=%d\n' "$failures"

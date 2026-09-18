@@ -530,6 +530,13 @@
       "fingerprint": "076f3f1ff64879896f402a4da2d60ec413f9c0cd769572d25a84f6e4e3e4ca4b"
     },
     {
+      "path": "docs/evidence/stage3/full_test_suite.log",
+      "category": "historical",
+      "reason": "Immutable Stage 3 execution evidence preserves localized runtime wire-status values exactly as emitted by the verified test run.",
+      "count": 6,
+      "fingerprint": "c5d78a5371a0c3fd059843e4d02ce1f56e3687d920cbfa596531ab9f663d0891"
+    },
+    {
       "path": "docs/superpowers/plans/2026-08-14-magalu-private-mcp.md",
       "category": "historical",
       "reason": "Implementation-plan record is retained as historical development evidence and is not active runtime or user-facing technical documentation.",
@@ -598,6 +605,13 @@
       "reason": "Adapter-facing Portuguese tokens are established wire-status values whose serialization must remain compatible.",
       "count": 2,
       "fingerprint": "fff80fdfc00a82982d5da390625d1419cefcf18d4ea46dae2661933aad2279a2"
+    },
+    {
+      "path": "licenses/pypdfium2-5.13.0/NOTICE.md",
+      "category": "compatibility-preserved",
+      "reason": "Exact upstream third-party copyright-holder spelling is preserved for legal attribution and must not be normalized or translated.",
+      "count": 1,
+      "fingerprint": "e08cf2fe25bb3d6223203cfb829b0282061bbb9fedbe20b72e4cca690e19f030"
     },
     {
       "path": "manifests/RULESET_V3.4.sha256",

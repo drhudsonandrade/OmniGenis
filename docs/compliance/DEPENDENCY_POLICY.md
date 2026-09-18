@@ -20,7 +20,9 @@ A package name is not sufficient evidence: classification applies to the exact v
 
 ## Existing remediation debt
 
-PyMuPDF/MuPDF was removed from the active editorial coordinate-compiler runtime in Stage 2 rather than granted a standing exception. The replacement `pypdfium2==5.13.0` / PDFium boundary is technically accepted for Stage 2 only for the exact artifact and bundled notices recorded in `licenses/pypdfium2-5.13.0/README.md`; this does not replace the later transitive inventory, SBOM, or legal review. Poppler remains unresolved and must not be interpreted as approved or as a permanent exception.
+PyMuPDF/MuPDF was removed from the active editorial coordinate-compiler runtime in Stage 2 rather than granted a standing exception. The replacement `pypdfium2==5.13.0` / PDFium boundary is technically accepted for Stage 2 only for the exact artifact and bundled notices recorded in `licenses/pypdfium2-5.13.0/README.md`; this does not replace the later transitive inventory, SBOM, or legal review.
+
+Poppler was removed from the active OmniGenis application runtime in Stage 3 rather than granted a standing exception. The DOCX renderer and editorial canary now use the reviewed PDFium boundary. Stage 3 is an application-layer cleanup only: it does not classify the whole container or operating-system layer as copyleft-free. System utilities and transitive dependencies remain pending the Stage 4 inventory, SBOM, notice, redistribution, and source-obligation reconciliation.
 
 ## Enforcement boundary
 
