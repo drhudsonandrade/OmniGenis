@@ -2,10 +2,11 @@
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
-from urllib.parse import quote
+from urllib.parse import unquote, urlsplit
 
 SCANNER_EXPECTED = {
     "pypdfium2": "5.13.0",
@@ -44,6 +45,10 @@ def _is_pypi_record(item: dict[str, Any]) -> bool:
     return channel == "pypi" or base_url.startswith("https://pypi.org/")
 
 
+def _normalize_python_name(value: str) -> str:
+    return re.sub(r"[-_.]+", "-", value).casefold()
+
+
 def _python_lock_versions(payload: Any) -> dict[str, str]:
     if not isinstance(payload, dict):
         return {}
@@ -57,7 +62,7 @@ def _python_lock_versions(payload: Any) -> dict[str, str]:
         name = str(item.get("name") or "")
         version = str(item.get("version") or "")
         if name and version:
-            versions[name] = version
+            versions[_normalize_python_name(name)] = version
     return versions
 
 
@@ -90,6 +95,13 @@ def _validate_required_components(
             )
 
 
+def _purl_version(locator: str) -> str:
+    parsed = urlsplit(locator)
+    if parsed.scheme != "pkg" or "@" not in parsed.path:
+        return ""
+    return unquote(parsed.path.rsplit("@", 1)[1])
+
+
 def _validate_image_identity(
     syft_source: dict[str, Any],
     spdx_packages: list[Any],
@@ -103,7 +115,11 @@ def _validate_image_identity(
         source_meta = {}
     manifest_digest = str(source_meta.get("manifestDigest") or "")
 
-    if not source_name or not source_version or not manifest_digest.startswith("sha256:"):
+    if (
+        not source_name
+        or not source_version
+        or re.fullmatch(r"sha256:[0-9a-f]{64}", manifest_digest) is None
+    ):
         errors.append("Syft image identity is incomplete")
         return
 
@@ -121,11 +137,11 @@ def _validate_image_identity(
             errors.append("SPDX image identity differs from Syft source identity")
         external_refs = root.get("externalRefs")
         refs = external_refs if isinstance(external_refs, list) else []
-        expected_digest = quote(manifest_digest, safe="")
         if not any(
             isinstance(ref, dict)
             and ref.get("referenceType") == "purl"
-            and expected_digest in str(ref.get("referenceLocator") or "")
+            and _purl_version(str(ref.get("referenceLocator") or ""))
+            == manifest_digest
             for ref in refs
         ):
             errors.append("SPDX image root does not bind the Syft manifest digest")
@@ -232,20 +248,23 @@ def main() -> int:
     python_versions = _python_lock_versions(python_lock)
     if len(python_versions) < 8:
         errors.append("audited Python lock coverage is unexpectedly small")
-    runtime_versions = _versions_by_name(
-        actual_nonvirtual_records,
-        name_key="name",
-        version_key="version",
-    )
+    python_runtime_versions: dict[str, set[str]] = {}
+    for item in actual_nonvirtual_records:
+        name = _normalize_python_name(str(item.get("name") or ""))
+        version = str(item.get("version") or "")
+        if name and version:
+            python_runtime_versions.setdefault(name, set()).add(version)
     for name, version in sorted(python_versions.items()):
-        if version not in runtime_versions.get(name, set()):
+        if version not in python_runtime_versions.get(name, set()):
             errors.append(
                 f"final-image Python runtime is missing locked package: {name}=={version}"
             )
     unexpected_pypi = sorted(
         (str(item.get("name") or ""), str(item.get("version") or ""))
         for item in actual_pypi_records
-        if python_versions.get(str(item.get("name") or ""))
+        if python_versions.get(
+            _normalize_python_name(str(item.get("name") or ""))
+        )
         != str(item.get("version") or "")
     )
     if unexpected_pypi:

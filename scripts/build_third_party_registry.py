@@ -41,6 +41,32 @@ def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _license_expression_is_well_formed(tokens: list[str]) -> bool:
+    if not tokens:
+        return False
+    expect_operand = True
+    depth = 0
+    for token in tokens:
+        if token == "(":
+            if not expect_operand:
+                return False
+            depth += 1
+        elif token == ")":
+            if expect_operand or depth == 0:
+                return False
+            depth -= 1
+            expect_operand = False
+        elif token in {"AND", "OR"}:
+            if expect_operand:
+                return False
+            expect_operand = True
+        else:
+            if not expect_operand:
+                return False
+            expect_operand = False
+    return not expect_operand and depth == 0
+
+
 def license_policy(value: str) -> str:
     text = (value or "UNKNOWN").strip()
     upper = text.upper()
@@ -68,6 +94,7 @@ def license_policy(value: str) -> str:
     if (
         terms
         and "WITH" not in tokens
+        and _license_expression_is_well_formed(tokens)
         and all(term in PERMISSIVE_LICENSE_IDS for term in terms)
     ):
         return "PERMISSIVE"

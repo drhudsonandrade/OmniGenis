@@ -7,6 +7,7 @@ import re
 import sys
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -143,11 +144,22 @@ def collect_errors(root: Path = ROOT) -> list[str]:
             record = by_action.get(name, {})
             locked_sha = locked.get("sha")
             license_url = record.get("license_url")
+            parsed_license_url = (
+                urlsplit(license_url) if isinstance(license_url, str) else None
+            )
+            expected_prefix = f"/{name}/blob/{locked_sha}/"
+            license_path = parsed_license_url.path if parsed_license_url else ""
+            license_url_matches = (
+                parsed_license_url is not None
+                and parsed_license_url.scheme == "https"
+                and parsed_license_url.netloc == "github.com"
+                and license_path.startswith(expected_prefix)
+                and len(license_path) > len(expected_prefix)
+            )
             if (
                 record.get("sha") != locked_sha
                 or not record.get("license")
-                or not isinstance(license_url, str)
-                or f"/blob/{locked_sha}/" not in license_url
+                or not license_url_matches
             ):
                 errors.append(f"Stage 4 action license metadata mismatch: {name}")
 

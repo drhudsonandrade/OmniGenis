@@ -6,6 +6,7 @@ from scripts.validate_stage4_sbom import (
     RETIRED,
     SCANNER_EXPECTED,
     _is_pypi_record,
+    _normalize_python_name,
     _python_lock_versions,
     _validate_image_identity,
     _validate_required_components,
@@ -35,6 +36,10 @@ class Stage4SbomValidatorTest(unittest.TestCase):
                 }
             )
         )
+
+    def test_python_package_names_use_pep503_normalization(self) -> None:
+        self.assertEqual(_normalize_python_name("typing_extensions"), "typing-extensions")
+        self.assertEqual(_normalize_python_name("Typing.Extensions"), "typing-extensions")
 
     def test_python_lock_versions_preserve_exact_runtime_versions(self) -> None:
         payload = {
@@ -105,6 +110,16 @@ class Stage4SbomValidatorTest(unittest.TestCase):
         errors: list[str] = []
         _validate_image_identity(source, spdx_packages, cdx, errors)
         self.assertEqual(errors, [])
+
+    def test_cross_format_image_identity_rejects_incomplete_sha256(self) -> None:
+        source = {
+            "name": "omnigenis-genome",
+            "version": "candidate-a",
+            "metadata": {"manifestDigest": "sha256:"},
+        }
+        errors: list[str] = []
+        _validate_image_identity(source, [], {}, errors)
+        self.assertIn("Syft image identity is incomplete", errors)
 
     def test_cross_format_image_identity_rejects_mismatch(self) -> None:
         digest = "sha256:" + "b" * 64

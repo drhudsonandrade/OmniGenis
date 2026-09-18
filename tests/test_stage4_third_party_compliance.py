@@ -52,6 +52,9 @@ class Stage4ThirdPartyComplianceTest(unittest.TestCase):
             license_policy("BSD-3-Clause, Apache-2.0, dependency licenses"),
             "REVIEW_REQUIRED",
         )
+        self.assertEqual(license_policy("MIT OR"), "REVIEW_REQUIRED")
+        self.assertEqual(license_policy("(MIT OR BSD-3-Clause"), "REVIEW_REQUIRED")
+        self.assertEqual(license_policy("MIT AND (BSD-3-Clause OR Apache-2.0)"), "PERMISSIVE")
 
     def test_registry_is_deterministically_rebuildable(self) -> None:
         expected = render_payload(ROOT)
@@ -190,6 +193,24 @@ class Stage4ThirdPartyComplianceTest(unittest.TestCase):
             errors = collect_errors(root)
             self.assertTrue(
                 any("explicit Conda lock differs" in error for error in errors),
+                errors,
+            )
+
+    def test_action_license_url_must_match_locked_repository(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._copy_contract_root(root)
+            path = root / "locks/action-license-metadata.json"
+            payload = json.loads(path.read_text())
+            record = payload["actions"][0]
+            record["license_url"] = (
+                "https://github.com/other/repository/blob/"
+                f"{record['sha']}/LICENSE"
+            )
+            path.write_text(json.dumps(payload))
+            errors = collect_errors(root)
+            self.assertTrue(
+                any("action license metadata mismatch" in error for error in errors),
                 errors,
             )
 
