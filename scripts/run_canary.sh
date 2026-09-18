@@ -4,16 +4,23 @@ set -euo pipefail
 readonly PROJECT_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 readonly OUTPUT_DIR=${1:-"$PROJECT_ROOT/results/canary"}
 readonly WORK_DIR="$OUTPUT_DIR/work"
+readonly CANARY_SCOPE=${2:-full}
 
-if [[ -s "$OUTPUT_DIR/report.json" ]] && jq -e '.status == "PASS"' "$OUTPUT_DIR/report.json" >/dev/null; then
+if [[ "$CANARY_SCOPE" != "full" && "$CANARY_SCOPE" != "editorial-only" ]]; then
+  printf 'FAIL\tcanary_scope\treason=unsupported_scope:%s\n' "$CANARY_SCOPE" >&2
+  exit 2
+fi
+
+if [[ "$CANARY_SCOPE" == "full" && -s "$OUTPUT_DIR/report.json" ]] && jq -e '.status == "PASS"' "$OUTPUT_DIR/report.json" >/dev/null; then
   cat "$OUTPUT_DIR/report.json"
   exit 0
 fi
 
 mkdir -p "$OUTPUT_DIR" "$WORK_DIR"
-if [[ "${CANARY_VERSION_POLICY:-PINNED}" == "PINNED" ]]; then
-  "$PROJECT_ROOT/scripts/check_versions.sh" > "$OUTPUT_DIR/tool_versions.tsv"
-else
+rm -f "$OUTPUT_DIR/editorial-runtime.json" "$WORK_DIR/editorial-canary.png" "$WORK_DIR/editorial-canary.pdf"
+if [[ "$CANARY_SCOPE" == "full" && "${CANARY_VERSION_POLICY:-PINNED}" == "PINNED" ]]; then
+  bash "$PROJECT_ROOT/scripts/check_versions.sh" > "$OUTPUT_DIR/tool_versions.tsv"
+elif [[ "$CANARY_SCOPE" == "full" ]]; then
   {
     printf 'tool\tversion\n'
     printf 'java\t%s\n' "$(java -version 2>&1 | head -1)"
@@ -26,7 +33,7 @@ else
     printf 'pypdfium2\t%s\n' "$(python3 -c 'import importlib.metadata as md; print(md.version("pypdfium2"))')"
   } > "$OUTPUT_DIR/tool_versions.tsv"
 fi
-if command -v micromamba >/dev/null 2>&1; then
+if [[ "$CANARY_SCOPE" == "full" ]] && command -v micromamba >/dev/null 2>&1; then
   micromamba list --name base --explicit > "$OUTPUT_DIR/conda-explicit.lock.txt"
   micromamba list --name base --json > "$OUTPUT_DIR/conda-inventory.json"
 fi
@@ -62,6 +69,11 @@ try:
 finally:
     document.close()
 
+from pathlib import Path
+png_path = Path(png)
+if not png_path.is_file() or png_path.stat().st_size <= 0:
+    raise RuntimeError("editorial canary PDFium PNG is missing or empty")
+
 payload = {
     "status": "PASS",
     "renderer": "PDFium",
@@ -78,8 +90,14 @@ payload = {
 open(out, "w", encoding="utf-8").write(json.dumps(payload, indent=2) + "\n")
 PY
 if [[ ! -s "$WORK_DIR/editorial-canary.png" ]]; then
+  rm -f "$OUTPUT_DIR/editorial-runtime.json"
   printf 'FAIL\teditor_runtime\treason=empty_pdfium_png_raster\n' >&2
   exit 7
+fi
+
+if [[ "$CANARY_SCOPE" == "editorial-only" ]]; then
+  cat "$OUTPUT_DIR/editorial-runtime.json"
+  exit 0
 fi
 
 python3 "$PROJECT_ROOT/scripts/generate_canary.py" "$WORK_DIR/input"

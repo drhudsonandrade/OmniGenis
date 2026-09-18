@@ -335,7 +335,13 @@ class TemplateV3ContractTest(unittest.TestCase):
             with zipfile.ZipFile(paths["docx"]) as zf:
                 xml = zf.read("word/document.xml").decode("utf-8")
                 self.assertIn("GENOMA_FIELD_", xml)
-                self.assertIn("svgBlip", xml)
+                self.assertNotIn("svgBlip", xml)
+                media = [
+                    name for name in zf.namelist()
+                    if name.startswith("word/media/")
+                ]
+                self.assertTrue(media)
+                self.assertTrue(all(name.lower().endswith(".png") for name in media))
 
 
 if __name__ == "__main__":

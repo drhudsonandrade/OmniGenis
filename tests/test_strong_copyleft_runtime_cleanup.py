@@ -90,6 +90,46 @@ class Stage3ValidatorContractTest(unittest.TestCase):
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(content, encoding="utf-8")
 
+        import json
+        tree = "1" * 40
+        output_hash = "a" * 64
+        gates = {
+            name: {
+                "status": "PASS",
+                "command": f"test-command-{name}",
+                "exit_code": 0,
+                "output_sha256": output_hash,
+                "tested_tree_sha": tree,
+            }
+            for name in (
+                "directed_tests",
+                "repository_validator",
+                "supply_chain_gate",
+                "residual_language_gate",
+                "full_test_suite",
+            )
+        }
+        evidence = {
+            "schema": "omnigenis-stage3-strong-copyleft-runtime-cleanup-v2",
+            "status": "VERIFIED",
+            "removed_runtime_component": {"name": "Poppler", "version": "26.07.0"},
+            "replacement": {
+                "wrapper": "pypdfium2",
+                "version": "5.13.0",
+                "backend": "PDFium",
+                "docx_static_background_dpi": 288,
+                "audited_linux_x86_64_wheel_sha256":
+                    "81df25c1ab4c13ff773102d3cbea1967511d079123b067fc077bd0c4d57d91d8",
+            },
+            "verification": {
+                "pre_attestation_tested_tree_sha": tree,
+                "gates": gates,
+            },
+        }
+        evidence_path = root / "docs/evidence/STRONG_COPYLEFT_RUNTIME_CLEANUP_2026-09-17.json"
+        evidence_path.parent.mkdir(parents=True, exist_ok=True)
+        evidence_path.write_text(json.dumps(evidence), encoding="utf-8")
+
     def test_stage3_validator_accepts_remediated_runtime(self) -> None:
         from scripts.validate_repo import validate_stage3_copyleft_contract
 
@@ -112,6 +152,92 @@ class Stage3ValidatorContractTest(unittest.TestCase):
             errors: list[str] = []
             validate_stage3_copyleft_contract(root, errors)
             self.assertTrue(any("reintroduced" in error for error in errors), errors)
+
+    def test_stage3_validator_rejects_python_constructed_retired_command(self) -> None:
+        from scripts.validate_repo import validate_stage3_copyleft_contract
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_valid_surfaces(root)
+            (root / "reporting/template_v3.py").write_text(
+                "DOCX_BACKGROUND_DPI = 288\n"
+                "def _render_template_pages_pdfium(): pass\n"
+                "MODE = 'template-v3-pdfium-raster-docx'\n"
+                "import subprocess\n"
+                "prefix = 'pdf'\n"
+                "tool = prefix + 'toppm'\n"
+                "subprocess.run([tool], check=True)\n",
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            validate_stage3_copyleft_contract(root, errors)
+            self.assertTrue(any("constructed" in error for error in errors), errors)
+
+    def test_stage3_validator_rejects_shell_constructed_retired_command(self) -> None:
+        from scripts.validate_repo import validate_stage3_copyleft_contract
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_valid_surfaces(root)
+            (root / "scripts/run_canary.sh").write_text(
+                "prefix=pdf\n"
+                "suffix=toppm\n"
+                'tool="$prefix$suffix"\n'
+                '"$tool" -v\n'
+                "import pypdfium2 as pdfium\n"
+                'payload={"renderer":"PDFium"}\n',
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            validate_stage3_copyleft_contract(root, errors)
+            self.assertTrue(any("constructed" in error for error in errors), errors)
+
+    def test_stage3_validator_rejects_unresolved_python_command(self) -> None:
+        from scripts.validate_repo import validate_stage3_copyleft_contract
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_valid_surfaces(root)
+            (root / "reporting/template_v3.py").write_text(
+                "DOCX_BACKGROUND_DPI = 288\n"
+                "def _render_template_pages_pdfium(): pass\n"
+                "MODE = 'template-v3-pdfium-raster-docx'\n"
+                "import os, subprocess\n"
+                "subprocess.run([os.environ['PDF_TOOL']], check=True)\n",
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            validate_stage3_copyleft_contract(root, errors)
+            self.assertTrue(any("unresolved executable" in error for error in errors), errors)
+
+    def test_stage3_validator_rejects_incomplete_gate_provenance(self) -> None:
+        import json
+
+        from scripts.validate_repo import validate_stage3_copyleft_contract
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_valid_surfaces(root)
+            evidence = root / "docs/evidence/STRONG_COPYLEFT_RUNTIME_CLEANUP_2026-09-17.json"
+            payload = json.loads(evidence.read_text(encoding="utf-8"))
+            del payload["verification"]["gates"]["full_test_suite"]["output_sha256"]
+            evidence.write_text(json.dumps(payload), encoding="utf-8")
+            errors: list[str] = []
+            validate_stage3_copyleft_contract(root, errors)
+            self.assertTrue(any("provenance" in error for error in errors), errors)
+
+    def test_stage3_validator_rejects_obfuscated_structured_dependency(self) -> None:
+        from scripts.validate_repo import validate_stage3_copyleft_contract
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_valid_surfaces(root)
+            (root / "environment.yml").write_text(
+                "dependencies:\n  - pop-pler=26.07.0\n", encoding="utf-8"
+            )
+            errors: list[str] = []
+            validate_stage3_copyleft_contract(root, errors)
+            self.assertTrue(any("structured surface" in error for error in errors), errors)
 
     def test_stage3_validator_rejects_missing_pdfium_contract(self) -> None:
         from scripts.validate_repo import validate_stage3_copyleft_contract

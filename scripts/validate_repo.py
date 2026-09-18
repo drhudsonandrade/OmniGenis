@@ -8,6 +8,7 @@ import csv
 import hashlib
 import json
 import re
+import shlex
 import sys
 from collections.abc import Iterator
 from pathlib import Path
@@ -870,19 +871,285 @@ STAGE3_COPYLEFT_ACTIVE_SURFACES = (
     "scripts/run_canary.sh",
     "reporting/template_v3.py",
 )
+STAGE3_PROHIBITED_IDENTIFIERS = ("poppler", "pdftoppm", "pdftocairo")
+STAGE3_GATE_NAMES = (
+    "directed_tests",
+    "repository_validator",
+    "supply_chain_gate",
+    "residual_language_gate",
+    "full_test_suite",
+)
 
+def _stage3_prohibited(value: str) -> tuple[str, ...]:
+    lowered = value.lower()
+    compact = re.sub(r"[^a-z0-9]+", "", lowered)
+    return tuple(
+        token for token in STAGE3_PROHIBITED_IDENTIFIERS
+        if token in lowered or token in compact
+    )
+
+def _stage3_py_string(node: ast.AST, env: dict[str, str]) -> str | None:
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return node.value
+    if isinstance(node, ast.Name):
+        return env.get(node.id)
+
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+        left = _stage3_py_string(node.left, env)
+        right = _stage3_py_string(node.right, env)
+        return left + right if left is not None and right is not None else None
+    if isinstance(node, ast.JoinedStr):
+        parts: list[str] = []
+        for part in node.values:
+            if isinstance(part, ast.Constant) and isinstance(part.value, str):
+                parts.append(part.value)
+            elif isinstance(part, ast.FormattedValue):
+                rendered = _stage3_py_string(part.value, env)
+                if rendered is None:
+                    literal = _constant_value(part.value)
+                    if literal is None:
+                        return None
+                    rendered = str(literal)
+                parts.append(rendered)
+            else:
+                return None
+        return "".join(parts)
+    return None
+
+def _stage3_python_violations(text: str, relative: str) -> list[str]:
+    try:
+        tree = ast.parse(text)
+    except SyntaxError as exc:
+        return [f"Stage 3 active Python surface is not parseable: {relative}: {exc}"]
+    env: dict[str, str] = {}
+    for statement in tree.body:
+        target = None
+        value = None
+
+        if (
+            isinstance(statement, ast.Assign)
+            and len(statement.targets) == 1
+            and isinstance(statement.targets[0], ast.Name)
+        ):
+            target = statement.targets[0].id
+            value = statement.value
+        elif isinstance(statement, ast.AnnAssign) and isinstance(statement.target, ast.Name):
+            target = statement.target.id
+            value = statement.value
+        if target and value is not None:
+            folded = _stage3_py_string(value, env)
+            if folded is not None:
+                env[target] = folded
+    errors: list[str] = []
+    for name, value in env.items():
+        for token in _stage3_prohibited(value):
+            errors.append(
+                f"Stage 3 retired PDF identifier constructed in Python: {relative}:{name}:{token}"
+            )
+    command_calls = {
+        "subprocess.run", "subprocess.Popen", "subprocess.call",
+        "subprocess.check_call", "subprocess.check_output",
+        "os.system", "os.popen", "importlib.import_module", "__import__",
+    }
+    def dotted(node: ast.AST) -> str | None:
+        if isinstance(node, ast.Name):
+            return node.id
+        if isinstance(node, ast.Attribute):
+            base = dotted(node.value)
+            return f"{base}.{node.attr}" if base else None
+        return None
+
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        call_name = dotted(node.func)
+        if call_name not in command_calls:
+            continue
+        expression = node.args[0] if node.args else None
+        if expression is None:
+            errors.append(
+                f"Stage 3 unresolved executable/module on active Python surface: {relative}:{call_name}"
+            )
+            continue
+        if isinstance(expression, (ast.List, ast.Tuple)):
+            expression = expression.elts[0] if expression.elts else None
+        resolved = _stage3_py_string(expression, env) if expression is not None else None
+        if resolved is None:
+            errors.append(
+                f"Stage 3 unresolved executable/module on active Python surface: {relative}:{call_name}"
+            )
+            continue
+        for token in _stage3_prohibited(resolved):
+            errors.append(
+                f"Stage 3 retired PDF identifier constructed in Python command: "
+                f"{relative}:{call_name}:{token}"
+            )
+    return errors
+
+_STAGE3_SHELL_ASSIGNMENT = re.compile(
+    r"^\s*(?:(?:readonly|export|local)\s+)?([A-Za-z_][A-Za-z0-9_]*)=(.*)$"
+)
+_STAGE3_SHELL_VARIABLE = re.compile(
+    r"\$(?:\{([A-Za-z_][A-Za-z0-9_]*)\}|([A-Za-z_][A-Za-z0-9_]*))"
+)
+
+def _stage3_shell_violations(text: str, relative: str) -> list[str]:
+    env: dict[str, str | None] = {}
+    errors: list[str] = []
+    continued = False
+
+    def expand(value: str) -> tuple[str, bool]:
+        unresolved = False
+        def replace(match: re.Match[str]) -> str:
+            nonlocal unresolved
+            name = match.group(1) or match.group(2)
+            resolved = env.get(name)
+            if resolved is None:
+                unresolved = True
+                return match.group(0)
+            return resolved
+        return _STAGE3_SHELL_VARIABLE.sub(replace, value), unresolved
+
+    for line_number, raw_line in enumerate(text.splitlines(), 1):
+        is_continuation = continued
+        continued = raw_line.rstrip().endswith("\\")
+        stripped = raw_line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        assignment = _STAGE3_SHELL_ASSIGNMENT.match(raw_line)
+        if assignment:
+            name, expression = assignment.groups()
+            if "$(" in expression or "`" in expression or "${!" in expression:
+                env[name] = None
+            else:
+                expanded, unresolved = expand(expression)
+                try:
+                    parts = shlex.split(expanded, comments=True, posix=True)
+                except ValueError:
+                    parts = []
+                env[name] = parts[0] if not unresolved and len(parts) == 1 else None
+                if env[name] is not None:
+                    for token in _stage3_prohibited(env[name] or ""):
+                        errors.append(
+                            f"Stage 3 retired PDF identifier constructed in shell: "
+                            f"{relative}:{line_number}:{name}:{token}"
+                        )
+
+        expanded, _ = expand(raw_line)
+        for token in _stage3_prohibited(expanded):
+            errors.append(
+                f"Stage 3 retired PDF identifier constructed in shell command: "
+                f"{relative}:{line_number}:{token}"
+            )
+        command_var = re.match(
+            r"^\s*[\"']?\$(?:\{)?([A-Za-z_][A-Za-z0-9_]*)",
+            raw_line,
+        )
+        if (
+            not is_continuation
+            and command_var
+            and env.get(command_var.group(1)) is None
+        ):
+            errors.append(
+                f"Stage 3 unresolved shell executable on active surface: "
+                f"{relative}:{line_number}:{command_var.group(1)}"
+            )
+    return errors
+
+def _stage3_structured_violations(text: str, relative: str) -> list[str]:
+    """Inspect package identities structurally on the active YAML/JSON dependency surfaces."""
+    values: list[str] = []
+    if relative == "environment.yml":
+        in_dependencies = False
+        for line_number, raw_line in enumerate(text.splitlines(), 1):
+            stripped = raw_line.strip()
+            if stripped == "dependencies:":
+                in_dependencies = True
+                continue
+            if not in_dependencies or not stripped or stripped.startswith("#"):
+                continue
+            if not raw_line.startswith((" ", "\t")):
+                in_dependencies = False
+                continue
+            if not stripped.startswith("- "):
+                return [
+                    f"Stage 3 unresolved environment dependency syntax: "
+                    f"{relative}:{line_number}"
+                ]
+            values.append(stripped[2:].strip().strip("\"'"))
+    elif relative.endswith(".json"):
+        try:
+            payload = json.loads(text)
+        except json.JSONDecodeError as exc:
+            return [f"Stage 3 active JSON surface invalid: {relative}: {exc}"]
+
+        def walk(value: object) -> None:
+            if isinstance(value, str):
+                values.append(value)
+            elif isinstance(value, dict):
+                for key, item in value.items():
+                    values.append(str(key))
+                    walk(item)
+            elif isinstance(value, list):
+                for item in value:
+                    walk(item)
+
+        walk(payload)
+
+    errors: list[str] = []
+    for value in values:
+        for token in _stage3_prohibited(value):
+            errors.append(
+                f"Stage 3 retired PDF dependency present in structured surface: "
+                f"{relative}:{token}"
+            )
+    return errors
+
+
+def _stage3_gate_provenance_errors(verification: dict[str, object]) -> list[str]:
+    tree_sha = str(verification.get("pre_attestation_tested_tree_sha", ""))
+    gates = verification.get("gates")
+    if not re.fullmatch(r"[0-9a-f]{40}", tree_sha):
+        return ["Stage 3 verification provenance has invalid pre-attestation tree SHA"]
+    if not isinstance(gates, dict) or set(gates) != set(STAGE3_GATE_NAMES):
+        return ["Stage 3 verification provenance gate set mismatch"]
+    errors: list[str] = []
+    for name in STAGE3_GATE_NAMES:
+        record = gates.get(name)
+        if not isinstance(record, dict):
+            errors.append(f"Stage 3 verification provenance record invalid: {name}")
+            continue
+        command = record.get("command")
+        output_sha = str(record.get("output_sha256", ""))
+        if (
+            record.get("status") != "PASS"
+            or not isinstance(command, str)
+            or not command.strip()
+            or record.get("exit_code") != 0
+            or not re.fullmatch(r"[0-9a-f]{64}", output_sha)
+            or record.get("tested_tree_sha") != tree_sha
+        ):
+            errors.append(f"Stage 3 verification provenance incomplete: {name}")
+    return errors
 
 def validate_stage3_copyleft_contract(root: Path, errors: list[str]) -> None:
-    """Keep the remediated application runtime free of the retired Poppler dependency."""
-    prohibited = ("poppler", "pdftoppm", "pdftocairo")
+    """Keep the remediated application runtime free of retired PDF executables."""
     for relative in STAGE3_COPYLEFT_ACTIVE_SURFACES:
         path = root / relative
         if not path.is_file():
             continue
-        text = path.read_text(encoding="utf-8", errors="replace").lower()
-        for token in prohibited:
-            if token in text:
-                errors.append(f"Stage 3 retired PDF runtime dependency reintroduced: {relative}: {token}")
+        text = path.read_text(encoding="utf-8", errors="replace")
+        for token in STAGE3_PROHIBITED_IDENTIFIERS:
+            if token in text.lower():
+                errors.append(
+                    f"Stage 3 retired PDF runtime dependency reintroduced: {relative}: {token}"
+                )
+        if path.suffix == ".py":
+            errors.extend(_stage3_python_violations(text, relative))
+        elif path.suffix == ".sh":
+            errors.extend(_stage3_shell_violations(text, relative))
+        elif relative in {"environment.yml", "locks/runtime-lock.json"}:
+            errors.extend(_stage3_structured_violations(text, relative))
 
     evidence_path = root / "docs/evidence/STRONG_COPYLEFT_RUNTIME_CLEANUP_2026-09-17.json"
     if evidence_path.is_file():
@@ -895,7 +1162,7 @@ def validate_stage3_copyleft_contract(root: Path, errors: list[str]) -> None:
             replacement = evidence.get("replacement")
             verification = evidence.get("verification")
             if (
-                evidence.get("schema") != "omnigenis-stage3-strong-copyleft-runtime-cleanup-v1"
+                evidence.get("schema") != "omnigenis-stage3-strong-copyleft-runtime-cleanup-v2"
                 or evidence.get("status") != "VERIFIED"
                 or not isinstance(removed, dict)
                 or removed.get("name") != "Poppler"
@@ -905,16 +1172,13 @@ def validate_stage3_copyleft_contract(root: Path, errors: list[str]) -> None:
                 or replacement.get("version") != "5.13.0"
                 or replacement.get("backend") != "PDFium"
                 or replacement.get("docx_static_background_dpi") != 288
-                or replacement.get("audited_linux_x86_64_wheel_sha256") != STAGE2_PDFIUM_WHEEL_SHA256
+                or replacement.get("audited_linux_x86_64_wheel_sha256")
+                != STAGE2_PDFIUM_WHEEL_SHA256
                 or not isinstance(verification, dict)
-                or verification.get("directed_tests") != "PASS"
-                or verification.get("repository_validator") != "PASS"
-                or verification.get("supply_chain_gate") != "PASS"
-                or verification.get("residual_language_gate") != "PASS"
-                or verification.get("full_test_suite") != "PASS"
-                or not re.fullmatch(r"[0-9a-f]{40}", str(verification.get("pre_attestation_tested_tree_sha", "")))
             ):
                 errors.append("Stage 3 cleanup evidence contract mismatch")
+            elif isinstance(verification, dict):
+                errors.extend(_stage3_gate_provenance_errors(verification))
 
     template = root / "reporting/template_v3.py"
     if template.is_file():
@@ -933,6 +1197,7 @@ def validate_stage3_copyleft_contract(root: Path, errors: list[str]) -> None:
         for token in ('import pypdfium2 as pdfium', '"renderer": "PDFium"'):
             if token not in text:
                 errors.append(f"Stage 3 editorial canary contract missing: {token}")
+
 
 def validate_language_policy(root: Path, errors: list[str]) -> None:
     try:

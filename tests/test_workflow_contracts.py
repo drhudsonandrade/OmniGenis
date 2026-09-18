@@ -8,7 +8,6 @@ from pathlib import Path
 from scripts import validate_repo
 from tests.workflow_test_utils import job_block as _job_block
 
-
 ROOT = Path(__file__).resolve().parents[1]
 
 PRODUCTION_WITNESS_CAPABILITY_GUARD = (
@@ -833,6 +832,56 @@ class WorkflowContractTest(unittest.TestCase):
         self.assertIn("editorial_runtime: $editorial[0]", canary)
         promotion = (ROOT / "scripts/promote_latest_candidate.py").read_text(encoding="utf-8")
         self.assertIn("functional canary editorial runtime is not PASS", promotion)
+
+    def test_editorial_canary_executes_pdfium_and_writes_verified_artifacts(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "canary"
+            completed = subprocess.run(
+                [str(ROOT / "scripts/run_canary.sh"), str(output), "editorial-only"],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            png = output / "work/editorial-canary.png"
+            evidence = output / "editorial-runtime.json"
+            self.assertTrue(png.is_file())
+            self.assertGreater(png.stat().st_size, 0)
+            payload = json.loads(evidence.read_text(encoding="utf-8"))
+            self.assertEqual(payload["status"], "PASS")
+            self.assertEqual(payload["renderer"], "PDFium")
+            self.assertEqual(payload["render_dpi"], 144)
+            self.assertEqual(payload["functional_outputs"], ["PNG"])
+
+    def test_editorial_canary_failure_cannot_leave_a_pass_artifact(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            output = root / "canary"
+            output.mkdir()
+            evidence = output / "editorial-runtime.json"
+            evidence.write_text('{"status":"PASS"}\n', encoding="utf-8")
+            fake = root / "fake"
+            fake.mkdir()
+            (fake / "pypdfium2.py").write_text(
+                "class PdfDocument:\n"
+                "    def __init__(self, *_args, **_kwargs):\n"
+                "        raise RuntimeError('forced PDFium failure')\n",
+                encoding="utf-8",
+            )
+            import os
+            env = os.environ.copy()
+            env["PYTHONPATH"] = str(fake)
+            completed = subprocess.run(
+                [str(ROOT / "scripts/run_canary.sh"), str(output), "editorial-only"],
+                cwd=ROOT,
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertNotEqual(completed.returncode, 0)
+            self.assertFalse(evidence.exists())
 
     def test_full_grch38_remains_explicit_highmem_dispatch(self):
         workflow = (ROOT / ".github/workflows/genoma-ngs-runtime-gate.yml").read_text(encoding="utf-8")
