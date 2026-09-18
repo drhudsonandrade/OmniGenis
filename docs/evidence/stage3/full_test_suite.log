@@ -4,71 +4,71 @@
 python -m unittest: error: --verified-at is required with --write
 ......................................................................................................................................................................................................evidence retrieval failed adapter=clinvar error_class=EvidenceURLPolicyError
 Traceback (most recent call last):
-  File "/srv/remote-desktop-commander-workspace/codework-audit/Codework/.worktrees/omnigenis-stage3-copyleft/evidence_adapters/__init__.py", line 200, in query
+  File "/srv/remote-desktop-commander-workspace/OmniGenis-pr76/evidence_adapters/__init__.py", line 200, in query
     _validate_request(request, expected_host=expected_host)
-  File "/srv/remote-desktop-commander-workspace/codework-audit/Codework/.worktrees/omnigenis-stage3-copyleft/evidence_adapters/__init__.py", line 120, in _validate_request
+  File "/srv/remote-desktop-commander-workspace/OmniGenis-pr76/evidence_adapters/__init__.py", line 120, in _validate_request
     _validate_url(request.full_url, expected_host=expected_host)
-  File "/srv/remote-desktop-commander-workspace/codework-audit/Codework/.worktrees/omnigenis-stage3-copyleft/evidence_adapters/__init__.py", line 108, in _validate_url
+  File "/srv/remote-desktop-commander-workspace/OmniGenis-pr76/evidence_adapters/__init__.py", line 108, in _validate_url
     raise EvidenceURLPolicyError("evidence request changed its configured host")
 evidence_adapters.EvidenceURLPolicyError: evidence request changed its configured host
 .evidence retrieval failed adapter=clinvar error_class=OSError
 Traceback (most recent call last):
-  File "/srv/remote-desktop-commander-workspace/codework-audit/Codework/.worktrees/omnigenis-stage3-copyleft/evidence_adapters/__init__.py", line 201, in query
+  File "/srv/remote-desktop-commander-workspace/OmniGenis-pr76/evidence_adapters/__init__.py", line 201, in query
     payload, headers = self.transport(request)
                        ^^^^^^^^^^^^^^^^^^^^^^^
-  File "/srv/remote-desktop-commander-workspace/codework-audit/Codework/.worktrees/omnigenis-stage3-copyleft/tests/test_evidence_adapters.py", line 60, in failing
+  File "/srv/remote-desktop-commander-workspace/OmniGenis-pr76/tests/test_evidence_adapters.py", line 60, in failing
     raise OSError("offline")
 OSError: offline
 ...evidence retrieval failed adapter=clinvar error_class=OSError
 Traceback (most recent call last):
-  File "/srv/remote-desktop-commander-workspace/codework-audit/Codework/.worktrees/omnigenis-stage3-copyleft/evidence_adapters/__init__.py", line 201, in query
+  File "/srv/remote-desktop-commander-workspace/OmniGenis-pr76/evidence_adapters/__init__.py", line 201, in query
     payload, headers = self.transport(request)
                        ^^^^^^^^^^^^^^^^^^^^^^^
-  File "/srv/remote-desktop-commander-workspace/codework-audit/Codework/.worktrees/omnigenis-stage3-copyleft/tests/test_evidence_adapters.py", line 91, in failing
+  File "/srv/remote-desktop-commander-workspace/OmniGenis-pr76/tests/test_evidence_adapters.py", line 91, in failing
     raise OSError(f"upstream error token={secret}")
 OSError: upstream error token=sensitive-token-should-not-leak
 ..evidence retrieval failed adapter=clinvar error_class=EvidenceURLPolicyError
 Traceback (most recent call last):
-  File "/srv/remote-desktop-commander-workspace/codework-audit/Codework/.worktrees/omnigenis-stage3-copyleft/evidence_adapters/__init__.py", line 200, in query
+  File "/srv/remote-desktop-commander-workspace/OmniGenis-pr76/evidence_adapters/__init__.py", line 200, in query
     _validate_request(request, expected_host=expected_host)
-  File "/srv/remote-desktop-commander-workspace/codework-audit/Codework/.worktrees/omnigenis-stage3-copyleft/evidence_adapters/__init__.py", line 120, in _validate_request
+  File "/srv/remote-desktop-commander-workspace/OmniGenis-pr76/evidence_adapters/__init__.py", line 120, in _validate_request
     _validate_url(request.full_url, expected_host=expected_host)
-  File "/srv/remote-desktop-commander-workspace/codework-audit/Codework/.worktrees/omnigenis-stage3-copyleft/evidence_adapters/__init__.py", line 106, in _validate_url
+  File "/srv/remote-desktop-commander-workspace/OmniGenis-pr76/evidence_adapters/__init__.py", line 106, in _validate_url
     raise EvidenceURLPolicyError("evidence host is not allowlisted")
 evidence_adapters.EvidenceURLPolicyError: evidence host is not allowlisted
 .evidence retrieval failed adapter=clinvar error_class=EvidenceURLPolicyError
 Traceback (most recent call last):
-  File "/srv/remote-desktop-commander-workspace/codework-audit/Codework/.worktrees/omnigenis-stage3-copyleft/evidence_adapters/__init__.py", line 200, in query
+  File "/srv/remote-desktop-commander-workspace/OmniGenis-pr76/evidence_adapters/__init__.py", line 200, in query
     _validate_request(request, expected_host=expected_host)
-  File "/srv/remote-desktop-commander-workspace/codework-audit/Codework/.worktrees/omnigenis-stage3-copyleft/evidence_adapters/__init__.py", line 120, in _validate_request
+  File "/srv/remote-desktop-commander-workspace/OmniGenis-pr76/evidence_adapters/__init__.py", line 120, in _validate_request
     _validate_url(request.full_url, expected_host=expected_host)
-  File "/srv/remote-desktop-commander-workspace/codework-audit/Codework/.worktrees/omnigenis-stage3-copyleft/evidence_adapters/__init__.py", line 102, in _validate_url
+  File "/srv/remote-desktop-commander-workspace/OmniGenis-pr76/evidence_adapters/__init__.py", line 102, in _validate_url
     raise EvidenceURLPolicyError("evidence adapters require HTTPS")
 evidence_adapters.EvidenceURLPolicyError: evidence adapters require HTTPS
 .evidence retrieval failed adapter=clinvar error_class=EvidenceResponseTooLargeError
 Traceback (most recent call last):
-  File "/srv/remote-desktop-commander-workspace/codework-audit/Codework/.worktrees/omnigenis-stage3-copyleft/evidence_adapters/__init__.py", line 203, in query
+  File "/srv/remote-desktop-commander-workspace/OmniGenis-pr76/evidence_adapters/__init__.py", line 203, in query
     raise EvidenceResponseTooLargeError(
 evidence_adapters.EvidenceResponseTooLargeError: evidence response exceeds 16777216 bytes
-....................................................................................................................................................................................................................................................................................s.................................../usr/lib/python3.12/tempfile.py:1075: ResourceWarning: Implicitly cleaning up <TemporaryDirectory '/tmp/tmpkmmciie6'>
+....................................................................................................................................................................................................................................................................................s.................................../usr/lib/python3.12/tempfile.py:1075: ResourceWarning: Implicitly cleaning up <TemporaryDirectory '/tmp/tmp6lk_q219'>
   _warnings.warn(warn_message, ResourceWarning)
-....................................................................................................................................................................................................................................................................................................................................................................................................................................................................s..................................................................................NÃO DISPONÍVEL: verified input refused by secure containment: input path escapes the sample directory
+.........................................................................................................................................................................................................................................................................................................................................................................................................................................................................s..................................................................................NÃO DISPONÍVEL: verified input refused by secure containment: input path escapes the sample directory
 ...NÃO DISPONÍVEL: verified input is missing: input is not present: [Errno 2] No such file or directory: 'missing.fastq'
 ..NÃO DISPONÍVEL: verified input is unreadable: input could not be opened: [Errno 13] permission denied
 ..............................................................................
 ----------------------------------------------------------------------
-Ran 1284 tests in 329.610s
+Ran 1289 tests in 327.668s
 
 OK (skipped=2)
 {
-  "written": "/tmp/tmps6rzove_/bootstrap.json",
+  "written": "/tmp/tmp97ouf_qu/bootstrap.json",
   "sha256": "2e5f9250bd2af0546d76ee28f9120451b3e0fb591a5e1cda34593bd9e97edbb3"
 }
-{"candidate_set_sha256": "7cd80566ceb0712fb8e1575f6befbb5120bfc8835fe7c430a19ffac70a06dead", "command": "python scripts/run_pdfium_static_pixel_qa.py --template-dir \"$PRIVATE_TEMPLATE_DIR\" --candidate-dir \"$CANDIDATE_DIR\" --candidate-pattern 'qa-{rid}.pdf' --output /tmp/tmpc2ce2n5g/evidence.json --mask-manifest /tmp/tmpc2ce2n5g/masks.json --log /tmp/tmpc2ce2n5g/qa.log", "evidence_sha256": "3811cc6751a0187d1248db340c6aabed5a88c5afbe26ce2b222a8374c76ef1e1", "log_sha256": "1e061075f57af372d20923b8b8272f0fc3e7310d59b878ef36b07c6de9895d92", "mask_manifest_sha256": "5094cee6ae28b62d3e227270d02a50bb7ae01968cf007a360bd29d16fef63cb1", "outside_changed_pixels": 0, "producer_sha256": "424a555004ac7eda9fe2ac9286410c50b1482477f8d767928af1f5f9ef60103d", "status": "VERIFICADO"}
+{"candidate_set_sha256": "dd4a86c9ab8a2beb41cef3e0bba34b9ef71e3885f362f9c04404094b00c5e0eb", "command": "python scripts/run_pdfium_static_pixel_qa.py --template-dir \"$PRIVATE_TEMPLATE_DIR\" --candidate-dir \"$CANDIDATE_DIR\" --candidate-pattern 'qa-{rid}.pdf' --output /tmp/tmpkakgtmit/evidence.json --mask-manifest /tmp/tmpkakgtmit/masks.json --log /tmp/tmpkakgtmit/qa.log", "evidence_sha256": "66433368824d09422fda6dc4525655f4269cd0bf22169b96dcef6fd6363ef965", "log_sha256": "33b4d9c4c9fc901f18d90534498fbb6b1c5bb61947fc5be577a8c9dab6f9132d", "mask_manifest_sha256": "5094cee6ae28b62d3e227270d02a50bb7ae01968cf007a360bd29d16fef63cb1", "outside_changed_pixels": 0, "producer_sha256": "424a555004ac7eda9fe2ac9286410c50b1482477f8d767928af1f5f9ef60103d", "status": "VERIFICADO"}
 {
-  "matrix": "/tmp/tmp0dvrhb0i/matrix-cli.json",
-  "passport": "/tmp/tmp0dvrhb0i/passport-cli.json",
-  "payload": "/tmp/tmp0dvrhb0i/payload-cli.json",
+  "matrix": "/tmp/tmp09ydz_9x/matrix-cli.json",
+  "passport": "/tmp/tmp09ydz_9x/passport-cli.json",
+  "payload": "/tmp/tmp09ydz_9x/payload-cli.json",
   "operational_status": "NÃO DISPONÍVEL",
   "totals": {
     "genes": 2,

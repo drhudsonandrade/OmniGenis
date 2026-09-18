@@ -177,6 +177,60 @@ class Stage3ValidatorContractTest(unittest.TestCase):
             validate_stage3_copyleft_contract(root, errors)
             self.assertTrue(any("constructed" in error for error in errors), errors)
 
+    def test_stage3_validator_rejects_os_execvp_constructed_retired_command(self) -> None:
+        from scripts.validate_repo import validate_stage3_copyleft_contract
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_valid_surfaces(root)
+            (root / "reporting/template_v3.py").write_text(
+                "DOCX_BACKGROUND_DPI = 288\n"
+                "def _render_template_pages_pdfium(): pass\n"
+                "MODE = 'template-v3-pdfium-raster-docx'\n"
+                "import os\n"
+                "os.execvp('pdf' + 'toppm', ['pdf' + 'toppm'])\n",
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            validate_stage3_copyleft_contract(root, errors)
+            self.assertTrue(any("constructed" in error for error in errors), errors)
+
+    def test_stage3_validator_rejects_os_spawnvp_constructed_retired_command(self) -> None:
+        from scripts.validate_repo import validate_stage3_copyleft_contract
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_valid_surfaces(root)
+            (root / "reporting/template_v3.py").write_text(
+                "DOCX_BACKGROUND_DPI = 288\n"
+                "def _render_template_pages_pdfium(): pass\n"
+                "MODE = 'template-v3-pdfium-raster-docx'\n"
+                "import os\n"
+                "os.spawnvp(os.P_WAIT, 'pdf' + 'tocairo', ['pdf' + 'tocairo'])\n",
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            validate_stage3_copyleft_contract(root, errors)
+            self.assertTrue(any("constructed" in error for error in errors), errors)
+
+    def test_stage3_validator_rejects_asyncio_constructed_retired_command(self) -> None:
+        from scripts.validate_repo import validate_stage3_copyleft_contract
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_valid_surfaces(root)
+            (root / "reporting/template_v3.py").write_text(
+                "DOCX_BACKGROUND_DPI = 288\n"
+                "def _render_template_pages_pdfium(): pass\n"
+                "MODE = 'template-v3-pdfium-raster-docx'\n"
+                "import asyncio\n"
+                "asyncio.create_subprocess_exec('pdf' + 'toppm')\n",
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            validate_stage3_copyleft_contract(root, errors)
+            self.assertTrue(any("constructed" in error for error in errors), errors)
+
     def test_stage3_validator_rejects_module_alias_unresolved_command(self) -> None:
         from scripts.validate_repo import validate_stage3_copyleft_contract
 
@@ -233,6 +287,46 @@ class Stage3ValidatorContractTest(unittest.TestCase):
             errors: list[str] = []
             validate_stage3_copyleft_contract(root, errors)
             self.assertTrue(any("constructed" in error for error in errors), errors)
+
+    def test_stage3_validator_rejects_unresolved_shell_wrapper_command(self) -> None:
+        from scripts.validate_repo import validate_stage3_copyleft_contract
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_valid_surfaces(root)
+            (root / "scripts/run_canary.sh").write_text(
+                'tool="${PDF_TOOL}"\n'
+                'exec "$tool" -v\n'
+                "import pypdfium2 as pdfium\n"
+                'payload={"renderer":"PDFium"}\n',
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            validate_stage3_copyleft_contract(root, errors)
+            self.assertTrue(
+                any("unresolved shell executable" in error for error in errors),
+                errors,
+            )
+
+    def test_stage3_validator_rejects_unresolved_shell_c_command(self) -> None:
+        from scripts.validate_repo import validate_stage3_copyleft_contract
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_valid_surfaces(root)
+            (root / "scripts/run_canary.sh").write_text(
+                'tool="${PDF_TOOL}"\n'
+                'bash -c "$tool -v"\n'
+                "import pypdfium2 as pdfium\n"
+                'payload={"renderer":"PDFium"}\n',
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            validate_stage3_copyleft_contract(root, errors)
+            self.assertTrue(
+                any("unresolved shell executable" in error for error in errors),
+                errors,
+            )
 
     def test_stage3_validator_rejects_dynamic_reassignment_after_static_value(self) -> None:
         from scripts.validate_repo import validate_stage3_copyleft_contract

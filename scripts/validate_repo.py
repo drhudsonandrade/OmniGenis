@@ -949,9 +949,38 @@ def _stage3_python_violations(text: str, relative: str) -> list[str]:
                 f"Stage 3 retired PDF identifier constructed in Python: {relative}:{name}:{token}"
             )
     command_calls = {
-        "subprocess.run", "subprocess.Popen", "subprocess.call",
-        "subprocess.check_call", "subprocess.check_output",
-        "os.system", "os.popen", "importlib.import_module", "__import__",
+        "subprocess.run": 0,
+        "subprocess.Popen": 0,
+        "subprocess.call": 0,
+        "subprocess.check_call": 0,
+        "subprocess.check_output": 0,
+        "subprocess.getoutput": 0,
+        "subprocess.getstatusoutput": 0,
+        "os.system": 0,
+        "os.popen": 0,
+        "os.execl": 0,
+        "os.execle": 0,
+        "os.execlp": 0,
+        "os.execlpe": 0,
+        "os.execv": 0,
+        "os.execve": 0,
+        "os.execvp": 0,
+        "os.execvpe": 0,
+        "os.posix_spawn": 0,
+        "os.posix_spawnp": 0,
+        "os.spawnl": 1,
+        "os.spawnle": 1,
+        "os.spawnlp": 1,
+        "os.spawnlpe": 1,
+        "os.spawnv": 1,
+        "os.spawnve": 1,
+        "os.spawnvp": 1,
+        "os.spawnvpe": 1,
+        "asyncio.create_subprocess_exec": 0,
+        "asyncio.create_subprocess_shell": 0,
+        "pty.spawn": 0,
+        "importlib.import_module": 0,
+        "__import__": 0,
     }
     import_aliases: dict[str, str] = {}
     for imported in ast.walk(tree):
@@ -978,7 +1007,8 @@ def _stage3_python_violations(text: str, relative: str) -> list[str]:
         call_name = dotted(node.func)
         if call_name not in command_calls:
             continue
-        expression = node.args[0] if node.args else None
+        argument_index = command_calls[call_name]
+        expression = node.args[argument_index] if len(node.args) > argument_index else None
         if expression is None:
             errors.append(
                 f"Stage 3 unresolved executable/module on active Python surface: {relative}:{call_name}"
@@ -1058,14 +1088,25 @@ def _stage3_shell_violations(text: str, relative: str) -> list[str]:
             r"^\s*[\"']?\$(?:\{)?([A-Za-z_][A-Za-z0-9_]*)",
             raw_line,
         )
-        if (
-            not is_continuation
-            and command_var
-            and env.get(command_var.group(1)) is None
-        ):
+        wrapper_var = re.match(
+            r"^\s*(?:command|exec|env)\s+(?:--\s+)?[\"']?"
+            r"\$(?:\{)?([A-Za-z_][A-Za-z0-9_]*)",
+            raw_line,
+        )
+        shell_c_var = re.match(
+            r"^\s*(?:bash|sh)\s+-c\s+[\"']?"
+            r"\$(?:\{)?([A-Za-z_][A-Za-z0-9_]*)",
+            raw_line,
+        )
+        unresolved_command_var = None
+        for match in (command_var, wrapper_var, shell_c_var):
+            if match and env.get(match.group(1)) is None:
+                unresolved_command_var = match.group(1)
+                break
+        if not is_continuation and unresolved_command_var is not None:
             errors.append(
                 f"Stage 3 unresolved shell executable on active surface: "
-                f"{relative}:{line_number}:{command_var.group(1)}"
+                f"{relative}:{line_number}:{unresolved_command_var}"
             )
     return errors
 
