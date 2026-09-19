@@ -1,0 +1,119 @@
+{
+  "attribution_values_requiring_obligations": [
+    "YES",
+    "REQUESTED",
+    "YES_SCIENTIFIC_PROVENANCE",
+    "REVIEW_REQUIRED"
+  ],
+  "claims": {
+    "purpose_gate_is_legal_opinion": false,
+    "record_level_review_required_means_authorized": false,
+    "review_required_means_authorized": false,
+    "stage7_replaces_clinical_regulatory_review": false,
+    "stage7_replaces_privacy_consent_review": false
+  },
+  "decision_order": {
+    "ALLOW": 0,
+    "ALLOW_WITH_OBLIGATIONS": 1,
+    "DENY": 4,
+    "RECORD_LEVEL_REVIEW_REQUIRED": 3,
+    "REVIEW_REQUIRED": 2
+  },
+  "purposes": {
+    "CLINICAL": {
+      "definition": "Any diagnostic, medical-decision, patient-care, or other clinical use. This gate does not replace the later clinical/regulatory gate.",
+      "minimum_decision": "ALLOW",
+      "source_fields": [
+        "clinical_use"
+      ]
+    },
+    "COMMERCIAL": {
+      "definition": "Any commercial use or commercial context, including commercial research or a commercial product/service.",
+      "minimum_decision": "ALLOW",
+      "source_fields": [
+        "commercial_use"
+      ]
+    },
+    "DERIVED_DATA": {
+      "definition": "Creation or distribution of data derived from a resource. Add COMMERCIAL, CLINICAL, REPORT_GENERATION, or REDISTRIBUTION when those contexts apply.",
+      "minimum_decision": "ALLOW",
+      "source_fields": [
+        "derived_data"
+      ]
+    },
+    "MODEL_TRAINING": {
+      "definition": "Use of resource content to train, fine-tune, adapt, distill, or otherwise update model parameters. Stage 6 did not establish model-training rights.",
+      "minimum_decision": "REVIEW_REQUIRED",
+      "source_fields": [
+        "modification",
+        "derived_data"
+      ]
+    },
+    "REDISTRIBUTION": {
+      "definition": "Redistribution of original or substantially reproduced resource content outside the controlled processing boundary.",
+      "minimum_decision": "ALLOW",
+      "source_fields": [
+        "redistribution"
+      ]
+    },
+    "REPORT_GENERATION": {
+      "definition": "Generation of an externally delivered report containing or derived from the resource. Add CLINICAL and/or COMMERCIAL when those contexts also apply.",
+      "minimum_decision": "ALLOW_WITH_OBLIGATIONS",
+      "source_fields": [
+        "derived_data",
+        "redistribution"
+      ]
+    },
+    "RESEARCH": {
+      "definition": "Non-commercial research use. If the activity has any commercial context, COMMERCIAL must also be requested.",
+      "minimum_decision": "ALLOW",
+      "source_fields": [
+        "research_use"
+      ]
+    }
+  },
+  "record_level_resources": [
+    "ebi-pgs-catalog"
+  ],
+  "schema": "omnigenis-data-use-purpose-policy-v1",
+  "source_registry": "config/data_source_registry.yaml",
+  "stage": 7,
+  "status_floors": {
+    "DOCUMENTED_OPEN": "ALLOW",
+    "DOCUMENTED_WITH_OBLIGATIONS": "ALLOW_WITH_OBLIGATIONS",
+    "RECORD_LEVEL_TERMS_REQUIRED": "RECORD_LEVEL_REVIEW_REQUIRED",
+    "RESTRICTED": "REVIEW_REQUIRED",
+    "REVIEW_REQUIRED": "REVIEW_REQUIRED"
+  },
+  "token_decisions": {
+    "COMMERCIALISATION_RESTRICTED_WITHOUT_CONSENT": "REVIEW_REQUIRED",
+    "NON_COMMERCIAL_USE_ONLY_UNLESS_SEPARATE_AGREEMENT": "ALLOW_WITH_OBLIGATIONS",
+    "PERMITTED": "ALLOW",
+    "PERMITTED_BY_NCBI_WITH_THIRD_PARTY_RIGHTS_CAVEAT": "ALLOW_WITH_OBLIGATIONS",
+    "PERMITTED_IF_CONTENT_AND_LOGICAL_RELATIONSHIPS_ARE_UNALTERED_AND_VERSION_DATE_SHOWN": "ALLOW_WITH_OBLIGATIONS",
+    "PERMITTED_SUBJECT_TO_COLLECTION_REUSE_POLICY": "REVIEW_REQUIRED",
+    "PERMITTED_SUBJECT_TO_EMBL_EBI_TERMS": "ALLOW_WITH_OBLIGATIONS",
+    "PERMITTED_SUBJECT_TO_SOURCE_TERMS": "ALLOW_WITH_OBLIGATIONS",
+    "PERMITTED_UNDER_CC0; do not imply ClinGen endorsement": "ALLOW_WITH_OBLIGATIONS",
+    "PERMITTED_UNDER_CC0; preserve source attribution": "ALLOW_WITH_OBLIGATIONS",
+    "PERMITTED_WITH_ACKNOWLEDGEMENT_CONDITIONS": "ALLOW_WITH_OBLIGATIONS",
+    "PERMITTED_WITH_ATTRIBUTION": "ALLOW_WITH_OBLIGATIONS",
+    "PERMITTED_WITH_ATTRIBUTION_AND_SHAREALIKE": "ALLOW_WITH_OBLIGATIONS",
+    "PERMITTED_WITH_LICENSE_OBLIGATIONS": "ALLOW_WITH_OBLIGATIONS",
+    "PROFESSIONAL_REVIEW_REQUIRED": "REVIEW_REQUIRED",
+    "PROHIBITED_OUTSIDE_HPO_CONTRIBUTION_PROCESS": "DENY",
+    "PROHIBITED_WITHOUT_SEPARATE_AGREEMENT": "DENY",
+    "PROHIBITED_WITHOUT_SEPARATE_AGREEMENT_FOR_DIAGNOSTIC_OR_MEDICAL_DECISION_USE": "DENY",
+    "PROVIDER_STATES_PERMITTED": "REVIEW_REQUIRED",
+    "RECORD_LEVEL_TERMS_REQUIRED": "RECORD_LEVEL_REVIEW_REQUIRED",
+    "RESTRICTED; third-party content can impose additional conditions": "DENY",
+    "RESTRICTED_BY_TERMS_AND_EMBEDDED_THIRD_PARTY_RIGHTS": "DENY",
+    "REVIEW_REQUIRED": "REVIEW_REQUIRED",
+    "REVIEW_REQUIRED_BY_COLLECTION": "REVIEW_REQUIRED",
+    "REVIEW_REQUIRED_IF_HPO_CONTENT_OR_RELATIONSHIPS_ARE_REPUBLISHED": "REVIEW_REQUIRED",
+    "REVIEW_REQUIRED_PENDING_OFFICIAL_REVALIDATION": "REVIEW_REQUIRED",
+    "REVIEW_REQUIRED_PER_FILE_ORIGIN": "REVIEW_REQUIRED",
+    "SHAREALIKE_REVIEW_REQUIRED_FOR_DERIVATIVE_DISTRIBUTION": "REVIEW_REQUIRED",
+    "SOURCE_SPECIFIC_REVIEW_REQUIRED": "REVIEW_REQUIRED"
+  }
+}

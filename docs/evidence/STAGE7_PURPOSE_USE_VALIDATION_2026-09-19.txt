@@ -1,0 +1,34 @@
+OMNIGENIS STAGE 7 PURPOSE-OF-USE VALIDATION
+
+EVIDENCE_STATUS=VERIFIED
+VALIDATED_AT_UTC=2026-09-19T15:49:58Z
+BASE_MAIN_SHA=016f92ae18051ca5a65238819d4414ba7cf37a08
+BASE_MAIN_TREE=ea4fa35f6c1d057049062e98fae61f8588275afb
+VALIDATED_IMPLEMENTATION_SHA=bcd15eb35887a6a6f82044a18600797f9b69064f
+VALIDATED_IMPLEMENTATION_TREE=6adf9e25befec5bc148490c5a9981a3fe4ba3d97
+BASE_IMPLEMENTATION_DISTINCT=PASS
+
+TDD_RED=EXECUTED tests=10 failures=1 errors=9 expected_failure=true reason=Stage7_artifacts_absent
+STAGE7_MATRIX=PASS resources=19 purposes=7 decisions=133 allow_with_obligations=31 review_required=89 record_level_review_required=7 deny=6 allow=0
+STAGE7_PURPOSE_GATE=PASS
+STAGE6_SOURCE_REGISTRY=PASS resources=19 restricted=1 record_level=1 review_required=10
+SUPPLY_CHAIN=PASS compliance_locks=13
+STAGE7_FOCUSED_TESTS=PASS tests=17
+CI_OPTIMIZATION_TESTS=PASS tests=33
+SYNTAX_COMPILE=PASS
+REPOSITORY_VALIDATOR=PASS
+PYTHON_SUITE=PASS tests=1368 skipped=2 duration_seconds=515.122 elapsed_seconds=516.30
+MCP_SUITE=PASS tests=46 passed=45 skipped=1 failed=0
+NPM_AUDIT=PASS vulnerabilities=0
+
+MODEL_TRAINING_AUTO_AUTHORIZED=false
+REVIEW_REQUIRED_AUTO_AUTHORIZED=false
+PGS_RECORD_LEVEL_FLATTENED=false
+PANELAPP_ENGLAND_COMMERCIAL=DENY
+PANELAPP_ENGLAND_CLINICAL=DENY
+LEGAL_CLEARANCE_CLAIM=false
+COMMERCIAL_CLEARANCE_CLAIM=false
+CLINICAL_REGULATORY_CLEARANCE_CLAIM=false
+PRIVACY_CONSENT_CLEARANCE_CLAIM=false
+
+VALIDATION_ENVIRONMENT=Python 3.12 isolated venv populated from reporting/requirements.txt with hash verification; venv on PATH for subprocess inheritance. MCP used the existing package-lock-resolved dependency tree and npm audit reported zero vulnerabilities.

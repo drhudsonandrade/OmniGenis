@@ -126,6 +126,9 @@ NGS_TRIGGER_SCRIPT_PATHS = (
     "scripts/build_stage5_license_gate.py",
     "scripts/validate_stage5_license_gate.py",
     "scripts/validate_stage6_data_sources.py",
+    "scripts/data_use_purpose_gate.py",
+    "scripts/build_stage7_purpose_matrix.py",
+    "scripts/validate_stage7_purpose_use.py",
     "scripts/check_versions.sh",
     "scripts/code_language_guard.py",
     "scripts/freshness_gate.py",
@@ -693,6 +696,11 @@ class CIOptimizationContractTest(unittest.TestCase):
         self.assertTrue(classifier.policy_relevant(["scripts/sealed_ruleset.py"]))
         self.assertTrue(classifier.policy_relevant(["config/data_source_registry.yaml"]))
         self.assertTrue(classifier.policy_relevant(["scripts/validate_stage6_data_sources.py"]))
+        self.assertTrue(classifier.policy_relevant(["config/data_use_purpose_policy.json"]))
+        self.assertTrue(classifier.policy_relevant(["config/data_use_purpose_matrix.json"]))
+        self.assertTrue(classifier.policy_relevant(["scripts/data_use_purpose_gate.py"]))
+        self.assertTrue(classifier.policy_relevant(["scripts/build_stage7_purpose_matrix.py"]))
+        self.assertTrue(classifier.policy_relevant(["scripts/validate_stage7_purpose_use.py"]))
         self.assertTrue(classifier.policy_relevant([".github/governance/main-ruleset.json"]))
         self.assertTrue(
             classifier.policy_relevant(["notes.md", "policy_engine/policy/rego/main.rego"])
@@ -796,6 +804,9 @@ class CIOptimizationContractTest(unittest.TestCase):
             "      - 'scripts/build_stage5_license_gate.py'\n",
             "      - 'scripts/validate_stage5_license_gate.py'\n",
             "      - 'scripts/validate_stage6_data_sources.py'\n",
+            "      - 'scripts/data_use_purpose_gate.py'\n",
+            "      - 'scripts/build_stage7_purpose_matrix.py'\n",
+            "      - 'scripts/validate_stage7_purpose_use.py'\n",
             "      - 'scripts/project_identity_guard.py'\n",
             "      - 'scripts/governance_context_identity.py'\n",
             "      - 'scripts/zero_identity_guard.py'\n",
