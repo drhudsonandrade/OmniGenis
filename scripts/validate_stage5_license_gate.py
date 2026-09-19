@@ -191,16 +191,20 @@ def _validate_baseline(
             continue
         if allowed is not (status in EXPECTED_ALLOWED):
             errors.append(f"Stage 5 component allow verdict mismatch: {component_id}")
+        baseline_entry = by_id.get(component_id)
+        if (
+            baseline_entry is not None
+            and baseline_entry.get("license_gate_status") != status
+        ):
+            errors.append(f"Stage 5 inherited debt status changed: {component_id}")
+            continue
         if status in EXPECTED_ALLOWED:
             continue
-        baseline_entry = by_id.get(component_id)
         if baseline_entry is None:
             errors.append(f"Stage 5 new non-approved dependency is blocked: {component_id}")
             continue
         if baseline_entry.get("component_fingerprint") != component.get("component_fingerprint"):
             errors.append(f"Stage 5 inherited debt fingerprint changed: {component_id}")
-        if baseline_entry.get("license_gate_status") != status:
-            errors.append(f"Stage 5 inherited debt status changed: {component_id}")
 
 
 def _validate_base_immutability(
@@ -257,14 +261,14 @@ def collect_errors(root: Path = ROOT, *, base_sha: str | None = None) -> list[st
         policy = _load(root / POLICY_PATH)
         registry = _load(root / GATE_REGISTRY_PATH)
         baseline = _load(root / DEBT_BASELINE_PATH)
-    except (OSError, json.JSONDecodeError, ValueError) as exc:
+    except (OSError, ValueError) as exc:
         return [f"Stage 5 artifact loading failed: {type(exc).__name__}: {exc}"]
 
     _validate_policy(policy, errors)
 
     try:
         expected = render_gate_registry(root)
-    except (OSError, json.JSONDecodeError, ValueError) as exc:
+    except (OSError, ValueError) as exc:
         errors.append(f"Stage 5 gate registry rebuild failed: {type(exc).__name__}: {exc}")
     else:
         actual = (root / GATE_REGISTRY_PATH).read_text(encoding="utf-8")

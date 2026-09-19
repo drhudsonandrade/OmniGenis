@@ -66,6 +66,15 @@ class Stage5LicenseGateTest(unittest.TestCase):
         component["licenses"] = ["sha256:" + "a" * 64]
         self.assertEqual(gate_status(component, policy), "UNKNOWN")
 
+    def test_empty_license_list_is_unknown_even_when_stage4_says_permissive(self) -> None:
+        policy = json.loads((ROOT / "config/software_license_policy.json").read_text())
+        component = {
+            "id": "fixture:empty-license@1",
+            "policy_status": "PERMISSIVE",
+            "licenses": [],
+        }
+        self.assertEqual(gate_status(component, policy), "UNKNOWN")
+
     def test_known_use_restrictions_are_restricted_not_approved(self) -> None:
         policy = json.loads((ROOT / "config/software_license_policy.json").read_text())
         for license_text in (
@@ -85,9 +94,13 @@ class Stage5LicenseGateTest(unittest.TestCase):
     def test_exact_pdfium_disposition_requires_recorded_notice(self) -> None:
         policy = json.loads((ROOT / "config/software_license_policy.json").read_text())
         source = json.loads((ROOT / "config/third_party_software_registry.json").read_text())
-        component = next(
-            item for item in source["components"] if item["id"] == "pypi:pypdfium2@5.13.0"
-        )
+        matching = [
+            item
+            for item in source["components"]
+            if item["id"] == "pypi:pypdfium2@5.13.0"
+        ]
+        self.assertEqual(len(matching), 1)
+        component = matching[0]
         self.assertEqual(gate_status(component, policy), "APPROVED_WITH_NOTICE")
         mutated = dict(component)
         mutated["evidence"] = [
@@ -151,14 +164,40 @@ class Stage5LicenseGateTest(unittest.TestCase):
             self._copy_contract_root(root)
             source_path = root / "config/third_party_software_registry.json"
             source = json.loads(source_path.read_text())
-            target = next(
-                item for item in source["components"] if item["policy_status"] == "BLOCKED_BY_DEFAULT"
-            )
+            blocked = [
+                item
+                for item in source["components"]
+                if item["policy_status"] == "BLOCKED_BY_DEFAULT"
+            ]
+            self.assertTrue(blocked)
+            target = blocked[0]
             target["source"] = str(target["source"]) + "?drift=1"
             source_path.write_text(json.dumps(source), encoding="utf-8")
             self._write_gate_registry(root)
             errors = collect_errors(root)
         self.assertTrue(any("inherited debt fingerprint changed" in error for error in errors), errors)
+
+    def test_inherited_debt_cannot_be_silently_promoted_to_approved(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._copy_contract_root(root)
+            baseline = json.loads(
+                (root / "locks/stage5-license-debt-baseline.json").read_text()
+            )
+            debt_id = baseline["entries"][0]["id"]
+            source_path = root / "config/third_party_software_registry.json"
+            source = json.loads(source_path.read_text())
+            matching = [item for item in source["components"] if item["id"] == debt_id]
+            self.assertEqual(len(matching), 1)
+            matching[0]["policy_status"] = "PERMISSIVE"
+            matching[0]["licenses"] = ["MIT"]
+            source_path.write_text(json.dumps(source), encoding="utf-8")
+            self._write_gate_registry(root)
+            errors = collect_errors(root)
+        self.assertTrue(
+            any("inherited debt status changed" in error for error in errors),
+            errors,
+        )
 
     def test_debt_baseline_tamper_fails_digest_check(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

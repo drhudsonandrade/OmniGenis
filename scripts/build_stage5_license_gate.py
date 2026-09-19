@@ -88,8 +88,11 @@ def gate_status(component: dict[str, Any], policy: dict[str, Any]) -> str:
     """Map one Stage 4 component into the closed Stage 5 policy vocabulary."""
     stage4_status = component.get("policy_status")
     licenses = component.get("licenses")
-    if not isinstance(stage4_status, str) or not isinstance(licenses, list) or not all(
-        isinstance(item, str) for item in licenses
+    if (
+        not isinstance(stage4_status, str)
+        or not isinstance(licenses, list)
+        or not licenses
+        or not all(isinstance(item, str) for item in licenses)
     ):
         return "UNKNOWN"
 
@@ -244,9 +247,11 @@ def main() -> int:
     registry_path = ROOT / GATE_REGISTRY_PATH
     if args.write_registry:
         registry_path.write_text(rendered, encoding="utf-8")
-    if args.check:
-        if not registry_path.is_file() or registry_path.read_text(encoding="utf-8") != rendered:
-            raise SystemExit("Stage 5 license-gate registry drift")
+    if args.check and (
+        not registry_path.is_file()
+        or registry_path.read_text(encoding="utf-8") != rendered
+    ):
+        raise SystemExit("Stage 5 license-gate registry drift")
 
     if args.bootstrap_baseline:
         if not args.base_sha or not args.base_tree:
