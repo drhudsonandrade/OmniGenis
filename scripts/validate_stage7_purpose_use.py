@@ -143,7 +143,7 @@ def collect_errors(root: Path = ROOT) -> list[str]:
         if not isinstance(spec, dict) or spec.get('source_fields') != expected_fields or spec.get('minimum_decision') != expected_minimum:
             errors.append(f'Stage 7 protected purpose mapping drift: {purpose}')
 
-    referenced_fields=set()
+    referenced_fields: set[str] = set()
     for purpose,spec in purpose_specs.items():
         fields=spec.get('source_fields') if isinstance(spec,dict) else None
         if not isinstance(fields,list) or not fields:
