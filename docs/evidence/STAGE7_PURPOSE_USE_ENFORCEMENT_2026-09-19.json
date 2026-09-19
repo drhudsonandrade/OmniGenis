@@ -20,33 +20,96 @@
       "result": "EXPECTED_FAIL",
       "tests": 10,
       "failures": 1,
-      "errors": 9
+      "errors": 9,
+      "reason": "Stage 7 artifacts/module absent before implementation"
     },
     "matrix_check": {
       "status": "EXECUTED",
       "result": "PASS",
+      "command": "python scripts/build_stage7_purpose_matrix.py --check",
+      "resources": 19,
+      "purposes": 7,
       "decisions": 133
     },
     "purpose_validator": {
       "status": "EXECUTED",
-      "result": "PASS"
+      "result": "PASS",
+      "command": "python scripts/validate_stage7_purpose_use.py",
+      "decision_counts": {
+        "ALLOW_WITH_OBLIGATIONS": 31,
+        "DENY": 6,
+        "RECORD_LEVEL_REVIEW_REQUIRED": 7,
+        "REVIEW_REQUIRED": 89
+      }
+    },
+    "stage6_source_registry": {
+      "status": "EXECUTED",
+      "result": "PASS",
+      "command": "python scripts/validate_stage6_data_sources.py",
+      "resources": 19,
+      "restricted": 1,
+      "record_level": 1,
+      "review_required": 10
+    },
+    "supply_chain": {
+      "status": "EXECUTED",
+      "result": "PASS",
+      "command": "python scripts/verify_supply_chain_lock.py",
+      "compliance_locks": 13
     },
     "focused_tests": {
       "status": "EXECUTED",
       "result": "PASS",
+      "command": "python -m unittest discover -s tests -p 'test_stage7_purpose_use.py' -v",
       "tests": 17
     },
+    "ci_contract_tests": {
+      "status": "EXECUTED",
+      "result": "PASS",
+      "command": "python -m unittest discover -s tests -p 'test_ci_optimization_contract.py' -v",
+      "tests": 33
+    },
+    "syntax_and_compile": {
+      "status": "EXECUTED",
+      "result": "PASS",
+      "commands": [
+        "bash -n scripts/*.sh tests/test_wgs_align_or_stage.sh tests/test_ci_changed_paths.sh",
+        "python -m compileall -q policy_engine/genoma_policy scripts evidence_adapters"
+      ]
+    },
     "repository_validator": {
-      "status": "PROPOSED",
-      "result": null
+      "status": "EXECUTED",
+      "result": "PASS",
+      "command": "python scripts/validate_repo.py"
     },
     "full_python_suite": {
-      "status": "PROPOSED",
-      "result": null
+      "status": "EXECUTED",
+      "result": "PASS",
+      "command": "python -m unittest discover -s tests -p 'test_*.py'",
+      "tests": 1368,
+      "skipped": 2,
+      "duration_seconds": 515.122,
+      "elapsed_seconds": 516.3,
+      "validated_head_sha": "bcd15eb35887a6a6f82044a18600797f9b69064f",
+      "validated_tree_sha": "6adf9e25befec5bc148490c5a9981a3fe4ba3d97",
+      "environment": "Python 3.12 isolated venv; reporting/requirements.txt installed with hash verification; venv on PATH for subprocess inheritance"
     },
     "mcp_suite": {
-      "status": "PROPOSED",
-      "result": null
+      "status": "EXECUTED",
+      "result": "PASS",
+      "command": "cd mcp && npm test",
+      "tests": 46,
+      "passed": 45,
+      "skipped": 1,
+      "failed": 0,
+      "npm_audit": "0 vulnerabilities"
+    },
+    "implementation_binding": {
+      "status": "VERIFIED",
+      "result": "PASS",
+      "base_main_sha": "016f92ae18051ca5a65238819d4414ba7cf37a08",
+      "validated_implementation_sha": "bcd15eb35887a6a6f82044a18600797f9b69064f",
+      "validated_implementation_tree": "6adf9e25befec5bc148490c5a9981a3fe4ba3d97"
     },
     "exact_head_ci": {
       "status": "CI_REQUIRED",
@@ -58,5 +121,13 @@
     "commercial_clearance": false,
     "clinical_regulatory_clearance": false,
     "privacy_consent_clearance": false
+  },
+  "validated_at_utc": "2026-09-19T15:49:58Z",
+  "validated_implementation_sha": "bcd15eb35887a6a6f82044a18600797f9b69064f",
+  "validated_implementation_tree": "6adf9e25befec5bc148490c5a9981a3fe4ba3d97",
+  "validation_output": {
+    "path": "docs/evidence/STAGE7_PURPOSE_USE_VALIDATION_2026-09-19.txt",
+    "sha256": "67d696a02e91e76cb4f1c840edecbeafe3820b0cf6c75110a7b8baa79e2e74b7",
+    "durable_locator": "docs/evidence/STAGE7_PURPOSE_USE_VALIDATION_2026-09-19.txt"
   }
 }
