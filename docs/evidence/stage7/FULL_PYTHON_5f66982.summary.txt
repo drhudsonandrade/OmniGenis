@@ -1,0 +1,13 @@
+STAGE 7 FULL PYTHON SUITE SUMMARY
+VALIDATED_IMPLEMENTATION_SHA=5f66982b374094163dc980857b366f95065eb6cb
+VALIDATED_IMPLEMENTATION_TREE=ea34027d0118ca714216e4e6db62a809ea30295a
+COMMAND=python -m unittest discover -s tests -p test_*.py
+RESULT=PASS
+TESTS=1372
+SKIPPED=2
+DURATION_SECONDS=526.565
+ELAPSED_SECONDS=527.97
+EXIT_CODE=0
+RAW_EXECUTION_LOG_SHA256=4b50725aa619abfc47d833ec18bcc55c8fde0af10042b27b66208271edc3c65d
+RAW_LOG_DISTRIBUTED=false
+NORMALIZATION=The raw log contains expected negative-test diagnostics and localized fixture output. The distributed summary preserves the command, unittest result, timing, exit code and raw-log digest without distributing fixture traces.

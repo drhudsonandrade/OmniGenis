@@ -1,0 +1,43 @@
+{
+  "distributed_artifacts": {
+    "FULL_PYTHON_5f66982.summary.txt": {
+      "bytes": 680,
+      "path": "docs/evidence/stage7/FULL_PYTHON_5f66982.summary.txt",
+      "sha256": "397aac72476c94282570009568cc3531151d3c0a61c55cceec2bac80cb977ff9"
+    },
+    "GATES_AND_FOCUSED_5f66982.summary.txt": {
+      "bytes": 988,
+      "path": "docs/evidence/stage7/GATES_AND_FOCUSED_5f66982.summary.txt",
+      "sha256": "600cc644fdc94b74c5f434b9730903517f1a7635a38a11d8e87e9a096922a4ff"
+    },
+    "MCP_5f66982.summary.txt": {
+      "bytes": 430,
+      "path": "docs/evidence/stage7/MCP_5f66982.summary.txt",
+      "sha256": "a25053318f7df1053409f3bde358baa120d37044378a7b13586b1ddff119683e"
+    },
+    "NPM_AUDIT_5f66982.summary.txt": {
+      "bytes": 842,
+      "path": "docs/evidence/stage7/NPM_AUDIT_5f66982.summary.txt",
+      "sha256": "04dc23fa89c80ea57cc0657707ccb0594d7723efb5c046f3579786603e21e465"
+    },
+    "VENV_SETUP_5f66982.summary.txt": {
+      "bytes": 637,
+      "path": "docs/evidence/stage7/VENV_SETUP_5f66982.summary.txt",
+      "sha256": "cea71eda683689f76f2a5e641f65b844e83764601d50f7af697228f0af7b2fd8"
+    }
+  },
+  "normalization_policy": "Only command/result summaries are distributed. Raw execution logs remain ephemeral because they contain local paths, expected negative-test stack traces, and localized fixture output. Raw SHA-256 digests preserve provenance without publishing those traces.",
+  "raw_execution_log_digests": {
+    "full_python": "4b50725aa619abfc47d833ec18bcc55c8fde0af10042b27b66208271edc3c65d",
+    "gates_and_focused": "0d0a3931ac53b9ca3f708af5a5436e39d3e3213d07bfd9719971e84271b2b0f4",
+    "mcp": "be57d04cdbffa43c38369e722aa6a9f2cd170a60003a009e9d0251f06b33d8fe",
+    "npm_audit_1": "89b3d0d764047c6d697f4213617cd62c81723a35c669400fba1fc3b5bb9a1cf3",
+    "npm_audit_2": "12672ef1a110acb9a29947fbe48b056a857f549c53424091fbe568f58f5fa847",
+    "npm_audit_3": "6bb99d2bf4dd6735ad9f65bbf5e49a6fa94a09195a9aac65fb6e150e60b1cc64",
+    "venv_setup": "c6d98fbae867f2f0f6559825b766dd4875ed002c6c36273f6c33173beb53802a"
+  },
+  "raw_logs_distributed": false,
+  "schema": "omnigenis-stage7-validation-artifact-index-v2",
+  "validated_implementation_sha": "5f66982b374094163dc980857b366f95065eb6cb",
+  "validated_implementation_tree": "ea34027d0118ca714216e4e6db62a809ea30295a"
+}

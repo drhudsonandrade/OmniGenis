@@ -1,0 +1,12 @@
+STAGE 7 NPM AUDIT SUMMARY
+VALIDATED_IMPLEMENTATION_SHA=5f66982b374094163dc980857b366f95065eb6cb
+VALIDATED_IMPLEMENTATION_TREE=ea34027d0118ca714216e4e6db62a809ea30295a
+COMMAND=cd mcp && npm audit --omit=dev --audit-level=low
+RESULT=NOT_AVAILABLE
+PASS_CLAIM=false
+ATTEMPTS=3
+ATTEMPT_1=HTTP_503_MAINTENANCE raw_sha256=89b3d0d764047c6d697f4213617cd62c81723a35c669400fba1fc3b5bb9a1cf3
+ATTEMPT_2=HTTP_503_MAINTENANCE raw_sha256=12672ef1a110acb9a29947fbe48b056a857f549c53424091fbe568f58f5fa847
+ATTEMPT_3=HTTP_503_MAINTENANCE raw_sha256=6bb99d2bf4dd6735ad9f65bbf5e49a6fa94a09195a9aac65fb6e150e60b1cc64
+RAW_LOGS_DISTRIBUTED=false
+NORMALIZATION=The official npm audit endpoint returned HTTP 503 maintenance for every attempt. No vulnerability count and no PASS are inferred. Exact-head Snyk and other GitHub checks are evaluated separately after push.
