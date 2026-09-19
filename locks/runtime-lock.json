@@ -35,6 +35,18 @@
     "third_party_registry": {
       "path": "config/third_party_software_registry.json",
       "sha256": "0d56489ef78b4db32b6c0c384cb3baeb63607272cc9bc88b5671a412a0f040d2"
+    },
+    "software_license_policy": {
+      "path": "config/software_license_policy.json",
+      "sha256": "724d54a5ae51ef8dceb4288f4be3ca2917fb1f8c98df72e25105513d65fa3260"
+    },
+    "software_license_gate_registry": {
+      "path": "config/software_license_gate_registry.json",
+      "sha256": "53dfbb260a3d431191dbae6de4bf78132fd47c7276d4490ee0386622eee3aa50"
+    },
+    "stage5_license_debt_baseline": {
+      "path": "locks/stage5-license-debt-baseline.json",
+      "sha256": "bdfcabdb6ca991a05d6c114ca5ee95c7414fd731e3d5c5fff38ea34aa892a319"
     }
   },
   "conda": {

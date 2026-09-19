@@ -1,0 +1,116 @@
+{
+  "schema": "omnigenis-stage5-license-gate-evidence-v1",
+  "date": "2026-09-18",
+  "base_main_sha": "9a379f58ac9fe0bb101ebfd737ac648e510bbca2",
+  "base_main_tree": "89be36c93332a1ef9c7a09fc7b13293a37d3e51c",
+  "policy_sha256": "724d54a5ae51ef8dceb4288f4be3ca2917fb1f8c98df72e25105513d65fa3260",
+  "debt_baseline_sha256": "bdfcabdb6ca991a05d6c114ca5ee95c7414fd731e3d5c5fff38ea34aa892a319",
+  "registry_summary": {
+    "by_license_gate_status": {
+      "APPROVED": 270,
+      "APPROVED_WITH_NOTICE": 1,
+      "BLOCKED": 50,
+      "RESTRICTED": 1,
+      "REVIEW_REQUIRED": 50,
+      "UNKNOWN": 45
+    },
+    "component_records": 417,
+    "current_non_approved_records": 146,
+    "license_clean_claim_allowed": false,
+    "new_dependency_allowed_statuses": [
+      "APPROVED",
+      "APPROVED_WITH_NOTICE"
+    ]
+  },
+  "execution": {
+    "builder": {
+      "status": "EXECUTED",
+      "result": "PASS",
+      "command": "python3 scripts/build_stage5_license_gate.py --write-registry"
+    },
+    "bootstrap_gate": {
+      "status": "EXECUTED",
+      "result": "PASS",
+      "command": "python3 scripts/validate_stage5_license_gate.py --base-sha 9a379f58ac9fe0bb101ebfd737ac648e510bbca2"
+    },
+    "focused_tests": {
+      "status": "EXECUTED",
+      "result": "PASS",
+      "command": "python3 -m unittest discover -s tests -p 'test_stage5_license_gate.py' -v",
+      "tests": 14,
+      "note": "Focused Stage 5 regressions executed on the validated implementation commit before the evidence-only child commit."
+    },
+    "repository_validator": {
+      "status": "EXECUTED",
+      "result": "PASS",
+      "command": "python scripts/validate_repo.py"
+    },
+    "full_python_suite": {
+      "status": "EXECUTED",
+      "result": "PASS",
+      "command": "python -m unittest discover -s tests -p 'test_*.py' -v",
+      "tests": 1332,
+      "skipped": 2,
+      "duration_seconds": 401.32,
+      "validated_head_sha": "b0b17c350f5be04a7a56fe7d1626cfa98bbfe018",
+      "validated_tree_sha": "34e0ec569dee8df6b32b19182ea04457abc5c8f4",
+      "environment": "Python 3.12 isolated venv; reporting/requirements.txt installed with hash verification; venv on PATH for subprocess inheritance"
+    },
+    "mcp_suite": {
+      "status": "EXECUTED",
+      "result": "PASS",
+      "command": "cd mcp && npm test",
+      "tests": 46,
+      "passed": 45,
+      "skipped": 1,
+      "failed": 0,
+      "npm_audit": "0 vulnerabilities"
+    },
+    "exact_head_ci": {
+      "status": "CI_REQUIRED",
+      "result": null
+    },
+    "syntax_and_compile": {
+      "status": "EXECUTED",
+      "result": "PASS",
+      "commands": [
+        "bash -n scripts/*.sh tests/test_wgs_align_or_stage.sh tests/test_ci_changed_paths.sh",
+        "python -m compileall -q policy_engine/genoma_policy scripts evidence_adapters"
+      ]
+    },
+    "implementation_binding": {
+      "status": "VERIFIED",
+      "result": "PASS",
+      "check": "base_main_sha != validated_head_sha",
+      "base_main_sha": "9a379f58ac9fe0bb101ebfd737ac648e510bbca2",
+      "validated_head_sha": "b0b17c350f5be04a7a56fe7d1626cfa98bbfe018",
+      "validated_tree_sha": "34e0ec569dee8df6b32b19182ea04457abc5c8f4"
+    },
+    "ci_contract_tests": {
+      "status": "EXECUTED",
+      "result": "PASS",
+      "tests": 33,
+      "command": "python3 -m unittest discover -s tests -p 'test_ci_optimization_contract.py' -v"
+    }
+  },
+  "claims": {
+    "license_clean": false,
+    "baseline_is_approval": false,
+    "scientific_data_licensing_complete": false
+  },
+  "validated_head_sha": "b0b17c350f5be04a7a56fe7d1626cfa98bbfe018",
+  "validated_tree_sha": "34e0ec569dee8df6b32b19182ea04457abc5c8f4",
+  "validation_binding": {
+    "status": "VERIFIED",
+    "check": "base_main_sha != validated_head_sha",
+    "base_main_sha": "9a379f58ac9fe0bb101ebfd737ac648e510bbca2",
+    "validated_head_sha": "b0b17c350f5be04a7a56fe7d1626cfa98bbfe018",
+    "result": true
+  },
+  "validation_output": {
+    "path": "docs/evidence/STAGE5_LICENSE_GATE_VALIDATION_2026-09-18.txt",
+    "sha256": "62dab3d5d9ddcac1bfa4e069620197accab9b36fa93d2517cbabd782a81bd237",
+    "durable_locator": "docs/evidence/STAGE5_LICENSE_GATE_VALIDATION_2026-09-18.txt"
+  },
+  "revalidated_at_utc": "2026-09-19T09:55:13Z"
+}

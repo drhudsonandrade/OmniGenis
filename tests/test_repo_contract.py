@@ -45,6 +45,18 @@ class RepoContractTest(unittest.TestCase):
         guard.assert_called_once_with(root)
         self.assertIn("project identity sentinel", errors)
 
+    def test_validate_repo_invokes_stage5_license_gate(self):
+        validator = load_validator()
+        root = Path(__file__).resolve().parents[1]
+        with patch.object(
+            validator,
+            "validate_stage5_license_gate",
+            return_value=["stage5 license sentinel"],
+        ) as gate:
+            errors = validator.validate(root)
+        gate.assert_called_once_with(root)
+        self.assertIn("stage5 license sentinel", errors)
+
     def test_validate_repo_invokes_zero_identity_guard(self):
         validator = load_validator()
         root = Path(__file__).resolve().parents[1]
@@ -83,6 +95,19 @@ class RepoContractTest(unittest.TestCase):
         for relative in compliance_paths:
             self.assertIn(relative, validator.REQUIRED_PATHS)
             self.assertIn(f"missing required path: {relative}", errors)
+
+    def test_stage5_license_gate_paths_are_required(self):
+        validator = load_validator()
+        for relative in (
+            "config/software_license_policy.json",
+            "config/software_license_gate_registry.json",
+            "locks/stage5-license-debt-baseline.json",
+            "scripts/build_stage5_license_gate.py",
+            "scripts/validate_stage5_license_gate.py",
+            "docs/compliance/STAGE5_AUTOMATED_LICENSE_GATE.md",
+            "docs/evidence/STAGE5_LICENSE_GATE_2026-09-18.json",
+        ):
+            self.assertIn(relative, validator.REQUIRED_PATHS)
 
     def test_identity_provenance_authorization_registry_is_required(self):
         validator = load_validator()

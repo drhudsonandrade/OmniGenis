@@ -109,6 +109,17 @@ jobs:
           cache-dependency-path: reporting/requirements.txt
       - name: Install pinned editorial renderer dependencies
         run: python3 -m pip install --disable-pip-version-check -r reporting/requirements.txt
+      - name: Enforce Stage 5 software license gate
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            python3 scripts/validate_stage5_license_gate.py --base-sha "$PR_BASE_SHA"
+          else
+            python3 scripts/validate_stage5_license_gate.py
+          fi
       - name: Validate shell and Python
         run: |
           export TMPDIR="$RUNNER_TEMP"
