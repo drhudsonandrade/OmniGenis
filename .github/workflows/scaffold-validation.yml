@@ -120,6 +120,8 @@ jobs:
           else
             python3 scripts/validate_stage5_license_gate.py
           fi
+      - name: Enforce Stage 6 scientific data registry
+        run: python3 scripts/validate_stage6_data_sources.py
       - name: Validate shell and Python
         run: |
           export TMPDIR="$RUNNER_TEMP"

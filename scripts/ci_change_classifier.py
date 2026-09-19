@@ -19,6 +19,8 @@ POLICY_EXACT = {
     "scripts/validate_stage5_license_gate.py",
     "config/software_license_policy.json",
     "config/software_license_gate_registry.json",
+    "config/data_source_registry.yaml",
+    "scripts/validate_stage6_data_sources.py",
     ".github/workflows/genoma-policy-engine.yml",
 }
 POLICY_PREFIXES = (
