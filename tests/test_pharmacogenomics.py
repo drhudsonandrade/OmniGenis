@@ -827,12 +827,14 @@ class ReportIntegrationTest(unittest.TestCase):
             mismatched = json.loads(passport_path.read_text(encoding="utf-8"))
             mismatched["input_sha256"] = "f" * 64
             passport_path.write_text(json.dumps(mismatched), encoding="utf-8")
-            with patch(
-                "scripts.build_pharmacogenomic_report.evaluate_use",
-                return_value=_stage7_cpic_report_authorization(),
+            with (
+                patch(
+                    "scripts.build_pharmacogenomic_report.evaluate_use",
+                    return_value=_stage7_cpic_report_authorization(),
+                ),
+                self.assertRaisesRegex(ValueError, "same non-empty input_sha256"),
             ):
-                with self.assertRaisesRegex(ValueError, "same non-empty input_sha256"):
-                    build_payload(passport_path, matrix_path)
+                build_payload(passport_path, matrix_path)
 
     def test_unassembled_payload_keeps_release_prerequisites_fail_closed(self):
         """A payload assembled without the release prerequisites is refused, not published."""
