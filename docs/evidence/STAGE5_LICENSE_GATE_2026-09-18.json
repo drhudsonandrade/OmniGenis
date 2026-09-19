@@ -36,26 +36,25 @@
     "focused_tests": {
       "status": "EXECUTED",
       "result": "PASS",
-      "commands": [
-        "python3 -m unittest discover -s tests -p 'test_stage5_license_gate.py' -v",
-        "python3 -m unittest discover -s tests -p 'test_ci_optimization_contract.py' -v"
-      ],
-      "stage5_tests": 11,
-      "ci_contract_tests": 33
+      "command": "python3 -m unittest discover -s tests -p 'test_stage5_license_gate.py' -v",
+      "tests": 13,
+      "note": "Focused Stage 5 regressions were executed on bytes identical to the validated implementation commit; the full suite re-executed them after commit."
     },
     "repository_validator": {
       "status": "EXECUTED",
       "result": "PASS",
-      "command": "python3 scripts/validate_repo.py"
+      "command": "python scripts/validate_repo.py"
     },
     "full_python_suite": {
       "status": "EXECUTED",
       "result": "PASS",
       "command": "python -m unittest discover -s tests -p 'test_*.py' -v",
-      "tests": 1329,
+      "tests": 1331,
       "skipped": 2,
-      "duration_seconds": 356.217,
-      "environment": "Python 3.12 isolated venv; reporting/requirements.txt installed with --require-hashes; venv on PATH for subprocess inheritance"
+      "duration_seconds": 365.54,
+      "validated_head_sha": "9c2c2a5da86a47eb07b92e73c6a1c02fdb446a6c",
+      "validated_tree_sha": "cc02d9bd0ae0bb7012defb6bd78bb5e0332eed82",
+      "environment": "Python 3.12 isolated venv; reporting/requirements.txt installed with hash verification; venv on PATH for subprocess inheritance"
     },
     "mcp_suite": {
       "status": "EXECUTED",
@@ -76,14 +75,35 @@
       "result": "PASS",
       "commands": [
         "bash -n scripts/*.sh tests/test_wgs_align_or_stage.sh tests/test_ci_changed_paths.sh",
-        "python3 -m compileall -q policy_engine/genoma_policy scripts evidence_adapters",
-        "git diff --cached --check"
+        "python -m compileall -q policy_engine/genoma_policy scripts evidence_adapters"
       ]
+    },
+    "implementation_binding": {
+      "status": "VERIFIED",
+      "result": "PASS",
+      "check": "base_main_sha != validated_head_sha",
+      "base_main_sha": "9a379f58ac9fe0bb101ebfd737ac648e510bbca2",
+      "validated_head_sha": "9c2c2a5da86a47eb07b92e73c6a1c02fdb446a6c",
+      "validated_tree_sha": "cc02d9bd0ae0bb7012defb6bd78bb5e0332eed82"
     }
   },
   "claims": {
     "license_clean": false,
     "baseline_is_approval": false,
     "scientific_data_licensing_complete": false
+  },
+  "validated_head_sha": "9c2c2a5da86a47eb07b92e73c6a1c02fdb446a6c",
+  "validated_tree_sha": "cc02d9bd0ae0bb7012defb6bd78bb5e0332eed82",
+  "validation_binding": {
+    "status": "VERIFIED",
+    "check": "base_main_sha != validated_head_sha",
+    "base_main_sha": "9a379f58ac9fe0bb101ebfd737ac648e510bbca2",
+    "validated_head_sha": "9c2c2a5da86a47eb07b92e73c6a1c02fdb446a6c",
+    "result": true
+  },
+  "validation_output": {
+    "path": "docs/evidence/STAGE5_LICENSE_GATE_VALIDATION_2026-09-18.txt",
+    "sha256": "aefe5294576db0eb212ce9671c4165f2860e48af5c97772efcb32bd52544cfde",
+    "durable_locator": "docs/evidence/STAGE5_LICENSE_GATE_VALIDATION_2026-09-18.txt"
   }
 }
