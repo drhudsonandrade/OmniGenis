@@ -57,7 +57,8 @@
       "duration_seconds": 458.209,
       "validated_head_sha": "e5bfb82cabe28f27c995b1471ac0871ded438847",
       "validated_tree_sha": "c1d941739f6929c254b88af77c24ad6fb702f7d2",
-      "environment": "Python 3.12 isolated venv; reporting/requirements.txt installed with hash verification; venv on PATH for subprocess inheritance"
+      "environment": "Python 3.12 isolated venv; reporting/requirements.txt installed with hash verification; venv on PATH for subprocess inheritance",
+      "elapsed_seconds": 459.34
     },
     "mcp_suite": {
       "status": "EXECUTED",
@@ -121,7 +122,8 @@
   "validated_implementation_tree": "c1d941739f6929c254b88af77c24ad6fb702f7d2",
   "validation_output": {
     "path": "docs/evidence/STAGE6_SCIENTIFIC_DATA_LICENSING_VALIDATION_2026-09-19.txt",
-    "sha256": "c3fcbb229e8f9f81e8cb35c8154fcbe60c30744abc310609de98ed17f5d9e04c",
+    "sha256": "564891f9b78e7dd953a832930da1ce42544bf9e3ffbafd89a3e1bc6ab9b357f7",
     "durable_locator": "docs/evidence/STAGE6_SCIENTIFIC_DATA_LICENSING_VALIDATION_2026-09-19.txt"
-  }
+  },
+  "revalidated_at_utc": "2026-09-19T11:58:56Z"
 }
