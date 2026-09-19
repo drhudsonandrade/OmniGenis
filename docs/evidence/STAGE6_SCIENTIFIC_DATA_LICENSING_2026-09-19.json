@@ -4,7 +4,7 @@
   "base_main_sha": "5bb0b03d25f9bc3be26850a72a85950f34a61dca",
   "base_main_tree": "dae947661fcb2557851a759637a50baa64e26a74",
   "registry_path": "config/data_source_registry.yaml",
-  "registry_sha256": "603ead36f9a354cf74b8ce12f779dde3afaf78d0f92c834ad541770f80115902",
+  "registry_sha256": "dc39ad56030439f133c21b3043961bd11b321a14930de9c60748d37b55359599",
   "resource_count": 19,
   "status_counts": {
     "DOCUMENTED_OPEN": 3,
@@ -40,8 +40,8 @@
     "focused_tests": {
       "status": "EXECUTED",
       "result": "PASS",
-      "command": "python3 -m unittest discover -s tests -p 'test_stage6_data_sources.py' -v",
-      "tests": 13
+      "tests": 15,
+      "command": "python -m unittest discover -s tests -p 'test_stage6_data_sources.py' -v"
     },
     "repository_validator": {
       "status": "EXECUTED",
@@ -52,13 +52,13 @@
       "status": "EXECUTED",
       "result": "PASS",
       "command": "python -m unittest discover -s tests -p 'test_*.py' -v",
-      "tests": 1347,
+      "tests": 1349,
       "skipped": 2,
-      "duration_seconds": 491.127,
-      "validated_head_sha": "96369925593938e9da3138d6510f73091b175b85",
-      "validated_tree_sha": "9a7aa557e669426c5f0f533a40344630562279ba",
-      "environment": "Python 3.12 isolated venv; reporting/requirements.txt installed with hash verification; venv on PATH for subprocess inheritance; executed from detached worktree at exact implementation SHA",
-      "elapsed_seconds": 492.1
+      "duration_seconds": 446.998,
+      "elapsed_seconds": 447.87,
+      "validated_head_sha": "c5f3554b5f190cdfc6f55cd13f11905509ae0956",
+      "validated_tree_sha": "99382c549ba1b77248693cbefd7585d8639b9782",
+      "environment": "Python 3.12 isolated venv; reporting/requirements.txt installed with hash verification; venv on PATH for subprocess inheritance; detached worktree pinned to exact implementation SHA"
     },
     "mcp_suite": {
       "status": "EXECUTED",
@@ -69,7 +69,7 @@
       "skipped": 1,
       "failed": 0,
       "npm_audit": "0 vulnerabilities",
-      "environment_note": "Initial detached-worktree attempt was discarded because Git-ignored node_modules was absent (tsc not found). Re-run used the already installed node_modules from the primary checkout via symlink; no dependency resolution/install occurred."
+      "environment_note": "Detached worktree reused the already-installed node_modules from the primary checkout via symlink; no dependency resolution or installation occurred."
     },
     "exact_head_ci": {
       "status": "CI_REQUIRED",
@@ -78,8 +78,8 @@
     "ci_contract_tests": {
       "status": "EXECUTED",
       "result": "PASS",
-      "command": "python3 -m unittest discover -s tests -p 'test_ci_optimization_contract.py' -v",
-      "tests": 33
+      "tests": 33,
+      "command": "python -m unittest discover -s tests -p 'test_ci_optimization_contract.py' -v"
     },
     "syntax_and_compile": {
       "status": "EXECUTED",
@@ -94,8 +94,14 @@
       "result": "PASS",
       "check": "base_main_sha != validated_implementation_sha",
       "base_main_sha": "5bb0b03d25f9bc3be26850a72a85950f34a61dca",
-      "validated_implementation_sha": "96369925593938e9da3138d6510f73091b175b85",
-      "validated_implementation_tree": "9a7aa557e669426c5f0f533a40344630562279ba"
+      "validated_implementation_sha": "c5f3554b5f190cdfc6f55cd13f11905509ae0956",
+      "validated_implementation_tree": "99382c549ba1b77248693cbefd7585d8639b9782"
+    },
+    "supply_chain": {
+      "status": "EXECUTED",
+      "result": "PASS",
+      "command": "python scripts/verify_supply_chain_lock.py",
+      "compliance_locks": 11
     }
   },
   "claims": {
@@ -119,12 +125,12 @@
     "https://gatk.broadinstitute.org/hc/en-us/articles/360035890811-Resource-bundle"
   ],
   "validated_at_utc": "2026-09-19T10:41:33Z",
-  "validated_implementation_sha": "96369925593938e9da3138d6510f73091b175b85",
-  "validated_implementation_tree": "9a7aa557e669426c5f0f533a40344630562279ba",
+  "validated_implementation_sha": "c5f3554b5f190cdfc6f55cd13f11905509ae0956",
+  "validated_implementation_tree": "99382c549ba1b77248693cbefd7585d8639b9782",
   "validation_output": {
     "path": "docs/evidence/STAGE6_SCIENTIFIC_DATA_LICENSING_VALIDATION_2026-09-19.txt",
-    "sha256": "5727f052893d19e9c31115c0b33a3db39b6cb47d51abb31bd87aca952a80c250",
+    "sha256": "6227a70e8321a3e1b423b759e386f81ad438816aaf12cb9677cc5feaf6fc776c",
     "durable_locator": "docs/evidence/STAGE6_SCIENTIFIC_DATA_LICENSING_VALIDATION_2026-09-19.txt"
   },
-  "revalidated_at_utc": "2026-09-19T12:11:30Z"
+  "revalidated_at_utc": "2026-09-19T12:36:33Z"
 }

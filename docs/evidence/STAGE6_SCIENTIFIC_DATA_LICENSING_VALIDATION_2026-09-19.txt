@@ -1,11 +1,11 @@
 OMNIGENIS STAGE 6 SCIENTIFIC DATA LICENSING VALIDATION
 
 EVIDENCE_STATUS=VERIFIED
-VALIDATED_AT_UTC=2026-09-19T12:11:30Z
+VALIDATED_AT_UTC=2026-09-19T12:36:33Z
 BASE_MAIN_SHA=5bb0b03d25f9bc3be26850a72a85950f34a61dca
 BASE_MAIN_TREE=dae947661fcb2557851a759637a50baa64e26a74
-VALIDATED_IMPLEMENTATION_SHA=96369925593938e9da3138d6510f73091b175b85
-VALIDATED_IMPLEMENTATION_TREE=9a7aa557e669426c5f0f533a40344630562279ba
+VALIDATED_IMPLEMENTATION_SHA=c5f3554b5f190cdfc6f55cd13f11905509ae0956
+VALIDATED_IMPLEMENTATION_TREE=99382c549ba1b77248693cbefd7585d8639b9782
 BASE_IMPLEMENTATION_DISTINCT=PASS
 
 STAGE6_REGISTRY=PASS resources=19 documented_open=3 documented_with_obligations=4 record_level=1 restricted=1 review_required=10
@@ -15,13 +15,14 @@ EVIDENCE_ADAPTER_COVERAGE=PASS adapters=6
 SUPPLY_CHAIN=PASS compliance_locks=11
 SYNTAX_COMPILE=PASS
 REPOSITORY_VALIDATOR=PASS
-STAGE6_FOCUSED_TESTS=PASS tests=13
+STAGE6_FOCUSED_TESTS=PASS tests=15
 CI_OPTIMIZATION_TESTS=PASS tests=33
-PYTHON_SUITE=PASS tests=1347 skipped=2 duration_seconds=491.127 elapsed_seconds=492.100
+PYTHON_SUITE=PASS tests=1349 skipped=2 duration_seconds=446.998 elapsed_seconds=447.870
 MCP_SUITE=PASS tests=46 passed=45 skipped=1 failed=0
 NPM_AUDIT=PASS vulnerabilities=0
 
-MCP_VALIDATION_NOTE=Initial detached-worktree attempt was discarded because Git-ignored node_modules was absent (tsc not found). Re-run reused the already installed node_modules from the primary checkout via symlink; no dependency resolution or installation occurred.
+REVIEW_FIXES=PASS duplicate_json_keys local_artifact_containment panelapp_protected_fields pgs_dist_weight_detection executable_static_step aadr_evidence_wording
+MCP_VALIDATION_NOTE=Detached worktree reused the already-installed node_modules from the primary checkout via symlink; no dependency resolution or installation occurred.
 VALIDATION_ENVIRONMENT=Python 3.12 isolated venv populated from reporting/requirements.txt with hash verification; venv on PATH for subprocess inheritance; detached worktree pinned to the exact implementation SHA.
 LICENSE_CLEAN_CLAIM=false
 COMMERCIAL_CLEARANCE_CLAIM=false
