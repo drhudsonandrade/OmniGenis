@@ -39,6 +39,7 @@ from scripts.zero_identity_guard import (  # noqa: E402
 )
 from scripts.validate_stage4_compliance import collect_errors as validate_stage4_compliance  # noqa: E402
 from scripts.validate_stage5_license_gate import collect_errors as validate_stage5_license_gate  # noqa: E402
+from scripts.validate_stage6_data_sources import collect_errors as validate_stage6_data_sources  # noqa: E402
 
 CANONICAL_RULESET = EXPECTED_NAME
 CANONICAL_RULESET_SHA256 = EXPECTED_SHA
@@ -96,6 +97,9 @@ REQUIRED_PATHS = (
     "locks/stage5-license-debt-baseline.json", "scripts/build_stage5_license_gate.py",
     "scripts/validate_stage5_license_gate.py", "docs/compliance/STAGE5_AUTOMATED_LICENSE_GATE.md",
     "docs/evidence/STAGE5_LICENSE_GATE_2026-09-18.json",
+    "config/data_source_registry.yaml", "scripts/validate_stage6_data_sources.py",
+    "docs/compliance/STAGE6_SCIENTIFIC_DATA_LICENSING.md",
+    "docs/evidence/STAGE6_SCIENTIFIC_DATA_LICENSING_2026-09-19.json",
     "evidence_adapters/__init__.py", "policy_engine/pyproject.toml", "policy_engine/genoma_policy/engine.py",
     "policy_engine/genoma_policy/attestation.py", "policy_engine/genoma_policy/ledger.py",
     "policy_engine/genoma_policy/version.py", "policy_engine/policy/schema/execution-manifest.schema.json",
@@ -1626,6 +1630,7 @@ def validate(root: Path) -> list[str]:
     validate_stage3_copyleft_contract(root, errors)
     errors.extend(validate_stage4_compliance(root))
     errors.extend(validate_stage5_license_gate(root))
+    errors.extend(validate_stage6_data_sources(root))
 
     active = []
     for candidate in root.rglob("REGRAS_PROJETO_GENOMA*.txt"):

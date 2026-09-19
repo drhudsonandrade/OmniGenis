@@ -1,0 +1,76 @@
+{
+  "schema": "omnigenis-stage6-scientific-data-licensing-evidence-v1",
+  "date": "2026-09-19",
+  "base_main_sha": "5bb0b03d25f9bc3be26850a72a85950f34a61dca",
+  "base_main_tree": "dae947661fcb2557851a759637a50baa64e26a74",
+  "registry_path": "config/data_source_registry.yaml",
+  "registry_sha256": "603ead36f9a354cf74b8ce12f779dde3afaf78d0f92c834ad541770f80115902",
+  "resource_count": 19,
+  "status_counts": {
+    "DOCUMENTED_OPEN": 3,
+    "DOCUMENTED_WITH_OBLIGATIONS": 4,
+    "RECORD_LEVEL_TERMS_REQUIRED": 1,
+    "RESTRICTED": 1,
+    "REVIEW_REQUIRED": 10
+  },
+  "pgs": {
+    "scores": 6972,
+    "scores_with_restrictive_license": 40,
+    "weights_committed": false
+  },
+  "execution": {
+    "repository_source_inventory": {
+      "status": "EXECUTED",
+      "result": "PASS"
+    },
+    "official_terms_research": {
+      "status": "EXECUTED",
+      "result": "PASS",
+      "verified_at": "2026-09-19"
+    },
+    "registry_validation": {
+      "status": "PROPOSED",
+      "result": null
+    },
+    "focused_tests": {
+      "status": "PROPOSED",
+      "result": null
+    },
+    "repository_validator": {
+      "status": "PROPOSED",
+      "result": null
+    },
+    "full_python_suite": {
+      "status": "PROPOSED",
+      "result": null
+    },
+    "mcp_suite": {
+      "status": "PROPOSED",
+      "result": null
+    },
+    "exact_head_ci": {
+      "status": "CI_REQUIRED",
+      "result": null
+    }
+  },
+  "claims": {
+    "license_clean": false,
+    "commercially_cleared": false,
+    "clinically_cleared": false,
+    "stage6_pass_is_legal_opinion": false
+  },
+  "official_references": [
+    "https://www.ncbi.nlm.nih.gov/home/about/policies/",
+    "https://www.ebi.ac.uk/about/terms-of-use/",
+    "https://www.pgscatalog.org/downloads/",
+    "https://clinicalgenome.org/docs/terms-of-use/",
+    "https://thegencc.org/terms",
+    "https://api.clinpgx.org/",
+    "https://human-phenotype-ontology.github.io/license.html",
+    "https://mondo.monarchinitiative.org/pages/download/",
+    "https://prod-media-panelapp.genomicsengland.co.uk/media/files/GEL_-_PanelApp_Terms_of_Use_December_2019.pdf",
+    "https://www.internationalgenome.org/category/data-access/",
+    "https://www.gencodegenes.org/pages/data_access.html",
+    "https://gatk.broadinstitute.org/hc/en-us/articles/360035890811-Resource-bundle"
+  ]
+}

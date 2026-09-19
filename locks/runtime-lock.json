@@ -47,6 +47,10 @@
     "stage5_license_debt_baseline": {
       "path": "locks/stage5-license-debt-baseline.json",
       "sha256": "bdfcabdb6ca991a05d6c114ca5ee95c7414fd731e3d5c5fff38ea34aa892a319"
+    },
+    "scientific_data_source_registry": {
+      "path": "config/data_source_registry.yaml",
+      "sha256": "603ead36f9a354cf74b8ce12f779dde3afaf78d0f92c834ad541770f80115902"
     }
   },
   "conda": {

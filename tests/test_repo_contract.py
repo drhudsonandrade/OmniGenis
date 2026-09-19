@@ -45,6 +45,18 @@ class RepoContractTest(unittest.TestCase):
         guard.assert_called_once_with(root)
         self.assertIn("project identity sentinel", errors)
 
+    def test_validate_repo_invokes_stage6_data_source_gate(self):
+        validator = load_validator()
+        root = Path(__file__).resolve().parents[1]
+        with patch.object(
+            validator,
+            "validate_stage6_data_sources",
+            return_value=["stage6 data sentinel"],
+        ) as gate:
+            errors = validator.validate(root)
+        gate.assert_called_once_with(root)
+        self.assertIn("stage6 data sentinel", errors)
+
     def test_validate_repo_invokes_stage5_license_gate(self):
         validator = load_validator()
         root = Path(__file__).resolve().parents[1]
@@ -95,6 +107,16 @@ class RepoContractTest(unittest.TestCase):
         for relative in compliance_paths:
             self.assertIn(relative, validator.REQUIRED_PATHS)
             self.assertIn(f"missing required path: {relative}", errors)
+
+    def test_stage6_data_source_paths_are_required(self):
+        validator = load_validator()
+        for relative in (
+            "config/data_source_registry.yaml",
+            "scripts/validate_stage6_data_sources.py",
+            "docs/compliance/STAGE6_SCIENTIFIC_DATA_LICENSING.md",
+            "docs/evidence/STAGE6_SCIENTIFIC_DATA_LICENSING_2026-09-19.json",
+        ):
+            self.assertIn(relative, validator.REQUIRED_PATHS)
 
     def test_stage5_license_gate_paths_are_required(self):
         validator = load_validator()
