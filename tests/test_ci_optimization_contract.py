@@ -123,6 +123,8 @@ NGS_TRIGGER_SCRIPT_PATHS = (
     "scripts/build_wgs_curated_manifest.py",
     "scripts/build_third_party_registry.py",
     "scripts/validate_stage4_compliance.py",
+    "scripts/build_stage5_license_gate.py",
+    "scripts/validate_stage5_license_gate.py",
     "scripts/check_versions.sh",
     "scripts/code_language_guard.py",
     "scripts/freshness_gate.py",
@@ -788,6 +790,8 @@ class CIOptimizationContractTest(unittest.TestCase):
         allowed_lines = (
             "      - 'scripts/build_third_party_registry.py'\n",
             "      - 'scripts/validate_stage4_compliance.py'\n",
+            "      - 'scripts/build_stage5_license_gate.py'\n",
+            "      - 'scripts/validate_stage5_license_gate.py'\n",
             "      - 'scripts/project_identity_guard.py'\n",
             "      - 'scripts/governance_context_identity.py'\n",
             "      - 'scripts/zero_identity_guard.py'\n",

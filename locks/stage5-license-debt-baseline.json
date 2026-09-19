@@ -1,0 +1,1032 @@
+{
+  "base_main_sha": "9a379f58ac9fe0bb101ebfd737ac648e510bbca2",
+  "base_main_tree": "89be36c93332a1ef9c7a09fc7b13293a37d3e51c",
+  "entries": [
+    {
+      "component_fingerprint": "ebcfc056a6dca701c179c33542c900605839333c50354c759bc7c93c2436fdad",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/adduser@3.118ubuntu5?arch=all&distro=ubuntu-22.04",
+      "license_gate_status": "UNKNOWN",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "64fbd530f9c4391c1d4e478c86f0f8371927dc295a6e72d19effa9f3be3c2359",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/apt@2.4.14?arch=amd64&distro=ubuntu-22.04",
+      "license_gate_status": "BLOCKED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "126b276987a3fa28c8ecd757ee82142342b8e2386d6445ef64c635fc49be4b10",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/base-files@12ubuntu4.7?arch=amd64&distro=ubuntu-22.04",
+      "license_gate_status": "UNKNOWN",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "c32c4039d2b5303d04f8fe4eb79d9e1fa3dcc3866046811e15c16fcad46f0fda",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/base-passwd@3.5.52build1?arch=amd64&distro=ubuntu-22.04",
+      "license_gate_status": "BLOCKED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "864ddc931aaf7bfbcb69e4b0fb98e5a4a3c15be0a3335b69f1a5f2ac1ba649e5",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/bash@5.1-6ubuntu1.1?arch=amd64&distro=ubuntu-22.04",
+      "license_gate_status": "UNKNOWN",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "adb1dd8461702e39c6a4caa98e058225af45f117ccf506b1fad28098f106c43a",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/bsdutils@1%3A2.37.2-4ubuntu3.4?arch=amd64&distro=ubuntu-22.04&upstream=util-linux%402.37.2-4ubuntu3.4",
+      "license_gate_status": "BLOCKED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "f077577206fe66471746257a701a4932aca3d95e12cabce4504391c008fdf7b2",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/coreutils@8.32-4.1ubuntu1.2?arch=amd64&distro=ubuntu-22.04",
+      "license_gate_status": "BLOCKED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "86e13690da664f6d4d6494841eb0fb50c459c25e5a526fb6b834702cf827e84b",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/dash@0.5.11%2Bgit20210903%2B057cd650a4ed-3build1?arch=amd64&distro=ubuntu-22.04",
+      "license_gate_status": "BLOCKED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "f4400ca283f6abd2e37d8f6f0372994485440985163273dae4436fd16fef67b1",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/debianutils@5.5-1ubuntu2?arch=amd64&distro=ubuntu-22.04",
+      "license_gate_status": "UNKNOWN",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "e489690d32d1df58c6918be332c224166c063df72023990cbe2a80f06c519ed5",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/diffutils@1%3A3.8-0ubuntu2?arch=amd64&distro=ubuntu-22.04",
+      "license_gate_status": "UNKNOWN",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "4056f75f881301616d400437069170c31e99543f89e28709f23e8c4a633ab175",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/dpkg@1.21.1ubuntu2.6?arch=amd64&distro=ubuntu-22.04",
+      "license_gate_status": "BLOCKED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "7a39f3538861db73d50140d2b8f82a20f29abded6661c33408686297acaa194f",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/e2fsprogs@1.46.5-2ubuntu1.2?arch=amd64&distro=ubuntu-22.04",
+      "license_gate_status": "UNKNOWN",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "81c87e4553add527d19103717e205e45d95f2af038a20b24476340f90bcd9537",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/findutils@4.8.0-1ubuntu3?arch=amd64&distro=ubuntu-22.04",
+      "license_gate_status": "UNKNOWN",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "d0c7402974dabe200e80798139e19c40492465f298395384eca551fb1e948a69",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/gcc-12-base@12.3.0-1ubuntu1~22.04.2?arch=amd64&distro=ubuntu-22.04&upstream=gcc-12",
+      "license_gate_status": "UNKNOWN",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "a7a3d28a2657bc550b3fdfdf609d5b42f283ba50ad30c99ead221f85fa6a9353",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/gpgv@2.2.27-3ubuntu2.4?arch=amd64&distro=ubuntu-22.04&upstream=gnupg2",
+      "license_gate_status": "BLOCKED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "33a2e95cbfac64c3acd44bbc677b6b08158cea409c46f1e937ff89e47851f6c9",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/grep@3.7-1build1?arch=amd64&distro=ubuntu-22.04",
+      "license_gate_status": "BLOCKED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "7809e98a4c89a36e6135fde3cc5a7f66c06c136e6770f337fc0b52798bcb7010",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/gzip@1.10-4ubuntu4.1?arch=amd64&distro=ubuntu-22.04",
+      "license_gate_status": "BLOCKED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "15bababfc51381d5356273d56d02209ae6edc88f18c2884839b7852ee17c9a83",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/hostname@3.23ubuntu2?arch=amd64&distro=ubuntu-22.04",
+      "license_gate_status": "BLOCKED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "f9fae1dc23ab576a658549a2a319147bef721b2b74c4ff2337c73da6f5845b36",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/init-system-helpers@1.62?arch=all&distro=ubuntu-22.04",
+      "license_gate_status": "BLOCKED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "97f46cf025a53a3621250b4a4892343c107995bf460eceb8af01ee0e62051974",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libacl1@2.3.1-1?arch=amd64&distro=ubuntu-22.04&upstream=acl",
+      "license_gate_status": "BLOCKED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "deb0c055b5f1f865e0fd4bf0d2af5d5e0662812aa6395ad25fb9b6daf9b22c11",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libapt-pkg6.0@2.4.14?arch=amd64&distro=ubuntu-22.04&upstream=apt",
+      "license_gate_status": "BLOCKED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "2ce1ee5f6a27c89d442f419765e7ddd74bbf8cd09a1da62d69548219b96f3efd",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libattr1@1%3A2.5.1-1build1?arch=amd64&distro=ubuntu-22.04&upstream=attr",
+      "license_gate_status": "BLOCKED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "7d15ec2ab91ab23ef28e58ca6495dd6523abf06dd3063e728b0988f9b936d2eb",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libaudit-common@1%3A3.0.7-1build1?arch=all&distro=ubuntu-22.04&upstream=audit",
+      "license_gate_status": "BLOCKED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "d26c19ed3ba3efd1ecbfbd3fe692fd693feba8c51fc9ba6b9ab2b4776cd0ea61",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libaudit1@1%3A3.0.7-1build1?arch=amd64&distro=ubuntu-22.04&upstream=audit",
+      "license_gate_status": "BLOCKED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "624d5e8ff09016550d59ab832d3f9154e40368a3f8955e2f43cd906afff78399",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libblkid1@2.37.2-4ubuntu3.4?arch=amd64&distro=ubuntu-22.04&upstream=util-linux",
+      "license_gate_status": "BLOCKED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "c00a2b0d68d053227beac80d7ba6b7132391d29dccb6b72eb14d947dc9378164",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libbz2-1.0@1.0.8-5build1?arch=amd64&distro=ubuntu-22.04&upstream=bzip2",
+      "license_gate_status": "BLOCKED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "e0a6baf11cb63583dc21907cc062ceb68625b1abb069dd2666d78d642e125965",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libc-bin@2.35-0ubuntu3.11?arch=amd64&distro=ubuntu-22.04&upstream=glibc",
+      "license_gate_status": "UNKNOWN",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "56b8acf4f30a06dc338684027775c734b52d8cdaae4f1acc0448ff1f17d61c4f",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libc6@2.35-0ubuntu3.11?arch=amd64&distro=ubuntu-22.04&upstream=glibc",
+      "license_gate_status": "UNKNOWN",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "7f5382baf965dd4130cd0537f4fc6d9f96da00c5130cf827ad23a63b045004ec",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libcap-ng0@0.7.9-2.2build3?arch=amd64&distro=ubuntu-22.04&upstream=libcap-ng",
+      "license_gate_status": "UNKNOWN",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "0a644ef81e1ad56b1c20c5e728c6f2176098d4dc4cc164f34aac2ada25afdcad",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libcap2@1%3A2.44-1ubuntu0.22.04.2?arch=amd64&distro=ubuntu-22.04",
+      "license_gate_status": "BLOCKED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "a86304ff030fa7065ab7852f52ed1982b5c6b05ae199b0a9ff2d4cf219d62226",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libcom-err2@1.46.5-2ubuntu1.2?arch=amd64&distro=ubuntu-22.04&upstream=e2fsprogs",
+      "license_gate_status": "UNKNOWN",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "ba5b59eae3cbedfb48a276d3554233906fe9867dc65d600f0b9c2a98098adf10",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libcrypt1@1%3A4.4.27-1?arch=amd64&distro=ubuntu-22.04&upstream=libxcrypt",
+      "license_gate_status": "UNKNOWN",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "7208c3e2c9e364eca3376386ad066b591d519c98b1bc9ccf4cd664c6fc012cb3",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libdb5.3@5.3.28%2Bdfsg1-0.8ubuntu3?arch=amd64&distro=ubuntu-22.04&upstream=db5.3",
+      "license_gate_status": "UNKNOWN",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "fd4fdce418c82c3fbcf12b79f27ef09cf94d87c8c34c29a656a30a7ac8746c10",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libext2fs2@1.46.5-2ubuntu1.2?arch=amd64&distro=ubuntu-22.04&upstream=e2fsprogs",
+      "license_gate_status": "UNKNOWN",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "4b8fa8ffb04cb6b97b10fc7b80a10c18cb709c23c5379b0fb51ca32338a41e66",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libffi8@3.4.2-4?arch=amd64&distro=ubuntu-22.04&upstream=libffi",
+      "license_gate_status": "UNKNOWN",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "f00e2e7ef7fec733ff36cfd1713b477cf4c05f864adbca02ce392fc89903d88e",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libgcc-s1@12.3.0-1ubuntu1~22.04.2?arch=amd64&distro=ubuntu-22.04&upstream=gcc-12",
+      "license_gate_status": "UNKNOWN",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "d7a66c53726e45b9d6cf765b66adf61837c135b041f9ed1c8c140c82f84173f3",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libgcrypt20@1.9.4-3ubuntu3?arch=amd64&distro=ubuntu-22.04",
+      "license_gate_status": "UNKNOWN",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "d983efd057d0f74c3d4b9832c24d0c49d220fba9bbc8395d3975adccdd834d55",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libgmp10@2%3A6.2.1%2Bdfsg-3ubuntu1?arch=amd64&distro=ubuntu-22.04&upstream=gmp",
+      "license_gate_status": "UNKNOWN",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "9112c2a39620238490e12d125b1f77e870be4e59e776f0115cdcb5a4dd200f33",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libgnutls30@3.7.3-4ubuntu1.7?arch=amd64&distro=ubuntu-22.04&upstream=gnutls28",
+      "license_gate_status": "UNKNOWN",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "05efaff0ec908224bd7cf41569be3a307b8f1d02c4ef67d48e2f2acbceb8b088",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libgpg-error0@1.43-3?arch=amd64&distro=ubuntu-22.04&upstream=libgpg-error",
+      "license_gate_status": "BLOCKED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "f7fa4c6f35bd68dcb07b8b11bf55cb25b53bbf10074336ed74b7122a771f23b7",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libgssapi-krb5-2@1.19.2-2ubuntu0.7?arch=amd64&distro=ubuntu-22.04&upstream=krb5",
+      "license_gate_status": "UNKNOWN",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "41a389777be4a955cd6820f18a6cc07c4f6e76c23a8ad2fe9f7108b608d88d1c",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libhogweed6@3.7.3-1build2?arch=amd64&distro=ubuntu-22.04&upstream=nettle",
+      "license_gate_status": "BLOCKED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "b5211981afbd553c7785c125efbcc10582e2ead7c8634ac02732c7d46e9064e2",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libidn2-0@2.3.2-2build1?arch=amd64&distro=ubuntu-22.04&upstream=libidn2",
+      "license_gate_status": "BLOCKED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "2b74b416d188a9b68785be0d95c97ae7efa014a4c28abacbea3380b3c1fc3da5",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libk5crypto3@1.19.2-2ubuntu0.7?arch=amd64&distro=ubuntu-22.04&upstream=krb5",
+      "license_gate_status": "UNKNOWN",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "d1e5ff11c008245bbbedfe51af6fbe599b66ba3704d9e5ad1cc4eb0c20414972",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libkeyutils1@1.6.1-2ubuntu3?arch=amd64&distro=ubuntu-22.04&upstream=keyutils",
+      "license_gate_status": "BLOCKED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "fae7b019bfb1ff4602ade2fcf20d1a9fb166bf4990379d7c417ad5e2b8dd06c9",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libkrb5-3@1.19.2-2ubuntu0.7?arch=amd64&distro=ubuntu-22.04&upstream=krb5",
+      "license_gate_status": "UNKNOWN",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "6cc86f47a2d93280f6ed860f4f59931549015cb5102dc94c7a31e544ea55572c",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libkrb5support0@1.19.2-2ubuntu0.7?arch=amd64&distro=ubuntu-22.04&upstream=krb5",
+      "license_gate_status": "UNKNOWN",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "1af01bc74554bf01753a45996d060f462492f8f6e8ba2956f2d69527aea81435",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/liblz4-1@1.9.3-2build2?arch=amd64&distro=ubuntu-22.04&upstream=lz4",
+      "license_gate_status": "BLOCKED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "cf8e8ea8a47041ccfcd17a135c8f08da98b77779cfcbba3aebe0e7c2f15cb0fc",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/liblzma5@5.2.5-2ubuntu1?arch=amd64&distro=ubuntu-22.04&upstream=xz-utils",
+      "license_gate_status": "RESTRICTED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "a2d31639c637f17f30dd18f25f53ec993403d7185034c5b9acf35ce733bad817",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libmount1@2.37.2-4ubuntu3.4?arch=amd64&distro=ubuntu-22.04&upstream=util-linux",
+      "license_gate_status": "BLOCKED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "192cda6373e90a2a398513b941e912ad9731fe9e42a6d706974913eae0ecbeb9",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libncurses6@6.3-2ubuntu0.1?arch=amd64&distro=ubuntu-22.04&upstream=ncurses",
+      "license_gate_status": "REVIEW_REQUIRED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "8ede16a39517b424126e65adeb4cc4ac0eb250cbbbf98c02acc2164429a22c6a",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libncursesw6@6.3-2ubuntu0.1?arch=amd64&distro=ubuntu-22.04&upstream=ncurses",
+      "license_gate_status": "REVIEW_REQUIRED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "3de93c4cc3094ca761deedf5c4e6435bcc068e0f6ba65b5d84e947c06b1ac7d8",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libnettle8@3.7.3-1build2?arch=amd64&distro=ubuntu-22.04&upstream=nettle",
+      "license_gate_status": "BLOCKED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "eb8f7c9c0e05a7c2e7a69ba396870c86af3fcb9ca2e8f13275abb018e3e8e65f",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libnsl2@1.3.0-2build2?arch=amd64&distro=ubuntu-22.04&upstream=libnsl",
+      "license_gate_status": "BLOCKED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "ec87d6a094fdb2291871bb6eefff3cfccbd2376667620ccd94e7699d4ffb2ab1",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libp11-kit0@0.24.0-6build1?arch=amd64&distro=ubuntu-22.04&upstream=p11-kit",
+      "license_gate_status": "REVIEW_REQUIRED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "29fc390699089b1ea1e0a2cae2cbc37ffa7e9c0b97ee3eabbf211aa47e065f3b",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libpam-modules-bin@1.4.0-11ubuntu2.6?arch=amd64&distro=ubuntu-22.04&upstream=pam",
+      "license_gate_status": "UNKNOWN",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "246c5e3d7501c132a860ebe25023866511be1512d28e383abc4586b5a9cb729c",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libpam-modules@1.4.0-11ubuntu2.6?arch=amd64&distro=ubuntu-22.04&upstream=pam",
+      "license_gate_status": "UNKNOWN",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "e1b6b25d81726dca3119ec99f00809496d3fce4cf7394a1c078d55a71fb20758",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libpam-runtime@1.4.0-11ubuntu2.6?arch=all&distro=ubuntu-22.04&upstream=pam",
+      "license_gate_status": "UNKNOWN",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "70f7434b4a89aac22800ad4a8ea4adac8c3b74c03ba7279382f1bec057ca8bca",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libpam0g@1.4.0-11ubuntu2.6?arch=amd64&distro=ubuntu-22.04&upstream=pam",
+      "license_gate_status": "UNKNOWN",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "845f33735c380628d289801e633b5d8efe2f07d35c793a14ce3c128c9430cfa3",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libpcre2-8-0@10.39-3ubuntu0.1?arch=amd64&distro=ubuntu-22.04&upstream=pcre2",
+      "license_gate_status": "UNKNOWN",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "ab4403078070373c2f1dda5a107162e214523ce4ab302cfa0d3ebf06a69667ca",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libpcre3@2%3A8.39-13ubuntu0.22.04.1?arch=amd64&distro=ubuntu-22.04&upstream=pcre3",
+      "license_gate_status": "UNKNOWN",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "7915fda3f84d2f3af076f718f23d561bf0ef0288dd13d7c7fc586ee9c3ac6648",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libprocps8@2%3A3.3.17-6ubuntu2.1?arch=amd64&distro=ubuntu-22.04&upstream=procps",
+      "license_gate_status": "BLOCKED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "fe76be74c2bebd2702a0b183b80f4cb035f2200e4040a9b0ecd02dd275e9737b",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libseccomp2@2.5.3-2ubuntu3~22.04.1?arch=amd64&distro=ubuntu-22.04&upstream=libseccomp",
+      "license_gate_status": "REVIEW_REQUIRED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "6077443aeb16f54c021753f4d9674965cab530eaf13435e6fbdb67576fb62ad8",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libselinux1@3.3-1build2?arch=amd64&distro=ubuntu-22.04&upstream=libselinux",
+      "license_gate_status": "UNKNOWN",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "eba7b14b462b051529122929d63023403fa6ac20abf2ca58b73e07ed3724df28",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libsemanage-common@3.3-1build2?arch=all&distro=ubuntu-22.04&upstream=libsemanage",
+      "license_gate_status": "UNKNOWN",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "7a61cef783035643931c17a1c8f17f21f8468454029d24dcc7d4cd02432232f8",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libsemanage2@3.3-1build2?arch=amd64&distro=ubuntu-22.04&upstream=libsemanage",
+      "license_gate_status": "UNKNOWN",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "a8266e8b4b33775b40d0394319da9d5e4b2e1b651f1b26d8d2b66e2d326a4bb4",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libsepol2@3.3-1build1?arch=amd64&distro=ubuntu-22.04&upstream=libsepol",
+      "license_gate_status": "UNKNOWN",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "cb2ce4fc73660733e4f730f082f52898bda384126c334b5342e465ac349f93ac",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libsmartcols1@2.37.2-4ubuntu3.4?arch=amd64&distro=ubuntu-22.04&upstream=util-linux",
+      "license_gate_status": "BLOCKED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "a465571614940e2a6672dbb9dde57558486a8a9a0d5f7267706bdbdb3f0e6a83",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libss2@1.46.5-2ubuntu1.2?arch=amd64&distro=ubuntu-22.04&upstream=e2fsprogs",
+      "license_gate_status": "UNKNOWN",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "0ad0de3bc245849585959714101fd43a95a1e12956beb54deb042a3f76d666c0",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libssl3@3.0.2-0ubuntu1.20?arch=amd64&distro=ubuntu-22.04&upstream=openssl",
+      "license_gate_status": "BLOCKED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "95a0ec621b3331ac0d33bbdb672260a29beb67e755f12bcff09788c144d84862",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libstdc%2B%2B6@12.3.0-1ubuntu1~22.04.2?arch=amd64&distro=ubuntu-22.04&upstream=gcc-12",
+      "license_gate_status": "UNKNOWN",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "0cc3ec5661e04a17bb34fbfcbdb283b505d31c3f73cc281790cbe071e166dd95",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libsystemd0@249.11-0ubuntu3.16?arch=amd64&distro=ubuntu-22.04&upstream=systemd",
+      "license_gate_status": "BLOCKED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "74573d0bcf27785dd7a3ac5049d0a8f7eb21c4d04d2aecc43e3167c6d76185b2",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libtasn1-6@4.18.0-4ubuntu0.1?arch=amd64&distro=ubuntu-22.04",
+      "license_gate_status": "UNKNOWN",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "48674eda824373631729d053aa5415bdd63d27162f8aab6221ddd7c862a5d89b",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libtinfo6@6.3-2ubuntu0.1?arch=amd64&distro=ubuntu-22.04&upstream=ncurses",
+      "license_gate_status": "REVIEW_REQUIRED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "06565770a6a8c51970044f6014fbec9cefe312e31734c0b7771083ff5b721d16",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libtirpc-common@1.3.2-2ubuntu0.1?arch=all&distro=ubuntu-22.04&upstream=libtirpc",
+      "license_gate_status": "BLOCKED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "5bd3a2110d227e7541f7ee6051e798e2d90fda79c41e55ec327b0f343e7df7f0",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libtirpc3@1.3.2-2ubuntu0.1?arch=amd64&distro=ubuntu-22.04&upstream=libtirpc",
+      "license_gate_status": "BLOCKED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "cf669730df76b95bcf3159a24228a95de5ba2fcff34af1124190f70c5eb0b001",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libudev1@249.11-0ubuntu3.16?arch=amd64&distro=ubuntu-22.04&upstream=systemd",
+      "license_gate_status": "BLOCKED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "2f5f0c8426f5fbbc12744e03a08e12c8be38cb164830d40a17aef98eaabbf7f3",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libunistring2@1.0-1?arch=amd64&distro=ubuntu-22.04&upstream=libunistring",
+      "license_gate_status": "BLOCKED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "26c8b8892f8f4a01649bc0cfeb3eb858065316d42fad3e1f841ed186abd7b340",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libuuid1@2.37.2-4ubuntu3.4?arch=amd64&distro=ubuntu-22.04&upstream=util-linux",
+      "license_gate_status": "BLOCKED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "a94ff77e5a938bb8c69519fa6fefff27550373cabb6eec5d6afc58cacb05e748",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libxxhash0@0.8.1-1?arch=amd64&distro=ubuntu-22.04&upstream=xxhash",
+      "license_gate_status": "BLOCKED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "4017f8529214a95a696c1b5fd538ef259aaba690116132d31ef356a66c78466a",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/libzstd1@1.4.8%2Bdfsg-3build1?arch=amd64&distro=ubuntu-22.04&upstream=libzstd",
+      "license_gate_status": "BLOCKED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "7f17d3d75116082776c9dbc9a026932eb0619967221e327a329480ec499b9463",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/login@1%3A4.8.1-2ubuntu2.2?arch=amd64&distro=ubuntu-22.04&upstream=shadow",
+      "license_gate_status": "UNKNOWN",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "6e1b3a6451a595f88d88ecedc94603f045d22ec6813c0c4de7b3eb8142bd507c",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/logsave@1.46.5-2ubuntu1.2?arch=amd64&distro=ubuntu-22.04&upstream=e2fsprogs",
+      "license_gate_status": "UNKNOWN",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "98bccb0a4b9c0c956fd4f9ba3a668f4c333a2a144204ca8f901fec21c2af779d",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/lsb-base@11.1.0ubuntu4?arch=all&distro=ubuntu-22.04&upstream=lsb",
+      "license_gate_status": "BLOCKED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "d642e5616daface783fe429481ea5f569faf7c30db5911f89995d5394a430362",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/mawk@1.3.4.20200120-3?arch=amd64&distro=ubuntu-22.04",
+      "license_gate_status": "UNKNOWN",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "b7e9d52536c754850d5794b5cab6b5f69e113f7cf716f8a46e34502a0454a480",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/mount@2.37.2-4ubuntu3.4?arch=amd64&distro=ubuntu-22.04&upstream=util-linux",
+      "license_gate_status": "BLOCKED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "67ff51b6144cf2458a84c9cdda4e065fbcb8e6d6ebe0e246b034394989502579",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/ncurses-base@6.3-2ubuntu0.1?arch=all&distro=ubuntu-22.04&upstream=ncurses",
+      "license_gate_status": "REVIEW_REQUIRED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "fbcfa72d8bdb07ca4edfc831bf4833e8fdc65024cd4d6517cdd83f5170998436",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/ncurses-bin@6.3-2ubuntu0.1?arch=amd64&distro=ubuntu-22.04&upstream=ncurses",
+      "license_gate_status": "REVIEW_REQUIRED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "ef169dab4b5d66091de2b08f4d86a7d367c178c347dc5c156b171019b594e699",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/passwd@1%3A4.8.1-2ubuntu2.2?arch=amd64&distro=ubuntu-22.04&upstream=shadow",
+      "license_gate_status": "UNKNOWN",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "e45d54303d79f8dcc2dd1326b13cd4581d13c6e958f4ddf30644e652388a3047",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/perl-base@5.34.0-3ubuntu1.5?arch=amd64&distro=ubuntu-22.04&upstream=perl",
+      "license_gate_status": "BLOCKED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "915add270a26a55a8d605e477fafb4979a5a3a4c48f253e7ff7cb1ce3e94aedc",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/procps@2%3A3.3.17-6ubuntu2.1?arch=amd64&distro=ubuntu-22.04",
+      "license_gate_status": "BLOCKED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "10413ed13c20ca6377cf1c43af67f8a631c8c0293680a6c1a05da07a9b64827e",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/sed@4.8-1ubuntu2?arch=amd64&distro=ubuntu-22.04",
+      "license_gate_status": "UNKNOWN",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "8c7ed18c55db932f9c440e7f4da25396d463c934792d6e1c0067f4a9199fe4f9",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/sensible-utils@0.0.17?arch=all&distro=ubuntu-22.04",
+      "license_gate_status": "BLOCKED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "6b9b06de5f32289c6eb8faa0e610398e97b9ec7d8f140259300bdf839bdd3965",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/sysvinit-utils@3.01-1ubuntu1?arch=amd64&distro=ubuntu-22.04&upstream=sysvinit",
+      "license_gate_status": "BLOCKED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "a925dafa5532e8820c8e66798198ddd99e30e0b588a350e33b094cf32de6611d",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/tar@1.34%2Bdfsg-1ubuntu0.1.22.04.2?arch=amd64&distro=ubuntu-22.04",
+      "license_gate_status": "UNKNOWN",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "5b40bb8ee255be5f90b28a26b162a7509e09dc24fd3ab0f7e4b3b617f0a2be72",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/ubuntu-keyring@2021.03.26?arch=all&distro=ubuntu-22.04",
+      "license_gate_status": "UNKNOWN",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "8d6bec351e0a6c279a0fc7f1ccf459975320b9db35454907fd45bdbc7781f74c",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/usrmerge@25ubuntu2?arch=all&distro=ubuntu-22.04",
+      "license_gate_status": "UNKNOWN",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "e594b0f9e538b4d8e15b8a41275302bb8dc59d484ab45a7cabc03ac24938cbab",
+      "ecosystem": "deb",
+      "id": "base:pkg:deb/ubuntu/util-linux@2.37.2-4ubuntu3.4?arch=amd64&distro=ubuntu-22.04",
+      "license_gate_status": "BLOCKED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "bafc80c977d0d354da3f7d773923ee11a39987883a82b6331fa3473ffcb7045d",
+      "ecosystem": "conda",
+      "id": "conda:alsa-lib@1.2.16.1#h7cc23a3_1",
+      "license_gate_status": "REVIEW_REQUIRED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "40ff332e9ebf3844c43667466c2ae8808459f2756b26447b6d4b8c5982c1db5b",
+      "ecosystem": "conda",
+      "id": "conda:amply@0.1.7#pyhd8ed1ab_0",
+      "license_gate_status": "REVIEW_REQUIRED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "e34b74de8ef871f81864f5c0c50d23d90738a078291831d43ae98f2f614cbdeb",
+      "ecosystem": "conda",
+      "id": "conda:backports.zstd@1.7.0#py311h6f959d0_1",
+      "license_gate_status": "REVIEW_REQUIRED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "1f88bbabb55e73d090156d2e36dd120142f502ddb44d9895f1f5110ca44ba412",
+      "ecosystem": "conda",
+      "id": "conda:bcftools@1.24#h118bc1c_2",
+      "license_gate_status": "BLOCKED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "63b273c927dad26947778df8373c246fd0c506e2c2a9799f8e538c8b0f2e1493",
+      "ecosystem": "conda",
+      "id": "conda:bzip2@1.0.8#hda65f42_10",
+      "license_gate_status": "REVIEW_REQUIRED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "7c386c2b2e8782870b94681b9dbffa1e175f470c63158fb5c3ac9bca4d757cd7",
+      "ecosystem": "conda",
+      "id": "conda:cairo@1.18.4#h3c89d7e_3",
+      "license_gate_status": "REVIEW_REQUIRED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "6a7e147ea05d686635e31edd20cc423ad99ef94604212417a813e2dadaa50ed6",
+      "ecosystem": "conda",
+      "id": "conda:coin-or-cbc@2.10.13#h4d16d09_1",
+      "license_gate_status": "REVIEW_REQUIRED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "369673ad0848301bb707bf44340bcfe7d01d46cd34c12393e40589ab26ea909b",
+      "ecosystem": "conda",
+      "id": "conda:coin-or-cgl@0.60.10#hc46dffc_1",
+      "license_gate_status": "REVIEW_REQUIRED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "21e7b12200e76ba988e242e329e8739a96fbb9dae26891c35cdf98e76ff96d0d",
+      "ecosystem": "conda",
+      "id": "conda:coin-or-clp@1.17.11#hc03379b_1",
+      "license_gate_status": "REVIEW_REQUIRED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "2c768a501636d13f305eb442571a8e20637a72dc70a3efb4ae0c5f85a6af0670",
+      "ecosystem": "conda",
+      "id": "conda:coin-or-osi@0.108.12#hf4fecb4_1",
+      "license_gate_status": "REVIEW_REQUIRED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "4ed7a0a4e92927eeb678c12ebdc23372d6000dd8aa0f75d006c0a245a95ccbed",
+      "ecosystem": "conda",
+      "id": "conda:coin-or-utils@2.11.13#hc93afbd_1",
+      "license_gate_status": "REVIEW_REQUIRED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "cf66b1b56650012a752c2b89b329002caa0a4d1c58d57788a07fdff2bc3d1eab",
+      "ecosystem": "conda",
+      "id": "conda:coincbc@2.10.13#1_metapackage",
+      "license_gate_status": "REVIEW_REQUIRED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "f63eae70ae428e344b0f549b96fbcf0fbfa09ade07a9e71a8cbbb8ccd241c10d",
+      "ecosystem": "conda",
+      "id": "conda:coreutils@9.12#hebe6cf0_0",
+      "license_gate_status": "BLOCKED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "84d1743a4f253eba76833295ece995a1145e0fa1fdbd3d7f88b5becfb62e47f0",
+      "ecosystem": "conda",
+      "id": "conda:curl@8.22.0#ha042cf0_0",
+      "license_gate_status": "REVIEW_REQUIRED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "a607030842032143b98a7fe27a4537037b4d3d671678360404107bbe35190195",
+      "ecosystem": "conda",
+      "id": "conda:datrie@0.8.3#py311h49ec1c0_0",
+      "license_gate_status": "REVIEW_REQUIRED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "0617dafb81cfc425ed648b780aebe74c1ef146910c4c4615f05465de7f7e318e",
+      "ecosystem": "conda",
+      "id": "conda:docutils@0.23#pyhcf101f3_0",
+      "license_gate_status": "REVIEW_REQUIRED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "ee9fc423aaa6f0b4b2b6c54395bdbb1242d43ec35bf56c3f87c69c717ba89be5",
+      "ecosystem": "conda",
+      "id": "conda:font-ttf-inconsolata@3.000#h77eed37_0",
+      "license_gate_status": "REVIEW_REQUIRED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "54e4057eb7c8a03b36a04d5d7ecedc796b50a9cf7b839f32c730f9096021d624",
+      "ecosystem": "conda",
+      "id": "conda:font-ttf-source-code-pro@2.038#h77eed37_0",
+      "license_gate_status": "REVIEW_REQUIRED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "9510eb5c86cc747393660078125d0ed1673e418a0e025b6926565305d3ed36f5",
+      "ecosystem": "conda",
+      "id": "conda:font-ttf-ubuntu@0.83#h77eed37_3",
+      "license_gate_status": "REVIEW_REQUIRED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "ca625af871b657740ca212594b57a365fc3c29804056433b60e2afd438456c25",
+      "ecosystem": "conda",
+      "id": "conda:graphite2@1.3.15#h54a6638_1",
+      "license_gate_status": "REVIEW_REQUIRED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "e32150c3696c4432e70f967576926402456aaf08ea946eee1633ed0fceaeea4c",
+      "ecosystem": "conda",
+      "id": "conda:gsl@2.6#he838d99_2",
+      "license_gate_status": "BLOCKED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "789dff610f2fb69f188a489ae7e0447242a4acef32f09e42e3da09d9f5996d6e",
+      "ecosystem": "conda",
+      "id": "conda:keyutils@1.6.3#h7cc23a3_1",
+      "license_gate_status": "REVIEW_REQUIRED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "bb7400ba424bd805f15381efde09248bd08bb23f6cfffa8c0035cfade7f5339a",
+      "ecosystem": "conda",
+      "id": "conda:ld_impl_linux-64@2.46.1#default_hbd61a6d_102",
+      "license_gate_status": "BLOCKED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "97ee00095b4a8d1e300a21735f86a0e0bbecc6d72b5fe0dac280fb1ca642a334",
+      "ecosystem": "conda",
+      "id": "conda:libcurl@8.22.0#ha042cf0_0",
+      "license_gate_status": "REVIEW_REQUIRED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "0a6638e3c9082a3bdbf31b61ab0a00482cabf19d1592a7836ed993fa88b84ec9",
+      "ecosystem": "conda",
+      "id": "conda:libev@4.33#h280c20c_3",
+      "license_gate_status": "REVIEW_REQUIRED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "70dd45dc2ab07585b35ae0d497205a633fbf3803176ca4b87c97aead6f0e838d",
+      "ecosystem": "conda",
+      "id": "conda:libfreetype6@2.14.3#h5e6c136_2",
+      "license_gate_status": "REVIEW_REQUIRED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "d23a675cebd7de82d762ba9d8d3fcdd90487e709ee7f3fc0712f06e1c593391a",
+      "ecosystem": "conda",
+      "id": "conda:libfreetype@2.14.3#ha770c72_2",
+      "license_gate_status": "REVIEW_REQUIRED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "ea24c2bd2f5e1cb7044323a30c92065e1f6921ecb3ce059b179242ccb4822263",
+      "ecosystem": "conda",
+      "id": "conda:libgcc-ng@16.2.0#h69a702a_5",
+      "license_gate_status": "REVIEW_REQUIRED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "7c7db5204235ecd0610f7fea8deb171c8ba2986ab80dce268e85e2d81dba8852",
+      "ecosystem": "conda",
+      "id": "conda:libgcc@16.2.0#ha9f2e26_5",
+      "license_gate_status": "REVIEW_REQUIRED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "77272f12795792c565bf002e851cf6758dbaf629de5766bfb8ec63dc365caa5c",
+      "ecosystem": "conda",
+      "id": "conda:libgfortran5@16.2.0#h6b99dfc_5",
+      "license_gate_status": "REVIEW_REQUIRED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "b011da14545030ca9cb1e0a680621a4bbeb12c9e50df00e74f0a8b81aefc06bc",
+      "ecosystem": "conda",
+      "id": "conda:libgfortran@16.2.0#h69a702a_5",
+      "license_gate_status": "REVIEW_REQUIRED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "d72baddfe563f83b12fa7186ca064f3a76a5bcf8c7a25dd11ca8a3e49c32e02b",
+      "ecosystem": "conda",
+      "id": "conda:libglib@2.90.0#h569388d_0",
+      "license_gate_status": "REVIEW_REQUIRED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "1d943f453cb53287eb9f4fb29c14f0c3dd60a33efd4b3c4c3fa216174a7a555e",
+      "ecosystem": "conda",
+      "id": "conda:libgomp@16.2.0#he0feb66_5",
+      "license_gate_status": "REVIEW_REQUIRED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "45426fec6fe7a815c68f4e30d986029a92af25a1557b52b6b068818d5506ca62",
+      "ecosystem": "conda",
+      "id": "conda:libiconv@1.18#h0cb94f2_3",
+      "license_gate_status": "REVIEW_REQUIRED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "de404cab2cf87fe342498b172216cd5708443d40a75bf99cc008032ab8d4135b",
+      "ecosystem": "conda",
+      "id": "conda:libjpeg-turbo@3.2.0#hb03c661_1",
+      "license_gate_status": "REVIEW_REQUIRED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "65eeaa24f1ed3630a9dd2440bbfed61ed1098aa118027e91887876cac937d769",
+      "ecosystem": "conda",
+      "id": "conda:libnsl@2.0.1#hb9d3cd8_1",
+      "license_gate_status": "REVIEW_REQUIRED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "6e669f7ad5d60109562594f72ce198a56b755a97cb31afecff1afbb271ff0421",
+      "ecosystem": "conda",
+      "id": "conda:libpng@1.6.58#h922cc85_1",
+      "license_gate_status": "REVIEW_REQUIRED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "e109b3798e6110814ff83c4d2c83c79ac84bb66c32a535ef27a4419aaac51826",
+      "ecosystem": "conda",
+      "id": "conda:libsqlite@3.53.4#h13e7031_1",
+      "license_gate_status": "REVIEW_REQUIRED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "45b72786d5100623fbd8ffaefef254a5678a164862ce9a3ae244f5234915dc32",
+      "ecosystem": "conda",
+      "id": "conda:libstdcxx-ng@16.2.0#hdf11a46_5",
+      "license_gate_status": "REVIEW_REQUIRED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "1cc2e8ee6bc053261d0b40d93c12b77edc4454605ef053c48ee9b266392ab910",
+      "ecosystem": "conda",
+      "id": "conda:libstdcxx@16.2.0#h934c35e_5",
+      "license_gate_status": "REVIEW_REQUIRED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "4a2f563e3ee1bb8342b6a197f0d51e0f4cd1b5f0d02648c8625a9bda74f2f186",
+      "ecosystem": "conda",
+      "id": "conda:libxcrypt@4.4.38#h280c20c_0",
+      "license_gate_status": "REVIEW_REQUIRED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "1036e4677dc080d416747339c7b22053de6235f3f4394eec37199db31d75b015",
+      "ecosystem": "conda",
+      "id": "conda:openjdk@17.0.18#h1602c4f_18",
+      "license_gate_status": "REVIEW_REQUIRED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "58a423abe3a9c10bbe3a7f675fbbf57c4debaa6338450729d2da1cc3e20a654c",
+      "ecosystem": "conda",
+      "id": "conda:perl@5.32.1#9_h7cc23a3_perl5",
+      "license_gate_status": "REVIEW_REQUIRED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "8389ec2d8e8b44a9fcd2b4812adb03ce8aee42df171713f94de6668acb682e0b",
+      "ecosystem": "conda",
+      "id": "conda:procps-ng@4.0.6#h18c060e_0",
+      "license_gate_status": "REVIEW_REQUIRED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "1c203dd0be1b88b44529fc20f3dc211c310ab8f7f01a156f1a71f1080c89cbaa",
+      "ecosystem": "conda",
+      "id": "conda:readline@8.3#hd6e31c0_1",
+      "license_gate_status": "BLOCKED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "932f1ef1cc6e2e283edf5c71081a3b20580232a17ba5b31a36c4992b03424312",
+      "ecosystem": "conda",
+      "id": "conda:tk@8.6.13#noxft_h1df4ec4_4",
+      "license_gate_status": "REVIEW_REQUIRED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "89f2562526bd882be80b03ea8f04db481a62ec4ba6b0e785fb83ed84d629532d",
+      "ecosystem": "conda",
+      "id": "conda:tzdata@2026c#h151e31d_0",
+      "license_gate_status": "REVIEW_REQUIRED",
+      "scope": "distributed_runtime"
+    },
+    {
+      "component_fingerprint": "075419f82c95a00fd9b5c273d0300c50d4ec07380e1bf2463b8042e3c662291d",
+      "ecosystem": "pypi",
+      "id": "pypi:reportlab@4.4.9",
+      "license_gate_status": "REVIEW_REQUIRED",
+      "scope": "distributed_runtime"
+    }
+  ],
+  "entry_count": 146,
+  "purpose": "non-authorizing historical debt ceiling; entries are not approvals",
+  "schema": "omnigenis-stage5-license-debt-baseline-v1",
+  "source_registry_sha256": "0d56489ef78b4db32b6c0c384cb3baeb63607272cc9bc88b5671a412a0f040d2"
+}

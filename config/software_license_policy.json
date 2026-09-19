@@ -1,0 +1,75 @@
+{
+  "bootstrap": {
+    "base_main_sha": "9a379f58ac9fe0bb101ebfd737ac648e510bbca2",
+    "base_main_tree": "89be36c93332a1ef9c7a09fc7b13293a37d3e51c"
+  },
+  "debt_statuses": [
+    "REVIEW_REQUIRED",
+    "RESTRICTED",
+    "BLOCKED",
+    "UNKNOWN"
+  ],
+  "external_reference": {
+    "name": "SPDX License List",
+    "published": "2026-09-16",
+    "purpose": "identifier normalization reference only; policy decisions remain OmniGenis engineering controls",
+    "url": "https://spdx.org/licenses/",
+    "version": "3.29.0"
+  },
+  "frozen_debt_baseline_sha256": "bdfcabdb6ca991a05d6c114ca5ee95c7414fd731e3d5c5fff38ea34aa892a319",
+  "new_dependency_allowed_statuses": [
+    "APPROVED",
+    "APPROVED_WITH_NOTICE"
+  ],
+  "restricted_markers": [
+    "NON-COMMERCIAL",
+    "NONCOMMERCIAL",
+    "ACADEMIC-ONLY",
+    "RESEARCH-ONLY",
+    "CC-BY-NC",
+    "CC-BY-ND",
+    "NO-DERIV",
+    "NODERIV",
+    "SOURCE-AVAILABLE",
+    "BUSINESS-SOURCE",
+    "ELASTIC-LICENSE"
+  ],
+  "reviewed_exact_artifacts": [
+    {
+      "basis": "Stage 2 exact-artifact technical acceptance; this engineering status is not a legal opinion.",
+      "component_id": "pypi:pypdfium2@5.13.0",
+      "decision": "APPROVED_WITH_NOTICE",
+      "required_evidence": "licenses/pypdfium2-5.13.0/NOTICE.md",
+      "required_stage4_status": "REVIEWED_ACCEPTED_EXACT_ARTIFACT"
+    }
+  ],
+  "schema": "omnigenis-software-license-policy-v1",
+  "semantics": {
+    "baseline_entries_are_approvals": false,
+    "new_non_approved_dependency_must_fail": true,
+    "policy_states_are_legal_opinions": false,
+    "unknown_is_approved": false
+  },
+  "stage4_status_mapping": {
+    "BLOCKED_BY_DEFAULT": "BLOCKED",
+    "PERMISSIVE": "APPROVED",
+    "REVIEW_REQUIRED": "REVIEW_REQUIRED"
+  },
+  "status_vocabulary": [
+    "APPROVED",
+    "APPROVED_WITH_NOTICE",
+    "REVIEW_REQUIRED",
+    "RESTRICTED",
+    "BLOCKED",
+    "UNKNOWN"
+  ],
+  "unknown_license_markers": [
+    "UNKNOWN",
+    "NOASSERTION",
+    "NONE"
+  ],
+  "unknown_license_prefixes": [
+    "sha256:"
+  ],
+  "version": "1.0.0"
+}

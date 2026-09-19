@@ -18,7 +18,7 @@ Every dependency or data source must ultimately record exact version, source, li
 
 ## Compliance states
 
-Use `APPROVED`, `APPROVED_WITH_NOTICE`, `RESTRICTED`, `BLOCKED`, or `UNKNOWN` for compliance classification. `UNKNOWN` is never equivalent to approval.
+Use `APPROVED`, `APPROVED_WITH_NOTICE`, `REVIEW_REQUIRED`, `RESTRICTED`, `BLOCKED`, or `UNKNOWN` for compliance classification. `UNKNOWN` is never equivalent to approval.
 
 Strong-copyleft, source-available, non-commercial, academic-only, research-only, or unknown terms require explicit review before introduction into a distributed or production runtime.
 
@@ -28,4 +28,4 @@ Existing unresolved dependencies are remediation debt, not grandfathered approva
 
 Do not claim `LICENSE-CLEAN` until the complete dependency, transitive, container, and data-source inventories have been reconciled and the final compliance gate has passed.
 
-Licensing changes require a dedicated pull request, evidence of the exact affected artifacts, and human merge approval. This Stage 1 policy does not modify the canonical ruleset, scientific behavior, evidence schemas, or runtime contracts.
+Licensing changes require a dedicated pull request, evidence of the exact affected artifacts, and human merge approval. Stage 5 enforces this software-dependency policy automatically for future pull requests; scientific-data licensing remains a separate later stage. The policy does not modify the canonical ruleset or scientific interpretation behavior.

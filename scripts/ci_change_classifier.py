@@ -15,6 +15,10 @@ POLICY_EXACT = {
     "scripts/sealed_ruleset.py",
     "scripts/ci_change_classifier.py",
     "scripts/run_live_post_deployment_smoke.py",
+    "scripts/build_stage5_license_gate.py",
+    "scripts/validate_stage5_license_gate.py",
+    "config/software_license_policy.json",
+    "config/software_license_gate_registry.json",
     ".github/workflows/genoma-policy-engine.yml",
 }
 POLICY_PREFIXES = (

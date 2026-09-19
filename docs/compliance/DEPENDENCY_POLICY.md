@@ -28,4 +28,8 @@ Stage 4 establishes the software/container inventory in `config/third_party_soft
 
 ## Enforcement boundary
 
-Stage 4 enforces inventory integrity, exact transitive Conda identities, and final-image SBOM generation, but it does not automatically approve or reject every license obligation at merge time. Stage 5 is the automated license-policy enforcement stage. Until Stage 5 is merged, reviewers must fail closed on `UNKNOWN`, `BLOCKED_BY_DEFAULT`, or undocumented restricted terms unless an exact artifact-specific disposition is recorded.
+Stage 5 converts the Stage 4 inventory into the closed enforcement vocabulary `APPROVED`, `APPROVED_WITH_NOTICE`, `REVIEW_REQUIRED`, `RESTRICTED`, `BLOCKED`, and `UNKNOWN`. Only `APPROVED` and `APPROVED_WITH_NOTICE` are eligible for automatic introduction as new software dependencies. `UNKNOWN` is never approval.
+
+The 146 non-approved records present at the Stage 4 merge are frozen in `locks/stage5-license-debt-baseline.json` as a non-authorizing historical debt ceiling. Their presence is not a legal clearance or grandfathered approval. Future pull requests may remove that debt, but may not add new non-approved records, mutate a debt fingerprint, or rewrite the frozen policy/baseline through the ordinary PR gate.
+
+The required `static` workflow executes `scripts/validate_stage5_license_gate.py` against the exact pull-request base SHA. The same gate is called by `scripts/validate_repo.py`, so local repository validation and CI use the same fail-closed policy. Scientific datasets, scores, models, reference resources, and their usage terms remain outside this software gate and are handled in the later scientific-data licensing stage.
