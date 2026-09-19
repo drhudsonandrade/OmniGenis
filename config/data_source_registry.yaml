@@ -512,7 +512,7 @@
       ],
       "id": "aadr",
       "license": "CC0-1.0 recorded in the existing OmniGenis ancestry artifact; official Dataverse page was not independently machine-verifiable in Stage 6",
-      "limitations": "The repository records CC0 1.0 for AADR v66.p1, but Stage 6 could not independently read the authoritative Dataverse license due interactive access. This is not upgraded to VERIFIED_OPEN.",
+      "limitations": "The repository records CC0 1.0 for AADR v66.p1, but Stage 6 could not independently read the authoritative Dataverse license because the page requires interactive access. This is not upgraded to VERIFIED_OPEN.",
       "local_artifact": "config/ancestry_reference_panel.json.gz",
       "local_copy_allowed": "REVIEW_REQUIRED_PENDING_OFFICIAL_REVALIDATION",
       "modification": "REVIEW_REQUIRED_PENDING_OFFICIAL_REVALIDATION",

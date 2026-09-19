@@ -50,7 +50,7 @@
     },
     "scientific_data_source_registry": {
       "path": "config/data_source_registry.yaml",
-      "sha256": "603ead36f9a354cf74b8ce12f779dde3afaf78d0f92c834ad541770f80115902"
+      "sha256": "dc39ad56030439f133c21b3043961bd11b321a14930de9c60748d37b55359599"
     }
   },
   "conda": {

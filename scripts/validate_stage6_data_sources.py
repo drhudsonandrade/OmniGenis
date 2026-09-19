@@ -42,10 +42,34 @@ NO_LOCAL_HASH_SENTINELS = {
 }
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 PGS_WEIGHTS = re.compile(r"^PGS\d{6}.*\.(?:txt|tsv|csv)(?:\.gz)?$", re.IGNORECASE)
+PANELAPP_ENGLAND_PROTECTED_FIELDS = {
+    "status": "RESTRICTED",
+    "license": "Genomics England PanelApp custom Terms of Use (December 2019)",
+    "commercial_use": "PROHIBITED_WITHOUT_SEPARATE_AGREEMENT",
+    "clinical_use": "PROHIBITED_WITHOUT_SEPARATE_AGREEMENT_FOR_DIAGNOSTIC_OR_MEDICAL_DECISION_USE",
+    "research_use": "NON_COMMERCIAL_USE_ONLY_UNLESS_SEPARATE_AGREEMENT",
+    "redistribution": "RESTRICTED_BY_TERMS_AND_EMBEDDED_THIRD_PARTY_RIGHTS",
+    "modification": "RESTRICTED; third-party content can impose additional conditions",
+    "derived_data": "COMMERCIALISATION_RESTRICTED_WITHOUT_CONSENT",
+    "local_copy_allowed": "API_SNAPSHOT_ALLOWED_SUBJECT_TO_TERMS",
+    "attribution_required": "YES",
+}
+
+
+def _reject_duplicate_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"duplicate JSON key: {key}")
+        result[key] = value
+    return result
 
 
 def _load_json(path: Path) -> dict[str, Any]:
-    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload = json.loads(
+        path.read_text(encoding="utf-8"),
+        object_pairs_hook=_reject_duplicate_pairs,
+    )
     if not isinstance(payload, dict):
         raise ValueError(f"JSON object required: {path}")
     return payload
@@ -53,6 +77,14 @@ def _load_json(path: Path) -> dict[str, Any]:
 
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _resolve_repo_path(root: Path, value: str) -> Path:
+    root_resolved = root.resolve()
+    candidate = (root_resolved / value).resolve()
+    if not candidate.is_relative_to(root_resolved):
+        raise ValueError("path escapes repository root")
+    return candidate
 
 
 def _resource_map(payload: dict[str, Any], errors: list[str]) -> dict[str, dict[str, Any]]:
@@ -100,13 +132,17 @@ def _validate_required_fields(root: Path, resource: dict[str, Any], errors: list
         if not isinstance(local_artifact, str) or not local_artifact:
             errors.append(f"Stage 6 local artifact path invalid: {resource_id}")
         else:
-            path = root / local_artifact
-            if not path.is_file():
-                errors.append(f"Stage 6 local artifact missing: {resource_id} -> {local_artifact}")
-            elif not isinstance(digest, str) or not SHA256.fullmatch(digest):
-                errors.append(f"Stage 6 local artifact digest invalid: {resource_id}")
-            elif _sha256(path) != digest:
-                errors.append(f"Stage 6 local artifact digest mismatch: {resource_id}")
+            try:
+                path = _resolve_repo_path(root, local_artifact)
+            except (OSError, ValueError):
+                errors.append(f"Stage 6 local artifact escapes repository root: {resource_id}")
+            else:
+                if not path.is_file():
+                    errors.append(f"Stage 6 local artifact missing: {resource_id} -> {local_artifact}")
+                elif not isinstance(digest, str) or not SHA256.fullmatch(digest):
+                    errors.append(f"Stage 6 local artifact digest invalid: {resource_id}")
+                elif _sha256(path) != digest:
+                    errors.append(f"Stage 6 local artifact digest mismatch: {resource_id}")
     elif digest not in NO_LOCAL_HASH_SENTINELS:
         errors.append(f"Stage 6 non-local resource must use an explicit no-local-copy digest sentinel: {resource_id}")
 
@@ -162,11 +198,11 @@ def _validate_pgs(root: Path, resource: dict[str, Any], errors: list[str]) -> No
     if not isinstance(artifact, str):
         errors.append("Stage 6 PGS record-level artifact invalid")
         return
-    path = root / artifact
     try:
+        path = _resolve_repo_path(root, artifact)
         with gzip.open(path, "rt", encoding="utf-8") as handle:
-            payload = json.load(handle)
-    except (OSError, json.JSONDecodeError) as exc:
+            payload = json.load(handle, object_pairs_hook=_reject_duplicate_pairs)
+    except (OSError, ValueError) as exc:
         errors.append(f"Stage 6 PGS artifact unreadable: {type(exc).__name__}: {exc}")
         return
     scores = payload.get("scores")
@@ -194,7 +230,7 @@ def _validate_pgs(root: Path, resource: dict[str, Any], errors: list[str]) -> No
 
 
 def _validate_no_pgs_weights_committed(root: Path, errors: list[str]) -> None:
-    skip = {".git", "node_modules", "dist", "__pycache__", ".mypy_cache"}
+    skip = {".git", "node_modules", "__pycache__", ".mypy_cache"}
     offenders: list[str] = []
     for path in root.rglob("*"):
         if not path.is_file() or any(part in skip for part in path.parts):
@@ -240,8 +276,13 @@ def collect_errors(root: Path = ROOT) -> list[str]:
         _validate_pgs(root, pgs, errors)
     _validate_no_pgs_weights_committed(root, errors)
     panelapp = resources.get("panelapp-genomics-england")
-    if panelapp and panelapp.get("status") != "RESTRICTED":
-        errors.append("Stage 6 Genomics England PanelApp must remain RESTRICTED without a separate agreement")
+    if panelapp:
+        for field, expected in PANELAPP_ENGLAND_PROTECTED_FIELDS.items():
+            if panelapp.get(field) != expected:
+                errors.append(
+                    "Stage 6 Genomics England PanelApp protected field drift: "
+                    f"{field}"
+                )
     for resource_id in ("panelapp-australia", "gnomad", "aadr"):
         unresolved_resource = resources.get(resource_id)
         if unresolved_resource and unresolved_resource.get("status") != "REVIEW_REQUIRED":

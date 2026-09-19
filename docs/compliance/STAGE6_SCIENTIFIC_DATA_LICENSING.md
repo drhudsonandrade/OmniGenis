@@ -56,5 +56,9 @@ The registry records the authoritative URLs consulted on 2026-09-19, including N
 6. All evidence adapters must map to a registry source.
 7. Every non-derived GRCh38 manifest artifact must be covered.
 8. Restricted resources must state the restriction explicitly.
-9. PGS rights remain score-specific.
-10. No Stage 6 artifact may claim global legal, commercial, or clinical clearance.
+9. PGS rights remain score-specific; score-weight filename checks also cover `dist/` so tracked build output cannot bypass the gate.
+10. JSON duplicate keys are rejected instead of silently accepting the last value.
+11. Repository-local evidence paths are resolved and must remain contained under the repository root; absolute paths, escaping `..`, and symlink escapes fail closed.
+12. Genomics England PanelApp protected rights fields are validated independently against their exact restricted values.
+13. Required CI coverage is tested against the executable `run` command of the named `static` workflow step, not a raw-text mention.
+14. No Stage 6 artifact may claim global legal, commercial, or clinical clearance.
