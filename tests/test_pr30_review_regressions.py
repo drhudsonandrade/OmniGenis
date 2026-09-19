@@ -60,12 +60,14 @@ class PharmacogenomicIdentityTest(unittest.TestCase):
                 "decision": "ALLOW_WITH_OBLIGATIONS",
                 "obligations": ["test-only Stage 7 authorization fixture"],
             }
-            with patch(
-                "scripts.build_pharmacogenomic_report.evaluate_use",
-                return_value=authorized,
+            with (
+                patch(
+                    "scripts.build_pharmacogenomic_report.evaluate_use",
+                    return_value=authorized,
+                ),
+                self.assertRaisesRegex(ValueError, "same non-empty case_id"),
             ):
-                with self.assertRaisesRegex(ValueError, "same non-empty case_id"):
-                    build_payload(passport, matrix)
+                build_payload(passport, matrix)
 
 
 class PgxPanelDigestTest(unittest.TestCase):

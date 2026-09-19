@@ -207,15 +207,18 @@ def collect_errors(root: Path = ROOT) -> list[str]:
     except PurposeUseError as exc:
         errors.append(f'Stage 7 protected PanelApp evaluation failed: {exc}')
     else:
-        if panel['decision'] != 'DENY': errors.append('Stage 7 PanelApp commercial use must DENY')
-        if panel_clinical['decision'] != 'DENY': errors.append('Stage 7 PanelApp clinical use must DENY')
+        if panel['decision'] != 'DENY':
+            errors.append('Stage 7 PanelApp commercial use must DENY')
+        if panel_clinical['decision'] != 'DENY':
+            errors.append('Stage 7 PanelApp clinical use must DENY')
     return errors
 
 
 def main() -> int:
     errors=collect_errors(ROOT)
     if errors:
-        for error in errors: print(f'FAIL\t{error}')
+        for error in errors:
+            print(f'FAIL\t{error}')
         return 1
     matrix=_load_json(ROOT/'config/data_use_purpose_matrix.json')
     counts=matrix['decision_counts']
