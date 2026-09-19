@@ -29,28 +29,71 @@
       "verified_at": "2026-09-19"
     },
     "registry_validation": {
-      "status": "PROPOSED",
-      "result": null
+      "status": "EXECUTED",
+      "result": "PASS",
+      "command": "python3 scripts/validate_stage6_data_sources.py",
+      "resources": 19,
+      "restricted": 1,
+      "record_level": 1,
+      "review_required": 10
     },
     "focused_tests": {
-      "status": "PROPOSED",
-      "result": null
+      "status": "EXECUTED",
+      "result": "PASS",
+      "command": "python3 -m unittest discover -s tests -p 'test_stage6_data_sources.py' -v",
+      "tests": 13
     },
     "repository_validator": {
-      "status": "PROPOSED",
-      "result": null
+      "status": "EXECUTED",
+      "result": "PASS",
+      "command": "python scripts/validate_repo.py"
     },
     "full_python_suite": {
-      "status": "PROPOSED",
-      "result": null
+      "status": "EXECUTED",
+      "result": "PASS",
+      "command": "python -m unittest discover -s tests -p 'test_*.py' -v",
+      "tests": 1347,
+      "skipped": 2,
+      "duration_seconds": 458.209,
+      "validated_head_sha": "e5bfb82cabe28f27c995b1471ac0871ded438847",
+      "validated_tree_sha": "c1d941739f6929c254b88af77c24ad6fb702f7d2",
+      "environment": "Python 3.12 isolated venv; reporting/requirements.txt installed with hash verification; venv on PATH for subprocess inheritance"
     },
     "mcp_suite": {
-      "status": "PROPOSED",
-      "result": null
+      "status": "EXECUTED",
+      "result": "PASS",
+      "command": "cd mcp && npm test",
+      "tests": 46,
+      "passed": 45,
+      "skipped": 1,
+      "failed": 0,
+      "npm_audit": "0 vulnerabilities"
     },
     "exact_head_ci": {
       "status": "CI_REQUIRED",
       "result": null
+    },
+    "ci_contract_tests": {
+      "status": "EXECUTED",
+      "result": "PASS",
+      "command": "python3 -m unittest discover -s tests -p 'test_ci_optimization_contract.py' -v",
+      "tests": 33
+    },
+    "syntax_and_compile": {
+      "status": "EXECUTED",
+      "result": "PASS",
+      "commands": [
+        "bash -n scripts/*.sh tests/test_wgs_align_or_stage.sh tests/test_ci_changed_paths.sh",
+        "python -m compileall -q policy_engine/genoma_policy scripts evidence_adapters"
+      ]
+    },
+    "implementation_binding": {
+      "status": "VERIFIED",
+      "result": "PASS",
+      "check": "base_main_sha != validated_implementation_sha",
+      "base_main_sha": "5bb0b03d25f9bc3be26850a72a85950f34a61dca",
+      "validated_implementation_sha": "e5bfb82cabe28f27c995b1471ac0871ded438847",
+      "validated_implementation_tree": "c1d941739f6929c254b88af77c24ad6fb702f7d2"
     }
   },
   "claims": {
@@ -72,5 +115,13 @@
     "https://www.internationalgenome.org/category/data-access/",
     "https://www.gencodegenes.org/pages/data_access.html",
     "https://gatk.broadinstitute.org/hc/en-us/articles/360035890811-Resource-bundle"
-  ]
+  ],
+  "validated_at_utc": "2026-09-19T10:41:33Z",
+  "validated_implementation_sha": "e5bfb82cabe28f27c995b1471ac0871ded438847",
+  "validated_implementation_tree": "c1d941739f6929c254b88af77c24ad6fb702f7d2",
+  "validation_output": {
+    "path": "docs/evidence/STAGE6_SCIENTIFIC_DATA_LICENSING_VALIDATION_2026-09-19.txt",
+    "sha256": "c3fcbb229e8f9f81e8cb35c8154fcbe60c30744abc310609de98ed17f5d9e04c",
+    "durable_locator": "docs/evidence/STAGE6_SCIENTIFIC_DATA_LICENSING_VALIDATION_2026-09-19.txt"
+  }
 }
