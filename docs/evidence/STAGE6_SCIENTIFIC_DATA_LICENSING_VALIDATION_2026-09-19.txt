@@ -1,12 +1,11 @@
 OMNIGENIS STAGE 6 SCIENTIFIC DATA LICENSING VALIDATION
 
 EVIDENCE_STATUS=VERIFIED
-VALIDATED_AT_UTC=2026-09-19T10:41:33Z
-REVALIDATED_AT_UTC=2026-09-19T11:58:56Z
+VALIDATED_AT_UTC=2026-09-19T12:11:30Z
 BASE_MAIN_SHA=5bb0b03d25f9bc3be26850a72a85950f34a61dca
 BASE_MAIN_TREE=dae947661fcb2557851a759637a50baa64e26a74
-VALIDATED_IMPLEMENTATION_SHA=e5bfb82cabe28f27c995b1471ac0871ded438847
-VALIDATED_IMPLEMENTATION_TREE=c1d941739f6929c254b88af77c24ad6fb702f7d2
+VALIDATED_IMPLEMENTATION_SHA=96369925593938e9da3138d6510f73091b175b85
+VALIDATED_IMPLEMENTATION_TREE=9a7aa557e669426c5f0f533a40344630562279ba
 BASE_IMPLEMENTATION_DISTINCT=PASS
 
 STAGE6_REGISTRY=PASS resources=19 documented_open=3 documented_with_obligations=4 record_level=1 restricted=1 review_required=10
@@ -18,11 +17,12 @@ SYNTAX_COMPILE=PASS
 REPOSITORY_VALIDATOR=PASS
 STAGE6_FOCUSED_TESTS=PASS tests=13
 CI_OPTIMIZATION_TESTS=PASS tests=33
-PYTHON_SUITE=PASS tests=1347 skipped=2 duration_seconds=458.209 elapsed_seconds=459.340
+PYTHON_SUITE=PASS tests=1347 skipped=2 duration_seconds=491.127 elapsed_seconds=492.100
 MCP_SUITE=PASS tests=46 passed=45 skipped=1 failed=0
 NPM_AUDIT=PASS vulnerabilities=0
 
-VALIDATION_ENVIRONMENT=Python 3.12 isolated venv populated from reporting/requirements.txt with hash verification; venv on PATH for subprocess inheritance.
+MCP_VALIDATION_NOTE=Initial detached-worktree attempt was discarded because Git-ignored node_modules was absent (tsc not found). Re-run reused the already installed node_modules from the primary checkout via symlink; no dependency resolution or installation occurred.
+VALIDATION_ENVIRONMENT=Python 3.12 isolated venv populated from reporting/requirements.txt with hash verification; venv on PATH for subprocess inheritance; detached worktree pinned to the exact implementation SHA.
 LICENSE_CLEAN_CLAIM=false
 COMMERCIAL_CLEARANCE_CLAIM=false
 CLINICAL_CLEARANCE_CLAIM=false

@@ -54,11 +54,11 @@
       "command": "python -m unittest discover -s tests -p 'test_*.py' -v",
       "tests": 1347,
       "skipped": 2,
-      "duration_seconds": 458.209,
-      "validated_head_sha": "e5bfb82cabe28f27c995b1471ac0871ded438847",
-      "validated_tree_sha": "c1d941739f6929c254b88af77c24ad6fb702f7d2",
-      "environment": "Python 3.12 isolated venv; reporting/requirements.txt installed with hash verification; venv on PATH for subprocess inheritance",
-      "elapsed_seconds": 459.34
+      "duration_seconds": 491.127,
+      "validated_head_sha": "96369925593938e9da3138d6510f73091b175b85",
+      "validated_tree_sha": "9a7aa557e669426c5f0f533a40344630562279ba",
+      "environment": "Python 3.12 isolated venv; reporting/requirements.txt installed with hash verification; venv on PATH for subprocess inheritance; executed from detached worktree at exact implementation SHA",
+      "elapsed_seconds": 492.1
     },
     "mcp_suite": {
       "status": "EXECUTED",
@@ -68,7 +68,8 @@
       "passed": 45,
       "skipped": 1,
       "failed": 0,
-      "npm_audit": "0 vulnerabilities"
+      "npm_audit": "0 vulnerabilities",
+      "environment_note": "Initial detached-worktree attempt was discarded because Git-ignored node_modules was absent (tsc not found). Re-run used the already installed node_modules from the primary checkout via symlink; no dependency resolution/install occurred."
     },
     "exact_head_ci": {
       "status": "CI_REQUIRED",
@@ -93,8 +94,8 @@
       "result": "PASS",
       "check": "base_main_sha != validated_implementation_sha",
       "base_main_sha": "5bb0b03d25f9bc3be26850a72a85950f34a61dca",
-      "validated_implementation_sha": "e5bfb82cabe28f27c995b1471ac0871ded438847",
-      "validated_implementation_tree": "c1d941739f6929c254b88af77c24ad6fb702f7d2"
+      "validated_implementation_sha": "96369925593938e9da3138d6510f73091b175b85",
+      "validated_implementation_tree": "9a7aa557e669426c5f0f533a40344630562279ba"
     }
   },
   "claims": {
@@ -118,12 +119,12 @@
     "https://gatk.broadinstitute.org/hc/en-us/articles/360035890811-Resource-bundle"
   ],
   "validated_at_utc": "2026-09-19T10:41:33Z",
-  "validated_implementation_sha": "e5bfb82cabe28f27c995b1471ac0871ded438847",
-  "validated_implementation_tree": "c1d941739f6929c254b88af77c24ad6fb702f7d2",
+  "validated_implementation_sha": "96369925593938e9da3138d6510f73091b175b85",
+  "validated_implementation_tree": "9a7aa557e669426c5f0f533a40344630562279ba",
   "validation_output": {
     "path": "docs/evidence/STAGE6_SCIENTIFIC_DATA_LICENSING_VALIDATION_2026-09-19.txt",
-    "sha256": "564891f9b78e7dd953a832930da1ce42544bf9e3ffbafd89a3e1bc6ab9b357f7",
+    "sha256": "5727f052893d19e9c31115c0b33a3db39b6cb47d51abb31bd87aca952a80c250",
     "durable_locator": "docs/evidence/STAGE6_SCIENTIFIC_DATA_LICENSING_VALIDATION_2026-09-19.txt"
   },
-  "revalidated_at_utc": "2026-09-19T11:58:56Z"
+  "revalidated_at_utc": "2026-09-19T12:11:30Z"
 }
