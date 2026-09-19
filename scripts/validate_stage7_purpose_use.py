@@ -158,9 +158,10 @@ def collect_errors(root: Path = ROOT) -> list[str]:
             errors.append('Stage 7 source registry contains non-object resource')
             continue
         resource_id=str(resource.get('id'))
-        status=resource.get('status')
-        if status not in status_floors:
-            errors.append(f'Stage 7 unmapped source status: {resource_id}={status}')
+        status_value = resource.get('status')
+        status = status_value if isinstance(status_value, str) else ''
+        if not status or status not in status_floors:
+            errors.append(f'Stage 7 unmapped source status: {resource_id}={status_value}')
         for field in referenced_fields:
             token=str(resource.get(field) or '').strip()
             if not token:
@@ -182,7 +183,8 @@ def collect_errors(root: Path = ROOT) -> list[str]:
         if not isinstance(resource,dict) or not isinstance(resource.get('id'),str):
             continue
         resource_id=resource['id']
-        status=resource.get('status')
+        status_value = resource.get('status')
+        status = status_value if isinstance(status_value, str) else ''
         for purpose in EXPECTED_PURPOSES:
             try:
                 result=evaluate_use(resource_id,[purpose],root=root)

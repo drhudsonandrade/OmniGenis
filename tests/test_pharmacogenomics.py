@@ -694,10 +694,14 @@ class ConditionalLayerReachesTheReportTest(unittest.TestCase):
 
         matrix_path, passport, _ = _artifacts(root, CLEAN_ROWS, registry=self.REAL_REGISTRY)
         passport_path = write_passport(passport, root / "passport.json")
-        return (
-            build_payload(passport_path, matrix_path, policy_evaluation_file(root), data_use_authorization=_stage7_cpic_report_authorization())["sections"],
-            passport,
-        )
+        with patch(
+            "scripts.build_pharmacogenomic_report.evaluate_use",
+            return_value=_stage7_cpic_report_authorization(),
+        ):
+            sections = build_payload(
+                passport_path, matrix_path, policy_evaluation_file(root)
+            )["sections"]
+        return sections, passport
 
     def test_a_conditional_phenotype_in_the_passport_appears_in_the_report(self):
         """A conditional phenotype in the passport reaches the report."""
@@ -783,11 +787,14 @@ class ReportIntegrationTest(unittest.TestCase):
                 input_sha256=str(matrix_payload["input_sha256"]),
             ),
         )
-        payload = build_payload(
-            passport_path, matrix_path, policy,
-            consent=consent_for(root, matrix_path),
-            data_use_authorization=_stage7_cpic_report_authorization(),
-        )
+        with patch(
+            "scripts.build_pharmacogenomic_report.evaluate_use",
+            return_value=_stage7_cpic_report_authorization(),
+        ):
+            payload = build_payload(
+                passport_path, matrix_path, policy,
+                consent=consent_for(root, matrix_path),
+            )
         # This integration fixture exercises FINAL rendering. The compiler deliberately
         # emits a curated payload whose ruleset digest and placeholder result must be
         # supplied by the release assembly, so model those separately verified release
@@ -804,7 +811,9 @@ class ReportIntegrationTest(unittest.TestCase):
             root = Path(td)
             matrix_path, passport, _ = _artifacts(root, CLEAN_ROWS, registry=REGISTRY)
             passport_path = write_passport(passport, root / "passport.json")
-            with self.assertRaisesRegex(ValueError, "Stage 7 data-use authorization is required"):
+            with self.assertRaisesRegex(
+                ValueError, "Stage 7 data-use decision does not authorize report generation"
+            ):
                 build_payload(passport_path, matrix_path)
 
     def test_passport_and_matrix_must_share_the_same_input(self):
@@ -818,11 +827,12 @@ class ReportIntegrationTest(unittest.TestCase):
             mismatched = json.loads(passport_path.read_text(encoding="utf-8"))
             mismatched["input_sha256"] = "f" * 64
             passport_path.write_text(json.dumps(mismatched), encoding="utf-8")
-            with self.assertRaisesRegex(ValueError, "same non-empty input_sha256"):
-                build_payload(
-                    passport_path, matrix_path,
-                    data_use_authorization=_stage7_cpic_report_authorization(),
-                )
+            with patch(
+                "scripts.build_pharmacogenomic_report.evaluate_use",
+                return_value=_stage7_cpic_report_authorization(),
+            ):
+                with self.assertRaisesRegex(ValueError, "same non-empty input_sha256"):
+                    build_payload(passport_path, matrix_path)
 
     def test_unassembled_payload_keeps_release_prerequisites_fail_closed(self):
         """A payload assembled without the release prerequisites is refused, not published."""

@@ -202,7 +202,6 @@ def build_payload(
     policy_evaluation: Path | None = None,
     post_deployment_witness: Path | None = None,
     consent: Path | None = None,
-    data_use_authorization: dict | None = None,
 ) -> dict:
     """Compile the payload for the pharmacogenomic report from passport and matrix.
 
@@ -217,17 +216,26 @@ def build_payload(
     payload without that anchor, and the publication gate in `reporting.engine` refuses to
     release a FINAL document that lacks it.
     """
-    if data_use_authorization is None:
-        raise ValueError("Stage 7 data-use authorization is required")
+    # Re-evaluate the canonical Stage 7 gate at the compilation boundary.  A caller-supplied
+    # authorization object is intentionally not accepted here: otherwise a forged
+    # ``authorized=true`` dictionary could bypass the purpose-of-use policy even if the CLI
+    # entry point checked the gate correctly.
+    data_use_authorization = evaluate_use("cpic", ["REPORT_GENERATION"], root=ROOT)
     if data_use_authorization.get("authorized") is not True:
         raise ValueError("Stage 7 data-use decision does not authorize report generation")
     if data_use_authorization.get("resource_id") != "cpic":
         raise ValueError("Stage 7 report authorization must be for the cpic resource")
     purposes = data_use_authorization.get("purposes")
-    if not isinstance(purposes, list) or not all(isinstance(item, str) for item in purposes) or "REPORT_GENERATION" not in purposes:
+    if (
+        not isinstance(purposes, list)
+        or not all(isinstance(item, str) for item in purposes)
+        or "REPORT_GENERATION" not in purposes
+    ):
         raise ValueError("Stage 7 report authorization must include REPORT_GENERATION")
     obligations = data_use_authorization.get("obligations")
-    if not isinstance(obligations, list) or not all(isinstance(item, str) and item for item in obligations):
+    if not isinstance(obligations, list) or not all(
+        isinstance(item, str) and item for item in obligations
+    ):
         raise ValueError("Stage 7 report authorization obligations are invalid")
     decision = data_use_authorization.get("decision")
     if not isinstance(decision, str) or decision not in {"ALLOW", "ALLOW_WITH_OBLIGATIONS"}:
@@ -572,7 +580,6 @@ def main() -> int:
             else None
         ),
         consent=Path(args.consent) if args.consent else None,
-        data_use_authorization=data_use_authorization,
     )
     out = Path(args.payload_out)
     out.parent.mkdir(parents=True, exist_ok=True)

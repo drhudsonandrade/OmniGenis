@@ -53,17 +53,19 @@ class PharmacogenomicIdentityTest(unittest.TestCase):
                 json.dumps({"case_id": "CASE-B", "input_sha256": "a" * 64}),
                 encoding="utf-8",
             )
-            with self.assertRaisesRegex(ValueError, "same non-empty case_id"):
-                build_payload(
-                    passport, matrix,
-                    data_use_authorization={
-                        "authorized": True,
-                        "resource_id": "cpic",
-                        "purposes": ["REPORT_GENERATION"],
-                        "decision": "ALLOW_WITH_OBLIGATIONS",
-                        "obligations": ["test-only Stage 7 authorization fixture"],
-                    },
-                )
+            authorized = {
+                "authorized": True,
+                "resource_id": "cpic",
+                "purposes": ["REPORT_GENERATION"],
+                "decision": "ALLOW_WITH_OBLIGATIONS",
+                "obligations": ["test-only Stage 7 authorization fixture"],
+            }
+            with patch(
+                "scripts.build_pharmacogenomic_report.evaluate_use",
+                return_value=authorized,
+            ):
+                with self.assertRaisesRegex(ValueError, "same non-empty case_id"):
+                    build_payload(passport, matrix)
 
 
 class PgxPanelDigestTest(unittest.TestCase):

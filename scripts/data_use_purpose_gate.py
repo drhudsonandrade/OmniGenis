@@ -170,14 +170,14 @@ def evaluate_use(
         raise PurposeUseError(f'unknown resource: {resource_id}')
     resource = resources[resource_id]
 
-    order = _require_str_int_map(
+    order: dict[str, int] = _require_str_int_map(
         policy.get('decision_order'), name='Stage 7 decision order'
     )
-    purpose_specs = _require_purpose_specs(policy.get('purposes'))
-    token_decisions = _require_str_str_map(
+    purpose_specs: dict[str, dict[str, Any]] = _require_purpose_specs(policy.get('purposes'))
+    token_decisions: dict[str, str] = _require_str_str_map(
         policy.get('token_decisions'), name='Stage 7 rights-token map'
     )
-    status_floors = _require_str_str_map(
+    status_floors: dict[str, str] = _require_str_str_map(
         policy.get('status_floors'), name='Stage 7 status-floor map'
     )
 
@@ -191,7 +191,8 @@ def evaluate_use(
     attribution_values: list[str] = [value for value in raw_attribution_values if isinstance(value, str)]
 
     status = str(resource.get('status') or '')
-    if status not in status_floors:
+    status_floor = status_floors.get(status)
+    if not isinstance(status_floor, str):
         raise PurposeUseError(f'unmapped resource status: {status}')
 
     per_purpose: list[dict[str, Any]] = []
@@ -228,11 +229,13 @@ def evaluate_use(
         minimum = spec.get('minimum_decision')
         if not isinstance(minimum, str):
             raise PurposeUseError(f'purpose minimum decision missing: {purpose}')
-        decision = _strictest(field_decisions + [minimum, status_floors[status]], order)
+        decision = _strictest(field_decisions + [minimum, status_floor], order)
 
+        attribution_required = resource.get('attribution_required')
         if (
             decision == 'ALLOW'
-            and resource.get('attribution_required') in attribution_values
+            and isinstance(attribution_required, str)
+            and attribution_required in attribution_values
         ):
             decision = 'ALLOW_WITH_OBLIGATIONS'
 
