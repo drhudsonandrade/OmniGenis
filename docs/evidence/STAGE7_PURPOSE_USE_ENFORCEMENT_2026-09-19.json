@@ -21,8 +21,8 @@
       "resources": 19,
       "purposes": 7,
       "decisions": 133,
-      "evidence": "docs/evidence/stage7/GATES_AND_FOCUSED_5f66982.summary.txt",
-      "sha256": "600cc644fdc94b74c5f434b9730903517f1a7635a38a11d8e87e9a096922a4ff"
+      "evidence": "docs/evidence/stage7/GATES_AND_FOCUSED_575a094.summary.txt",
+      "sha256": "797d0b8881ac7a005ae06285534d484b0a902aa4185b8592ea6e9f14a3f32411"
     },
     "purpose_validator": {
       "status": "EXECUTED",
@@ -33,62 +33,66 @@
         "RECORD_LEVEL_REVIEW_REQUIRED": 7,
         "REVIEW_REQUIRED": 89
       },
-      "evidence": "docs/evidence/stage7/GATES_AND_FOCUSED_5f66982.summary.txt",
-      "sha256": "600cc644fdc94b74c5f434b9730903517f1a7635a38a11d8e87e9a096922a4ff"
+      "evidence": "docs/evidence/stage7/GATES_AND_FOCUSED_575a094.summary.txt",
+      "sha256": "797d0b8881ac7a005ae06285534d484b0a902aa4185b8592ea6e9f14a3f32411"
     },
     "stage6_source_registry": {
       "status": "EXECUTED",
       "result": "PASS",
       "resources": 19,
-      "evidence": "docs/evidence/stage7/GATES_AND_FOCUSED_5f66982.summary.txt",
-      "sha256": "600cc644fdc94b74c5f434b9730903517f1a7635a38a11d8e87e9a096922a4ff"
+      "evidence": "docs/evidence/stage7/GATES_AND_FOCUSED_575a094.summary.txt",
+      "sha256": "797d0b8881ac7a005ae06285534d484b0a902aa4185b8592ea6e9f14a3f32411"
     },
     "supply_chain": {
       "status": "EXECUTED",
       "result": "PASS",
       "compliance_locks": 13,
-      "evidence": "docs/evidence/stage7/GATES_AND_FOCUSED_5f66982.summary.txt",
-      "sha256": "600cc644fdc94b74c5f434b9730903517f1a7635a38a11d8e87e9a096922a4ff"
+      "evidence": "docs/evidence/stage7/GATES_AND_FOCUSED_575a094.summary.txt",
+      "sha256": "797d0b8881ac7a005ae06285534d484b0a902aa4185b8592ea6e9f14a3f32411"
     },
     "focused_tests": {
       "status": "EXECUTED",
       "result": "PASS",
-      "tests": 20,
-      "evidence": "docs/evidence/stage7/GATES_AND_FOCUSED_5f66982.summary.txt",
-      "sha256": "600cc644fdc94b74c5f434b9730903517f1a7635a38a11d8e87e9a096922a4ff"
+      "tests": 21,
+      "evidence": "docs/evidence/stage7/GATES_AND_FOCUSED_575a094.summary.txt",
+      "sha256": "797d0b8881ac7a005ae06285534d484b0a902aa4185b8592ea6e9f14a3f32411"
     },
     "pharmacogenomic_integration_tests": {
       "status": "EXECUTED",
       "result": "PASS",
-      "tests": 9,
+      "tests": 15,
       "cpic_report_generation": "REVIEW_REQUIRED",
       "prewrite_block": true,
-      "evidence": "docs/evidence/stage7/GATES_AND_FOCUSED_5f66982.summary.txt",
-      "sha256": "600cc644fdc94b74c5f434b9730903517f1a7635a38a11d8e87e9a096922a4ff"
+      "direct_build_payload_auth_required": true,
+      "evidence": "docs/evidence/stage7/GATES_AND_FOCUSED_575a094.summary.txt",
+      "sha256": "797d0b8881ac7a005ae06285534d484b0a902aa4185b8592ea6e9f14a3f32411"
     },
     "ci_contract_tests": {
       "status": "EXECUTED",
       "result": "PASS",
       "tests": 33,
-      "evidence": "docs/evidence/stage7/GATES_AND_FOCUSED_5f66982.summary.txt",
-      "sha256": "600cc644fdc94b74c5f434b9730903517f1a7635a38a11d8e87e9a096922a4ff"
+      "evidence": "docs/evidence/stage7/CI_CONTRACT_575a094.summary.txt",
+      "sha256": "d17b946359e513102f93d72b6e05ead202a5e558c0a1fcac739bf084702455be"
     },
     "repository_validator": {
       "status": "EXECUTED",
       "result": "PASS",
-      "evidence": "docs/evidence/stage7/GATES_AND_FOCUSED_5f66982.summary.txt",
-      "sha256": "600cc644fdc94b74c5f434b9730903517f1a7635a38a11d8e87e9a096922a4ff"
+      "evidence": "docs/evidence/stage7/GATES_AND_FOCUSED_575a094.summary.txt",
+      "sha256": "797d0b8881ac7a005ae06285534d484b0a902aa4185b8592ea6e9f14a3f32411"
     },
     "full_python_suite": {
       "status": "EXECUTED",
       "result": "PASS",
-      "tests": 1372,
+      "tests": 1374,
       "skipped": 2,
-      "duration_seconds": 526.565,
-      "elapsed_seconds": 527.97,
+      "duration_seconds": 528.034,
+      "elapsed_seconds": 529.16,
       "exit_code": 0,
-      "evidence": "docs/evidence/stage7/FULL_PYTHON_5f66982.summary.txt",
-      "sha256": "397aac72476c94282570009568cc3531151d3c0a61c55cceec2bac80cb977ff9"
+      "interpreter": "/tmp/omnigenis-stage7-575a-final-venv/bin/python",
+      "interpreter_version": "Python 3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]",
+      "command": "/tmp/omnigenis-stage7-575a-final-venv/bin/python -m unittest discover -s tests -p test_*.py",
+      "evidence": "docs/evidence/stage7/FULL_PYTHON_575a094.summary.txt",
+      "sha256": "2803d3ae896b79a367336898b86abb5f26642f9439444db6509e087682e2d072"
     },
     "mcp_suite": {
       "status": "EXECUTED",
@@ -97,26 +101,26 @@
       "passed": 45,
       "skipped": 1,
       "failed": 0,
-      "evidence": "docs/evidence/stage7/MCP_5f66982.summary.txt",
-      "sha256": "a25053318f7df1053409f3bde358baa120d37044378a7b13586b1ddff119683e"
+      "exit_code": 0,
+      "evidence": "docs/evidence/stage7/MCP_575a094.summary.txt",
+      "sha256": "cb8434474e12e2be4e88e53e8ff97e1e5a0a6ee700ce825f7faecd84906dbac7"
     },
     "npm_audit": {
-      "status": "NOT_AVAILABLE",
-      "result": null,
-      "attempts": 3,
-      "reason": "official npm audit endpoint returned HTTP 503 maintenance on all attempts",
-      "pass_claim": false,
+      "status": "EXECUTED",
+      "result": "PASS",
+      "vulnerabilities": 0,
+      "exit_code": 0,
       "evidence": {
-        "path": "docs/evidence/stage7/NPM_AUDIT_5f66982.summary.txt",
-        "sha256": "04dc23fa89c80ea57cc0657707ccb0594d7723efb5c046f3579786603e21e465"
+        "path": "docs/evidence/stage7/NPM_AUDIT_575a094.summary.txt",
+        "sha256": "8be76394e587ce8a6ab770859674cde8c4405cd0c9d90881fdb7fc78ee4b58d4"
       }
     },
     "implementation_binding": {
       "status": "VERIFIED",
       "result": "PASS",
       "base_main_sha": "016f92ae18051ca5a65238819d4414ba7cf37a08",
-      "validated_implementation_sha": "5f66982b374094163dc980857b366f95065eb6cb",
-      "validated_implementation_tree": "ea34027d0118ca714216e4e6db62a809ea30295a"
+      "validated_implementation_sha": "575a094c0e17fdb38394d6a94083cd5cd3e5d843",
+      "validated_implementation_tree": "bf50ec056f116be236a30e85a3e02fc919a2e0c0"
     },
     "exact_head_ci": {
       "status": "CI_REQUIRED",
@@ -129,16 +133,16 @@
     "clinical_regulatory_clearance": false,
     "privacy_consent_clearance": false
   },
-  "validated_at_utc": "2026-09-19T17:23:04Z",
-  "validated_implementation_sha": "5f66982b374094163dc980857b366f95065eb6cb",
-  "validated_implementation_tree": "ea34027d0118ca714216e4e6db62a809ea30295a",
+  "validated_at_utc": "2026-09-19T19:22:03Z",
+  "validated_implementation_sha": "575a094c0e17fdb38394d6a94083cd5cd3e5d843",
+  "validated_implementation_tree": "bf50ec056f116be236a30e85a3e02fc919a2e0c0",
   "artifact_index": {
-    "path": "docs/evidence/stage7/ARTIFACT_INDEX_5f66982.json",
-    "sha256": "186dd6437d5d566eefed385626b93a619d0a03f0d78f013a07440d3dd2c60084"
+    "path": "docs/evidence/stage7/ARTIFACT_INDEX_575a094.json",
+    "sha256": "cad8c5d8238cba9e67786bb0cb37d73d99b957aad631d2ffe261bb45ef93cf0c"
   },
   "validation_output": {
     "path": "docs/evidence/STAGE7_PURPOSE_USE_VALIDATION_2026-09-19.txt",
-    "sha256": "7fe9dea9fd8c87f2932d3bbba0076b5fcc160067b54b9fdd18ba6c080dbd3f8c",
+    "sha256": "dac01d05b0868ea795633765d2925810341f57b4c7683f881fd760e98adabcfa",
     "durable_locator": "docs/evidence/STAGE7_PURPOSE_USE_VALIDATION_2026-09-19.txt"
   }
 }
