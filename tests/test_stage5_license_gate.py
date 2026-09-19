@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 
 from scripts.build_stage5_license_gate import gate_status, render_gate_registry
-from scripts.validate_stage5_license_gate import collect_errors
+from scripts.validate_stage5_license_gate import _git_blob, _git_commit_exists, collect_errors
 
 ROOT = Path(__file__).resolve().parents[1]
 BOOTSTRAP_SHA = "9a379f58ac9fe0bb101ebfd737ac648e510bbca2"
@@ -233,6 +233,12 @@ class Stage5LicenseGateTest(unittest.TestCase):
             self._write_gate_registry(root)
             errors = collect_errors(root, base_sha=base_sha)
         self.assertIn("Stage 5 software license policy is immutable after activation", errors)
+
+    def test_git_helpers_reject_untrusted_object_and_path_inputs(self) -> None:
+        with self.assertRaisesRegex(ValueError, "full lowercase SHA"):
+            _git_commit_exists(ROOT, "HEAD;touch /tmp/not-allowed")
+        with self.assertRaisesRegex(ValueError, "protected artifact allowlist"):
+            _git_blob(ROOT, BOOTSTRAP_SHA, "../../etc/passwd")
 
     def test_initial_activation_rejects_wrong_bootstrap_base(self) -> None:
         errors = collect_errors(ROOT, base_sha="181bd15f56c1d00ff00fa21c1e78aca6e6daf0ae")

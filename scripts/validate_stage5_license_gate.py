@@ -41,6 +41,7 @@ REQUIRED = (
     DEBT_BASELINE_PATH,
     "config/third_party_software_registry.json",
 )
+ALLOWED_GIT_BLOB_PATHS = frozenset({POLICY_PATH, DEBT_BASELINE_PATH})
 
 
 def _load(path: Path) -> dict[str, Any]:
@@ -61,18 +62,30 @@ def _git_executable() -> str:
     return executable
 
 
+def _require_full_git_sha(sha: str) -> None:
+    if not GIT_SHA.fullmatch(sha):
+        raise ValueError("git object identity must be a full lowercase SHA")
+
+
 def _git_commit_exists(root: Path, sha: str) -> bool:
+    _require_full_git_sha(sha)
+    # Audited boundary: absolute executable, validated SHA, argv list, and no shell.
+    # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit
     completed = subprocess.run(
         [_git_executable(), "cat-file", "-e", f"{sha}^{{commit}}"],
         cwd=root,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         check=False,
+        shell=False,
     )
     return completed.returncode == 0
 
 
 def _git_tree(root: Path, sha: str) -> str | None:
+    _require_full_git_sha(sha)
+    # Audited boundary: absolute executable, validated SHA, argv list, and no shell.
+    # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit
     completed = subprocess.run(
         [_git_executable(), "rev-parse", f"{sha}^{{tree}}"],
         cwd=root,
@@ -81,6 +94,7 @@ def _git_tree(root: Path, sha: str) -> str | None:
         check=False,
         text=True,
         encoding="utf-8",
+        shell=False,
     )
     if completed.returncode != 0:
         return None
@@ -88,12 +102,18 @@ def _git_tree(root: Path, sha: str) -> str | None:
 
 
 def _git_blob(root: Path, sha: str, relative: str) -> bytes | None:
+    _require_full_git_sha(sha)
+    if relative not in ALLOWED_GIT_BLOB_PATHS:
+        raise ValueError("git blob path is outside the Stage 5 protected artifact allowlist")
+    # Audited boundary: absolute executable, validated SHA/path, argv list, and no shell.
+    # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit
     completed = subprocess.run(
         [_git_executable(), "show", f"{sha}:{relative}"],
         cwd=root,
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,
         check=False,
+        shell=False,
     )
     if completed.returncode != 0:
         return None
