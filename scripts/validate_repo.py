@@ -40,6 +40,7 @@ from scripts.zero_identity_guard import (  # noqa: E402
 from scripts.validate_stage4_compliance import collect_errors as validate_stage4_compliance  # noqa: E402
 from scripts.validate_stage5_license_gate import collect_errors as validate_stage5_license_gate  # noqa: E402
 from scripts.validate_stage6_data_sources import collect_errors as validate_stage6_data_sources  # noqa: E402
+from scripts.validate_stage7_purpose_use import collect_errors as validate_stage7_purpose_use  # noqa: E402
 
 CANONICAL_RULESET = EXPECTED_NAME
 CANONICAL_RULESET_SHA256 = EXPECTED_SHA
@@ -100,6 +101,11 @@ REQUIRED_PATHS = (
     "config/data_source_registry.yaml", "scripts/validate_stage6_data_sources.py",
     "docs/compliance/STAGE6_SCIENTIFIC_DATA_LICENSING.md",
     "docs/evidence/STAGE6_SCIENTIFIC_DATA_LICENSING_2026-09-19.json",
+    "config/data_use_purpose_policy.json", "config/data_use_purpose_matrix.json",
+    "scripts/data_use_purpose_gate.py", "scripts/build_stage7_purpose_matrix.py",
+    "scripts/validate_stage7_purpose_use.py", "docs/compliance/STAGE7_PURPOSE_USE_ENFORCEMENT.md",
+    "docs/evidence/STAGE7_PURPOSE_USE_ENFORCEMENT_2026-09-19.json",
+    "docs/evidence/STAGE7_PURPOSE_USE_VALIDATION_2026-09-19.txt",
     "evidence_adapters/__init__.py", "policy_engine/pyproject.toml", "policy_engine/genoma_policy/engine.py",
     "policy_engine/genoma_policy/attestation.py", "policy_engine/genoma_policy/ledger.py",
     "policy_engine/genoma_policy/version.py", "policy_engine/policy/schema/execution-manifest.schema.json",
@@ -1631,6 +1637,7 @@ def validate(root: Path) -> list[str]:
     errors.extend(validate_stage4_compliance(root))
     errors.extend(validate_stage5_license_gate(root))
     errors.extend(validate_stage6_data_sources(root))
+    errors.extend(validate_stage7_purpose_use(root))
 
     active = []
     for candidate in root.rglob("REGRAS_PROJETO_GENOMA*.txt"):

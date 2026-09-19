@@ -45,6 +45,18 @@ class RepoContractTest(unittest.TestCase):
         guard.assert_called_once_with(root)
         self.assertIn("project identity sentinel", errors)
 
+    def test_validate_repo_invokes_stage7_purpose_use_gate(self):
+        validator = load_validator()
+        root = Path(__file__).resolve().parents[1]
+        with patch.object(
+            validator,
+            "validate_stage7_purpose_use",
+            return_value=["stage7 purpose sentinel"],
+        ) as gate:
+            errors = validator.validate(root)
+        gate.assert_called_once_with(root)
+        self.assertIn("stage7 purpose sentinel", errors)
+
     def test_validate_repo_invokes_stage6_data_source_gate(self):
         validator = load_validator()
         root = Path(__file__).resolve().parents[1]
@@ -107,6 +119,20 @@ class RepoContractTest(unittest.TestCase):
         for relative in compliance_paths:
             self.assertIn(relative, validator.REQUIRED_PATHS)
             self.assertIn(f"missing required path: {relative}", errors)
+
+    def test_stage7_purpose_use_paths_are_required(self):
+        validator = load_validator()
+        for relative in (
+            "config/data_use_purpose_policy.json",
+            "config/data_use_purpose_matrix.json",
+            "scripts/data_use_purpose_gate.py",
+            "scripts/build_stage7_purpose_matrix.py",
+            "scripts/validate_stage7_purpose_use.py",
+            "docs/compliance/STAGE7_PURPOSE_USE_ENFORCEMENT.md",
+            "docs/evidence/STAGE7_PURPOSE_USE_ENFORCEMENT_2026-09-19.json",
+            "docs/evidence/STAGE7_PURPOSE_USE_VALIDATION_2026-09-19.txt",
+        ):
+            self.assertIn(relative, validator.REQUIRED_PATHS)
 
     def test_stage6_data_source_paths_are_required(self):
         validator = load_validator()
