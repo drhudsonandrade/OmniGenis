@@ -1,0 +1,264 @@
+{
+  "decision_count": 133,
+  "decision_counts": {
+    "ALLOW_WITH_OBLIGATIONS": 31,
+    "DENY": 6,
+    "RECORD_LEVEL_REVIEW_REQUIRED": 7,
+    "REVIEW_REQUIRED": 89
+  },
+  "matrix": [
+    {
+      "decisions": {
+        "CLINICAL": "REVIEW_REQUIRED",
+        "COMMERCIAL": "REVIEW_REQUIRED",
+        "DERIVED_DATA": "REVIEW_REQUIRED",
+        "MODEL_TRAINING": "REVIEW_REQUIRED",
+        "REDISTRIBUTION": "REVIEW_REQUIRED",
+        "REPORT_GENERATION": "REVIEW_REQUIRED",
+        "RESEARCH": "REVIEW_REQUIRED"
+      },
+      "resource_id": "1000-genomes-affy6",
+      "status": "REVIEW_REQUIRED"
+    },
+    {
+      "decisions": {
+        "CLINICAL": "REVIEW_REQUIRED",
+        "COMMERCIAL": "REVIEW_REQUIRED",
+        "DERIVED_DATA": "REVIEW_REQUIRED",
+        "MODEL_TRAINING": "REVIEW_REQUIRED",
+        "REDISTRIBUTION": "REVIEW_REQUIRED",
+        "REPORT_GENERATION": "REVIEW_REQUIRED",
+        "RESEARCH": "REVIEW_REQUIRED"
+      },
+      "resource_id": "aadr",
+      "status": "REVIEW_REQUIRED"
+    },
+    {
+      "decisions": {
+        "CLINICAL": "REVIEW_REQUIRED",
+        "COMMERCIAL": "REVIEW_REQUIRED",
+        "DERIVED_DATA": "REVIEW_REQUIRED",
+        "MODEL_TRAINING": "REVIEW_REQUIRED",
+        "REDISTRIBUTION": "REVIEW_REQUIRED",
+        "REPORT_GENERATION": "REVIEW_REQUIRED",
+        "RESEARCH": "REVIEW_REQUIRED"
+      },
+      "resource_id": "broad-gatk-grch38-resource-bundle",
+      "status": "REVIEW_REQUIRED"
+    },
+    {
+      "decisions": {
+        "CLINICAL": "REVIEW_REQUIRED",
+        "COMMERCIAL": "ALLOW_WITH_OBLIGATIONS",
+        "DERIVED_DATA": "ALLOW_WITH_OBLIGATIONS",
+        "MODEL_TRAINING": "REVIEW_REQUIRED",
+        "REDISTRIBUTION": "ALLOW_WITH_OBLIGATIONS",
+        "REPORT_GENERATION": "ALLOW_WITH_OBLIGATIONS",
+        "RESEARCH": "ALLOW_WITH_OBLIGATIONS"
+      },
+      "resource_id": "clingen-dosage-sensitivity",
+      "status": "DOCUMENTED_OPEN"
+    },
+    {
+      "decisions": {
+        "CLINICAL": "REVIEW_REQUIRED",
+        "COMMERCIAL": "ALLOW_WITH_OBLIGATIONS",
+        "DERIVED_DATA": "ALLOW_WITH_OBLIGATIONS",
+        "MODEL_TRAINING": "REVIEW_REQUIRED",
+        "REDISTRIBUTION": "ALLOW_WITH_OBLIGATIONS",
+        "REPORT_GENERATION": "ALLOW_WITH_OBLIGATIONS",
+        "RESEARCH": "ALLOW_WITH_OBLIGATIONS"
+      },
+      "resource_id": "clingen-gene-disease-validity",
+      "status": "DOCUMENTED_OPEN"
+    },
+    {
+      "decisions": {
+        "CLINICAL": "REVIEW_REQUIRED",
+        "COMMERCIAL": "ALLOW_WITH_OBLIGATIONS",
+        "DERIVED_DATA": "REVIEW_REQUIRED",
+        "MODEL_TRAINING": "REVIEW_REQUIRED",
+        "REDISTRIBUTION": "ALLOW_WITH_OBLIGATIONS",
+        "REPORT_GENERATION": "REVIEW_REQUIRED",
+        "RESEARCH": "ALLOW_WITH_OBLIGATIONS"
+      },
+      "resource_id": "clinpgx",
+      "status": "DOCUMENTED_WITH_OBLIGATIONS"
+    },
+    {
+      "decisions": {
+        "CLINICAL": "REVIEW_REQUIRED",
+        "COMMERCIAL": "ALLOW_WITH_OBLIGATIONS",
+        "DERIVED_DATA": "REVIEW_REQUIRED",
+        "MODEL_TRAINING": "REVIEW_REQUIRED",
+        "REDISTRIBUTION": "ALLOW_WITH_OBLIGATIONS",
+        "REPORT_GENERATION": "REVIEW_REQUIRED",
+        "RESEARCH": "ALLOW_WITH_OBLIGATIONS"
+      },
+      "resource_id": "cpic",
+      "status": "DOCUMENTED_WITH_OBLIGATIONS"
+    },
+    {
+      "decisions": {
+        "CLINICAL": "REVIEW_REQUIRED",
+        "COMMERCIAL": "REVIEW_REQUIRED",
+        "DERIVED_DATA": "REVIEW_REQUIRED",
+        "MODEL_TRAINING": "REVIEW_REQUIRED",
+        "REDISTRIBUTION": "REVIEW_REQUIRED",
+        "REPORT_GENERATION": "REVIEW_REQUIRED",
+        "RESEARCH": "REVIEW_REQUIRED"
+      },
+      "resource_id": "ebi-gwas-catalog",
+      "status": "REVIEW_REQUIRED"
+    },
+    {
+      "decisions": {
+        "CLINICAL": "RECORD_LEVEL_REVIEW_REQUIRED",
+        "COMMERCIAL": "RECORD_LEVEL_REVIEW_REQUIRED",
+        "DERIVED_DATA": "RECORD_LEVEL_REVIEW_REQUIRED",
+        "MODEL_TRAINING": "RECORD_LEVEL_REVIEW_REQUIRED",
+        "REDISTRIBUTION": "RECORD_LEVEL_REVIEW_REQUIRED",
+        "REPORT_GENERATION": "RECORD_LEVEL_REVIEW_REQUIRED",
+        "RESEARCH": "RECORD_LEVEL_REVIEW_REQUIRED"
+      },
+      "resource_id": "ebi-pgs-catalog",
+      "status": "RECORD_LEVEL_TERMS_REQUIRED"
+    },
+    {
+      "decisions": {
+        "CLINICAL": "REVIEW_REQUIRED",
+        "COMMERCIAL": "REVIEW_REQUIRED",
+        "DERIVED_DATA": "REVIEW_REQUIRED",
+        "MODEL_TRAINING": "REVIEW_REQUIRED",
+        "REDISTRIBUTION": "REVIEW_REQUIRED",
+        "REPORT_GENERATION": "REVIEW_REQUIRED",
+        "RESEARCH": "REVIEW_REQUIRED"
+      },
+      "resource_id": "encode-blacklist-boyle-lab",
+      "status": "REVIEW_REQUIRED"
+    },
+    {
+      "decisions": {
+        "CLINICAL": "REVIEW_REQUIRED",
+        "COMMERCIAL": "ALLOW_WITH_OBLIGATIONS",
+        "DERIVED_DATA": "ALLOW_WITH_OBLIGATIONS",
+        "MODEL_TRAINING": "REVIEW_REQUIRED",
+        "REDISTRIBUTION": "ALLOW_WITH_OBLIGATIONS",
+        "REPORT_GENERATION": "ALLOW_WITH_OBLIGATIONS",
+        "RESEARCH": "ALLOW_WITH_OBLIGATIONS"
+      },
+      "resource_id": "gencc",
+      "status": "DOCUMENTED_OPEN"
+    },
+    {
+      "decisions": {
+        "CLINICAL": "REVIEW_REQUIRED",
+        "COMMERCIAL": "REVIEW_REQUIRED",
+        "DERIVED_DATA": "REVIEW_REQUIRED",
+        "MODEL_TRAINING": "REVIEW_REQUIRED",
+        "REDISTRIBUTION": "REVIEW_REQUIRED",
+        "REPORT_GENERATION": "REVIEW_REQUIRED",
+        "RESEARCH": "REVIEW_REQUIRED"
+      },
+      "resource_id": "gencode-human",
+      "status": "REVIEW_REQUIRED"
+    },
+    {
+      "decisions": {
+        "CLINICAL": "REVIEW_REQUIRED",
+        "COMMERCIAL": "REVIEW_REQUIRED",
+        "DERIVED_DATA": "REVIEW_REQUIRED",
+        "MODEL_TRAINING": "REVIEW_REQUIRED",
+        "REDISTRIBUTION": "REVIEW_REQUIRED",
+        "REPORT_GENERATION": "REVIEW_REQUIRED",
+        "RESEARCH": "REVIEW_REQUIRED"
+      },
+      "resource_id": "gnomad",
+      "status": "REVIEW_REQUIRED"
+    },
+    {
+      "decisions": {
+        "CLINICAL": "REVIEW_REQUIRED",
+        "COMMERCIAL": "REVIEW_REQUIRED",
+        "DERIVED_DATA": "REVIEW_REQUIRED",
+        "MODEL_TRAINING": "DENY",
+        "REDISTRIBUTION": "REVIEW_REQUIRED",
+        "REPORT_GENERATION": "REVIEW_REQUIRED",
+        "RESEARCH": "REVIEW_REQUIRED"
+      },
+      "resource_id": "hpo",
+      "status": "REVIEW_REQUIRED"
+    },
+    {
+      "decisions": {
+        "CLINICAL": "REVIEW_REQUIRED",
+        "COMMERCIAL": "REVIEW_REQUIRED",
+        "DERIVED_DATA": "REVIEW_REQUIRED",
+        "MODEL_TRAINING": "REVIEW_REQUIRED",
+        "REDISTRIBUTION": "REVIEW_REQUIRED",
+        "REPORT_GENERATION": "REVIEW_REQUIRED",
+        "RESEARCH": "REVIEW_REQUIRED"
+      },
+      "resource_id": "mondo",
+      "status": "REVIEW_REQUIRED"
+    },
+    {
+      "decisions": {
+        "CLINICAL": "REVIEW_REQUIRED",
+        "COMMERCIAL": "ALLOW_WITH_OBLIGATIONS",
+        "DERIVED_DATA": "ALLOW_WITH_OBLIGATIONS",
+        "MODEL_TRAINING": "REVIEW_REQUIRED",
+        "REDISTRIBUTION": "ALLOW_WITH_OBLIGATIONS",
+        "REPORT_GENERATION": "ALLOW_WITH_OBLIGATIONS",
+        "RESEARCH": "ALLOW_WITH_OBLIGATIONS"
+      },
+      "resource_id": "ncbi-clinvar",
+      "status": "DOCUMENTED_WITH_OBLIGATIONS"
+    },
+    {
+      "decisions": {
+        "CLINICAL": "REVIEW_REQUIRED",
+        "COMMERCIAL": "ALLOW_WITH_OBLIGATIONS",
+        "DERIVED_DATA": "ALLOW_WITH_OBLIGATIONS",
+        "MODEL_TRAINING": "REVIEW_REQUIRED",
+        "REDISTRIBUTION": "ALLOW_WITH_OBLIGATIONS",
+        "REPORT_GENERATION": "ALLOW_WITH_OBLIGATIONS",
+        "RESEARCH": "ALLOW_WITH_OBLIGATIONS"
+      },
+      "resource_id": "ncbi-dbsnp",
+      "status": "DOCUMENTED_WITH_OBLIGATIONS"
+    },
+    {
+      "decisions": {
+        "CLINICAL": "REVIEW_REQUIRED",
+        "COMMERCIAL": "REVIEW_REQUIRED",
+        "DERIVED_DATA": "REVIEW_REQUIRED",
+        "MODEL_TRAINING": "REVIEW_REQUIRED",
+        "REDISTRIBUTION": "REVIEW_REQUIRED",
+        "REPORT_GENERATION": "REVIEW_REQUIRED",
+        "RESEARCH": "REVIEW_REQUIRED"
+      },
+      "resource_id": "panelapp-australia",
+      "status": "REVIEW_REQUIRED"
+    },
+    {
+      "decisions": {
+        "CLINICAL": "DENY",
+        "COMMERCIAL": "DENY",
+        "DERIVED_DATA": "REVIEW_REQUIRED",
+        "MODEL_TRAINING": "DENY",
+        "REDISTRIBUTION": "DENY",
+        "REPORT_GENERATION": "DENY",
+        "RESEARCH": "REVIEW_REQUIRED"
+      },
+      "resource_id": "panelapp-genomics-england",
+      "status": "RESTRICTED"
+    }
+  ],
+  "purpose_count": 7,
+  "purpose_policy_sha256": "09ac380257dc8942f8220b35980f2ac053727a3c0eaa85fe8e64ec2ea72d5ec4",
+  "resource_count": 19,
+  "schema": "omnigenis-data-use-purpose-matrix-v1",
+  "source_registry_sha256": "dc39ad56030439f133c21b3043961bd11b321a14930de9c60748d37b55359599",
+  "stage": 7
+}

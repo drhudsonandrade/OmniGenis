@@ -21,6 +21,11 @@ POLICY_EXACT = {
     "config/software_license_gate_registry.json",
     "config/data_source_registry.yaml",
     "scripts/validate_stage6_data_sources.py",
+    "config/data_use_purpose_policy.json",
+    "config/data_use_purpose_matrix.json",
+    "scripts/data_use_purpose_gate.py",
+    "scripts/build_stage7_purpose_matrix.py",
+    "scripts/validate_stage7_purpose_use.py",
     ".github/workflows/genoma-policy-engine.yml",
 }
 POLICY_PREFIXES = (

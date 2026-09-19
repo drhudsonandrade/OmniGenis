@@ -1,0 +1,62 @@
+{
+  "schema": "omnigenis-stage7-purpose-use-evidence-v1",
+  "date": "2026-09-19",
+  "base_main_sha": "016f92ae18051ca5a65238819d4414ba7cf37a08",
+  "base_main_tree": "ea4fa35f6c1d057049062e98fae61f8588275afb",
+  "policy_sha256": "09ac380257dc8942f8220b35980f2ac053727a3c0eaa85fe8e64ec2ea72d5ec4",
+  "matrix_sha256": "29108f582cab90b9324334b8e0890dc210a579944e61c00a7605170eab73055e",
+  "resource_count": 19,
+  "purpose_count": 7,
+  "decision_count": 133,
+  "decision_counts": {
+    "ALLOW_WITH_OBLIGATIONS": 31,
+    "DENY": 6,
+    "RECORD_LEVEL_REVIEW_REQUIRED": 7,
+    "REVIEW_REQUIRED": 89
+  },
+  "execution": {
+    "tdd_red": {
+      "status": "EXECUTED",
+      "result": "EXPECTED_FAIL",
+      "tests": 10,
+      "failures": 1,
+      "errors": 9
+    },
+    "matrix_check": {
+      "status": "EXECUTED",
+      "result": "PASS",
+      "decisions": 133
+    },
+    "purpose_validator": {
+      "status": "EXECUTED",
+      "result": "PASS"
+    },
+    "focused_tests": {
+      "status": "EXECUTED",
+      "result": "PASS",
+      "tests": 17
+    },
+    "repository_validator": {
+      "status": "PROPOSED",
+      "result": null
+    },
+    "full_python_suite": {
+      "status": "PROPOSED",
+      "result": null
+    },
+    "mcp_suite": {
+      "status": "PROPOSED",
+      "result": null
+    },
+    "exact_head_ci": {
+      "status": "CI_REQUIRED",
+      "result": null
+    }
+  },
+  "claims": {
+    "legal_clearance": false,
+    "commercial_clearance": false,
+    "clinical_regulatory_clearance": false,
+    "privacy_consent_clearance": false
+  }
+}

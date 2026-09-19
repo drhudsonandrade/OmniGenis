@@ -20,6 +20,7 @@ if str(ROOT) not in sys.path:
 from array_pipeline.completeness import build_completeness_matrix, write_matrix
 from array_pipeline.pharmacogenomics import build_pharmacogenomic_passport, write_passport
 from reporting.provenance import Artifact, PayloadCompiler
+from scripts.data_use_purpose_gate import evaluate_use
 
 REPORT_ID = "06"
 
@@ -200,6 +201,7 @@ def build_payload(
     policy_evaluation: Path | None = None,
     post_deployment_witness: Path | None = None,
     consent: Path | None = None,
+    data_use_authorization: dict | None = None,
 ) -> dict:
     """Compile the payload for the pharmacogenomic report from passport and matrix.
 
@@ -459,13 +461,35 @@ def build_payload(
         transform=lambda items: " ".join(str(x) for x in items),
     )
 
-    return compiler.compile(
-        execution_manifest={
-            "status": passport_status,
-            "PGX_PASSPORT_SHA256": passport.sha256,
-            "COMPLETENESS_MATRIX_SHA256": matrix.sha256,
-        },
-    )
+    execution_manifest = {
+        "status": passport_status,
+        "PGX_PASSPORT_SHA256": passport.sha256,
+        "COMPLETENESS_MATRIX_SHA256": matrix.sha256,
+    }
+    if data_use_authorization is not None:
+        if data_use_authorization.get("authorized") is not True:
+            raise ValueError("Stage 7 data-use decision does not authorize report generation")
+        if data_use_authorization.get("resource_id") != "cpic":
+            raise ValueError("Stage 7 report authorization must be for the cpic resource")
+        purposes = data_use_authorization.get("purposes")
+        if not isinstance(purposes, list) or "REPORT_GENERATION" not in purposes:
+            raise ValueError(
+                "Stage 7 report authorization must include REPORT_GENERATION"
+            )
+        obligations = data_use_authorization.get("obligations")
+        if not isinstance(obligations, list) or not all(
+            isinstance(item, str) and item for item in obligations
+        ):
+            raise ValueError("Stage 7 report authorization obligations are invalid")
+        execution_manifest.update(
+            {
+                "STAGE7_DATA_USE_RESOURCE": "cpic",
+                "STAGE7_DATA_USE_PURPOSES": list(purposes),
+                "STAGE7_DATA_USE_DECISION": data_use_authorization.get("decision"),
+                "STAGE7_DATA_USE_OBLIGATIONS": list(obligations),
+            }
+        )
+    return compiler.compile(execution_manifest=execution_manifest)
 
 
 def main() -> int:
@@ -495,6 +519,25 @@ def main() -> int:
 
     if args.pgx_panel and not args.panel_matrix_out:
         parser.error("--pgx-panel requires --panel-matrix-out")
+
+    data_use_authorization = evaluate_use("cpic", ["REPORT_GENERATION"], root=ROOT)
+    if data_use_authorization.get("authorized") is not True:
+        print(
+            json.dumps(
+                {
+                    "schema": "omnigenis-report-data-use-refusal-v1",
+                    "report_id": REPORT_ID,
+                    "resource_id": "cpic",
+                    "purpose": "REPORT_GENERATION",
+                    "decision": data_use_authorization.get("decision"),
+                    "blockers": data_use_authorization.get("blockers") or [],
+                },
+                ensure_ascii=False,
+                sort_keys=True,
+            ),
+            file=sys.stderr,
+        )
+        return 3 if data_use_authorization.get("decision") == "DENY" else 2
 
     matrix = build_completeness_matrix(Path(args.input), Path(args.qc), Path(args.targets))
     matrix_path = write_matrix(matrix, Path(args.matrix_out))
@@ -527,6 +570,7 @@ def main() -> int:
             else None
         ),
         consent=Path(args.consent) if args.consent else None,
+        data_use_authorization=data_use_authorization,
     )
     out = Path(args.payload_out)
     out.parent.mkdir(parents=True, exist_ok=True)

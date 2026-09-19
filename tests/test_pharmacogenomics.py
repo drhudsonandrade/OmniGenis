@@ -913,7 +913,17 @@ class ReportIntegrationTest(unittest.TestCase):
                 "--post-deployment-witness", str(witness),
                 "--consent", str(consent),
             ]
-            with patch.object(sys, "argv", argv):
+            stage7 = {
+                "authorized": True,
+                "resource_id": "cpic",
+                "purposes": ["REPORT_GENERATION"],
+                "decision": "ALLOW_WITH_OBLIGATIONS",
+                "obligations": ["cite CPIC", "share alike"],
+            }
+            with (
+                patch.object(sys, "argv", argv),
+                patch("scripts.build_pharmacogenomic_report.evaluate_use", return_value=stage7),
+            ):
                 self.assertEqual(main(), 2)
 
             payload = json.loads(payload_out.read_text(encoding="utf-8"))
@@ -927,6 +937,47 @@ class ReportIntegrationTest(unittest.TestCase):
         self.assertEqual(payload["post_deployment"]["witness_sha256"], expected_witness_sha)
         self.assertEqual(payload["consent"]["record_sha256"], expected_consent_sha)
         self.assertNotEqual(payload["operational_status"], "VERIFICADO")
+        self.assertEqual(payload["execution_manifest"]["STAGE7_DATA_USE_RESOURCE"], "cpic")
+        self.assertEqual(
+            payload["execution_manifest"]["STAGE7_DATA_USE_PURPOSES"],
+            ["REPORT_GENERATION"],
+        )
+        self.assertEqual(
+            payload["execution_manifest"]["STAGE7_DATA_USE_DECISION"],
+            "ALLOW_WITH_OBLIGATIONS",
+        )
+        self.assertEqual(
+            payload["execution_manifest"]["STAGE7_DATA_USE_OBLIGATIONS"],
+            ["cite CPIC", "share alike"],
+        )
+
+    def test_cli_blocks_cpic_report_before_writing_any_derived_artifact(self):
+        """Current CPIC report-generation rights require review, so the CLI must stop first."""
+        from scripts.build_pharmacogenomic_report import main
+
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            matrix_out = root / "matrix.json"
+            passport_out = root / "passport.json"
+            payload_out = root / "payload.json"
+            argv = [
+                "build_pharmacogenomic_report.py",
+                "--input", str(root / "does-not-need-to-exist.csv.gz"),
+                "--qc", str(root / "does-not-need-to-exist-qc.json"),
+                "--targets", str(root / "does-not-need-to-exist-targets.json"),
+                "--matrix-out", str(matrix_out),
+                "--passport-out", str(passport_out),
+                "--payload-out", str(payload_out),
+            ]
+            with (
+                patch.object(sys, "argv", argv),
+                patch("scripts.build_pharmacogenomic_report.build_completeness_matrix") as build_matrix,
+            ):
+                self.assertEqual(main(), 2)
+                build_matrix.assert_not_called()
+            self.assertFalse(matrix_out.exists())
+            self.assertFalse(passport_out.exists())
+            self.assertFalse(payload_out.exists())
 
 
 class CpicRegistryTest(unittest.TestCase):
