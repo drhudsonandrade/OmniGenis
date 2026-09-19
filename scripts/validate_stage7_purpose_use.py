@@ -166,7 +166,7 @@ def collect_errors(root: Path = ROOT) -> list[str]:
             token=str(resource.get(field) or '').strip()
             if not token:
                 errors.append(f'Stage 7 missing source rights token: {resource_id}.{field}')
-            elif token not in token_decisions:
+            elif token_decisions.get(token) is None:
                 errors.append(f'Stage 7 unmapped source rights token: {resource_id}.{field}={token}')
 
     try:
