@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -79,7 +79,8 @@ def collect_errors(root: Path = ROOT) -> list[str]:
 
     if policy.get('schema') != 'omnigenis-data-use-purpose-policy-v1' or policy.get('stage') != 7:
         errors.append('Stage 7 purpose policy identity mismatch')
-    if set(policy.get('purposes', {})) != EXPECTED_PURPOSES:
+    raw_purposes = policy.get('purposes')
+    if not isinstance(raw_purposes, dict) or set(raw_purposes) != EXPECTED_PURPOSES:
         errors.append('Stage 7 purpose vocabulary mismatch')
     order=policy.get('decision_order')
     if order != EXPECTED_DECISION_ORDER:
@@ -109,9 +110,27 @@ def collect_errors(root: Path = ROOT) -> list[str]:
     if not isinstance(raw_status_floors, dict):
         errors.append('Stage 7 status-floor mapping structure invalid')
         return errors
-    token_decisions = cast(dict[str, str], raw_token_decisions)
-    purpose_specs = cast(dict[str, dict[str, Any]], raw_purpose_specs)
-    status_floors = cast(dict[str, str], raw_status_floors)
+    if not all(isinstance(key, str) and isinstance(value, str) for key, value in raw_token_decisions.items()):
+        errors.append('Stage 7 rights-token mapping structure invalid')
+        return errors
+    if not all(isinstance(key, str) and isinstance(value, dict) for key, value in raw_purpose_specs.items()):
+        errors.append('Stage 7 purpose mapping structure invalid')
+        return errors
+    if not all(isinstance(key, str) and isinstance(value, str) for key, value in raw_status_floors.items()):
+        errors.append('Stage 7 status-floor mapping structure invalid')
+        return errors
+    token_decisions: dict[str, str] = {
+        key: value for key, value in raw_token_decisions.items()
+        if isinstance(key, str) and isinstance(value, str)
+    }
+    purpose_specs: dict[str, dict[str, Any]] = {
+        key: dict(value) for key, value in raw_purpose_specs.items()
+        if isinstance(key, str) and isinstance(value, dict)
+    }
+    status_floors: dict[str, str] = {
+        key: value for key, value in raw_status_floors.items()
+        if isinstance(key, str) and isinstance(value, str)
+    }
     if status_floors != EXPECTED_STATUS_FLOORS:
         errors.append('Stage 7 status floors invalid or weakened')
     if policy.get('attribution_values_requiring_obligations') != EXPECTED_ATTRIBUTION_VALUES:

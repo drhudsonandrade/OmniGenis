@@ -54,7 +54,16 @@ class PharmacogenomicIdentityTest(unittest.TestCase):
                 encoding="utf-8",
             )
             with self.assertRaisesRegex(ValueError, "same non-empty case_id"):
-                build_payload(passport, matrix)
+                build_payload(
+                    passport, matrix,
+                    data_use_authorization={
+                        "authorized": True,
+                        "resource_id": "cpic",
+                        "purposes": ["REPORT_GENERATION"],
+                        "decision": "ALLOW_WITH_OBLIGATIONS",
+                        "obligations": ["test-only Stage 7 authorization fixture"],
+                    },
+                )
 
 
 class PgxPanelDigestTest(unittest.TestCase):

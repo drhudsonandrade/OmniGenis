@@ -7,7 +7,7 @@ import gzip
 import json
 import re
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 POLICY_PATH = Path('config/data_use_purpose_policy.json')
@@ -61,32 +61,40 @@ def _strictest(decisions: list[str], order: dict[str, int]) -> str:
 
 
 def _require_str_int_map(value: Any, *, name: str) -> dict[str, int]:
-    if not isinstance(value, dict) or not all(
-        isinstance(key, str)
-        and isinstance(item, int)
-        and not isinstance(item, bool)
-        for key, item in value.items()
-    ):
+    if not isinstance(value, dict):
         raise PurposeUseError(f'{name} is invalid')
-    return cast(dict[str, int], value)
+    result: dict[str, int] = {}
+    for key, item in value.items():
+        if (
+            not isinstance(key, str)
+            or not isinstance(item, int)
+            or isinstance(item, bool)
+        ):
+            raise PurposeUseError(f'{name} is invalid')
+        result[key] = item
+    return result
 
 
 def _require_str_str_map(value: Any, *, name: str) -> dict[str, str]:
-    if not isinstance(value, dict) or not all(
-        isinstance(key, str) and isinstance(item, str)
-        for key, item in value.items()
-    ):
+    if not isinstance(value, dict):
         raise PurposeUseError(f'{name} is invalid')
-    return cast(dict[str, str], value)
+    result: dict[str, str] = {}
+    for key, item in value.items():
+        if not isinstance(key, str) or not isinstance(item, str):
+            raise PurposeUseError(f'{name} is invalid')
+        result[key] = item
+    return result
 
 
 def _require_purpose_specs(value: Any) -> dict[str, dict[str, Any]]:
-    if not isinstance(value, dict) or not all(
-        isinstance(key, str) and isinstance(item, dict)
-        for key, item in value.items()
-    ):
+    if not isinstance(value, dict):
         raise PurposeUseError('Stage 7 purpose map is invalid')
-    return cast(dict[str, dict[str, Any]], value)
+    result: dict[str, dict[str, Any]] = {}
+    for key, item in value.items():
+        if not isinstance(key, str) or not isinstance(item, dict):
+            raise PurposeUseError('Stage 7 purpose map is invalid')
+        result[key] = dict(item)
+    return result
 
 
 def _registry_by_id(registry: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -180,7 +188,7 @@ def evaluate_use(
         or not all(isinstance(value, str) and value for value in raw_attribution_values)
     ):
         raise PurposeUseError('Stage 7 attribution-obligation values are invalid')
-    attribution_values = cast(list[str], raw_attribution_values)
+    attribution_values: list[str] = [value for value in raw_attribution_values if isinstance(value, str)]
 
     status = str(resource.get('status') or '')
     if status not in status_floors:

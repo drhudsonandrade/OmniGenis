@@ -157,6 +157,18 @@ class Stage7PurposeUseTest(unittest.TestCase):
             errors,
         )
 
+    def test_null_purpose_map_is_reported_not_raised(self) -> None:
+        from scripts.validate_stage7_purpose_use import collect_errors
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._copy_contract_root(root)
+            policy_path = root / 'config/data_use_purpose_policy.json'
+            policy = json.loads(policy_path.read_text(encoding='utf-8'))
+            policy['purposes'] = None
+            self._write_json(policy_path, policy)
+            errors = collect_errors(root)
+        self.assertIn('Stage 7 purpose vocabulary mismatch', errors)
+
     def test_attribution_obligation_list_is_protected_and_nonempty(self) -> None:
         from scripts.validate_stage7_purpose_use import collect_errors
         with tempfile.TemporaryDirectory() as directory:

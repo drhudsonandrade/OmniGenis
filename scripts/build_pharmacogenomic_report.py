@@ -12,6 +12,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -216,6 +217,22 @@ def build_payload(
     payload without that anchor, and the publication gate in `reporting.engine` refuses to
     release a FINAL document that lacks it.
     """
+    if data_use_authorization is None:
+        raise ValueError("Stage 7 data-use authorization is required")
+    if data_use_authorization.get("authorized") is not True:
+        raise ValueError("Stage 7 data-use decision does not authorize report generation")
+    if data_use_authorization.get("resource_id") != "cpic":
+        raise ValueError("Stage 7 report authorization must be for the cpic resource")
+    purposes = data_use_authorization.get("purposes")
+    if not isinstance(purposes, list) or not all(isinstance(item, str) for item in purposes) or "REPORT_GENERATION" not in purposes:
+        raise ValueError("Stage 7 report authorization must include REPORT_GENERATION")
+    obligations = data_use_authorization.get("obligations")
+    if not isinstance(obligations, list) or not all(isinstance(item, str) and item for item in obligations):
+        raise ValueError("Stage 7 report authorization obligations are invalid")
+    decision = data_use_authorization.get("decision")
+    if not isinstance(decision, str) or decision not in {"ALLOW", "ALLOW_WITH_OBLIGATIONS"}:
+        raise ValueError("Stage 7 report authorization decision is invalid")
+
     passport = Artifact.from_path("pgx-passport", passport_path)
     matrix = Artifact.from_path("completeness-matrix", matrix_path)
     passport_input = str(passport.payload.get("input_sha256") or "").strip()
@@ -461,34 +478,19 @@ def build_payload(
         transform=lambda items: " ".join(str(x) for x in items),
     )
 
-    execution_manifest = {
+    execution_manifest: dict[str, Any] = {
         "status": passport_status,
         "PGX_PASSPORT_SHA256": passport.sha256,
         "COMPLETENESS_MATRIX_SHA256": matrix.sha256,
     }
-    if data_use_authorization is not None:
-        if data_use_authorization.get("authorized") is not True:
-            raise ValueError("Stage 7 data-use decision does not authorize report generation")
-        if data_use_authorization.get("resource_id") != "cpic":
-            raise ValueError("Stage 7 report authorization must be for the cpic resource")
-        purposes = data_use_authorization.get("purposes")
-        if not isinstance(purposes, list) or "REPORT_GENERATION" not in purposes:
-            raise ValueError(
-                "Stage 7 report authorization must include REPORT_GENERATION"
-            )
-        obligations = data_use_authorization.get("obligations")
-        if not isinstance(obligations, list) or not all(
-            isinstance(item, str) and item for item in obligations
-        ):
-            raise ValueError("Stage 7 report authorization obligations are invalid")
-        execution_manifest.update(
-            {
-                "STAGE7_DATA_USE_RESOURCE": "cpic",
-                "STAGE7_DATA_USE_PURPOSES": list(purposes),
-                "STAGE7_DATA_USE_DECISION": data_use_authorization.get("decision"),
-                "STAGE7_DATA_USE_OBLIGATIONS": list(obligations),
-            }
-        )
+    execution_manifest.update(
+        {
+            "STAGE7_DATA_USE_RESOURCE": "cpic",
+            "STAGE7_DATA_USE_PURPOSES": list(purposes),
+            "STAGE7_DATA_USE_DECISION": decision,
+            "STAGE7_DATA_USE_OBLIGATIONS": list(obligations),
+        }
+    )
     return compiler.compile(execution_manifest=execution_manifest)
 
 

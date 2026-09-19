@@ -137,6 +137,16 @@ CLEAN_ROWS = (
 )
 
 
+def _stage7_cpic_report_authorization() -> dict[str, Any]:
+    return {
+        "authorized": True,
+        "resource_id": "cpic",
+        "purposes": ["REPORT_GENERATION"],
+        "decision": "ALLOW_WITH_OBLIGATIONS",
+        "obligations": ["test-only Stage 7 authorization fixture"],
+    }
+
+
 class PassportScopeTest(unittest.TestCase):
     """What the pharmacogenomic passport is allowed to contain."""
 
@@ -685,7 +695,7 @@ class ConditionalLayerReachesTheReportTest(unittest.TestCase):
         matrix_path, passport, _ = _artifacts(root, CLEAN_ROWS, registry=self.REAL_REGISTRY)
         passport_path = write_passport(passport, root / "passport.json")
         return (
-            build_payload(passport_path, matrix_path, policy_evaluation_file(root))["sections"],
+            build_payload(passport_path, matrix_path, policy_evaluation_file(root), data_use_authorization=_stage7_cpic_report_authorization())["sections"],
             passport,
         )
 
@@ -776,6 +786,7 @@ class ReportIntegrationTest(unittest.TestCase):
         payload = build_payload(
             passport_path, matrix_path, policy,
             consent=consent_for(root, matrix_path),
+            data_use_authorization=_stage7_cpic_report_authorization(),
         )
         # This integration fixture exercises FINAL rendering. The compiler deliberately
         # emits a curated payload whose ruleset digest and placeholder result must be
@@ -785,6 +796,16 @@ class ReportIntegrationTest(unittest.TestCase):
             payload["ruleset"] = normative.ruleset_block()
             payload["publication_gate"]["placeholders_resolved"] = True
         return payload, passport
+
+    def test_direct_payload_builder_requires_stage7_authorization(self):
+        from scripts.build_pharmacogenomic_report import build_payload
+
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            matrix_path, passport, _ = _artifacts(root, CLEAN_ROWS, registry=REGISTRY)
+            passport_path = write_passport(passport, root / "passport.json")
+            with self.assertRaisesRegex(ValueError, "Stage 7 data-use authorization is required"):
+                build_payload(passport_path, matrix_path)
 
     def test_passport_and_matrix_must_share_the_same_input(self):
         """The passport and the completeness matrix must describe the same input_sha256."""
@@ -798,7 +819,10 @@ class ReportIntegrationTest(unittest.TestCase):
             mismatched["input_sha256"] = "f" * 64
             passport_path.write_text(json.dumps(mismatched), encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "same non-empty input_sha256"):
-                build_payload(passport_path, matrix_path)
+                build_payload(
+                    passport_path, matrix_path,
+                    data_use_authorization=_stage7_cpic_report_authorization(),
+                )
 
     def test_unassembled_payload_keeps_release_prerequisites_fail_closed(self):
         """A payload assembled without the release prerequisites is refused, not published."""
