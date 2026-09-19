@@ -1,0 +1,1629 @@
+{
+  "component_count": 101,
+  "components": [
+    {
+      "architecture": "all",
+      "license_evidence_paths": [
+        "/usr/share/doc/adduser/copyright"
+      ],
+      "licenses": [
+        "sha256:3e67668ed552fe3a0684e77282325d07fa8847f2575ea1e1906000de571b5c1e"
+      ],
+      "name": "adduser",
+      "purl": "pkg:deb/ubuntu/adduser@3.118ubuntu5?arch=all&distro=ubuntu-22.04",
+      "type": "deb",
+      "version": "3.118ubuntu5"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/apt/copyright"
+      ],
+      "licenses": [
+        "GPL-2.0-or-later"
+      ],
+      "name": "apt",
+      "purl": "pkg:deb/ubuntu/apt@2.4.14?arch=amd64&distro=ubuntu-22.04",
+      "type": "deb",
+      "version": "2.4.14"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/base-files/copyright"
+      ],
+      "licenses": [
+        "sha256:cdb5461d8515002d0fe3babb764eec3877458b20f4e4bb16219f62ea953afeea"
+      ],
+      "name": "base-files",
+      "purl": "pkg:deb/ubuntu/base-files@12ubuntu4.7?arch=amd64&distro=ubuntu-22.04",
+      "type": "deb",
+      "version": "12ubuntu4.7"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/base-passwd/copyright"
+      ],
+      "licenses": [
+        "GPL-2.0-only",
+        "public-domain"
+      ],
+      "name": "base-passwd",
+      "purl": "pkg:deb/ubuntu/base-passwd@3.5.52build1?arch=amd64&distro=ubuntu-22.04",
+      "type": "deb",
+      "version": "3.5.52build1"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/bash/copyright"
+      ],
+      "licenses": [
+        "sha256:da7a8d93abf1eccdeaf326642c8ce9ed760f3a973ca46f3f69b3cf755bb81ade"
+      ],
+      "name": "bash",
+      "purl": "pkg:deb/ubuntu/bash@5.1-6ubuntu1.1?arch=amd64&distro=ubuntu-22.04",
+      "type": "deb",
+      "version": "5.1-6ubuntu1.1"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/bsdutils/copyright"
+      ],
+      "licenses": [
+        "BSD-2-Clause",
+        "BSD-3-Clause",
+        "BSD-4-Clause",
+        "GPL-2.0-only",
+        "GPL-2.0-or-later",
+        "GPL-3.0-only",
+        "GPL-3.0-or-later",
+        "LGPL",
+        "LGPL-2.0-only",
+        "LGPL-2.0-or-later",
+        "LGPL-2.1-only",
+        "LGPL-2.1-or-later",
+        "LGPL-3.0-only",
+        "LGPL-3.0-or-later",
+        "MIT",
+        "public-domain"
+      ],
+      "name": "bsdutils",
+      "purl": "pkg:deb/ubuntu/bsdutils@1%3A2.37.2-4ubuntu3.4?arch=amd64&distro=ubuntu-22.04&upstream=util-linux%402.37.2-4ubuntu3.4",
+      "type": "deb",
+      "version": "1:2.37.2-4ubuntu3.4"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/coreutils/copyright"
+      ],
+      "licenses": [
+        "BSD-3-Clause",
+        "GFDL-1.2-no-invariants-or-later",
+        "GPL-3.0-or-later",
+        "ISC"
+      ],
+      "name": "coreutils",
+      "purl": "pkg:deb/ubuntu/coreutils@8.32-4.1ubuntu1.2?arch=amd64&distro=ubuntu-22.04",
+      "type": "deb",
+      "version": "8.32-4.1ubuntu1.2"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/dash/copyright"
+      ],
+      "licenses": [
+        "BSD-3-Clause",
+        "Expat",
+        "FSFUL",
+        "FSFULLR",
+        "GPL-2.0-only",
+        "GPL-2.0-or-later",
+        "public-domain"
+      ],
+      "name": "dash",
+      "purl": "pkg:deb/ubuntu/dash@0.5.11%2Bgit20210903%2B057cd650a4ed-3build1?arch=amd64&distro=ubuntu-22.04",
+      "type": "deb",
+      "version": "0.5.11+git20210903+057cd650a4ed-3build1"
+    },
+    {
+      "architecture": "all",
+      "license_evidence_paths": [
+        "/usr/share/doc/debconf/copyright"
+      ],
+      "licenses": [
+        "BSD-2-Clause"
+      ],
+      "name": "debconf",
+      "purl": "pkg:deb/ubuntu/debconf@1.5.79ubuntu1?arch=all&distro=ubuntu-22.04",
+      "type": "deb",
+      "version": "1.5.79ubuntu1"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/debianutils/copyright"
+      ],
+      "licenses": [
+        "sha256:3c8b5112cb8f74ba959233291908d73f527afa6f1d96f93649aeb912b5884567"
+      ],
+      "name": "debianutils",
+      "purl": "pkg:deb/ubuntu/debianutils@5.5-1ubuntu2?arch=amd64&distro=ubuntu-22.04",
+      "type": "deb",
+      "version": "5.5-1ubuntu2"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/diffutils/copyright"
+      ],
+      "licenses": [
+        "sha256:217cf1b67ce79cfc930dfb4a8bdaccfa4c263226131e650f13cd2b342d9171d8"
+      ],
+      "name": "diffutils",
+      "purl": "pkg:deb/ubuntu/diffutils@1%3A3.8-0ubuntu2?arch=amd64&distro=ubuntu-22.04",
+      "type": "deb",
+      "version": "1:3.8-0ubuntu2"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/dpkg/copyright"
+      ],
+      "licenses": [
+        "BSD-2-Clause",
+        "GPL-2.0-only",
+        "GPL-2.0-or-later",
+        "public-domain-md5",
+        "public-domain-s-s-d"
+      ],
+      "name": "dpkg",
+      "purl": "pkg:deb/ubuntu/dpkg@1.21.1ubuntu2.6?arch=amd64&distro=ubuntu-22.04",
+      "type": "deb",
+      "version": "1.21.1ubuntu2.6"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/e2fsprogs/copyright"
+      ],
+      "licenses": [
+        "sha256:b7b391571e7253d4cf607e33e3b463895768fad264471e7774882974f834faa1"
+      ],
+      "name": "e2fsprogs",
+      "purl": "pkg:deb/ubuntu/e2fsprogs@1.46.5-2ubuntu1.2?arch=amd64&distro=ubuntu-22.04",
+      "type": "deb",
+      "version": "1.46.5-2ubuntu1.2"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/findutils/copyright"
+      ],
+      "licenses": [
+        "sha256:e4ad5b1bb6aa6e7aa93d7e2b516e1ae8de6e75b20cfb4c18934d111d3e918ae4"
+      ],
+      "name": "findutils",
+      "purl": "pkg:deb/ubuntu/findutils@4.8.0-1ubuntu3?arch=amd64&distro=ubuntu-22.04",
+      "type": "deb",
+      "version": "4.8.0-1ubuntu3"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/gcc-12-base/copyright"
+      ],
+      "licenses": [
+        "sha256:da8191658b3452ce9caf31638ba61dab31a38c619fa39df119812e050f592fd3"
+      ],
+      "name": "gcc-12-base",
+      "purl": "pkg:deb/ubuntu/gcc-12-base@12.3.0-1ubuntu1~22.04.2?arch=amd64&distro=ubuntu-22.04&upstream=gcc-12",
+      "type": "deb",
+      "version": "12.3.0-1ubuntu1~22.04.2"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/gpgv/copyright"
+      ],
+      "licenses": [
+        "BSD-3-Clause",
+        "CC0-1.0",
+        "Expat",
+        "GPL-3.0-only",
+        "GPL-3.0-or-later",
+        "LGPL-2.1-only",
+        "LGPL-2.1-or-later",
+        "LGPL-3.0-only",
+        "LGPL-3.0-or-later",
+        "RFC-Reference",
+        "TinySCHEME",
+        "permissive"
+      ],
+      "name": "gpgv",
+      "purl": "pkg:deb/ubuntu/gpgv@2.2.27-3ubuntu2.4?arch=amd64&distro=ubuntu-22.04&upstream=gnupg2",
+      "type": "deb",
+      "version": "2.2.27-3ubuntu2.4"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/grep/copyright"
+      ],
+      "licenses": [
+        "GPL-3.0-only",
+        "GPL-3.0-or-later"
+      ],
+      "name": "grep",
+      "purl": "pkg:deb/ubuntu/grep@3.7-1build1?arch=amd64&distro=ubuntu-22.04",
+      "type": "deb",
+      "version": "3.7-1build1"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/gzip/copyright"
+      ],
+      "licenses": [
+        "FSF-manpages",
+        "GFDL-1.3+-no-invariant",
+        "GFDL-3",
+        "GPL-3.0-only",
+        "GPL-3.0-or-later"
+      ],
+      "name": "gzip",
+      "purl": "pkg:deb/ubuntu/gzip@1.10-4ubuntu4.1?arch=amd64&distro=ubuntu-22.04",
+      "type": "deb",
+      "version": "1.10-4ubuntu4.1"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/hostname/copyright"
+      ],
+      "licenses": [
+        "GPL-2.0-only"
+      ],
+      "name": "hostname",
+      "purl": "pkg:deb/ubuntu/hostname@3.23ubuntu2?arch=amd64&distro=ubuntu-22.04",
+      "type": "deb",
+      "version": "3.23ubuntu2"
+    },
+    {
+      "architecture": "all",
+      "license_evidence_paths": [
+        "/usr/share/doc/init-system-helpers/copyright"
+      ],
+      "licenses": [
+        "BSD-3-Clause",
+        "GPL-2.0-only",
+        "GPL-2.0-or-later"
+      ],
+      "name": "init-system-helpers",
+      "purl": "pkg:deb/ubuntu/init-system-helpers@1.62?arch=all&distro=ubuntu-22.04",
+      "type": "deb",
+      "version": "1.62"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libacl1/copyright"
+      ],
+      "licenses": [
+        "GPL-2.0-only",
+        "GPL-2.0-or-later",
+        "LGPL-2.0-or-later",
+        "LGPL-2.1-only"
+      ],
+      "name": "libacl1",
+      "purl": "pkg:deb/ubuntu/libacl1@2.3.1-1?arch=amd64&distro=ubuntu-22.04&upstream=acl",
+      "type": "deb",
+      "version": "2.3.1-1"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libapt-pkg6.0/copyright"
+      ],
+      "licenses": [
+        "GPL-2.0-or-later"
+      ],
+      "name": "libapt-pkg6.0",
+      "purl": "pkg:deb/ubuntu/libapt-pkg6.0@2.4.14?arch=amd64&distro=ubuntu-22.04&upstream=apt",
+      "type": "deb",
+      "version": "2.4.14"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libattr1/copyright"
+      ],
+      "licenses": [
+        "GPL-2.0-only",
+        "GPL-2.0-or-later",
+        "LGPL-2.0-or-later",
+        "LGPL-2.1-only"
+      ],
+      "name": "libattr1",
+      "purl": "pkg:deb/ubuntu/libattr1@1%3A2.5.1-1build1?arch=amd64&distro=ubuntu-22.04&upstream=attr",
+      "type": "deb",
+      "version": "1:2.5.1-1build1"
+    },
+    {
+      "architecture": "all",
+      "license_evidence_paths": [
+        "/usr/share/doc/libaudit-common/copyright"
+      ],
+      "licenses": [
+        "GPL-1.0-only",
+        "GPL-2.0-only",
+        "LGPL-2.1-only"
+      ],
+      "name": "libaudit-common",
+      "purl": "pkg:deb/ubuntu/libaudit-common@1%3A3.0.7-1build1?arch=all&distro=ubuntu-22.04&upstream=audit",
+      "type": "deb",
+      "version": "1:3.0.7-1build1"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libaudit1/copyright"
+      ],
+      "licenses": [
+        "GPL-1.0-only",
+        "GPL-2.0-only",
+        "LGPL-2.1-only"
+      ],
+      "name": "libaudit1",
+      "purl": "pkg:deb/ubuntu/libaudit1@1%3A3.0.7-1build1?arch=amd64&distro=ubuntu-22.04&upstream=audit",
+      "type": "deb",
+      "version": "1:3.0.7-1build1"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libblkid1/copyright"
+      ],
+      "licenses": [
+        "BSD-2-Clause",
+        "BSD-3-Clause",
+        "BSD-4-Clause",
+        "GPL-2.0-only",
+        "GPL-2.0-or-later",
+        "GPL-3.0-only",
+        "GPL-3.0-or-later",
+        "LGPL",
+        "LGPL-2.0-only",
+        "LGPL-2.0-or-later",
+        "LGPL-2.1-only",
+        "LGPL-2.1-or-later",
+        "LGPL-3.0-only",
+        "LGPL-3.0-or-later",
+        "MIT",
+        "public-domain"
+      ],
+      "name": "libblkid1",
+      "purl": "pkg:deb/ubuntu/libblkid1@2.37.2-4ubuntu3.4?arch=amd64&distro=ubuntu-22.04&upstream=util-linux",
+      "type": "deb",
+      "version": "2.37.2-4ubuntu3.4"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libbz2-1.0/copyright"
+      ],
+      "licenses": [
+        "BSD-variant",
+        "GPL-2.0-only"
+      ],
+      "name": "libbz2-1.0",
+      "purl": "pkg:deb/ubuntu/libbz2-1.0@1.0.8-5build1?arch=amd64&distro=ubuntu-22.04&upstream=bzip2",
+      "type": "deb",
+      "version": "1.0.8-5build1"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libc-bin/copyright"
+      ],
+      "licenses": [
+        "sha256:d3c95b56fa33e28b57860580f0baf4e4f4de2a268a2b80f1d031a5191bade265"
+      ],
+      "name": "libc-bin",
+      "purl": "pkg:deb/ubuntu/libc-bin@2.35-0ubuntu3.11?arch=amd64&distro=ubuntu-22.04&upstream=glibc",
+      "type": "deb",
+      "version": "2.35-0ubuntu3.11"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libc6/copyright"
+      ],
+      "licenses": [
+        "sha256:d3c95b56fa33e28b57860580f0baf4e4f4de2a268a2b80f1d031a5191bade265"
+      ],
+      "name": "libc6",
+      "purl": "pkg:deb/ubuntu/libc6@2.35-0ubuntu3.11?arch=amd64&distro=ubuntu-22.04&upstream=glibc",
+      "type": "deb",
+      "version": "2.35-0ubuntu3.11"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libcap-ng0/copyright"
+      ],
+      "licenses": [
+        "sha256:8cdc2d0eeeb4ed84963c58be27389b148e830ce5ec42c2598cf194721d0430ec"
+      ],
+      "name": "libcap-ng0",
+      "purl": "pkg:deb/ubuntu/libcap-ng0@0.7.9-2.2build3?arch=amd64&distro=ubuntu-22.04&upstream=libcap-ng",
+      "type": "deb",
+      "version": "0.7.9-2.2build3"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libcap2/copyright"
+      ],
+      "licenses": [
+        "BSD-3-Clause",
+        "GPL-2.0-only",
+        "GPL-2.0-or-later"
+      ],
+      "name": "libcap2",
+      "purl": "pkg:deb/ubuntu/libcap2@1%3A2.44-1ubuntu0.22.04.2?arch=amd64&distro=ubuntu-22.04",
+      "type": "deb",
+      "version": "1:2.44-1ubuntu0.22.04.2"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libcom-err2/copyright"
+      ],
+      "licenses": [
+        "sha256:9e3a4384b6d8d2358d44103f62bcd948328b3f8a63a1a6baa66abeb43302d581"
+      ],
+      "name": "libcom-err2",
+      "purl": "pkg:deb/ubuntu/libcom-err2@1.46.5-2ubuntu1.2?arch=amd64&distro=ubuntu-22.04&upstream=e2fsprogs",
+      "type": "deb",
+      "version": "1.46.5-2ubuntu1.2"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libcrypt1/copyright"
+      ],
+      "licenses": [
+        "sha256:5a5e7ca0e9f3f9679977e3a3e9ede45ad92885a3297ea78e766979f9866c5a16"
+      ],
+      "name": "libcrypt1",
+      "purl": "pkg:deb/ubuntu/libcrypt1@1%3A4.4.27-1?arch=amd64&distro=ubuntu-22.04&upstream=libxcrypt",
+      "type": "deb",
+      "version": "1:4.4.27-1"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libdb5.3/copyright"
+      ],
+      "licenses": [
+        "sha256:b3bbc6fbb3f2a0e6a487e953eb8c3cc4bdb6f4150f7f51d20b1e9a3c8ef92d3d"
+      ],
+      "name": "libdb5.3",
+      "purl": "pkg:deb/ubuntu/libdb5.3@5.3.28%2Bdfsg1-0.8ubuntu3?arch=amd64&distro=ubuntu-22.04&upstream=db5.3",
+      "type": "deb",
+      "version": "5.3.28+dfsg1-0.8ubuntu3"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libdebconfclient0/copyright"
+      ],
+      "licenses": [
+        "BSD-2-Clause"
+      ],
+      "name": "libdebconfclient0",
+      "purl": "pkg:deb/ubuntu/libdebconfclient0@0.261ubuntu1?arch=amd64&distro=ubuntu-22.04&upstream=cdebconf",
+      "type": "deb",
+      "version": "0.261ubuntu1"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libext2fs2/copyright"
+      ],
+      "licenses": [
+        "sha256:b7b391571e7253d4cf607e33e3b463895768fad264471e7774882974f834faa1"
+      ],
+      "name": "libext2fs2",
+      "purl": "pkg:deb/ubuntu/libext2fs2@1.46.5-2ubuntu1.2?arch=amd64&distro=ubuntu-22.04&upstream=e2fsprogs",
+      "type": "deb",
+      "version": "1.46.5-2ubuntu1.2"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libffi8/copyright"
+      ],
+      "licenses": [
+        "sha256:7258c8acc378030d8dbe1fcdf394e915769fa31dcbaf3d2991d9a79891f3bcdc"
+      ],
+      "name": "libffi8",
+      "purl": "pkg:deb/ubuntu/libffi8@3.4.2-4?arch=amd64&distro=ubuntu-22.04&upstream=libffi",
+      "type": "deb",
+      "version": "3.4.2-4"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/gcc-12-base/copyright"
+      ],
+      "licenses": [
+        "sha256:da8191658b3452ce9caf31638ba61dab31a38c619fa39df119812e050f592fd3"
+      ],
+      "name": "libgcc-s1",
+      "purl": "pkg:deb/ubuntu/libgcc-s1@12.3.0-1ubuntu1~22.04.2?arch=amd64&distro=ubuntu-22.04&upstream=gcc-12",
+      "type": "deb",
+      "version": "12.3.0-1ubuntu1~22.04.2"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libgcrypt20/copyright"
+      ],
+      "licenses": [
+        "sha256:8bf0ea526b7b497bf7b31842e799c37caa69090cc53fd080c76403cc8b79f659"
+      ],
+      "name": "libgcrypt20",
+      "purl": "pkg:deb/ubuntu/libgcrypt20@1.9.4-3ubuntu3?arch=amd64&distro=ubuntu-22.04",
+      "type": "deb",
+      "version": "1.9.4-3ubuntu3"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libgmp10/copyright"
+      ],
+      "licenses": [
+        "sha256:f73f781beb9f85b3f921f9bf540fc89d6eff9e20689ef9323ce510d077a30878"
+      ],
+      "name": "libgmp10",
+      "purl": "pkg:deb/ubuntu/libgmp10@2%3A6.2.1%2Bdfsg-3ubuntu1?arch=amd64&distro=ubuntu-22.04&upstream=gmp",
+      "type": "deb",
+      "version": "2:6.2.1+dfsg-3ubuntu1"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libgnutls30/copyright"
+      ],
+      "licenses": [
+        "sha256:c2a08ee31ea9f0a4fc0f4d590c5481f5b7fc2d325b04ae74c719fa7894dcbdd7"
+      ],
+      "name": "libgnutls30",
+      "purl": "pkg:deb/ubuntu/libgnutls30@3.7.3-4ubuntu1.7?arch=amd64&distro=ubuntu-22.04&upstream=gnutls28",
+      "type": "deb",
+      "version": "3.7.3-4ubuntu1.7"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libgpg-error0/copyright"
+      ],
+      "licenses": [
+        "BSD-3-Clause",
+        "GPL-3.0-only",
+        "GPL-3.0-or-later",
+        "LGPL-2.1-only",
+        "LGPL-2.1-or-later",
+        "g10-permissive"
+      ],
+      "name": "libgpg-error0",
+      "purl": "pkg:deb/ubuntu/libgpg-error0@1.43-3?arch=amd64&distro=ubuntu-22.04&upstream=libgpg-error",
+      "type": "deb",
+      "version": "1.43-3"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libgssapi-krb5-2/copyright"
+      ],
+      "licenses": [
+        "sha256:4a2d321ab57260e8de4b67bde8cff76c07d28be69c2d8b22dfc2bfa42f5c41b9"
+      ],
+      "name": "libgssapi-krb5-2",
+      "purl": "pkg:deb/ubuntu/libgssapi-krb5-2@1.19.2-2ubuntu0.7?arch=amd64&distro=ubuntu-22.04&upstream=krb5",
+      "type": "deb",
+      "version": "1.19.2-2ubuntu0.7"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libhogweed6/copyright"
+      ],
+      "licenses": [
+        "Expat",
+        "GAP",
+        "GPL",
+        "GPL-2.0-only",
+        "GPL-2.0-or-later",
+        "GPL-3.0-or-later",
+        "LGPL",
+        "LGPL-2.0-only",
+        "LGPL-2.0-or-later",
+        "LGPL-3.0-or-later",
+        "public-domain"
+      ],
+      "name": "libhogweed6",
+      "purl": "pkg:deb/ubuntu/libhogweed6@3.7.3-1build2?arch=amd64&distro=ubuntu-22.04&upstream=nettle",
+      "type": "deb",
+      "version": "3.7.3-1build2"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libidn2-0/copyright"
+      ],
+      "licenses": [
+        "GPL-2.0-only",
+        "GPL-2.0-or-later",
+        "GPL-3.0-only",
+        "GPL-3.0-or-later",
+        "LGPL-3.0-only",
+        "LGPL-3.0-or-later",
+        "Unicode"
+      ],
+      "name": "libidn2-0",
+      "purl": "pkg:deb/ubuntu/libidn2-0@2.3.2-2build1?arch=amd64&distro=ubuntu-22.04&upstream=libidn2",
+      "type": "deb",
+      "version": "2.3.2-2build1"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libk5crypto3/copyright"
+      ],
+      "licenses": [
+        "sha256:4a2d321ab57260e8de4b67bde8cff76c07d28be69c2d8b22dfc2bfa42f5c41b9"
+      ],
+      "name": "libk5crypto3",
+      "purl": "pkg:deb/ubuntu/libk5crypto3@1.19.2-2ubuntu0.7?arch=amd64&distro=ubuntu-22.04&upstream=krb5",
+      "type": "deb",
+      "version": "1.19.2-2ubuntu0.7"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libkeyutils1/copyright"
+      ],
+      "licenses": [
+        "GPL-2.0-only",
+        "GPL-2.0-or-later",
+        "LGPL-2.0-only",
+        "LGPL-2.0-or-later"
+      ],
+      "name": "libkeyutils1",
+      "purl": "pkg:deb/ubuntu/libkeyutils1@1.6.1-2ubuntu3?arch=amd64&distro=ubuntu-22.04&upstream=keyutils",
+      "type": "deb",
+      "version": "1.6.1-2ubuntu3"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libkrb5-3/copyright"
+      ],
+      "licenses": [
+        "sha256:4a2d321ab57260e8de4b67bde8cff76c07d28be69c2d8b22dfc2bfa42f5c41b9"
+      ],
+      "name": "libkrb5-3",
+      "purl": "pkg:deb/ubuntu/libkrb5-3@1.19.2-2ubuntu0.7?arch=amd64&distro=ubuntu-22.04&upstream=krb5",
+      "type": "deb",
+      "version": "1.19.2-2ubuntu0.7"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libkrb5support0/copyright"
+      ],
+      "licenses": [
+        "sha256:4a2d321ab57260e8de4b67bde8cff76c07d28be69c2d8b22dfc2bfa42f5c41b9"
+      ],
+      "name": "libkrb5support0",
+      "purl": "pkg:deb/ubuntu/libkrb5support0@1.19.2-2ubuntu0.7?arch=amd64&distro=ubuntu-22.04&upstream=krb5",
+      "type": "deb",
+      "version": "1.19.2-2ubuntu0.7"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/liblz4-1/copyright"
+      ],
+      "licenses": [
+        "BSD-2-Clause",
+        "GPL-2.0-only",
+        "GPL-2.0-or-later"
+      ],
+      "name": "liblz4-1",
+      "purl": "pkg:deb/ubuntu/liblz4-1@1.9.3-2build2?arch=amd64&distro=ubuntu-22.04&upstream=lz4",
+      "type": "deb",
+      "version": "1.9.3-2build2"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/liblzma5/copyright"
+      ],
+      "licenses": [
+        "Autoconf",
+        "GPL-2.0-only",
+        "GPL-2.0-or-later",
+        "GPL-3.0-only",
+        "LGPL-2.0-only",
+        "LGPL-2.1-only",
+        "LGPL-2.1-or-later",
+        "PD",
+        "PD-debian",
+        "config-h",
+        "noderivs",
+        "permissive-fsf",
+        "permissive-nowarranty",
+        "probably-PD"
+      ],
+      "name": "liblzma5",
+      "purl": "pkg:deb/ubuntu/liblzma5@5.2.5-2ubuntu1?arch=amd64&distro=ubuntu-22.04&upstream=xz-utils",
+      "type": "deb",
+      "version": "5.2.5-2ubuntu1"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libmount1/copyright"
+      ],
+      "licenses": [
+        "BSD-2-Clause",
+        "BSD-3-Clause",
+        "BSD-4-Clause",
+        "GPL-2.0-only",
+        "GPL-2.0-or-later",
+        "GPL-3.0-only",
+        "GPL-3.0-or-later",
+        "LGPL",
+        "LGPL-2.0-only",
+        "LGPL-2.0-or-later",
+        "LGPL-2.1-only",
+        "LGPL-2.1-or-later",
+        "LGPL-3.0-only",
+        "LGPL-3.0-or-later",
+        "MIT",
+        "public-domain"
+      ],
+      "name": "libmount1",
+      "purl": "pkg:deb/ubuntu/libmount1@2.37.2-4ubuntu3.4?arch=amd64&distro=ubuntu-22.04&upstream=util-linux",
+      "type": "deb",
+      "version": "2.37.2-4ubuntu3.4"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libtinfo6/copyright"
+      ],
+      "licenses": [
+        "BSD-3-Clause",
+        "MIT/X11",
+        "X11"
+      ],
+      "name": "libncurses6",
+      "purl": "pkg:deb/ubuntu/libncurses6@6.3-2ubuntu0.1?arch=amd64&distro=ubuntu-22.04&upstream=ncurses",
+      "type": "deb",
+      "version": "6.3-2ubuntu0.1"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libtinfo6/copyright"
+      ],
+      "licenses": [
+        "BSD-3-Clause",
+        "MIT/X11",
+        "X11"
+      ],
+      "name": "libncursesw6",
+      "purl": "pkg:deb/ubuntu/libncursesw6@6.3-2ubuntu0.1?arch=amd64&distro=ubuntu-22.04&upstream=ncurses",
+      "type": "deb",
+      "version": "6.3-2ubuntu0.1"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libnettle8/copyright"
+      ],
+      "licenses": [
+        "Expat",
+        "GAP",
+        "GPL",
+        "GPL-2.0-only",
+        "GPL-2.0-or-later",
+        "GPL-3.0-or-later",
+        "LGPL",
+        "LGPL-2.0-only",
+        "LGPL-2.0-or-later",
+        "LGPL-3.0-or-later",
+        "public-domain"
+      ],
+      "name": "libnettle8",
+      "purl": "pkg:deb/ubuntu/libnettle8@3.7.3-1build2?arch=amd64&distro=ubuntu-22.04&upstream=nettle",
+      "type": "deb",
+      "version": "3.7.3-1build2"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libnsl2/copyright"
+      ],
+      "licenses": [
+        "BSD-3-Clause",
+        "GPL-2+-autoconf-exception",
+        "GPL-2+-libtool-exception",
+        "GPL-2.0-only",
+        "GPL-3+-autoconf-exception",
+        "GPL-3.0-only",
+        "LGPL-2.1-only",
+        "LGPL-2.1-or-later",
+        "MIT",
+        "permissive-autoconf-m4",
+        "permissive-autoconf-m4-no-warranty",
+        "permissive-configure",
+        "permissive-fsf",
+        "permissive-makefile-in"
+      ],
+      "name": "libnsl2",
+      "purl": "pkg:deb/ubuntu/libnsl2@1.3.0-2build2?arch=amd64&distro=ubuntu-22.04&upstream=libnsl",
+      "type": "deb",
+      "version": "1.3.0-2build2"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libp11-kit0/copyright"
+      ],
+      "licenses": [
+        "Apache-2.0",
+        "BSD-3-Clause",
+        "ISC",
+        "ISC+IBM",
+        "LGPL-2.1-only",
+        "LGPL-2.1-or-later",
+        "permissive-like-automake-output",
+        "same-as-rest-of-p11kit"
+      ],
+      "name": "libp11-kit0",
+      "purl": "pkg:deb/ubuntu/libp11-kit0@0.24.0-6build1?arch=amd64&distro=ubuntu-22.04&upstream=p11-kit",
+      "type": "deb",
+      "version": "0.24.0-6build1"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libpam-modules/copyright"
+      ],
+      "licenses": [
+        "sha256:7c584b7b1f37b612da7fdf3b076eb2b2c1bae72865f0699d745ae2ac7d40d13e"
+      ],
+      "name": "libpam-modules",
+      "purl": "pkg:deb/ubuntu/libpam-modules@1.4.0-11ubuntu2.6?arch=amd64&distro=ubuntu-22.04&upstream=pam",
+      "type": "deb",
+      "version": "1.4.0-11ubuntu2.6"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libpam-modules-bin/copyright"
+      ],
+      "licenses": [
+        "sha256:7c584b7b1f37b612da7fdf3b076eb2b2c1bae72865f0699d745ae2ac7d40d13e"
+      ],
+      "name": "libpam-modules-bin",
+      "purl": "pkg:deb/ubuntu/libpam-modules-bin@1.4.0-11ubuntu2.6?arch=amd64&distro=ubuntu-22.04&upstream=pam",
+      "type": "deb",
+      "version": "1.4.0-11ubuntu2.6"
+    },
+    {
+      "architecture": "all",
+      "license_evidence_paths": [
+        "/usr/share/doc/libpam-runtime/copyright"
+      ],
+      "licenses": [
+        "sha256:7c584b7b1f37b612da7fdf3b076eb2b2c1bae72865f0699d745ae2ac7d40d13e"
+      ],
+      "name": "libpam-runtime",
+      "purl": "pkg:deb/ubuntu/libpam-runtime@1.4.0-11ubuntu2.6?arch=all&distro=ubuntu-22.04&upstream=pam",
+      "type": "deb",
+      "version": "1.4.0-11ubuntu2.6"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libpam0g/copyright"
+      ],
+      "licenses": [
+        "sha256:7c584b7b1f37b612da7fdf3b076eb2b2c1bae72865f0699d745ae2ac7d40d13e"
+      ],
+      "name": "libpam0g",
+      "purl": "pkg:deb/ubuntu/libpam0g@1.4.0-11ubuntu2.6?arch=amd64&distro=ubuntu-22.04&upstream=pam",
+      "type": "deb",
+      "version": "1.4.0-11ubuntu2.6"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libpcre2-8-0/copyright"
+      ],
+      "licenses": [
+        "sha256:f65dae37239e4d61a1bdeaf2ded76b8569d012a054aa042233b78615e7a83210"
+      ],
+      "name": "libpcre2-8-0",
+      "purl": "pkg:deb/ubuntu/libpcre2-8-0@10.39-3ubuntu0.1?arch=amd64&distro=ubuntu-22.04&upstream=pcre2",
+      "type": "deb",
+      "version": "10.39-3ubuntu0.1"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libpcre3/copyright"
+      ],
+      "licenses": [
+        "sha256:ac9276490d2fa167442ae1aae33926514ad10c8886baa40046c5e367fccc5938"
+      ],
+      "name": "libpcre3",
+      "purl": "pkg:deb/ubuntu/libpcre3@2%3A8.39-13ubuntu0.22.04.1?arch=amd64&distro=ubuntu-22.04&upstream=pcre3",
+      "type": "deb",
+      "version": "2:8.39-13ubuntu0.22.04.1"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libprocps8/copyright"
+      ],
+      "licenses": [
+        "GPL-2.0-only",
+        "GPL-2.0-or-later",
+        "LGPL-2.0-only",
+        "LGPL-2.0-or-later",
+        "LGPL-2.1-only",
+        "LGPL-2.1-or-later"
+      ],
+      "name": "libprocps8",
+      "purl": "pkg:deb/ubuntu/libprocps8@2%3A3.3.17-6ubuntu2.1?arch=amd64&distro=ubuntu-22.04&upstream=procps",
+      "type": "deb",
+      "version": "2:3.3.17-6ubuntu2.1"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libseccomp2/copyright"
+      ],
+      "licenses": [
+        "LGPL-2.1-only"
+      ],
+      "name": "libseccomp2",
+      "purl": "pkg:deb/ubuntu/libseccomp2@2.5.3-2ubuntu3~22.04.1?arch=amd64&distro=ubuntu-22.04&upstream=libseccomp",
+      "type": "deb",
+      "version": "2.5.3-2ubuntu3~22.04.1"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libselinux1/copyright"
+      ],
+      "licenses": [
+        "sha256:641806738b0c6a3d03168c2649e6b94205198bb66cd557e6bae3a20b71c9bb0b"
+      ],
+      "name": "libselinux1",
+      "purl": "pkg:deb/ubuntu/libselinux1@3.3-1build2?arch=amd64&distro=ubuntu-22.04&upstream=libselinux",
+      "type": "deb",
+      "version": "3.3-1build2"
+    },
+    {
+      "architecture": "all",
+      "license_evidence_paths": [
+        "/usr/share/doc/libsemanage-common/copyright"
+      ],
+      "licenses": [
+        "sha256:e00e6a86c598f9e24ced0180a70a5f2f2e45e133d93adf2b17ce8a06ce4b1b51"
+      ],
+      "name": "libsemanage-common",
+      "purl": "pkg:deb/ubuntu/libsemanage-common@3.3-1build2?arch=all&distro=ubuntu-22.04&upstream=libsemanage",
+      "type": "deb",
+      "version": "3.3-1build2"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libsemanage2/copyright"
+      ],
+      "licenses": [
+        "sha256:e00e6a86c598f9e24ced0180a70a5f2f2e45e133d93adf2b17ce8a06ce4b1b51"
+      ],
+      "name": "libsemanage2",
+      "purl": "pkg:deb/ubuntu/libsemanage2@3.3-1build2?arch=amd64&distro=ubuntu-22.04&upstream=libsemanage",
+      "type": "deb",
+      "version": "3.3-1build2"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libsepol2/copyright"
+      ],
+      "licenses": [
+        "sha256:34414ad829fcea0064729c14f1f900632bfa7d38061b13a9797eec320c372d9e"
+      ],
+      "name": "libsepol2",
+      "purl": "pkg:deb/ubuntu/libsepol2@3.3-1build1?arch=amd64&distro=ubuntu-22.04&upstream=libsepol",
+      "type": "deb",
+      "version": "3.3-1build1"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libsmartcols1/copyright"
+      ],
+      "licenses": [
+        "BSD-2-Clause",
+        "BSD-3-Clause",
+        "BSD-4-Clause",
+        "GPL-2.0-only",
+        "GPL-2.0-or-later",
+        "GPL-3.0-only",
+        "GPL-3.0-or-later",
+        "LGPL",
+        "LGPL-2.0-only",
+        "LGPL-2.0-or-later",
+        "LGPL-2.1-only",
+        "LGPL-2.1-or-later",
+        "LGPL-3.0-only",
+        "LGPL-3.0-or-later",
+        "MIT",
+        "public-domain"
+      ],
+      "name": "libsmartcols1",
+      "purl": "pkg:deb/ubuntu/libsmartcols1@2.37.2-4ubuntu3.4?arch=amd64&distro=ubuntu-22.04&upstream=util-linux",
+      "type": "deb",
+      "version": "2.37.2-4ubuntu3.4"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libss2/copyright"
+      ],
+      "licenses": [
+        "sha256:6f717a1464301a641ac17e7301f1a1b221da802e8edf8cf4bc963721d487b146"
+      ],
+      "name": "libss2",
+      "purl": "pkg:deb/ubuntu/libss2@1.46.5-2ubuntu1.2?arch=amd64&distro=ubuntu-22.04&upstream=e2fsprogs",
+      "type": "deb",
+      "version": "1.46.5-2ubuntu1.2"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libssl3/copyright"
+      ],
+      "licenses": [
+        "Apache-2.0",
+        "Artistic",
+        "GPL-1.0-only",
+        "GPL-1.0-or-later"
+      ],
+      "name": "libssl3",
+      "purl": "pkg:deb/ubuntu/libssl3@3.0.2-0ubuntu1.20?arch=amd64&distro=ubuntu-22.04&upstream=openssl",
+      "type": "deb",
+      "version": "3.0.2-0ubuntu1.20"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/gcc-12-base/copyright"
+      ],
+      "licenses": [
+        "sha256:da8191658b3452ce9caf31638ba61dab31a38c619fa39df119812e050f592fd3"
+      ],
+      "name": "libstdc++6",
+      "purl": "pkg:deb/ubuntu/libstdc%2B%2B6@12.3.0-1ubuntu1~22.04.2?arch=amd64&distro=ubuntu-22.04&upstream=gcc-12",
+      "type": "deb",
+      "version": "12.3.0-1ubuntu1~22.04.2"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libsystemd0/copyright"
+      ],
+      "licenses": [
+        "CC0-1.0",
+        "Expat",
+        "GPL-2.0-only",
+        "GPL-2.0-or-later",
+        "LGPL-2.1-only",
+        "LGPL-2.1-or-later",
+        "public-domain"
+      ],
+      "name": "libsystemd0",
+      "purl": "pkg:deb/ubuntu/libsystemd0@249.11-0ubuntu3.16?arch=amd64&distro=ubuntu-22.04&upstream=systemd",
+      "type": "deb",
+      "version": "249.11-0ubuntu3.16"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libtasn1-6/copyright"
+      ],
+      "licenses": [
+        "sha256:88a94e40a34bb28145805747cad4018e7eb976b5fd0bf2329dedf90088ebc6e4"
+      ],
+      "name": "libtasn1-6",
+      "purl": "pkg:deb/ubuntu/libtasn1-6@4.18.0-4ubuntu0.1?arch=amd64&distro=ubuntu-22.04",
+      "type": "deb",
+      "version": "4.18.0-4ubuntu0.1"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libtinfo6/copyright"
+      ],
+      "licenses": [
+        "BSD-3-Clause",
+        "MIT/X11",
+        "X11"
+      ],
+      "name": "libtinfo6",
+      "purl": "pkg:deb/ubuntu/libtinfo6@6.3-2ubuntu0.1?arch=amd64&distro=ubuntu-22.04&upstream=ncurses",
+      "type": "deb",
+      "version": "6.3-2ubuntu0.1"
+    },
+    {
+      "architecture": "all",
+      "license_evidence_paths": [
+        "/usr/share/doc/libtirpc-common/copyright"
+      ],
+      "licenses": [
+        "BSD-3-Clause",
+        "GPL-2.0-only",
+        "LGPL-2.1-only"
+      ],
+      "name": "libtirpc-common",
+      "purl": "pkg:deb/ubuntu/libtirpc-common@1.3.2-2ubuntu0.1?arch=all&distro=ubuntu-22.04&upstream=libtirpc",
+      "type": "deb",
+      "version": "1.3.2-2ubuntu0.1"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libtirpc3/copyright"
+      ],
+      "licenses": [
+        "BSD-3-Clause",
+        "GPL-2.0-only",
+        "LGPL-2.1-only"
+      ],
+      "name": "libtirpc3",
+      "purl": "pkg:deb/ubuntu/libtirpc3@1.3.2-2ubuntu0.1?arch=amd64&distro=ubuntu-22.04&upstream=libtirpc",
+      "type": "deb",
+      "version": "1.3.2-2ubuntu0.1"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libudev1/copyright"
+      ],
+      "licenses": [
+        "CC0-1.0",
+        "Expat",
+        "GPL-2.0-only",
+        "GPL-2.0-or-later",
+        "LGPL-2.1-only",
+        "LGPL-2.1-or-later",
+        "public-domain"
+      ],
+      "name": "libudev1",
+      "purl": "pkg:deb/ubuntu/libudev1@249.11-0ubuntu3.16?arch=amd64&distro=ubuntu-22.04&upstream=systemd",
+      "type": "deb",
+      "version": "249.11-0ubuntu3.16"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libunistring2/copyright"
+      ],
+      "licenses": [
+        "FreeSoftware",
+        "GFDL-1.2-only",
+        "GFDL-1.2-or-later",
+        "GPL-2.0-only",
+        "GPL-2.0-or-later",
+        "GPL-3.0-only",
+        "GPL-3.0-or-later",
+        "LGPL-3.0-only",
+        "LGPL-3.0-or-later",
+        "MIT"
+      ],
+      "name": "libunistring2",
+      "purl": "pkg:deb/ubuntu/libunistring2@1.0-1?arch=amd64&distro=ubuntu-22.04&upstream=libunistring",
+      "type": "deb",
+      "version": "1.0-1"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libuuid1/copyright"
+      ],
+      "licenses": [
+        "BSD-2-Clause",
+        "BSD-3-Clause",
+        "BSD-4-Clause",
+        "GPL-2.0-only",
+        "GPL-2.0-or-later",
+        "GPL-3.0-only",
+        "GPL-3.0-or-later",
+        "LGPL",
+        "LGPL-2.0-only",
+        "LGPL-2.0-or-later",
+        "LGPL-2.1-only",
+        "LGPL-2.1-or-later",
+        "LGPL-3.0-only",
+        "LGPL-3.0-or-later",
+        "MIT",
+        "public-domain"
+      ],
+      "name": "libuuid1",
+      "purl": "pkg:deb/ubuntu/libuuid1@2.37.2-4ubuntu3.4?arch=amd64&distro=ubuntu-22.04&upstream=util-linux",
+      "type": "deb",
+      "version": "2.37.2-4ubuntu3.4"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libxxhash0/copyright"
+      ],
+      "licenses": [
+        "BSD-2-Clause",
+        "GPL-2.0-only"
+      ],
+      "name": "libxxhash0",
+      "purl": "pkg:deb/ubuntu/libxxhash0@0.8.1-1?arch=amd64&distro=ubuntu-22.04&upstream=xxhash",
+      "type": "deb",
+      "version": "0.8.1-1"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/libzstd1/copyright"
+      ],
+      "licenses": [
+        "BSD-3-Clause",
+        "Expat",
+        "GPL-2.0-only",
+        "Zlib"
+      ],
+      "name": "libzstd1",
+      "purl": "pkg:deb/ubuntu/libzstd1@1.4.8%2Bdfsg-3build1?arch=amd64&distro=ubuntu-22.04&upstream=libzstd",
+      "type": "deb",
+      "version": "1.4.8+dfsg-3build1"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/login/copyright"
+      ],
+      "licenses": [
+        "sha256:56ca9c00cdef4d69b35d2013465c539eb9e09a80fec538d0f6dc91423dbaa1d3"
+      ],
+      "name": "login",
+      "purl": "pkg:deb/ubuntu/login@1%3A4.8.1-2ubuntu2.2?arch=amd64&distro=ubuntu-22.04&upstream=shadow",
+      "type": "deb",
+      "version": "1:4.8.1-2ubuntu2.2"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/logsave/copyright"
+      ],
+      "licenses": [
+        "sha256:b7b391571e7253d4cf607e33e3b463895768fad264471e7774882974f834faa1"
+      ],
+      "name": "logsave",
+      "purl": "pkg:deb/ubuntu/logsave@1.46.5-2ubuntu1.2?arch=amd64&distro=ubuntu-22.04&upstream=e2fsprogs",
+      "type": "deb",
+      "version": "1.46.5-2ubuntu1.2"
+    },
+    {
+      "architecture": "all",
+      "license_evidence_paths": [
+        "/usr/share/doc/lsb-base/copyright"
+      ],
+      "licenses": [
+        "BSD-3-Clause",
+        "GPL-2.0-only"
+      ],
+      "name": "lsb-base",
+      "purl": "pkg:deb/ubuntu/lsb-base@11.1.0ubuntu4?arch=all&distro=ubuntu-22.04&upstream=lsb",
+      "type": "deb",
+      "version": "11.1.0ubuntu4"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/mawk/copyright"
+      ],
+      "licenses": [
+        "sha256:74a10b02e3422fe1be9a5ae06568ea587592123505284dea9df65ab72d94d183"
+      ],
+      "name": "mawk",
+      "purl": "pkg:deb/ubuntu/mawk@1.3.4.20200120-3?arch=amd64&distro=ubuntu-22.04",
+      "type": "deb",
+      "version": "1.3.4.20200120-3"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/mount/copyright"
+      ],
+      "licenses": [
+        "BSD-2-Clause",
+        "BSD-3-Clause",
+        "BSD-4-Clause",
+        "GPL-2.0-only",
+        "GPL-2.0-or-later",
+        "GPL-3.0-only",
+        "GPL-3.0-or-later",
+        "LGPL",
+        "LGPL-2.0-only",
+        "LGPL-2.0-or-later",
+        "LGPL-2.1-only",
+        "LGPL-2.1-or-later",
+        "LGPL-3.0-only",
+        "LGPL-3.0-or-later",
+        "MIT",
+        "public-domain"
+      ],
+      "name": "mount",
+      "purl": "pkg:deb/ubuntu/mount@2.37.2-4ubuntu3.4?arch=amd64&distro=ubuntu-22.04&upstream=util-linux",
+      "type": "deb",
+      "version": "2.37.2-4ubuntu3.4"
+    },
+    {
+      "architecture": "all",
+      "license_evidence_paths": [
+        "/usr/share/doc/ncurses-base/copyright"
+      ],
+      "licenses": [
+        "BSD-3-Clause",
+        "MIT/X11",
+        "X11"
+      ],
+      "name": "ncurses-base",
+      "purl": "pkg:deb/ubuntu/ncurses-base@6.3-2ubuntu0.1?arch=all&distro=ubuntu-22.04&upstream=ncurses",
+      "type": "deb",
+      "version": "6.3-2ubuntu0.1"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/ncurses-bin/copyright"
+      ],
+      "licenses": [
+        "BSD-3-Clause",
+        "MIT/X11",
+        "X11"
+      ],
+      "name": "ncurses-bin",
+      "purl": "pkg:deb/ubuntu/ncurses-bin@6.3-2ubuntu0.1?arch=amd64&distro=ubuntu-22.04&upstream=ncurses",
+      "type": "deb",
+      "version": "6.3-2ubuntu0.1"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/passwd/copyright"
+      ],
+      "licenses": [
+        "sha256:56ca9c00cdef4d69b35d2013465c539eb9e09a80fec538d0f6dc91423dbaa1d3"
+      ],
+      "name": "passwd",
+      "purl": "pkg:deb/ubuntu/passwd@1%3A4.8.1-2ubuntu2.2?arch=amd64&distro=ubuntu-22.04&upstream=shadow",
+      "type": "deb",
+      "version": "1:4.8.1-2ubuntu2.2"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/perl-base/copyright"
+      ],
+      "licenses": [
+        "Artistic",
+        "Artistic-2.0",
+        "Artistic-dist",
+        "BSD-3-Clause",
+        "BSD-3-clause-GENERIC",
+        "BSD-3-clause-with-weird-numbering",
+        "BSD-4-clause-POWERDOG",
+        "BZIP",
+        "DONT-CHANGE-THE-GPL",
+        "Expat",
+        "GPL-1.0-only",
+        "GPL-1.0-or-later",
+        "GPL-2.0-only",
+        "GPL-2.0-or-later",
+        "GPL-3+-WITH-BISON-EXCEPTION",
+        "HSIEH-BSD",
+        "HSIEH-DERIVATIVE",
+        "LGPL-2.1-only",
+        "REGCOMP",
+        "REGCOMP,",
+        "RRA-KEEP-THIS-NOTICE",
+        "SDBM-PUBLIC-DOMAIN",
+        "TEXT-TABS",
+        "Unicode",
+        "Zlib"
+      ],
+      "name": "perl-base",
+      "purl": "pkg:deb/ubuntu/perl-base@5.34.0-3ubuntu1.5?arch=amd64&distro=ubuntu-22.04&upstream=perl",
+      "type": "deb",
+      "version": "5.34.0-3ubuntu1.5"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/procps/copyright"
+      ],
+      "licenses": [
+        "GPL-2.0-only",
+        "GPL-2.0-or-later",
+        "LGPL-2.0-only",
+        "LGPL-2.0-or-later",
+        "LGPL-2.1-only",
+        "LGPL-2.1-or-later"
+      ],
+      "name": "procps",
+      "purl": "pkg:deb/ubuntu/procps@2%3A3.3.17-6ubuntu2.1?arch=amd64&distro=ubuntu-22.04",
+      "type": "deb",
+      "version": "2:3.3.17-6ubuntu2.1"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/sed/copyright"
+      ],
+      "licenses": [
+        "sha256:60886b6264e9531565ccf1e31a63cd9b23f0bf4bbd7053b46aa9e6ae7622d31d"
+      ],
+      "name": "sed",
+      "purl": "pkg:deb/ubuntu/sed@4.8-1ubuntu2?arch=amd64&distro=ubuntu-22.04",
+      "type": "deb",
+      "version": "4.8-1ubuntu2"
+    },
+    {
+      "architecture": "all",
+      "license_evidence_paths": [
+        "/usr/share/doc/sensible-utils/copyright"
+      ],
+      "licenses": [
+        "All-permissive",
+        "GPL-2.0-only",
+        "GPL-2.0-or-later",
+        "configure",
+        "installsh"
+      ],
+      "name": "sensible-utils",
+      "purl": "pkg:deb/ubuntu/sensible-utils@0.0.17?arch=all&distro=ubuntu-22.04",
+      "type": "deb",
+      "version": "0.0.17"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/sysvinit-utils/copyright"
+      ],
+      "licenses": [
+        "GPL-2.0-only",
+        "GPL-2.0-or-later"
+      ],
+      "name": "sysvinit-utils",
+      "purl": "pkg:deb/ubuntu/sysvinit-utils@3.01-1ubuntu1?arch=amd64&distro=ubuntu-22.04&upstream=sysvinit",
+      "type": "deb",
+      "version": "3.01-1ubuntu1"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/tar/copyright"
+      ],
+      "licenses": [
+        "sha256:5e07fa97dc98e502dc15d09d4c14647ec77509f949267a30d1341cadf84d629f"
+      ],
+      "name": "tar",
+      "purl": "pkg:deb/ubuntu/tar@1.34%2Bdfsg-1ubuntu0.1.22.04.2?arch=amd64&distro=ubuntu-22.04",
+      "type": "deb",
+      "version": "1.34+dfsg-1ubuntu0.1.22.04.2"
+    },
+    {
+      "architecture": "all",
+      "license_evidence_paths": [
+        "/usr/share/doc/ubuntu-keyring/copyright"
+      ],
+      "licenses": [
+        "sha256:191cdb1291b2fc3b9fdcd8648b16ab7f9e4f15b74dc5b30959a9fdcfb4782b6c"
+      ],
+      "name": "ubuntu-keyring",
+      "purl": "pkg:deb/ubuntu/ubuntu-keyring@2021.03.26?arch=all&distro=ubuntu-22.04",
+      "type": "deb",
+      "version": "2021.03.26"
+    },
+    {
+      "architecture": "all",
+      "license_evidence_paths": [
+        "/usr/share/doc/usrmerge/copyright"
+      ],
+      "licenses": [
+        "sha256:8d802155eff627acf34a860d95a9ecc8263c84a94eccb891c5fc5fe62f0b6c92"
+      ],
+      "name": "usrmerge",
+      "purl": "pkg:deb/ubuntu/usrmerge@25ubuntu2?arch=all&distro=ubuntu-22.04",
+      "type": "deb",
+      "version": "25ubuntu2"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/util-linux/copyright"
+      ],
+      "licenses": [
+        "BSD-2-Clause",
+        "BSD-3-Clause",
+        "BSD-4-Clause",
+        "GPL-2.0-only",
+        "GPL-2.0-or-later",
+        "GPL-3.0-only",
+        "GPL-3.0-or-later",
+        "LGPL",
+        "LGPL-2.0-only",
+        "LGPL-2.0-or-later",
+        "LGPL-2.1-only",
+        "LGPL-2.1-or-later",
+        "LGPL-3.0-only",
+        "LGPL-3.0-or-later",
+        "MIT",
+        "public-domain"
+      ],
+      "name": "util-linux",
+      "purl": "pkg:deb/ubuntu/util-linux@2.37.2-4ubuntu3.4?arch=amd64&distro=ubuntu-22.04",
+      "type": "deb",
+      "version": "2.37.2-4ubuntu3.4"
+    },
+    {
+      "architecture": "amd64",
+      "license_evidence_paths": [
+        "/usr/share/doc/zlib1g/copyright"
+      ],
+      "licenses": [
+        "Zlib"
+      ],
+      "name": "zlib1g",
+      "purl": "pkg:deb/ubuntu/zlib1g@1%3A1.2.11.dfsg-2ubuntu9.2?arch=amd64&distro=ubuntu-22.04&upstream=zlib",
+      "type": "deb",
+      "version": "1:1.2.11.dfsg-2ubuntu9.2"
+    }
+  ],
+  "generated_date": "2026-09-18",
+  "requested_image_reference": "mambaorg/micromamba:2.3.2-ubuntu22.04@sha256:0e87302b8b802b595c947f408e02c436c1d49aa582132ddaa4cd5e1c991a4871",
+  "resolved_image_id": "sha256:feca83f287e2cfc4771ef5b32de6fca0b00e8f6f46818d9324e7527a783ffbf6",
+  "resolved_manifest_digest": "sha256:3b7ff8c25fe1adf1fc84e0ff4a2ed74c901aa62bbefe0b6e1d324c40b6e183e2",
+  "scanner": {
+    "git_commit": "02ba369d13b4248395b20a504eca94b0cab564d8",
+    "name": "syft",
+    "version": "1.52.0"
+  },
+  "schema": "omnigenis-base-image-software-v1"
+}

@@ -1,6 +1,6 @@
 # Third-Party Notices
 
-This file began as the Stage 1 third-party licensing baseline and is updated as remediation stages are completed. Stage 4 now provides a versioned software/container inventory and CI SBOM contract; scientific data/resource licensing remains a separate later stage.
+This file began as the Stage 1 third-party licensing baseline and is updated as remediation stages are completed. It is intentionally not yet a complete SBOM or complete transitive-license inventory.
 
 Third-party software, datasets, standards, reference resources, and documentation remain governed by their own terms. OmniGenis does not relicense those materials under the repository's proprietary license.
 
@@ -19,22 +19,13 @@ Third-party software, datasets, standards, reference resources, and documentatio
 - Historical evidence and documentation may retain Poppler references when they describe the software actually used for an earlier validation event. Those references are provenance, not active-runtime authorization.
 - This cleanup does not assert that the container, operating-system layer, or repository is free of GPL/LGPL or other copyleft software. System packages and transitive dependencies remain subject to the complete inventory, SBOM, notice, redistribution, and source-obligation analysis planned for Stage 4.
 
-## Stage 4 third-party software inventory and SBOM
-
-- The software/container inventory is now recorded in `config/third_party_software_registry.json` and the associated integrity-pinned lock artifacts under `locks/`.
-- The Linux x86_64 Conda resolution is frozen to 161 exact package artifacts with source URLs and SHA-256 identities; the Docker build installs the explicit lock instead of resolving transitive packages dynamically.
-- The digest-pinned base image has a 101-package software/license snapshot. Python, npm, and GitHub Action license metadata are also covered by the registry.
-- The final OmniGenis image is required to produce Syft JSON, SPDX 2.3 JSON, and CycloneDX 1.7 JSON SBOMs in CI using the exact Syft artifact pinned by `locks/sbom-tool-lock.json`.
-- The inventory contains copyleft and other review-required components in the base operating-system and Conda layers. Stage 4 therefore does **not** certify the image or repository as GPL-free, copyleft-free, or `LICENSE-CLEAN`.
-- Registry statuses such as `BLOCKED_BY_DEFAULT` and `REVIEW_REQUIRED` are repository policy triage. They do not replace artifact-specific legal review of redistribution, linkage, notice, and source obligations.
-
 ## Known remediation items
 
 - Scientific datasets and scoring resources may carry per-resource or per-score restrictions that must be evaluated independently.
-- Operating-system, system-utility, and transitive dependency licensing is now inventoried by Stage 4; the default-blocked/review-required findings still require remediation or documented artifact-specific disposition before a license-clean claim or unrestricted redistribution.
+- Operating-system, system-utility, and transitive dependency licensing remains to be reconciled by the Stage 4 inventory and SBOM.
 
 ## Required handling
 
 Before distribution or production use, each included third-party artifact must have its exact version, source, license, required notices, commercial-use status, redistribution status, and integrity evidence recorded.
 
-Stage 4 generates the software registry and enforces final-image SBOM production in CI. Because the registry still contains default-blocked and review-required findings, no document or build may claim that OmniGenis is `LICENSE-CLEAN` until those findings are resolved and the later enforcement stage accepts the exact artifacts.
+A later compliance stage will generate the complete third-party registry and SBOM. Until that inventory is reconciled, no document or build may claim that OmniGenis is `LICENSE-CLEAN`.

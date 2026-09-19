@@ -93,7 +93,7 @@
     "verbatim_upstream_license_files": 19,
     "upstream_metadata_manifest_path": "licenses/pypdfium2-5.13.0/UPSTREAM_METADATA.sha256",
     "upstream_metadata_manifest_sha256": "f377443334cc7949b109ebb1dfd4925b5f3d52c6f5eb4a38be7331b778a208f1",
-    "third_party_notices_path": "THIRD_PARTY_NOTICES.md",
+    "third_party_notices_path": "docs/evidence/stage3/THIRD_PARTY_NOTICES_STAGE3.md",
     "third_party_notices_sha256": "ea67233cd1c43c19c5d70307444dece4b5b4bd490f185670432fb10c5f284ad4",
     "rule": "verbatim upstream license/notice files control over the human-readable summary; OmniGenis does not relicense third-party material",
     "upstream_build_license_manifest_path": "licenses/pypdfium2-5.13.0/UPSTREAM_BUILD_LICENSES.sha256",

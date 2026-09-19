@@ -1,0 +1,119 @@
+{
+  "artifacts": {
+    "config/third_party_software_registry.json": "0d56489ef78b4db32b6c0c384cb3baeb63607272cc9bc88b5671a412a0f040d2",
+    "locks/action-license-metadata.json": "46b8d13c5f258faf2e810600ccdaafa6c4c3df60d0aa6de3070389fdeeb91b47",
+    "locks/base-image-software.json": "3c3b6254d444dbce3a9eb59921f8d743d3ebcac049cc6e9bd847ffdb97efd0bc",
+    "locks/conda-linux-64-explicit.txt": "250ec10d9c3de57427374f7b0b753d059919f568ac686a385729f284a35927cd",
+    "locks/conda-linux-64-resolution.json": "b41b9e4c3b74977478549e114d8ddf98c2f681f7a26ef923ba8cae4dbf135240",
+    "locks/python-license-metadata.json": "3d3aff74d8332c02cb9d29abc2a750e1cdf6cd3c887f8b91b09863d1979eb5ed",
+    "locks/sbom-tool-lock.json": "0328af732b1b2b0c5d2e6ca934cea0920107c8c2f7a5dea4c75004dc07a8af5f"
+  },
+  "date": "2026-09-18",
+  "excluded_scope": "scientific datasets, scores, model/data-resource usage terms; handled by the later scientific-data licensing stage",
+  "execution": {
+    "base_image_scan": {
+      "packages": 101,
+      "scanner": "Syft 1.52.0",
+      "status": "EXECUTED"
+    },
+    "conda_transitive_resolution": {
+      "packages": 161,
+      "solver": "micromamba 2.9.0",
+      "status": "EXECUTED"
+    },
+    "final_omnigenis_image_sbom": {
+      "reason": "local Docker daemon is not accessible to the remote executor; the PR CI builds the image and must generate/validate final-image SBOMs before merge",
+      "status": "CI_REQUIRED"
+    },
+    "github_action_license_metadata": {
+      "actions": 10,
+      "status": "VERIFIED"
+    },
+    "npm_lock_license_metadata": {
+      "missing_license_records": 0,
+      "packages": 137,
+      "status": "VERIFIED"
+    },
+    "python_license_metadata": {
+      "packages": 8,
+      "status": "VERIFIED"
+    }
+  },
+  "important_findings": [
+    "The current Ubuntu/base-image and Conda runtime contain copyleft-licensed components.",
+    "The registry therefore forbids any LICENSE-CLEAN, GPL-free, or copyleft-free claim.",
+    "BLOCKED_BY_DEFAULT and REVIEW_REQUIRED are technical policy triage states, not legal opinions.",
+    "Exact redistribution, notice, source-availability and linkage obligations remain open remediation work for the affected artifacts."
+  ],
+  "local_validation": {
+    "coderabbit_cli": {
+      "reason": "CLI is installed but authentication requires a user-controlled browser or Agentic API key; no authenticated local review was claimed.",
+      "status": "NOT_AVAILABLE"
+    },
+    "mcp_suite": {
+      "command": "npm ci --ignore-scripts && npm test",
+      "npm_audit_vulnerabilities": 0,
+      "passed": 45,
+      "skipped": 1,
+      "status": "PASS",
+      "tests": 46
+    },
+    "python_full_suite": {
+      "command": "python -m unittest discover -s tests -p 'test_*.py' -v",
+      "skipped": 2,
+      "status": "PASS",
+      "tests": 1306
+    },
+    "repository_validator": {
+      "command": "python scripts/validate_repo.py",
+      "status": "PASS"
+    },
+    "stage4_inventory_gate": {
+      "blocked_default": 51,
+      "command": "python scripts/validate_stage4_compliance.py",
+      "components": 417,
+      "review_required": 95,
+      "status": "PASS"
+    },
+    "supply_chain_gate": {
+      "command": "python scripts/verify_supply_chain_lock.py",
+      "status": "PASS"
+    },
+    "zero_identity_guard": {
+      "findings": 0,
+      "status": "PASS"
+    }
+  },
+  "registry_summary": {
+    "by_ecosystem": {
+      "conda": 161,
+      "deb": 101,
+      "github-action": 10,
+      "npm": 137,
+      "pypi": 8
+    },
+    "by_policy_status": {
+      "BLOCKED_BY_DEFAULT": 51,
+      "PERMISSIVE": 270,
+      "REVIEWED_ACCEPTED_EXACT_ARTIFACT": 1,
+      "REVIEW_REQUIRED": 95
+    },
+    "by_scope": {
+      "build_dependency_pruned_after_build": 44,
+      "build_only": 10,
+      "distributed_runtime": 363
+    },
+    "component_records": 417,
+    "license_clean_claim_allowed": false
+  },
+  "schema": "omnigenis-stage4-third-party-inventory-evidence-v1",
+  "scope": "software_container_and_build_dependencies",
+  "stage": 4,
+  "standards": {
+    "cyclonedx": "1.7",
+    "note": "SPDX 2.3 output is a generator capability boundary, not a claim that SPDX 2.3 is the current upstream specification.",
+    "spdx_current_upstream": "3.0",
+    "spdx_emitted_by_pinned_syft": "2.3"
+  },
+  "status": "PRE_CI_INVENTORY_COMPLETE_WITH_OPEN_LICENSE_OBLIGATIONS"
+}

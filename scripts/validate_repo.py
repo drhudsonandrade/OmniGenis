@@ -37,6 +37,7 @@ from scripts.zero_identity_guard import (  # noqa: E402
     RepositoryScanError,
     validate_zero_identity,
 )
+from scripts.validate_stage4_compliance import collect_errors as validate_stage4_compliance  # noqa: E402
 
 CANONICAL_RULESET = EXPECTED_NAME
 CANONICAL_RULESET_SHA256 = EXPECTED_SHA
@@ -48,6 +49,9 @@ REQUIRED_PATHS = (
     "licenses/pypdfium2-5.13.0/README.md", "docs/evidence/PDFIUM_COORDINATE_MIGRATION_2026-09-17.json",
     "docs/evidence/PDFIUM_STATIC_PIXEL_QA_200DPI_2026-09-17.json",
     "docs/evidence/STRONG_COPYLEFT_RUNTIME_CLEANUP_2026-09-17.json",
+    "docs/evidence/stage3/THIRD_PARTY_NOTICES_STAGE3.md",
+    "docs/evidence/STAGE4_THIRD_PARTY_INVENTORY_2026-09-18.json",
+    "docs/compliance/STAGE4_THIRD_PARTY_INVENTORY.md",
     "policy_engine/LICENSE",
     ".fallowrc.json", ".github/workflows/fallow.yml", ".github/workflows/scaffold-validation.yml",
     ".github/workflows/genoma-policy-engine.yml", ".github/workflows/genoma-production-ceremony.yml",
@@ -81,6 +85,12 @@ REQUIRED_PATHS = (
     "reporting/requirements.in", "reporting/requirements.txt", "reporting/reference_v3_manifest.json",
     "reporting/legacy_field_aliases.json",
     "template_store/v3.0/MANIFEST.json", "locks/actions-lock.json", "locks/runtime-lock.json",
+    "locks/conda-linux-64-resolution.json", "locks/conda-linux-64-explicit.txt",
+    "locks/base-image-software.json", "locks/python-license-metadata.json",
+    "locks/action-license-metadata.json", "locks/sbom-tool-lock.json",
+    "config/third_party_software_registry.json", "scripts/build_third_party_registry.py",
+    "scripts/validate_stage4_compliance.py", "scripts/generate_stage4_sbom.sh",
+    "scripts/validate_stage4_sbom.py",
     "evidence_adapters/__init__.py", "policy_engine/pyproject.toml", "policy_engine/genoma_policy/engine.py",
     "policy_engine/genoma_policy/attestation.py", "policy_engine/genoma_policy/ledger.py",
     "policy_engine/genoma_policy/version.py", "policy_engine/policy/schema/execution-manifest.schema.json",
@@ -1609,6 +1619,7 @@ def validate(root: Path) -> list[str]:
     validate_core_runtime_dependencies(root, errors)
     validate_stage2_pdf_contract(root, errors)
     validate_stage3_copyleft_contract(root, errors)
+    errors.extend(validate_stage4_compliance(root))
 
     active = []
     for candidate in root.rglob("REGRAS_PROJETO_GENOMA*.txt"):

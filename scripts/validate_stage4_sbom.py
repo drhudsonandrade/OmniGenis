@@ -1,0 +1,338 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import json
+import re
+import sys
+from pathlib import Path
+from typing import Any
+from urllib.parse import unquote, urlsplit
+
+SCANNER_EXPECTED = {
+    "pypdfium2": "5.13.0",
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "zod": "4.4.3",
+    "snakemake": "7.32.4",
+}
+RETIRED = {"poppler", "poppler-utils", "pdftoppm", "pdftocairo"}
+
+
+def _load(path: str) -> Any:
+    return json.loads(Path(path).read_text(encoding="utf-8"))
+
+
+def _conda_records(payload: Any) -> list[dict[str, Any]]:
+    if isinstance(payload, list):
+        return [item for item in payload if isinstance(item, dict)]
+    if isinstance(payload, dict):
+        packages = payload.get("packages")
+        if isinstance(packages, list):
+            return [item for item in packages if isinstance(item, dict)]
+    return []
+
+
+def _conda_identity(item: dict[str, Any]) -> tuple[str, str, str]:
+    return (
+        str(item.get("name") or ""),
+        str(item.get("version") or ""),
+        str(item.get("build_string") or item.get("build") or ""),
+    )
+
+
+def _is_pypi_record(item: dict[str, Any]) -> bool:
+    channel = str(item.get("channel") or "").casefold()
+    base_url = str(item.get("base_url") or "").casefold()
+    return channel == "pypi" or base_url.startswith("https://pypi.org/")
+
+
+def _normalize_python_name(value: str) -> str:
+    return re.sub(r"[-_.]+", "-", value).casefold()
+
+
+def _python_lock_versions(payload: Any) -> dict[str, str]:
+    if not isinstance(payload, dict):
+        return {}
+    packages = payload.get("packages")
+    if not isinstance(packages, list):
+        return {}
+    versions: dict[str, str] = {}
+    for item in packages:
+        if not isinstance(item, dict):
+            continue
+        name = str(item.get("name") or "")
+        version = str(item.get("version") or "")
+        if name and version:
+            versions[_normalize_python_name(name)] = version
+    return versions
+
+
+def _versions_by_name(
+    items: list[Any],
+    *,
+    name_key: str,
+    version_key: str,
+) -> dict[str, set[str]]:
+    versions: dict[str, set[str]] = {}
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        name = str(item.get(name_key) or "")
+        version = str(item.get(version_key) or "")
+        if name:
+            versions.setdefault(name, set()).add(version)
+    return versions
+
+
+def _validate_required_components(
+    label: str,
+    versions: dict[str, set[str]],
+    errors: list[str],
+) -> None:
+    for name, version in SCANNER_EXPECTED.items():
+        if version not in versions.get(name, set()):
+            errors.append(
+                f"required {label} runtime component missing: {name}=={version}"
+            )
+
+
+def _purl_version(locator: str) -> str:
+    parsed = urlsplit(locator)
+    if parsed.scheme != "pkg" or "@" not in parsed.path:
+        return ""
+    return unquote(parsed.path.rsplit("@", 1)[1])
+
+
+def _validate_image_identity(
+    syft_source: dict[str, Any],
+    spdx_packages: list[Any],
+    cdx: dict[str, Any],
+    errors: list[str],
+) -> None:
+    source_name = str(syft_source.get("name") or "")
+    source_version = str(syft_source.get("version") or "")
+    source_meta = syft_source.get("metadata")
+    if not isinstance(source_meta, dict):
+        source_meta = {}
+    manifest_digest = str(source_meta.get("manifestDigest") or "")
+
+    if (
+        not source_name
+        or not source_version
+        or re.fullmatch(r"sha256:[0-9a-f]{64}", manifest_digest) is None
+    ):
+        errors.append("Syft image identity is incomplete")
+        return
+
+    spdx_roots = [
+        item
+        for item in spdx_packages
+        if isinstance(item, dict)
+        and str(item.get("SPDXID") or "").startswith("SPDXRef-DocumentRoot-Image-")
+    ]
+    if len(spdx_roots) != 1:
+        errors.append("SPDX document must contain exactly one image root package")
+    else:
+        root = spdx_roots[0]
+        if root.get("name") != source_name or root.get("versionInfo") != source_version:
+            errors.append("SPDX image identity differs from Syft source identity")
+        external_refs = root.get("externalRefs")
+        refs = external_refs if isinstance(external_refs, list) else []
+        if not any(
+            isinstance(ref, dict)
+            and ref.get("referenceType") == "purl"
+            and _purl_version(str(ref.get("referenceLocator") or ""))
+            == manifest_digest
+            for ref in refs
+        ):
+            errors.append("SPDX image root does not bind the Syft manifest digest")
+
+    metadata = cdx.get("metadata")
+    metadata = metadata if isinstance(metadata, dict) else {}
+    component = metadata.get("component")
+    if not isinstance(component, dict):
+        errors.append("CycloneDX metadata is missing the source container component")
+    elif (
+        component.get("type") != "container"
+        or component.get("name") != source_name
+        or component.get("version") != source_version
+    ):
+        errors.append("CycloneDX image identity differs from Syft source identity")
+
+
+def main() -> int:
+    if len(sys.argv) != 7:
+        print(
+            "usage: validate_stage4_sbom.py "
+            "SYFT_JSON SPDX_JSON CYCLONEDX_JSON CONDA_LOCK PYTHON_LOCK CONDA_INVENTORY",
+            file=sys.stderr,
+        )
+        return 2
+
+    syft = _load(sys.argv[1])
+    spdx = _load(sys.argv[2])
+    cdx = _load(sys.argv[3])
+    conda_lock = _load(sys.argv[4])
+    python_lock = _load(sys.argv[5])
+    conda_inventory = _load(sys.argv[6])
+    errors: list[str] = []
+
+    if not isinstance(syft, dict):
+        errors.append("Syft output is not a JSON object")
+        syft = {}
+    descriptor = syft.get("descriptor")
+    descriptor = descriptor if isinstance(descriptor, dict) else {}
+    if descriptor.get("name") != "syft" or descriptor.get("version") != "1.52.0":
+        errors.append("SBOM was not generated by pinned Syft 1.52.0")
+    source = syft.get("source")
+    if not isinstance(source, dict) or source.get("type") != "image":
+        errors.append("SBOM source is not a container image")
+        source = {}
+
+    artifacts = syft.get("artifacts")
+    if not isinstance(artifacts, list) or len(artifacts) < 1000:
+        errors.append("final-image Syft package coverage is unexpectedly small")
+        artifacts = artifacts if isinstance(artifacts, list) else []
+    typed_artifacts = [item for item in artifacts if isinstance(item, dict)]
+
+    deb_count = sum(1 for item in typed_artifacts if item.get("type") == "deb")
+    if deb_count < 90:
+        errors.append("final-image Debian/base-image coverage is unexpectedly small")
+
+    syft_versions = _versions_by_name(
+        typed_artifacts,
+        name_key="name",
+        version_key="version",
+    )
+    retired = sorted(name for name in syft_versions if name.casefold() in RETIRED)
+    if retired:
+        errors.append(
+            f"retired PDF runtime components present in final SBOM: {retired}"
+        )
+    _validate_required_components("Syft", syft_versions, errors)
+
+    if not isinstance(conda_lock, dict):
+        errors.append("Conda lock is not a JSON object")
+        conda_lock = {}
+    expected_records = _conda_records(conda_lock)
+    actual_records = _conda_records(conda_inventory)
+    actual_nonvirtual_records = [
+        item
+        for item in actual_records
+        if str(item.get("name") or "")
+        and not str(item.get("name") or "").startswith("__")
+    ]
+    actual_pypi_records = [
+        item for item in actual_nonvirtual_records if _is_pypi_record(item)
+    ]
+    actual_conda_records = [
+        item for item in actual_nonvirtual_records if not _is_pypi_record(item)
+    ]
+    expected = {_conda_identity(item) for item in expected_records}
+    actual_conda = {_conda_identity(item) for item in actual_conda_records}
+    if len(expected) < 150:
+        errors.append("audited Conda lock coverage is unexpectedly small")
+    if len(actual_conda) < 150:
+        errors.append("final-image Conda inventory coverage is unexpectedly small")
+
+    missing = sorted(expected - actual_conda)
+    unexpected = sorted(actual_conda - expected)
+    if missing:
+        errors.append(
+            f"final-image Conda inventory is missing {len(missing)} locked packages"
+        )
+    if unexpected:
+        errors.append(
+            f"final-image Conda inventory has {len(unexpected)} unexpected packages"
+        )
+
+    python_versions = _python_lock_versions(python_lock)
+    if len(python_versions) < 8:
+        errors.append("audited Python lock coverage is unexpectedly small")
+    python_runtime_versions: dict[str, set[str]] = {}
+    for item in actual_nonvirtual_records:
+        name = _normalize_python_name(str(item.get("name") or ""))
+        version = str(item.get("version") or "")
+        if name and version:
+            python_runtime_versions.setdefault(name, set()).add(version)
+    for name, version in sorted(python_versions.items()):
+        if version not in python_runtime_versions.get(name, set()):
+            errors.append(
+                f"final-image Python runtime is missing locked package: {name}=={version}"
+            )
+    unexpected_pypi = sorted(
+        (str(item.get("name") or ""), str(item.get("version") or ""))
+        for item in actual_pypi_records
+        if python_versions.get(
+            _normalize_python_name(str(item.get("name") or ""))
+        )
+        != str(item.get("version") or "")
+    )
+    if unexpected_pypi:
+        errors.append(
+            f"final-image PyPI inventory has {len(unexpected_pypi)} unexpected packages"
+        )
+
+    retired_conda = sorted(
+        identity for identity in actual_conda if identity[0].casefold() in RETIRED
+    )
+    if retired_conda:
+        errors.append(
+            f"retired PDF runtime components present in Conda inventory: {retired_conda}"
+        )
+
+    if not isinstance(spdx, dict) or spdx.get("spdxVersion") != "SPDX-2.3":
+        errors.append("SPDX output is not SPDX-2.3")
+        spdx_packages: list[Any] = []
+    else:
+        packages = spdx.get("packages")
+        spdx_packages = packages if isinstance(packages, list) else []
+    if len(spdx_packages) < 1000:
+        errors.append("SPDX package inventory is unexpectedly small")
+    spdx_versions = _versions_by_name(
+        spdx_packages,
+        name_key="name",
+        version_key="versionInfo",
+    )
+    _validate_required_components("SPDX", spdx_versions, errors)
+
+    if (
+        not isinstance(cdx, dict)
+        or cdx.get("bomFormat") != "CycloneDX"
+        or cdx.get("specVersion") != "1.7"
+    ):
+        errors.append("CycloneDX output is not version 1.7")
+        cdx = {}
+        cdx_components: list[Any] = []
+    else:
+        components = cdx.get("components")
+        cdx_components = components if isinstance(components, list) else []
+    if len(cdx_components) < 1000:
+        errors.append("CycloneDX component inventory is unexpectedly small")
+    cdx_versions = _versions_by_name(
+        cdx_components,
+        name_key="name",
+        version_key="version",
+    )
+    _validate_required_components("CycloneDX", cdx_versions, errors)
+
+    _validate_image_identity(source, spdx_packages, cdx, errors)
+
+    if errors:
+        for error in errors:
+            print(f"FAIL\t{error}")
+        return 1
+
+    print(
+        "PASS\tstage4_final_image_sbom\t"
+        f"syft_artifacts={len(typed_artifacts)} "
+        f"deb_packages={deb_count} "
+        f"conda_packages={len(actual_conda)} "
+        f"pypi_packages={len(actual_pypi_records)} "
+        f"spdx_packages={len(spdx_packages)} "
+        f"cdx_components={len(cdx_components)}"
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

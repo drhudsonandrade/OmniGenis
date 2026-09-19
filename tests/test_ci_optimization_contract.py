@@ -112,7 +112,7 @@ TRUSTED_RUNNER_LINE = (
     "|| 'ubuntu-latest' }}"
 )
 
-NGS_RUNTIME_WORKFLOW_APPROVED_SHA256 = "a34f45d4d4279dd33d2700cf688af805ac1bfa670d2c0c0436ed19f0e0bb4d63"
+NGS_RUNTIME_WORKFLOW_APPROVED_SHA256 = "9ebd4203617eba295d0425717c426e58258e2efd770aa0da20c845ade39e82d1"
 
 NGS_TRIGGER_SCRIPT_PATHS = (
     "scripts/__init__.py",
@@ -121,6 +121,8 @@ NGS_TRIGGER_SCRIPT_PATHS = (
     "scripts/build_array_case_manifest.py",
     "scripts/build_bwa_mem2_index.sh",
     "scripts/build_wgs_curated_manifest.py",
+    "scripts/build_third_party_registry.py",
+    "scripts/validate_stage4_compliance.py",
     "scripts/check_versions.sh",
     "scripts/code_language_guard.py",
     "scripts/freshness_gate.py",
@@ -784,6 +786,8 @@ class CIOptimizationContractTest(unittest.TestCase):
         """Keep the Phase 2B NGS workflow pinned to its approved semantics."""
         workflow = _read("genoma-ngs-runtime-gate.yml")
         allowed_lines = (
+            "      - 'scripts/build_third_party_registry.py'\n",
+            "      - 'scripts/validate_stage4_compliance.py'\n",
             "      - 'scripts/project_identity_guard.py'\n",
             "      - 'scripts/governance_context_identity.py'\n",
             "      - 'scripts/zero_identity_guard.py'\n",
