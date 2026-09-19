@@ -7,7 +7,6 @@ import gzip
 import hashlib
 import json
 import re
-import sys
 from collections import Counter
 from pathlib import Path
 from typing import Any
@@ -213,7 +212,7 @@ def collect_errors(root: Path = ROOT) -> list[str]:
         return ["Stage 6 data source registry missing"]
     try:
         payload = _load_json(registry_path)
-    except (OSError, json.JSONDecodeError, ValueError) as exc:
+    except (OSError, ValueError) as exc:
         return [f"Stage 6 data source registry unreadable: {type(exc).__name__}: {exc}"]
     if payload.get("schema") != "omnigenis-scientific-data-source-registry-v1":
         errors.append("Stage 6 data source registry schema mismatch")
@@ -244,8 +243,8 @@ def collect_errors(root: Path = ROOT) -> list[str]:
     if panelapp and panelapp.get("status") != "RESTRICTED":
         errors.append("Stage 6 Genomics England PanelApp must remain RESTRICTED without a separate agreement")
     for resource_id in ("panelapp-australia", "gnomad", "aadr"):
-        resource = resources.get(resource_id)
-        if resource and resource.get("status") != "REVIEW_REQUIRED":
+        unresolved_resource = resources.get(resource_id)
+        if unresolved_resource and unresolved_resource.get("status") != "REVIEW_REQUIRED":
             errors.append(f"Stage 6 unresolved official terms must fail closed: {resource_id}")
     return errors
 

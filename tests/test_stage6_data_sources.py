@@ -42,6 +42,15 @@ class Stage6ScientificDataRegistryTest(unittest.TestCase):
             encoding="utf-8",
         )
 
+    def _resource(self, payload: dict, resource_id: str) -> dict:
+        matches = [
+            item
+            for item in payload["resources"]
+            if isinstance(item, dict) and item.get("id") == resource_id
+        ]
+        self.assertEqual(len(matches), 1, resource_id)
+        return matches[0]
+
     def test_current_registry_passes(self) -> None:
         self.assertEqual(collect_errors(ROOT), [])
 
@@ -76,7 +85,7 @@ class Stage6ScientificDataRegistryTest(unittest.TestCase):
             root = Path(directory)
             self._copy_contract_root(root)
             payload = self._registry(root)
-            target = next(item for item in payload["resources"] if item["id"] == "panelapp-australia")
+            target = self._resource(payload, "panelapp-australia")
             target["status"] = "DOCUMENTED_OPEN"
             self._write_registry(root, payload)
             errors = collect_errors(root)
@@ -96,7 +105,7 @@ class Stage6ScientificDataRegistryTest(unittest.TestCase):
             root = Path(directory)
             self._copy_contract_root(root)
             payload = self._registry(root)
-            gencode = next(item for item in payload["resources"] if item["id"] == "gencode-human")
+            gencode = self._resource(payload, "gencode-human")
             gencode["covers_manifest_artifact_ids"] = []
             self._write_registry(root, payload)
             errors = collect_errors(root)
@@ -107,7 +116,7 @@ class Stage6ScientificDataRegistryTest(unittest.TestCase):
             root = Path(directory)
             self._copy_contract_root(root)
             payload = self._registry(root)
-            panelapp = next(item for item in payload["resources"] if item["id"] == "panelapp-genomics-england")
+            panelapp = self._resource(payload, "panelapp-genomics-england")
             panelapp["status"] = "DOCUMENTED_WITH_OBLIGATIONS"
             self._write_registry(root, payload)
             errors = collect_errors(root)
@@ -118,7 +127,7 @@ class Stage6ScientificDataRegistryTest(unittest.TestCase):
             root = Path(directory)
             self._copy_contract_root(root)
             payload = self._registry(root)
-            gnomad = next(item for item in payload["resources"] if item["id"] == "gnomad")
+            gnomad = self._resource(payload, "gnomad")
             gnomad["status"] = "DOCUMENTED_WITH_OBLIGATIONS"
             self._write_registry(root, payload)
             errors = collect_errors(root)
@@ -131,12 +140,14 @@ class Stage6ScientificDataRegistryTest(unittest.TestCase):
             path = root / "docs/evidence/PGS_CATALOG_REGISTRY.json.gz"
             with gzip.open(path, "rt", encoding="utf-8") as handle:
                 pgs = json.load(handle)
-            first = next(iter(pgs["scores"].values()))
+            score_ids = sorted(pgs["scores"])
+            self.assertTrue(score_ids)
+            first = pgs["scores"][score_ids[0]]
             first["license"] = ""
             with gzip.open(path, "wt", encoding="utf-8") as handle:
                 json.dump(pgs, handle, ensure_ascii=False, sort_keys=True)
             payload = self._registry(root)
-            resource = next(item for item in payload["resources"] if item["id"] == "ebi-pgs-catalog")
+            resource = self._resource(payload, "ebi-pgs-catalog")
             resource["sha256"] = hashlib.sha256(path.read_bytes()).hexdigest()
             self._write_registry(root, payload)
             errors = collect_errors(root)
@@ -155,7 +166,7 @@ class Stage6ScientificDataRegistryTest(unittest.TestCase):
             root = Path(directory)
             self._copy_contract_root(root)
             payload = self._registry(root)
-            clinpgx = next(item for item in payload["resources"] if item["id"] == "clinpgx")
+            clinpgx = self._resource(payload, "clinpgx")
             clinpgx["adapter_ids"] = []
             self._write_registry(root, payload)
             errors = collect_errors(root)
