@@ -9,7 +9,9 @@
   "control_paths": {
     "evidence_prefix": "docs/evidence/contribution_provenance/",
     "ledger": "config/contribution_provenance_ledger.json",
-    "runtime_lock": "locks/runtime-lock.json"
+    "runtime_lock": "locks/runtime-lock.json",
+    "software_license_gate_registry": "config/software_license_gate_registry.json",
+    "third_party_software_registry": "config/third_party_software_registry.json"
   },
   "effective_date": "2026-09-20",
   "origin_classes": [
@@ -28,6 +30,7 @@
     "manifest_hash_algorithm": "sha256",
     "personal_identity_duplication_required": false,
     "retained_manifest_is_durable_evidence": true,
+    "third_party_code_must_reference_approved_component_ids": true,
     "third_party_rights_must_use_stage4_to_stage7_controls": true,
     "tool_vendor_identity_required": false,
     "unknown_assistance_is_historical_or_unresolved_only": true,
@@ -42,5 +45,5 @@
     "SIGNED_OR_VERIFIED_COMMIT_WHEN_AVAILABLE",
     "CHANGESET_MANIFEST"
   ],
-  "version": "1.1"
+  "version": "1.2"
 }

@@ -142,6 +142,7 @@ def build_manifest(
     change_set_id: str,
     origin_class: str,
     assistance_class: str,
+    third_party_component_ids: list[str] | None = None,
 ) -> dict[str, object]:
     """Capture a self-contained, hash-addressed change-set manifest from Git objects."""
     policy = _load_policy()
@@ -159,6 +160,11 @@ def build_manifest(
         raise ProvenanceBuildError("Stage 8 manifest hash algorithm must be sha256")
     if rules.get("current_manifest_schema") != CURRENT_MANIFEST_SCHEMA:
         raise ProvenanceBuildError("Stage 8 current manifest schema drift")
+
+    raw_components = third_party_component_ids or []
+    if any(not isinstance(value, str) or not value.strip() for value in raw_components):
+        raise ProvenanceBuildError("third-party component IDs must be non-empty strings")
+    components = sorted(set(raw_components))
 
     control = policy.get("control_paths")
     if not isinstance(control, dict):
@@ -191,7 +197,8 @@ def build_manifest(
         "origin_class": origin_class,
         "assistance_class": assistance_class,
         "human_direction": True,
-        "third_party_code_introduced": False,
+        "third_party_code_introduced": bool(components),
+        "third_party_component_ids": components,
         "hash_algorithm": "sha256",
         "git_objects_verified_at_capture": True,
         "files": records,
@@ -206,6 +213,7 @@ def main() -> int:
     parser.add_argument("--change-set-id", required=True)
     parser.add_argument("--origin-class", default="REPOSITORY_NATIVE")
     parser.add_argument("--assistance-class", default="AI_ASSISTED_DECLARED")
+    parser.add_argument("--third-party-component-id", action="append", default=[])
     parser.add_argument("--output", required=True)
     args = parser.parse_args()
     payload = build_manifest(
@@ -214,6 +222,7 @@ def main() -> int:
         change_set_id=args.change_set_id,
         origin_class=args.origin_class,
         assistance_class=args.assistance_class,
+        third_party_component_ids=args.third_party_component_id,
     )
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
