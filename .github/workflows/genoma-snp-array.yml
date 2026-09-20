@@ -9,6 +9,10 @@ on:
       - 'workflows/array.nf'
       - 'main.nf'
       - 'scripts/run_snp_array.py'
+      - 'scripts/genetic_data_privacy_gate.py'
+      - 'scripts/validate_stage9_genetic_privacy.py'
+      - 'config/genetic_data_privacy_policy.json'
+      - 'tests/test_stage9_genetic_privacy.py'
       - 'scripts/annotate_partial_genome.py'
       - 'scripts/build_array_case_manifest.py'
       - 'tests/test_snp_array_qc.py'
@@ -25,6 +29,10 @@ on:
       - 'workflows/array.nf'
       - 'main.nf'
       - 'scripts/run_snp_array.py'
+      - 'scripts/genetic_data_privacy_gate.py'
+      - 'scripts/validate_stage9_genetic_privacy.py'
+      - 'config/genetic_data_privacy_policy.json'
+      - 'tests/test_stage9_genetic_privacy.py'
       - 'scripts/annotate_partial_genome.py'
       - 'scripts/build_array_case_manifest.py'
       - 'tests/test_snp_array_qc.py'
@@ -98,10 +106,29 @@ jobs:
           ):
               payload={**base, 'asserted_value': asserted_value}
               (root/name).write_text(json.dumps(payload),encoding='utf-8')
+          privacy={
+              'schema':'omnigenis-genetic-data-privacy-record-v1',
+              'status':'VERIFICADO',
+              'processing_context_id':'CI-ARRAY-SYNTHETIC',
+              'data_class':'SYNTHETIC_NON_PERSONAL_GENETIC_FIXTURE',
+              'subject_reference':'NO_NATURAL_PERSON',
+              'case_id':'SYNTHETIC-NO-PERSONAL-DATA',
+              'input_sha256':sha,
+              'authorized_purposes':['genomic_analysis'],
+              'synthetic_fixture':{
+                  'status':'VERIFICADO',
+                  'contains_personal_data':False,
+                  'generated_for':'CI_CANARY',
+                  'generator':'github-actions:genoma-snp-array',
+                  'evidence_ref':'ci:deterministic-synthetic-array-fixture',
+              },
+          }
+          (root/'privacy-record.json').write_text(json.dumps(privacy),encoding='utf-8')
           PY
           python3 scripts/run_snp_array.py \
             --input "$RUNNER_TEMP/genoma-array/synthetic.csv.gz" \
             --case-id SYNTHETIC-NO-PERSONAL-DATA \
+            --privacy-record "$RUNNER_TEMP/genoma-array/privacy-record.json" \
             --build GRCh37 \
             --strand forward \
             --build-evidence "$RUNNER_TEMP/genoma-array/build-attestation.json" \
@@ -185,6 +212,24 @@ jobs:
           ):
               payload={**base, 'asserted_value': asserted_value}
               (root/name).write_text(json.dumps(payload),encoding='utf-8')
+          privacy={
+              'schema':'omnigenis-genetic-data-privacy-record-v1',
+              'status':'VERIFICADO',
+              'processing_context_id':'CI-NEXTFLOW-ARRAY-SYNTHETIC',
+              'data_class':'SYNTHETIC_NON_PERSONAL_GENETIC_FIXTURE',
+              'subject_reference':'NO_NATURAL_PERSON',
+              'case_id':'SYNTHETIC-NEXTFLOW-NO-PERSONAL-DATA',
+              'input_sha256':sha,
+              'authorized_purposes':['genomic_analysis'],
+              'synthetic_fixture':{
+                  'status':'VERIFICADO',
+                  'contains_personal_data':False,
+                  'generated_for':'CI_CANARY',
+                  'generator':'github-actions:genoma-snp-array-nextflow',
+                  'evidence_ref':'ci:deterministic-synthetic-array-nextflow-fixture',
+              },
+          }
+          (root/'privacy-record.json').write_text(json.dumps(privacy),encoding='utf-8')
           PY
           docker run --rm \
             -v "$RUNNER_TEMP/genoma-array/workspace:/workspace" \
@@ -194,6 +239,7 @@ jobs:
               --mode array \
               --array_input /workspace/synthetic.csv.gz \
               --case_id SYNTHETIC-NEXTFLOW-NO-PERSONAL-DATA \
+              --privacy_record /workspace/privacy-record.json \
               --array_build GRCh37 \
               --array_strand forward \
               --array_build_evidence /workspace/build-attestation.json \

@@ -14,8 +14,42 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from array_pipeline.qc import inspect_array, write_outputs
+from scripts.genetic_data_privacy_gate import GeneticPrivacyError, load_and_evaluate
 
 ALLOWED_ACTOR_TYPES = {"HUMAN", "SOFTWARE", "SERVICE"}
+
+
+def build_privacy_authorization_reference(
+    privacy_result: dict[str, Any],
+    *,
+    case_id: str,
+    input_sha256: str,
+) -> dict[str, Any]:
+    """Create a minimal, non-person-identifying Stage 9 authorization receipt."""
+    if privacy_result.get("ready_for_genetic_processing") is not True:
+        raise GeneticPrivacyError("cannot persist a blocked privacy decision as authorization")
+    record_sha = str(privacy_result.get("privacy_record_sha256") or "").strip().lower()
+    if len(record_sha) != 64 or any(c not in "0123456789abcdef" for c in record_sha):
+        raise GeneticPrivacyError("privacy record SHA-256 is missing from authorization result")
+    context_id = str(privacy_result.get("processing_context_id") or "").strip()
+    if not context_id:
+        raise GeneticPrivacyError("processing_context_id missing from authorization result")
+    return {
+        "schema": "omnigenis-stage9-authorization-reference-v1",
+        "status": "VERIFICADO",
+        "gate": privacy_result.get("gate"),
+        "decision": "ALLOW",
+        "privacy_record_sha256": record_sha,
+        "processing_context_id": context_id,
+        "data_class": privacy_result.get("data_class"),
+        "requested_purpose": privacy_result.get("requested_purpose"),
+        "case_id": case_id,
+        "input_sha256": input_sha256.lower(),
+        "synthetic_non_personal_fixture": bool(
+            privacy_result.get("synthetic_non_personal_fixture")
+        ),
+        "legal_basis_inferred": False,
+    }
 
 
 def _sha256_file(path: Path) -> str:
@@ -93,6 +127,7 @@ def main() -> int:
     p = argparse.ArgumentParser(description="GENOMA v3.4 fail-closed SNP-array QC and baseline observation extractor")
     p.add_argument("--input", required=True)
     p.add_argument("--case-id", required=True)
+    p.add_argument("--privacy-record", required=True)
     p.add_argument("--build", choices=["GRCh37", "GRCh38"])
     p.add_argument("--strand", choices=["forward", "plus", "+"])
     p.add_argument("--platform")
@@ -105,6 +140,21 @@ def main() -> int:
 
     input_path = Path(args.input)
     try:
+        privacy_result = load_and_evaluate(
+            args.privacy_record,
+            requested_purpose="genomic_analysis",
+            case_id=args.case_id,
+            input_sha256=_sha256_file(input_path),
+        )
+        if privacy_result.get("ready_for_genetic_processing") is not True:
+            reasons = "; ".join(str(x) for x in privacy_result.get("errors", []))
+            raise GeneticPrivacyError(reasons or "genetic-data privacy gate blocked processing")
+        input_sha256 = _sha256_file(input_path)
+        privacy_authorization = build_privacy_authorization_reference(
+            privacy_result,
+            case_id=args.case_id,
+            input_sha256=input_sha256,
+        )
         build_attestation = (
             load_verified_attestation(args.build_evidence, assertion="build", input_path=input_path)
             if args.build_evidence else None
@@ -127,6 +177,7 @@ def main() -> int:
         min_call_rate=args.min_call_rate,
         max_overlap_conflict_rate=args.max_overlap_conflict_rate,
     )
+    result["privacy_authorization"] = privacy_authorization
     paths = write_outputs(result, Path(args.output_dir))
     ready = result["gates"]["LIMITED_INTERPRETATION_GATE"]["state"] == "PASS"
     print(json.dumps({"status": result["operational_status"], "ready": ready, "outputs": paths}, ensure_ascii=False))

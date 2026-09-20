@@ -137,6 +137,8 @@ jobs:
           else
             python3 scripts/validate_stage8_contribution_provenance.py
           fi
+      - name: Enforce Stage 9 genetic-data privacy
+        run: python3 scripts/validate_stage9_genetic_privacy.py
       - name: Validate shell and Python
         run: |
           export TMPDIR="$RUNNER_TEMP"

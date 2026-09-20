@@ -124,6 +124,7 @@ class WgsGateTest(unittest.TestCase):
         from scripts.wgs_consent_gate import evaluate_consent
         manifest = {
             "sample_id": "S1",
+            "case_id": "CASE-WGS-1",
             "consent": {
                 "status": "VERIFICADO",
                 "consent_id": "consent-1",
@@ -135,11 +136,61 @@ class WgsGateTest(unittest.TestCase):
                 "status": "VERIFICADO",
                 "source": "laboratory-export",
                 "chain_of_custody_ref": "custody-1",
+                "input_sha256": "d" * 64,
+            },
+            "privacy": {
+                "schema": "omnigenis-genetic-data-privacy-record-v1",
+                "status": "VERIFICADO",
+                "processing_context_id": "CTX-WGS-1",
+                "data_class": "GENETIC_SENSITIVE_PERSONAL_DATA",
+                "subject_reference": "S1",
+                "case_id": "CASE-WGS-1",
+                "input_sha256": "d" * 64,
+                "authorized_purposes": ["genomic_analysis"],
+                "legal_basis": {
+                    "status": "VERIFICADO",
+                    "reference": "LGPD-ART11-TEST-REVIEW",
+                    "evidence_ref": "legal-review-fixture",
+                    "inferred_from_consent": False,
+                },
+                "controller": {"status": "VERIFICADO", "reference": "controller-fixture"},
+                "purpose_limitation": {"status": "VERIFICADO", "evidence_ref": "purpose-fixture"},
+                "data_minimization": {"status": "VERIFICADO", "evidence_ref": "minimization-fixture"},
+                "access_control": {"status": "VERIFICADO", "evidence_ref": "access-fixture"},
+                "retention": {"status": "VERIFICADO", "evidence_ref": "retention-fixture"},
+                "incident_response": {"status": "VERIFICADO", "evidence_ref": "incident-fixture"},
+                "data_subject_rights": {"status": "VERIFICADO", "evidence_ref": "rights-fixture"},
+                "sharing_transfer_review": {"status": "VERIFICADO", "evidence_ref": "sharing-fixture"},
+                "risk_assessment": {"status": "VERIFICADO", "evidence_ref": "risk-fixture"},
             },
         }
         result = evaluate_consent(manifest, requested_purpose="genomic_analysis")
         self.assertEqual(result["status"], "VERIFICADO")
         self.assertTrue(result["ready_for_first_dna_read"])
+
+
+    def test_consent_gate_rejects_privacy_record_from_other_case_or_input(self):
+        from scripts.wgs_consent_gate import evaluate_consent
+        base = {
+            "sample_id": "S1",
+            "case_id": "CASE-WGS-1",
+            "consent": {
+                "status": "VERIFICADO", "consent_id": "c1", "version": "1",
+                "purposes": ["genomic_analysis"],
+            },
+            "provenance": {
+                "status": "VERIFICADO", "source": "lab",
+                "chain_of_custody_ref": "custody", "input_sha256": "d" * 64,
+            },
+        }
+        from tests.test_stage9_genetic_privacy import Stage9GeneticPrivacyTests
+        privacy = Stage9GeneticPrivacyTests._record()
+        privacy["case_id"] = "OTHER-CASE"
+        privacy["input_sha256"] = "e" * 64
+        base["privacy"] = privacy
+        result = evaluate_consent(base, requested_purpose="genomic_analysis")
+        self.assertFalse(result["ready_for_first_dna_read"])
+        self.assertTrue(any("case_id" in e or "input SHA-256" in e for e in result["errors"]))
 
     def test_consent_gate_blocks_missing_or_unverified_scope(self):
         from scripts.wgs_consent_gate import evaluate_consent

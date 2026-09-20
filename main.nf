@@ -9,6 +9,7 @@ params.ref_root = params.ref_root ?: null
 params.case_id = params.case_id ?: null
 params.sample_id = params.sample_id ?: null
 params.array_input = params.array_input ?: null
+params.privacy_record = params.privacy_record ?: null
 params.array_build = params.array_build ?: null
 params.array_strand = params.array_strand ?: null
 params.array_build_evidence = params.array_build_evidence ?: null
@@ -75,6 +76,7 @@ workflow {
     else if (params.mode == 'array') {
         def missing = []
         if (!params.array_input) missing << 'array_input'
+        if (!params.privacy_record) missing << 'privacy_record'
         if (!params.case_id) missing << 'case_id'
         if (!params.array_build) missing << 'array_build'
         if (!params.array_strand) missing << 'array_strand'
@@ -86,6 +88,7 @@ workflow {
         }
 
         array_input_ch = Channel.fromPath(params.array_input, checkIfExists: true)
+        privacy_record_ch = Channel.fromPath(params.privacy_record, checkIfExists: true)
         target_manifest_ch = Channel.fromPath(params.array_target_manifest, checkIfExists: true)
         case_id_ch = Channel.value(params.case_id)
         build_ch = Channel.value(params.array_build)
@@ -96,6 +99,7 @@ workflow {
 
         ARRAY_PRODUCTION(
             array_input_ch,
+            privacy_record_ch,
             case_id_ch,
             build_ch,
             strand_ch,

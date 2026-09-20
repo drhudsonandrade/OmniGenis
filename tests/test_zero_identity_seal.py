@@ -277,13 +277,22 @@ class ZeroIdentitySealTest(unittest.TestCase):
         for class_id, counts in evidence["class_counts"].items():
             self.assertEqual(counts, {"path": 0, "blob": 0}, class_id)
 
-    def test_protected_surfaces_are_unchanged_from_base(self) -> None:
+    def test_protected_surfaces_were_unchanged_through_seal_implementation(self) -> None:
+        """Bind the historical seal to its base and implementation, not future phases."""
         evidence = self.load()
+        implementation = evidence["implementation_head_sha"]
         for relative, record in evidence["protected_surfaces"].items():
-            current = (ROOT / relative).read_bytes()
-            self.assertEqual(hashlib.sha256(current).hexdigest(), record["sha256"])
-            base = subprocess.check_output([GIT, "show", f"{evidence['base_sha']}:{relative}"], cwd=ROOT)
+            self.assertTrue(record["unchanged_from_base"], relative)
+            base = subprocess.check_output(
+                [GIT, "show", f"{evidence['base_sha']}:{relative}"],
+                cwd=ROOT,
+            )
+            sealed = subprocess.check_output(
+                [GIT, "show", f"{implementation}:{relative}"],
+                cwd=ROOT,
+            )
             self.assertEqual(hashlib.sha256(base).hexdigest(), record["sha256"])
+            self.assertEqual(hashlib.sha256(sealed).hexdigest(), record["sha256"])
 
     def test_validation_provenance_is_self_contained(self) -> None:
         evidence = self.load()

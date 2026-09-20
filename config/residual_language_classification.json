@@ -64,8 +64,8 @@
       "path": ".github/workflows/genoma-snp-array.yml",
       "category": "normative",
       "reason": "Closed normative taxonomy, canonical runtime identifier, or policy/workflow wire value is intentionally preserved for contract compatibility.",
-      "count": 5,
-      "fingerprint": "a69699bd25fab4126d5b75820e60c29568c03a09094a99604cfa5f0c42616792"
+      "count": 9,
+      "fingerprint": "c6316e735f652fea230ae4c2823e6a1c7c29cff855b14618c3d254d845928839"
     },
     {
       "path": ".github/workflows/genoma-visual-qa-candidates.yml",
@@ -213,6 +213,13 @@
       "reason": "Versioned serialized scientific/configuration data preserves established labels, evidence prose, and detection vocabulary; it is not implementation prose.",
       "count": 60,
       "fingerprint": "68d93dea87c40eeb406698fa0506b2259a9c1f8dadd3886c760799383964a0aa"
+    },
+    {
+      "path": "config/genetic_data_privacy_policy.json",
+      "category": "normative",
+      "reason": "Stage 9 retains closed Portuguese operational-status wire values required by the canonical policy contract.",
+      "count": 4,
+      "fingerprint": "e125c224f2e9b6c7a77d41719f0acb5af3cce50fb5184e261f933b20a450fd0a"
     },
     {
       "path": "config/partial_genome_annotation_targets.json",
@@ -458,6 +465,13 @@
       "reason": "Versioned audit/evidence record preserves the language captured by the original historical execution or review artifact.",
       "count": 8,
       "fingerprint": "6986f4edd0df11cea6e2bee11d6934199f616c618bffa0ca8a86414e19803ca1"
+    },
+    {
+      "path": "docs/compliance/STAGE9_LGPD_GENETIC_DATA.md",
+      "category": "localized",
+      "reason": "Brazilian legal terminology is retained where the compliance boundary names the LGPD jurisdiction and official concepts.",
+      "count": 2,
+      "fingerprint": "bf93d2724761e4f1e56901b383beb9501fd6e16e34adc647f0a6ccfdb40ba133"
     },
     {
       "path": "docs/evidence/ANCESTRY_PANEL_VALIDATION.json",
@@ -953,8 +967,8 @@
       "path": "scripts/build_array_case_manifest.py",
       "category": "localized",
       "reason": "Portuguese here is pt-BR operator/report output or a canonical serialized value; the executable implementation language remains English-first.",
-      "count": 20,
-      "fingerprint": "04943fbcb152792a22244bfe0466dd442a901f03fbf2b2ad8c82f5a0602ce5fc"
+      "count": 23,
+      "fingerprint": "4b4e1b1afa060e9d5de32bd80ff1c184ecebbe1391b87ddcf9f5145b143529da"
     },
     {
       "path": "scripts/build_one_page_summary.py",
@@ -1039,6 +1053,13 @@
       "reason": "Portuguese here is pt-BR operator/report output or a canonical serialized value; the executable implementation language remains English-first.",
       "count": 2,
       "fingerprint": "b145be4e62d6811a133848b7f6c1da09b9b43a62a686878bb218dc92d8fbc04d"
+    },
+    {
+      "path": "scripts/genetic_data_privacy_gate.py",
+      "category": "normative",
+      "reason": "Stage 9 emits canonical Portuguese operational-status wire values for compatibility with the governed runtime.",
+      "count": 9,
+      "fingerprint": "611f635c7eea5084a6b0032253b38558934e6c5ad64b7c596c9263912270006b"
     },
     {
       "path": "scripts/genoma_audit.py",
@@ -1135,8 +1156,8 @@
       "path": "scripts/run_snp_array.py",
       "category": "localized",
       "reason": "Portuguese here is pt-BR operator/report output or a canonical serialized value; the executable implementation language remains English-first.",
-      "count": 5,
-      "fingerprint": "c182fb46f5926f368acd895268d01bbd4569e80873e8a62443f830b41d4741ad"
+      "count": 6,
+      "fingerprint": "ffc922bc3135c9b6462c12bf4f222f47cb93d7045a9b97c782d3d4915258fdea"
     },
     {
       "path": "scripts/runtime_resource_gate.py",
@@ -1317,8 +1338,8 @@
       "path": "tests/test_array_scientific_data_plane.py",
       "category": "compatibility-preserved",
       "reason": "Portuguese is retained as an exact wire/report/fixture expectation so regression tests continue to prove compatibility.",
-      "count": 5,
-      "fingerprint": "29319c9dcce7f2ee47f52794694b0e51a212e6bbf3480170b943f88a4fa3c426"
+      "count": 6,
+      "fingerprint": "ff2cdeeb850f5d0ccb23dda9692875bafd0ac2f6bfe9939ff4ea674aaa856a84"
     },
     {
       "path": "tests/test_assessed_allele_presence.py",
@@ -1657,6 +1678,13 @@
       "fingerprint": "a54390b8b3f246dc3edbd7dbf863c1a1541af07e5d45a47753bb22e0d30ae032"
     },
     {
+      "path": "tests/test_stage9_genetic_privacy.py",
+      "category": "compatibility-preserved",
+      "reason": "Regression fixtures retain exact canonical Portuguese wire values so privacy-gate compatibility is testable.",
+      "count": 10,
+      "fingerprint": "fa659c911446a530273eb3ebe260b298085db8b9d8267cb7ade5d83280bb32fc"
+    },
+    {
       "path": "tests/test_superseded_identity_scanner.py",
       "category": "compatibility-preserved",
       "reason": "Portuguese is retained as an exact wire/report/fixture expectation so regression tests continue to prove compatibility.",
@@ -1716,8 +1744,8 @@
       "path": "tests/test_wgs_gates.py",
       "category": "compatibility-preserved",
       "reason": "Portuguese is retained as an exact wire/report/fixture expectation so regression tests continue to prove compatibility.",
-      "count": 18,
-      "fingerprint": "9d8a22a402a91e5dfc72499ee0ef293884efdc5daadb13ac786f37c3f8d6b069"
+      "count": 31,
+      "fingerprint": "0686e9cbf12ed989a96b470c367007de1243f857c953b446959c19984f62482a"
     },
     {
       "path": "tests/test_wgs_manifest_fail_closed.py",

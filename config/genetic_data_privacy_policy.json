@@ -1,0 +1,63 @@
+{
+  "allowed_data_classes": [
+    "GENETIC_SENSITIVE_PERSONAL_DATA",
+    "VERIFIED_ANONYMIZED_GENETIC_DATA",
+    "SYNTHETIC_NON_PERSONAL_GENETIC_FIXTURE"
+  ],
+  "classification": {
+    "anonymous_upgrade_is_automatic": false,
+    "default_sensitive": true,
+    "linked_genetic_data": "GENETIC_SENSITIVE_PERSONAL_DATA"
+  },
+  "effective_date": "2026-09-20",
+  "jurisdiction": "BR",
+  "official_sources": [
+    {
+      "accessed_date": "2026-09-20",
+      "authority": "ANPD",
+      "relevance": "Genetic data linked to a natural person are sensitive personal data.",
+      "title": "Perguntas frequentes - dados pessoais sensíveis",
+      "url": "https://www.gov.br/anpd/pt-br/acesso-a-informacao/perguntas-frequentes-2013-anpd"
+    },
+    {
+      "accessed_date": "2026-09-20",
+      "authority": "Presidência da República",
+      "relevance": "Primary statutory text for Brazilian personal-data processing.",
+      "title": "Lei nº 13.709/2018 (LGPD)",
+      "url": "https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/l13709.htm"
+    },
+    {
+      "accessed_date": "2026-09-20",
+      "authority": "ANPD",
+      "relevance": "Security incident communication and recordkeeping framework.",
+      "title": "Resolução CD/ANPD nº 15/2024",
+      "url": "https://www.gov.br/anpd/pt-br/assuntos/noticias/anpd-publica-regulamento-de-comunicacao-de-incidente-de-seguranca"
+    }
+  ],
+  "required_status": "VERIFICADO",
+  "rules": {
+    "access_control_required": true,
+    "data_minimization_required": true,
+    "data_subject_rights_channel_required": true,
+    "gate_does_not_claim_legal_compliance": true,
+    "incident_response_required": true,
+    "legal_basis_must_be_explicitly_verified": true,
+    "legal_basis_must_not_be_inferred_from_consent": true,
+    "privacy_record_must_precede_genetic_processing": true,
+    "purpose_limitation_required": true,
+    "retention_policy_required": true,
+    "risk_assessment_required": true,
+    "sharing_or_transfer_review_required": true,
+    "synthetic_fixture_requires_explicit_verification": true,
+    "synthetic_fixture_requires_no_natural_person": true,
+    "synthetic_fixture_requires_no_personal_data": true,
+    "synthetic_fixture_requires_synthetic_case_identity": true,
+    "synthetic_fixture_separate_from_personal_data_legal_basis": true,
+    "verified_anonymized_data_requires_verified_determination": true
+  },
+  "schema": "omnigenis-genetic-data-privacy-policy-v1",
+  "scope": "Genetic and genomic data processing controlled by OmniGenis.",
+  "status": "ACTIVE",
+  "synthetic_fixture_class": "SYNTHETIC_NON_PERSONAL_GENETIC_FIXTURE",
+  "version": "1.2"
+}

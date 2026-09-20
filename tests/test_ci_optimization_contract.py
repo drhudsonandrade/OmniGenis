@@ -130,6 +130,8 @@ NGS_TRIGGER_SCRIPT_PATHS = (
     "scripts/build_stage7_purpose_matrix.py",
     "scripts/validate_stage7_purpose_use.py",
     "scripts/validate_stage8_contribution_provenance.py",
+    "scripts/genetic_data_privacy_gate.py",
+    "scripts/validate_stage9_genetic_privacy.py",
     "scripts/check_versions.sh",
     "scripts/code_language_guard.py",
     "scripts/freshness_gate.py",
@@ -816,6 +818,9 @@ class CIOptimizationContractTest(unittest.TestCase):
             "      - 'scripts/build_stage7_purpose_matrix.py'\n",
             "      - 'scripts/validate_stage7_purpose_use.py'\n",
             "      - 'scripts/validate_stage8_contribution_provenance.py'\n",
+            "      - 'scripts/genetic_data_privacy_gate.py'\n",
+            "      - 'scripts/validate_stage9_genetic_privacy.py'\n",
+            "      - 'config/genetic_data_privacy_policy.json'\n",
             "      - 'scripts/project_identity_guard.py'\n",
             "      - 'scripts/governance_context_identity.py'\n",
             "      - 'scripts/zero_identity_guard.py'\n",
@@ -1027,6 +1032,20 @@ class CIOptimizationContractTest(unittest.TestCase):
         self.assertIn('git diff --no-renames --diff-filter=D --name-only -z "$base_sha" "$head_sha" --', helper_text)
         static = _job_block(_read("scaffold-validation.yml"), "static")
         self.assertIn("bash tests/test_ci_changed_paths.sh", static)
+
+    def test_snp_array_ci_binds_synthetic_privacy_record(self):
+        workflow = _read("genoma-snp-array.yml")
+        for token in (
+            "SYNTHETIC_NON_PERSONAL_GENETIC_FIXTURE",
+            "NO_NATURAL_PERSON",
+            "CI_CANARY",
+            "privacy-record.json",
+            "--privacy-record",
+            "--privacy_record",
+        ):
+            self.assertIn(token, workflow)
+        self.assertEqual(workflow.count("'contains_personal_data':False"), 2)
+        self.assertEqual(workflow.count("'generated_for':'CI_CANARY'"), 2)
 
     def test_high_volume_artifact_retention_is_bounded(self):
         """Keep disposable CI evidence short-lived while preserving bounded audit evidence."""
