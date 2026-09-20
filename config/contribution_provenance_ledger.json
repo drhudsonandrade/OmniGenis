@@ -70,6 +70,20 @@
       "origin_class": "REPOSITORY_NATIVE",
       "stage": 9,
       "third_party_code_introduced": false
+    },
+    {
+      "assistance_class": "AI_ASSISTED_DECLARED",
+      "base_sha": "38978d5fc946e53b67655237be0698835dee4d5d",
+      "change_set_id": "STAGE9-STATIC-REPAIR-2026-09-20",
+      "declared_at": "2026-09-20",
+      "declared_by_role": "repository_owner",
+      "human_direction": true,
+      "implementation_sha": "4c3d1219007a807496fa6af5716ccb2356305919",
+      "legal_ownership_inferred": false,
+      "manifest_path": "docs/evidence/contribution_provenance/STAGE9_STATIC_REPAIR_2026-09-20.json",
+      "origin_class": "REPOSITORY_NATIVE",
+      "stage": 9,
+      "third_party_code_introduced": false
     }
   ],
   "schema": "omnigenis-contribution-provenance-ledger-v1"

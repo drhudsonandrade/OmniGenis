@@ -26,7 +26,7 @@
     },
     "contribution_provenance_ledger": {
       "path": "config/contribution_provenance_ledger.json",
-      "sha256": "643ec03226884c1bf6c8f21fec1107610f8a607821d3fe39ef4530ff3b17f0f5"
+      "sha256": "fe9f4876b0761a8079cca40f6ce60492fc0f1cacedae332d04652540c455f440"
     },
     "contribution_provenance_policy": {
       "path": "config/contribution_provenance_policy.json",
@@ -87,6 +87,10 @@
     "stage9_contribution_manifest": {
       "path": "docs/evidence/contribution_provenance/STAGE9_2026-09-20.json",
       "sha256": "a6c3ae9bad19af0b682f2b06dcb51f949472c7b50516f7023a7c93debc45f2aa"
+    },
+    "stage9_static_repair_manifest": {
+      "path": "docs/evidence/contribution_provenance/STAGE9_STATIC_REPAIR_2026-09-20.json",
+      "sha256": "e30726b87bab28ec94aa97791bf03aa63f128609b32603ca4f35192dc5aad547"
     },
     "third_party_registry": {
       "path": "config/third_party_software_registry.json",
