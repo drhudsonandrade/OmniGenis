@@ -24,6 +24,22 @@
       "path": "locks/conda-linux-64-resolution.json",
       "sha256": "b41b9e4c3b74977478549e114d8ddf98c2f681f7a26ef923ba8cae4dbf135240"
     },
+    "contribution_provenance_ledger": {
+      "path": "config/contribution_provenance_ledger.json",
+      "sha256": "67ab27f64cbc6a80dc55fe97529d46a03d2197c8ed0b1619bf2349c8d05e8fad"
+    },
+    "contribution_provenance_policy": {
+      "path": "config/contribution_provenance_policy.json",
+      "sha256": "e2ff858a99ce3efc28a11daad885049e8a843dc0b885e94130238bf28dc54d98"
+    },
+    "data_use_purpose_matrix": {
+      "path": "config/data_use_purpose_matrix.json",
+      "sha256": "29108f582cab90b9324334b8e0890dc210a579944e61c00a7605170eab73055e"
+    },
+    "data_use_purpose_policy": {
+      "path": "config/data_use_purpose_policy.json",
+      "sha256": "09ac380257dc8942f8220b35980f2ac053727a3c0eaa85fe8e64ec2ea72d5ec4"
+    },
     "python_license_metadata": {
       "path": "locks/python-license-metadata.json",
       "sha256": "3d3aff74d8332c02cb9d29abc2a750e1cdf6cd3c887f8b91b09863d1979eb5ed"
@@ -32,33 +48,29 @@
       "path": "locks/sbom-tool-lock.json",
       "sha256": "0328af732b1b2b0c5d2e6ca934cea0920107c8c2f7a5dea4c75004dc07a8af5f"
     },
-    "third_party_registry": {
-      "path": "config/third_party_software_registry.json",
-      "sha256": "0d56489ef78b4db32b6c0c384cb3baeb63607272cc9bc88b5671a412a0f040d2"
-    },
-    "software_license_policy": {
-      "path": "config/software_license_policy.json",
-      "sha256": "724d54a5ae51ef8dceb4288f4be3ca2917fb1f8c98df72e25105513d65fa3260"
+    "scientific_data_source_registry": {
+      "path": "config/data_source_registry.yaml",
+      "sha256": "dc39ad56030439f133c21b3043961bd11b321a14930de9c60748d37b55359599"
     },
     "software_license_gate_registry": {
       "path": "config/software_license_gate_registry.json",
       "sha256": "53dfbb260a3d431191dbae6de4bf78132fd47c7276d4490ee0386622eee3aa50"
     },
+    "software_license_policy": {
+      "path": "config/software_license_policy.json",
+      "sha256": "724d54a5ae51ef8dceb4288f4be3ca2917fb1f8c98df72e25105513d65fa3260"
+    },
     "stage5_license_debt_baseline": {
       "path": "locks/stage5-license-debt-baseline.json",
       "sha256": "bdfcabdb6ca991a05d6c114ca5ee95c7414fd731e3d5c5fff38ea34aa892a319"
     },
-    "scientific_data_source_registry": {
-      "path": "config/data_source_registry.yaml",
-      "sha256": "dc39ad56030439f133c21b3043961bd11b321a14930de9c60748d37b55359599"
+    "stage8_contribution_manifest": {
+      "path": "docs/evidence/contribution_provenance/STAGE8_2026-09-20.json",
+      "sha256": "9f71f7ee3ff100af1f4206acef80eda09580b1c98d81f37e45f88072be3eb337"
     },
-    "data_use_purpose_policy": {
-      "path": "config/data_use_purpose_policy.json",
-      "sha256": "09ac380257dc8942f8220b35980f2ac053727a3c0eaa85fe8e64ec2ea72d5ec4"
-    },
-    "data_use_purpose_matrix": {
-      "path": "config/data_use_purpose_matrix.json",
-      "sha256": "29108f582cab90b9324334b8e0890dc210a579944e61c00a7605170eab73055e"
+    "third_party_registry": {
+      "path": "config/third_party_software_registry.json",
+      "sha256": "0d56489ef78b4db32b6c0c384cb3baeb63607272cc9bc88b5671a412a0f040d2"
     }
   },
   "conda": {
