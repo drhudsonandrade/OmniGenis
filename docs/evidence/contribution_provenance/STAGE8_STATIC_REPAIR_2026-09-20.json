@@ -1,0 +1,57 @@
+{
+  "assistance_class": "AI_ASSISTED_DECLARED",
+  "base_sha": "69ee93c8262478996374345e3bc8543d66b62211",
+  "change_set_id": "STAGE8-STATIC-REPAIR-2026-09-20",
+  "files": [
+    {
+      "path": ".github/workflows/genoma-ngs-runtime-gate.yml",
+      "sha256": "5ca960c091f600fe830b9940573f55270a258974aa7604dd9043ee815c4fa2ef"
+    },
+    {
+      "path": ".github/workflows/scaffold-validation.yml",
+      "sha256": "4440761ee9287390e9f3abc5f1212eee1c33b115bfccffcc0357adecaa022148"
+    },
+    {
+      "path": "AUTHORS.md",
+      "sha256": "94de93eacdeb4ecac8a921c45f9467ccce4c73cdf86904d5cb4353df522f7d38"
+    },
+    {
+      "path": "CONTRIBUTING.md",
+      "sha256": "ad96d189816be74db641732e6a6a218585e304d106d25a0b567efbdb8afbe64f"
+    },
+    {
+      "path": "config/contribution_provenance_policy.json",
+      "sha256": "e2ff858a99ce3efc28a11daad885049e8a843dc0b885e94130238bf28dc54d98"
+    },
+    {
+      "path": "docs/compliance/STAGE8_CONTRIBUTION_PROVENANCE.md",
+      "sha256": "4edbaf1c68020fa35928be740866e81a02d4e5de6867b156e12781326a3b8330"
+    },
+    {
+      "path": "scripts/build_stage8_change_manifest.py",
+      "sha256": "7d7d1577c210c986712d2b06ffb170531f897a8d12ff03e4e32065e472134272"
+    },
+    {
+      "path": "scripts/validate_repo.py",
+      "sha256": "47c9139f68d4181c7cdb8989f672fcae1d1914145458f2b6f3c3ab486edc1262"
+    },
+    {
+      "path": "scripts/validate_stage8_contribution_provenance.py",
+      "sha256": "a2b101898b6025ef920a9abc028333af72f1962db6aaea3a7c908da5f63b500a"
+    },
+    {
+      "path": "tests/test_ci_optimization_contract.py",
+      "sha256": "f1c0f5953ec95e51b25baef1512490b71eeffd1d3130e2bd91fddec38a495ddd"
+    },
+    {
+      "path": "tests/test_stage8_contribution_provenance.py",
+      "sha256": "47f845987717f39304e111ea7778c120b67b327f5e908c5cc909190063b6f721"
+    }
+  ],
+  "hash_algorithm": "sha256",
+  "human_direction": true,
+  "implementation_sha": "cedb24b6668e9bd112c48af7dce8d7dfdcab2033",
+  "origin_class": "REPOSITORY_NATIVE",
+  "schema": "omnigenis-contribution-provenance-manifest-v1",
+  "third_party_code_introduced": false
+}

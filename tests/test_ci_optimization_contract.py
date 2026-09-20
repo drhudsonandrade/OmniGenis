@@ -129,6 +129,7 @@ NGS_TRIGGER_SCRIPT_PATHS = (
     "scripts/data_use_purpose_gate.py",
     "scripts/build_stage7_purpose_matrix.py",
     "scripts/validate_stage7_purpose_use.py",
+    "scripts/validate_stage8_contribution_provenance.py",
     "scripts/check_versions.sh",
     "scripts/code_language_guard.py",
     "scripts/freshness_gate.py",
@@ -739,6 +740,13 @@ class CIOptimizationContractTest(unittest.TestCase):
     def test_markdown_classifier_behavior_on_modifications_deletions_and_renames(self):
         classifier = _load_classifier()
         self.assertFalse(classifier.validation_required(["docs/architecture.md"], []))
+        for governed in (
+            "AUTHORS.md",
+            "COPYRIGHT.md",
+            "CONTRIBUTING.md",
+            "docs/compliance/STAGE8_CONTRIBUTION_PROVENANCE.md",
+        ):
+            self.assertTrue(classifier.validation_required([governed], []))
         self.assertTrue(
             classifier.validation_required(["docs/architecture.md"], ["docs/required-contract.md"])
         )
@@ -807,6 +815,7 @@ class CIOptimizationContractTest(unittest.TestCase):
             "      - 'scripts/data_use_purpose_gate.py'\n",
             "      - 'scripts/build_stage7_purpose_matrix.py'\n",
             "      - 'scripts/validate_stage7_purpose_use.py'\n",
+            "      - 'scripts/validate_stage8_contribution_provenance.py'\n",
             "      - 'scripts/project_identity_guard.py'\n",
             "      - 'scripts/governance_context_identity.py'\n",
             "      - 'scripts/zero_identity_guard.py'\n",

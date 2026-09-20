@@ -41,6 +41,7 @@ from scripts.validate_stage4_compliance import collect_errors as validate_stage4
 from scripts.validate_stage5_license_gate import collect_errors as validate_stage5_license_gate  # noqa: E402
 from scripts.validate_stage6_data_sources import collect_errors as validate_stage6_data_sources  # noqa: E402
 from scripts.validate_stage7_purpose_use import collect_errors as validate_stage7_purpose_use  # noqa: E402
+from scripts.validate_stage8_contribution_provenance import collect_errors as validate_stage8_contribution_provenance  # noqa: E402
 
 CANONICAL_RULESET = EXPECTED_NAME
 CANONICAL_RULESET_SHA256 = EXPECTED_SHA
@@ -106,6 +107,9 @@ REQUIRED_PATHS = (
     "scripts/validate_stage7_purpose_use.py", "docs/compliance/STAGE7_PURPOSE_USE_ENFORCEMENT.md",
     "docs/evidence/STAGE7_PURPOSE_USE_ENFORCEMENT_2026-09-19.json",
     "docs/evidence/STAGE7_PURPOSE_USE_VALIDATION_2026-09-19.txt",
+    "config/contribution_provenance_policy.json", "config/contribution_provenance_ledger.json",
+    "scripts/build_stage8_change_manifest.py", "scripts/validate_stage8_contribution_provenance.py",
+    "docs/compliance/STAGE8_CONTRIBUTION_PROVENANCE.md", "CONTRIBUTING.md",
     "evidence_adapters/__init__.py", "policy_engine/pyproject.toml", "policy_engine/genoma_policy/engine.py",
     "policy_engine/genoma_policy/attestation.py", "policy_engine/genoma_policy/ledger.py",
     "policy_engine/genoma_policy/version.py", "policy_engine/policy/schema/execution-manifest.schema.json",
@@ -227,7 +231,7 @@ def validate_sealed_ruleset(root: Path, errors: list[str]) -> None:
     """Record an error unless the sealed transport decodes to the canonical ruleset."""
     try:
         verify_transport(root / "normative" / "sealed")
-    except (OSError, UnicodeError, ValueError, SealedRulesetError) as exc:
+    except (OSError, ValueError, SealedRulesetError) as exc:
         errors.append(f"sealed normative transport invalid: {type(exc).__name__}: {exc}")
 
 
@@ -350,10 +354,10 @@ def _identity_declaration_strings(text: str) -> tuple[str, ...]:
             if getattr(node, "value", None) is not None:
                 values.append(node.value)
         elif isinstance(node, ast.Dict):
-            for key, value in zip(node.keys, node.values):
+            for key, dict_value in zip(node.keys, node.values):
                 key_text = _constant_value(key) if key is not None else None
                 if isinstance(key_text, str) and IDENTITY_BINDING_PATTERN.search(key_text):
-                    values.append(value)
+                    values.append(dict_value)
         for value in values:
             declarations.extend(
                 constant
@@ -1638,6 +1642,7 @@ def validate(root: Path) -> list[str]:
     errors.extend(validate_stage5_license_gate(root))
     errors.extend(validate_stage6_data_sources(root))
     errors.extend(validate_stage7_purpose_use(root))
+    errors.extend(validate_stage8_contribution_provenance(root))
 
     active = []
     for candidate in root.rglob("REGRAS_PROJETO_GENOMA*.txt"):
@@ -1777,17 +1782,17 @@ def validate(root: Path) -> list[str]:
     for path in root.rglob("*"):
         if not path.is_file() or any(part in SKIP_PARTS for part in path.parts):
             continue
-        relative = path.relative_to(root)
+        relative_path = path.relative_to(root)
         name = path.name.lower()
         if name.endswith(FORBIDDEN_SUFFIXES) or name.endswith((".fastq.gz", ".fq.gz", ".vcf.gz")):
-            errors.append(f"genomic/reference payload must not be committed: {relative}")
+            errors.append(f"genomic/reference payload must not be committed: {relative_path}")
         if name == "grch38.lock.sha256.approved":
             errors.append("externally approved GRCh38 lock must not be committed")
         if path.suffix == ".json":
             try:
                 json.loads(path.read_text(encoding="utf-8"))
             except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-                errors.append(f"invalid JSON: {relative}: {exc}")
+                errors.append(f"invalid JSON: {relative_path}: {exc}")
     validate_language_policy(root, errors)
     validate_residual_language(root, errors)
     return errors

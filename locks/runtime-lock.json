@@ -24,6 +24,22 @@
       "path": "locks/conda-linux-64-resolution.json",
       "sha256": "b41b9e4c3b74977478549e114d8ddf98c2f681f7a26ef923ba8cae4dbf135240"
     },
+    "contribution_provenance_ledger": {
+      "path": "config/contribution_provenance_ledger.json",
+      "sha256": "93cf1e7c0af27a059e642055152ea7071f47e541fed031772d1d9c932b8f346c"
+    },
+    "contribution_provenance_policy": {
+      "path": "config/contribution_provenance_policy.json",
+      "sha256": "399eef12829708b0ba28d32751a6dd36f1306f8cde86e1e5fb5652020d17e526"
+    },
+    "data_use_purpose_matrix": {
+      "path": "config/data_use_purpose_matrix.json",
+      "sha256": "29108f582cab90b9324334b8e0890dc210a579944e61c00a7605170eab73055e"
+    },
+    "data_use_purpose_policy": {
+      "path": "config/data_use_purpose_policy.json",
+      "sha256": "09ac380257dc8942f8220b35980f2ac053727a3c0eaa85fe8e64ec2ea72d5ec4"
+    },
     "python_license_metadata": {
       "path": "locks/python-license-metadata.json",
       "sha256": "3d3aff74d8332c02cb9d29abc2a750e1cdf6cd3c887f8b91b09863d1979eb5ed"
@@ -32,33 +48,65 @@
       "path": "locks/sbom-tool-lock.json",
       "sha256": "0328af732b1b2b0c5d2e6ca934cea0920107c8c2f7a5dea4c75004dc07a8af5f"
     },
-    "third_party_registry": {
-      "path": "config/third_party_software_registry.json",
-      "sha256": "0d56489ef78b4db32b6c0c384cb3baeb63607272cc9bc88b5671a412a0f040d2"
-    },
-    "software_license_policy": {
-      "path": "config/software_license_policy.json",
-      "sha256": "724d54a5ae51ef8dceb4288f4be3ca2917fb1f8c98df72e25105513d65fa3260"
+    "scientific_data_source_registry": {
+      "path": "config/data_source_registry.yaml",
+      "sha256": "dc39ad56030439f133c21b3043961bd11b321a14930de9c60748d37b55359599"
     },
     "software_license_gate_registry": {
       "path": "config/software_license_gate_registry.json",
       "sha256": "53dfbb260a3d431191dbae6de4bf78132fd47c7276d4490ee0386622eee3aa50"
     },
+    "software_license_policy": {
+      "path": "config/software_license_policy.json",
+      "sha256": "724d54a5ae51ef8dceb4288f4be3ca2917fb1f8c98df72e25105513d65fa3260"
+    },
     "stage5_license_debt_baseline": {
       "path": "locks/stage5-license-debt-baseline.json",
       "sha256": "bdfcabdb6ca991a05d6c114ca5ee95c7414fd731e3d5c5fff38ea34aa892a319"
     },
-    "scientific_data_source_registry": {
-      "path": "config/data_source_registry.yaml",
-      "sha256": "dc39ad56030439f133c21b3043961bd11b321a14930de9c60748d37b55359599"
+    "stage8_ci_dedup_manifest": {
+      "path": "docs/evidence/contribution_provenance/STAGE8_CI_DEDUP_2026-09-20.json",
+      "sha256": "9d5fc29e95e6298feafad6a220ebfb094777749c52ee635b74c0052c02075b07"
     },
-    "data_use_purpose_policy": {
-      "path": "config/data_use_purpose_policy.json",
-      "sha256": "09ac380257dc8942f8220b35980f2ac053727a3c0eaa85fe8e64ec2ea72d5ec4"
+    "stage8_contribution_manifest": {
+      "path": "docs/evidence/contribution_provenance/STAGE8_2026-09-20.json",
+      "sha256": "bd06be7e2599cf1a82e7cb3516f4f98b2e9e27c3df3573ba61a4a450d8152db1"
     },
-    "data_use_purpose_matrix": {
-      "path": "config/data_use_purpose_matrix.json",
-      "sha256": "29108f582cab90b9324334b8e0890dc210a579944e61c00a7605170eab73055e"
+    "stage8_deepsource_major_manifest": {
+      "path": "docs/evidence/contribution_provenance/STAGE8_DEEPSOURCE_MAJOR_2026-09-20.json",
+      "sha256": "0abcebe7f0b7a9327b1c9052041df0c760898266927ed952047ee263e2fadb33"
+    },
+    "stage8_durable_final_manifest": {
+      "path": "docs/evidence/contribution_provenance/STAGE8_DURABLE_FINAL_2026-09-20.json",
+      "sha256": "4c76754bf521cc259800278378c502de288d3dec11baaa28bd45d32ee0e924fb"
+    },
+    "stage8_durable_patch_manifest": {
+      "path": "docs/evidence/contribution_provenance/STAGE8_DURABLE_PATCH_2026-09-20.json",
+      "sha256": "a4877eec1398411b388349a14b143fca5794f130c5bb26b89dc8cae52ef5827c"
+    },
+    "stage8_post_pr80_merge_manifest": {
+      "path": "docs/evidence/contribution_provenance/STAGE8_POST_PR80_MERGE_2026-09-20.json",
+      "sha256": "55f8ad02c510e7871b0ec7e6134984223ed7fd4fb017fc681e6f758afe72ae4e"
+    },
+    "stage8_repair_manifest": {
+      "path": "docs/evidence/contribution_provenance/STAGE8_REPAIR_2026-09-20.json",
+      "sha256": "655ccbc53ab5b69c4ac6da7eb373e2d18057247cd0203c8a5a159e8c24706314"
+    },
+    "stage8_static_repair_manifest": {
+      "path": "docs/evidence/contribution_provenance/STAGE8_STATIC_REPAIR_2026-09-20.json",
+      "sha256": "6f1ca2154bb062bbf55a2075fcab1d8208697c70b671720ae0d40af10f89219e"
+    },
+    "stage8_static_timeout_manifest": {
+      "path": "docs/evidence/contribution_provenance/STAGE8_STATIC_TIMEOUT_2026-09-20.json",
+      "sha256": "ad555d70405fb1654d2846a58d5e20d2dcdc0c81d3cc542147ac0358c64841be"
+    },
+    "stage8_third_party_truth_final_manifest": {
+      "path": "docs/evidence/contribution_provenance/STAGE8_THIRD_PARTY_TRUTH_FINAL_2026-09-20.json",
+      "sha256": "293d41318b6b7f1a59e52a6aee588c84129a5ba1686f0040d564f8d9d2c22517"
+    },
+    "third_party_registry": {
+      "path": "config/third_party_software_registry.json",
+      "sha256": "0d56489ef78b4db32b6c0c384cb3baeb63607272cc9bc88b5671a412a0f040d2"
     }
   },
   "conda": {

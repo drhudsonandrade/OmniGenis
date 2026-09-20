@@ -15,3 +15,9 @@ A Git author or committer record demonstrates technical provenance for that repo
 Third-party authorship and attribution must be preserved under the applicable upstream license or data-source terms and documented in `THIRD_PARTY_NOTICES.md` or the corresponding compliance registry.
 
 Historical project identifiers retained for compatibility or provenance do not create separate current authorship claims.
+
+## Governed change-set provenance
+
+New governed implementation change sets use the Stage 8 append-only contribution-provenance ledger. Each entry binds a base commit, an implementation commit, a technical origin class, an assistance declaration, and a deterministic file-hash manifest.
+
+Assistance metadata describes how a change was produced; it does not make a tool an author or rights holder and does not change the repository's legal ownership boundary. Unknown historical provenance remains explicitly unresolved rather than being silently upgraded to a repository-native claim.

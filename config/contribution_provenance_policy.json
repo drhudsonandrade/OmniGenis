@@ -1,0 +1,49 @@
+{
+  "assistance_classes": [
+    "HUMAN_ONLY_DECLARED",
+    "AI_ASSISTED_DECLARED",
+    "AUTOMATION_ASSISTED_DECLARED",
+    "MULTI_TOOL_ASSISTED_DECLARED",
+    "UNKNOWN"
+  ],
+  "control_paths": {
+    "evidence_prefix": "docs/evidence/contribution_provenance/",
+    "ledger": "config/contribution_provenance_ledger.json",
+    "runtime_lock": "locks/runtime-lock.json",
+    "software_license_gate_registry": "config/software_license_gate_registry.json",
+    "third_party_software_registry": "config/third_party_software_registry.json"
+  },
+  "effective_date": "2026-09-20",
+  "origin_classes": [
+    "REPOSITORY_NATIVE",
+    "THIRD_PARTY",
+    "MIXED",
+    "UNKNOWN"
+  ],
+  "purpose": "Preserve technical authorship and contribution provenance without treating repository metadata as proof of legal ownership.",
+  "rules": {
+    "append_only_ledger": true,
+    "current_manifest_schema": "omnigenis-contribution-provenance-manifest-v2",
+    "historical_git_object_required": false,
+    "human_direction_required_for_repository_native_changesets": true,
+    "legal_ownership_inference_from_git": false,
+    "manifest_hash_algorithm": "sha256",
+    "personal_identity_duplication_required": false,
+    "retained_manifest_is_durable_evidence": true,
+    "third_party_code_must_reference_approved_component_ids": true,
+    "third_party_rights_must_use_stage4_to_stage7_controls": true,
+    "tool_vendor_identity_required": false,
+    "unknown_assistance_is_historical_or_unresolved_only": true,
+    "unknown_origin_machine_authorized": false
+  },
+  "schema": "omnigenis-contribution-provenance-policy-v1",
+  "status": "ACTIVE",
+  "technical_evidence_classes": [
+    "GIT_HISTORY",
+    "PULL_REQUEST",
+    "REVIEW_RECORD",
+    "SIGNED_OR_VERIFIED_COMMIT_WHEN_AVAILABLE",
+    "CHANGESET_MANIFEST"
+  ],
+  "version": "1.2"
+}

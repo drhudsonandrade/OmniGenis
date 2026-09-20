@@ -126,6 +126,17 @@ jobs:
         run: |
           python3 scripts/build_stage7_purpose_matrix.py --check
           python3 scripts/validate_stage7_purpose_use.py
+      - name: Enforce Stage 8 contribution provenance
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            python3 scripts/validate_stage8_contribution_provenance.py --base-sha "$PR_BASE_SHA"
+          else
+            python3 scripts/validate_stage8_contribution_provenance.py
+          fi
       - name: Validate shell and Python
         run: |
           export TMPDIR="$RUNNER_TEMP"

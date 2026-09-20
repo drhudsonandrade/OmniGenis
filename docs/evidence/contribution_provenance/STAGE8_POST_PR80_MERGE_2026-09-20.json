@@ -1,0 +1,89 @@
+{
+  "assistance_class": "AI_ASSISTED_DECLARED",
+  "base_sha": "deb6db0a59b00dce86985d2dfc1cfda6037d1362",
+  "base_tree": "eb12922a16d53822be127c8b5e09bd6dbd814607",
+  "change_set_id": "STAGE8-POST-PR80-MERGE-2026-09-20",
+  "files": [
+    {
+      "base_sha256": "00d073b2fcb3fce9e57ae9b476ea8245a82b8c3ee35753c39d7e23025b7b5055",
+      "path": ".github/workflows/genoma-ngs-runtime-gate.yml",
+      "sha256": "7d799c6238855f4acd5afa07d484db68230709ee4e40b0b760effdef98b73c3b",
+      "status": "M"
+    },
+    {
+      "base_sha256": "cd154baf3f916f0646e68fc756a45197479ed095fb25f2b85faef88ed22d641c",
+      "path": ".github/workflows/scaffold-validation.yml",
+      "sha256": "d804c2ef8c1550b269eb64e852dd470dd2136f869bc563f59f1cc086a23aed05",
+      "status": "M"
+    },
+    {
+      "base_sha256": "883cb4e65fed1839aa74ed324d35178c1030903ceff17c1e1776e5bb6e022ed2",
+      "path": "AUTHORS.md",
+      "sha256": "94de93eacdeb4ecac8a921c45f9467ccce4c73cdf86904d5cb4353df522f7d38",
+      "status": "M"
+    },
+    {
+      "base_sha256": null,
+      "path": "CONTRIBUTING.md",
+      "sha256": "ad96d189816be74db641732e6a6a218585e304d106d25a0b567efbdb8afbe64f",
+      "status": "A"
+    },
+    {
+      "base_sha256": null,
+      "path": "config/contribution_provenance_policy.json",
+      "sha256": "399eef12829708b0ba28d32751a6dd36f1306f8cde86e1e5fb5652020d17e526",
+      "status": "A"
+    },
+    {
+      "base_sha256": null,
+      "path": "docs/compliance/STAGE8_CONTRIBUTION_PROVENANCE.md",
+      "sha256": "7ed2ad8b39ec489ceb58f96435d2e6ae2500188b96cec67539bf5944e39470e1",
+      "status": "A"
+    },
+    {
+      "base_sha256": null,
+      "path": "scripts/build_stage8_change_manifest.py",
+      "sha256": "1cd49cb1136c7212945e1e227c64d9a927b4c79cb0bb5222fbdf62fa8fe42ce9",
+      "status": "A"
+    },
+    {
+      "base_sha256": "197794d7596990a0c102c2ebae91d61bd9c4f654ce56fa0ae693c8268cc6d347",
+      "path": "scripts/ci_change_classifier.py",
+      "sha256": "b6a0370312d174f48944740f93a0da12325920f0dbe64b7cf610c620d38af249",
+      "status": "M"
+    },
+    {
+      "base_sha256": "26b0aa4a862a5ee0c6eb41adbf21880951b89e7958ab60acf96b2e09043b1538",
+      "path": "scripts/validate_repo.py",
+      "sha256": "352a192dcecdfa766fcf629664c20be7ca3ead935375d2e341e620191fa1ddd4",
+      "status": "M"
+    },
+    {
+      "base_sha256": null,
+      "path": "scripts/validate_stage8_contribution_provenance.py",
+      "sha256": "b835d040b11196a751f0006a0565d98ad00f92d6979886c64a4bf70ddabf5690",
+      "status": "A"
+    },
+    {
+      "base_sha256": "0ef916eae15960638db1d31c0c759f415e3e6b41999bb9dc3cc9093b3ae2ea6f",
+      "path": "tests/test_ci_optimization_contract.py",
+      "sha256": "2dbfb75cd04243d29e2c449549300e32878d1cebdd37ca758d1980cf4c18b8f4",
+      "status": "M"
+    },
+    {
+      "base_sha256": null,
+      "path": "tests/test_stage8_contribution_provenance.py",
+      "sha256": "a8e92d55747127ae04560f372703e08b0ad92312f35b4808c6a2e51fde8406eb",
+      "status": "A"
+    }
+  ],
+  "git_objects_verified_at_capture": true,
+  "hash_algorithm": "sha256",
+  "human_direction": true,
+  "implementation_sha": "05bb6d8160e1fa6e51e97a5a77135d0daab759d3",
+  "implementation_tree": "fe0b8b5486112d3a9622deb3dad5074688b87ec7",
+  "origin_class": "REPOSITORY_NATIVE",
+  "schema": "omnigenis-contribution-provenance-manifest-v2",
+  "third_party_code_introduced": false,
+  "third_party_component_ids": []
+}
