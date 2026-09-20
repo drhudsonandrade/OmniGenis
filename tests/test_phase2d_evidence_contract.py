@@ -364,7 +364,7 @@ def _resolve_evidence_delivery(implementation: str, payload_tree: str, base_main
 
 
 
-def _expected_ruleset_semantics(implementation_sha: str | None = None) -> dict:
+def _expected_ruleset_semantics(implementation_sha: str) -> dict:
     """Derive semantics from the manifests certified by the Phase 2D checkpoint."""
     manifests = {
         21303100: MAIN_RULESET_MANIFEST,
@@ -372,13 +372,10 @@ def _expected_ruleset_semantics(implementation_sha: str | None = None) -> dict:
     }
     expected: dict[str, dict] = {}
     for ruleset_id, path in manifests.items():
-        if implementation_sha is None:
-            manifest = json.loads(path.read_text(encoding="utf-8"))
-        else:
-            relative = path.relative_to(ROOT).as_posix()
-            manifest = json.loads(
-                _git_bytes("show", f"{implementation_sha}:{relative}").decode("utf-8")
-            )
+        relative = path.relative_to(ROOT).as_posix()
+        manifest = json.loads(
+            _git_bytes("show", f"{implementation_sha}:{relative}").decode("utf-8")
+        )
         if manifest.get("target") != "branch":
             raise AssertionError(f"{path} must target branches")
         manifest["id"] = ruleset_id
