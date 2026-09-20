@@ -64,8 +64,8 @@
       "path": ".github/workflows/genoma-snp-array.yml",
       "category": "normative",
       "reason": "Closed normative taxonomy, canonical runtime identifier, or policy/workflow wire value is intentionally preserved for contract compatibility.",
-      "count": 5,
-      "fingerprint": "a69699bd25fab4126d5b75820e60c29568c03a09094a99604cfa5f0c42616792"
+      "count": 9,
+      "fingerprint": "c6316e735f652fea230ae4c2823e6a1c7c29cff855b14618c3d254d845928839"
     },
     {
       "path": ".github/workflows/genoma-visual-qa-candidates.yml",
@@ -1058,8 +1058,8 @@
       "path": "scripts/genetic_data_privacy_gate.py",
       "category": "normative",
       "reason": "Stage 9 emits canonical Portuguese operational-status wire values for compatibility with the governed runtime.",
-      "count": 5,
-      "fingerprint": "3bcb3b233ce82be7ac943d733c3f1f46f295f81cd805429b6ae6887156d6b9ff"
+      "count": 6,
+      "fingerprint": "5ff2a06cd56a7e691296eb3b96c8946f0d5cde4f03494cc414f5952d0586ccb8"
     },
     {
       "path": "scripts/genoma_audit.py",
@@ -1688,8 +1688,8 @@
       "path": "tests/test_stage9_genetic_privacy.py",
       "category": "compatibility-preserved",
       "reason": "Regression fixtures retain exact canonical Portuguese wire values so privacy-gate compatibility is testable.",
-      "count": 6,
-      "fingerprint": "44e3b087ee3f4f6497129782907987123f8827a63e1dad31951f416d7dad3bb8"
+      "count": 9,
+      "fingerprint": "38981dfa2833eebc2a1295bfb407bce0d2ff772c6fe70085c2654c3b1944bf38"
     },
     {
       "path": "tests/test_superseded_identity_scanner.py",
