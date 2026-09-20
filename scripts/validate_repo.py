@@ -42,6 +42,7 @@ from scripts.validate_stage5_license_gate import collect_errors as validate_stag
 from scripts.validate_stage6_data_sources import collect_errors as validate_stage6_data_sources  # noqa: E402
 from scripts.validate_stage7_purpose_use import collect_errors as validate_stage7_purpose_use  # noqa: E402
 from scripts.validate_stage8_contribution_provenance import collect_errors as validate_stage8_contribution_provenance  # noqa: E402
+from scripts.validate_stage9_genetic_privacy import collect_errors as validate_stage9_genetic_privacy  # noqa: E402
 
 CANONICAL_RULESET = EXPECTED_NAME
 CANONICAL_RULESET_SHA256 = EXPECTED_SHA
@@ -110,6 +111,8 @@ REQUIRED_PATHS = (
     "config/contribution_provenance_policy.json", "config/contribution_provenance_ledger.json",
     "scripts/build_stage8_change_manifest.py", "scripts/validate_stage8_contribution_provenance.py",
     "docs/compliance/STAGE8_CONTRIBUTION_PROVENANCE.md", "CONTRIBUTING.md",
+    "config/genetic_data_privacy_policy.json", "scripts/genetic_data_privacy_gate.py",
+    "scripts/validate_stage9_genetic_privacy.py", "docs/compliance/STAGE9_LGPD_GENETIC_DATA.md",
     "evidence_adapters/__init__.py", "policy_engine/pyproject.toml", "policy_engine/genoma_policy/engine.py",
     "policy_engine/genoma_policy/attestation.py", "policy_engine/genoma_policy/ledger.py",
     "policy_engine/genoma_policy/version.py", "policy_engine/policy/schema/execution-manifest.schema.json",
@@ -1643,6 +1646,7 @@ def validate(root: Path) -> list[str]:
     errors.extend(validate_stage6_data_sources(root))
     errors.extend(validate_stage7_purpose_use(root))
     errors.extend(validate_stage8_contribution_provenance(root))
+    errors.extend(validate_stage9_genetic_privacy(root))
 
     active = []
     for candidate in root.rglob("REGRAS_PROJETO_GENOMA*.txt"):

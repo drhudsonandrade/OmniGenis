@@ -136,6 +136,29 @@ class WgsGateTest(unittest.TestCase):
                 "source": "laboratory-export",
                 "chain_of_custody_ref": "custody-1",
             },
+            "privacy": {
+                "schema": "omnigenis-genetic-data-privacy-record-v1",
+                "status": "VERIFICADO",
+                "processing_context_id": "CTX-WGS-1",
+                "data_class": "GENETIC_SENSITIVE_PERSONAL_DATA",
+                "subject_reference": "S1",
+                "authorized_purposes": ["genomic_analysis"],
+                "legal_basis": {
+                    "status": "VERIFICADO",
+                    "reference": "LGPD-ART11-TEST-REVIEW",
+                    "evidence_ref": "legal-review-fixture",
+                    "inferred_from_consent": False,
+                },
+                "controller": {"status": "VERIFICADO", "reference": "controller-fixture"},
+                "purpose_limitation": {"status": "VERIFICADO", "evidence_ref": "purpose-fixture"},
+                "data_minimization": {"status": "VERIFICADO", "evidence_ref": "minimization-fixture"},
+                "access_control": {"status": "VERIFICADO", "evidence_ref": "access-fixture"},
+                "retention": {"status": "VERIFICADO", "evidence_ref": "retention-fixture"},
+                "incident_response": {"status": "VERIFICADO", "evidence_ref": "incident-fixture"},
+                "data_subject_rights": {"status": "VERIFICADO", "evidence_ref": "rights-fixture"},
+                "sharing_transfer_review": {"status": "VERIFICADO", "evidence_ref": "sharing-fixture"},
+                "risk_assessment": {"status": "VERIFICADO", "evidence_ref": "risk-fixture"},
+            },
         }
         result = evaluate_consent(manifest, requested_purpose="genomic_analysis")
         self.assertEqual(result["status"], "VERIFICADO")

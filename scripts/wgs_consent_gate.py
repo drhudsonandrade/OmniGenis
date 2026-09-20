@@ -3,8 +3,15 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 from typing import Any
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from scripts.genetic_data_privacy_gate import evaluate_privacy
 
 
 def evaluate_consent(manifest: dict[str, Any], *, requested_purpose: str) -> dict[str, Any]:
@@ -12,6 +19,8 @@ def evaluate_consent(manifest: dict[str, Any], *, requested_purpose: str) -> dic
     sample_id = str(manifest.get("sample_id") or "").strip()
     consent = manifest.get("consent") if isinstance(manifest.get("consent"), dict) else {}
     provenance = manifest.get("provenance") if isinstance(manifest.get("provenance"), dict) else {}
+    privacy = manifest.get("privacy") if isinstance(manifest.get("privacy"), dict) else {}
+    privacy_result = evaluate_privacy(privacy, requested_purpose=requested_purpose)
 
     if not sample_id:
         errors.append("sample_id missing")
@@ -30,6 +39,8 @@ def evaluate_consent(manifest: dict[str, Any], *, requested_purpose: str) -> dic
         errors.append("provenance.source missing")
     if not str(provenance.get("chain_of_custody_ref") or "").strip():
         errors.append("provenance.chain_of_custody_ref missing")
+    if privacy_result.get("ready_for_genetic_processing") is not True:
+        errors.extend(f"privacy: {error}" for error in privacy_result.get("errors", []))
 
     return {
         "schema": "genoma-consent-provenance-gate-v1",
@@ -42,6 +53,7 @@ def evaluate_consent(manifest: dict[str, Any], *, requested_purpose: str) -> dic
         "consent_id": consent.get("consent_id"),
         "consent_version": consent.get("version"),
         "provenance_ref": provenance.get("chain_of_custody_ref"),
+        "privacy_clearance": privacy_result,
         "errors": errors,
     }
 

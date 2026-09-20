@@ -13,6 +13,7 @@ process ARRAY_QC {
 
     input:
     path array_input
+    path privacy_record
     val case_id
     val build
     val strand
@@ -30,6 +31,7 @@ process ARRAY_QC {
     python3 '${workflow.projectDir}/scripts/run_snp_array.py' \
       --input '${array_input}' \
       --case-id '${case_id}' \
+      --privacy-record '${privacy_record}' \
       --build '${build}' \
       --strand '${strand}' \
       --build-evidence '${build_evidence}' \
@@ -144,6 +146,7 @@ process ARRAY_GENERATE_REPORTS {
 workflow ARRAY_PRODUCTION {
     take:
     array_input
+    privacy_record
     case_id
     build
     strand
@@ -153,7 +156,7 @@ workflow ARRAY_PRODUCTION {
     target_manifest
 
     main:
-    ARRAY_QC(array_input, case_id, build, strand, build_evidence, strand_evidence)
+    ARRAY_QC(array_input, privacy_record, case_id, build, strand, build_evidence, strand_evidence)
     ARRAY_ANNOTATE(array_input, ARRAY_QC.out.qc_json, target_manifest, case_id, evidence_mode)
     ARRAY_BUILD_MANIFEST(ARRAY_QC.out.qc_json, ARRAY_ANNOTATE.out.annotation_json, case_id)
     ARRAY_POLICY_EVALUATE(ARRAY_BUILD_MANIFEST.out.curation_manifest, case_id)

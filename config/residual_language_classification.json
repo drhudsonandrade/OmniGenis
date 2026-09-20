@@ -215,6 +215,13 @@
       "fingerprint": "68d93dea87c40eeb406698fa0506b2259a9c1f8dadd3886c760799383964a0aa"
     },
     {
+      "path": "config/genetic_data_privacy_policy.json",
+      "category": "normative",
+      "reason": "Stage 9 retains closed Portuguese operational-status wire values required by the canonical policy contract.",
+      "count": 4,
+      "fingerprint": "e125c224f2e9b6c7a77d41719f0acb5af3cce50fb5184e261f933b20a450fd0a"
+    },
+    {
       "path": "config/partial_genome_annotation_targets.json",
       "category": "compatibility-preserved",
       "reason": "Versioned serialized scientific/configuration data preserves established labels, evidence prose, and detection vocabulary; it is not implementation prose.",
@@ -458,6 +465,13 @@
       "reason": "Versioned audit/evidence record preserves the language captured by the original historical execution or review artifact.",
       "count": 8,
       "fingerprint": "6986f4edd0df11cea6e2bee11d6934199f616c618bffa0ca8a86414e19803ca1"
+    },
+    {
+      "path": "docs/compliance/STAGE9_LGPD_GENETIC_DATA.md",
+      "category": "localized",
+      "reason": "Brazilian legal terminology is retained where the compliance boundary names the LGPD jurisdiction and official concepts.",
+      "count": 1,
+      "fingerprint": "83b922c0c9c8e9df705739b571c3bd9d54eb49b29244b9d8598915b4513a797b"
     },
     {
       "path": "docs/evidence/ANCESTRY_PANEL_VALIDATION.json",
@@ -1041,6 +1055,13 @@
       "fingerprint": "b145be4e62d6811a133848b7f6c1da09b9b43a62a686878bb218dc92d8fbc04d"
     },
     {
+      "path": "scripts/genetic_data_privacy_gate.py",
+      "category": "normative",
+      "reason": "Stage 9 emits canonical Portuguese operational-status wire values for compatibility with the governed runtime.",
+      "count": 5,
+      "fingerprint": "3bcb3b233ce82be7ac943d733c3f1f46f295f81cd805429b6ae6887156d6b9ff"
+    },
+    {
       "path": "scripts/genoma_audit.py",
       "category": "localized",
       "reason": "Portuguese here is pt-BR operator/report output or a canonical serialized value; the executable implementation language remains English-first.",
@@ -1158,6 +1179,13 @@
       "reason": "Portuguese here is pt-BR operator/report output or a canonical serialized value; the executable implementation language remains English-first.",
       "count": 11,
       "fingerprint": "60a89330b26d5217cbb5cdd07b07ed7df635e651793acabb99110b2d5d8f8032"
+    },
+    {
+      "path": "scripts/validate_stage9_genetic_privacy.py",
+      "category": "normative",
+      "reason": "Stage 9 validates the canonical Portuguese operational-status vocabulary without translating wire values.",
+      "count": 1,
+      "fingerprint": "44d101e3e07e0124cd0fa2a0c1f3becdaba30e319c11c018f8fca8e28a5094d7"
     },
     {
       "path": "scripts/verify_prebuilt_bwa_mem2_bundle.py",
@@ -1657,6 +1685,13 @@
       "fingerprint": "a54390b8b3f246dc3edbd7dbf863c1a1541af07e5d45a47753bb22e0d30ae032"
     },
     {
+      "path": "tests/test_stage9_genetic_privacy.py",
+      "category": "compatibility-preserved",
+      "reason": "Regression fixtures retain exact canonical Portuguese wire values so privacy-gate compatibility is testable.",
+      "count": 6,
+      "fingerprint": "44e3b087ee3f4f6497129782907987123f8827a63e1dad31951f416d7dad3bb8"
+    },
+    {
       "path": "tests/test_superseded_identity_scanner.py",
       "category": "compatibility-preserved",
       "reason": "Portuguese is retained as an exact wire/report/fixture expectation so regression tests continue to prove compatibility.",
@@ -1716,8 +1751,8 @@
       "path": "tests/test_wgs_gates.py",
       "category": "compatibility-preserved",
       "reason": "Portuguese is retained as an exact wire/report/fixture expectation so regression tests continue to prove compatibility.",
-      "count": 18,
-      "fingerprint": "9d8a22a402a91e5dfc72499ee0ef293884efdc5daadb13ac786f37c3f8d6b069"
+      "count": 29,
+      "fingerprint": "06bbae765855c5cdf946bf62decaa6a293c47025aed4653aec40afe64cfd791a"
     },
     {
       "path": "tests/test_wgs_manifest_fail_closed.py",

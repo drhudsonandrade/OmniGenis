@@ -14,6 +14,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from array_pipeline.qc import inspect_array, write_outputs
+from scripts.genetic_data_privacy_gate import GeneticPrivacyError, load_and_evaluate
 
 ALLOWED_ACTOR_TYPES = {"HUMAN", "SOFTWARE", "SERVICE"}
 
@@ -93,6 +94,7 @@ def main() -> int:
     p = argparse.ArgumentParser(description="GENOMA v3.4 fail-closed SNP-array QC and baseline observation extractor")
     p.add_argument("--input", required=True)
     p.add_argument("--case-id", required=True)
+    p.add_argument("--privacy-record", required=True)
     p.add_argument("--build", choices=["GRCh37", "GRCh38"])
     p.add_argument("--strand", choices=["forward", "plus", "+"])
     p.add_argument("--platform")
@@ -105,6 +107,15 @@ def main() -> int:
 
     input_path = Path(args.input)
     try:
+        privacy_result = load_and_evaluate(
+            args.privacy_record,
+            requested_purpose="genomic_analysis",
+            case_id=args.case_id,
+            input_sha256=_sha256_file(input_path),
+        )
+        if privacy_result.get("ready_for_genetic_processing") is not True:
+            reasons = "; ".join(str(x) for x in privacy_result.get("errors", []))
+            raise GeneticPrivacyError(reasons or "genetic-data privacy gate blocked processing")
         build_attestation = (
             load_verified_attestation(args.build_evidence, assertion="build", input_path=input_path)
             if args.build_evidence else None
@@ -113,7 +124,7 @@ def main() -> int:
             load_verified_attestation(args.strand_evidence, assertion="strand", input_path=input_path)
             if args.strand_evidence else None
         )
-    except (ValueError, OSError) as exc:
+    except (ValueError, OSError, GeneticPrivacyError) as exc:
         raise SystemExit(f"NÃO DISPONÍVEL: {exc}")
 
     result = inspect_array(

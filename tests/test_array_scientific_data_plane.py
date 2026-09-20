@@ -15,7 +15,7 @@ class ArrayScientificDataPlaneTest(unittest.TestCase):
         main = (ROOT / "main.nf").read_text(encoding="utf-8")
         self.assertIn("include { ARRAY_PRODUCTION } from './workflows/array'", main)
         self.assertIn("else if (params.mode == 'array')", main)
-        for name in ["array_input", "array_build", "array_strand", "array_build_evidence", "array_strand_evidence"]:
+        for name in ["array_input", "privacy_record", "array_build", "array_strand", "array_build_evidence", "array_strand_evidence"]:
             self.assertIn(name, main)
         self.assertIn("Allowed: canary, wgs, array", main)
 
@@ -24,6 +24,7 @@ class ArrayScientificDataPlaneTest(unittest.TestCase):
         for process in ["ARRAY_QC", "ARRAY_ANNOTATE", "ARRAY_BUILD_MANIFEST", "ARRAY_POLICY_EVALUATE", "ARRAY_GENERATE_REPORTS"]:
             self.assertIn(f"process {process}", text)
         self.assertIn("LIMITED_INTERPRETATION_GATE", text)
+        self.assertIn("--privacy-record", text)
         self.assertIn("partial-genome-annotation.json", text)
         self.assertIn("generate_all_reports.py", text)
 
