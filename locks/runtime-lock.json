@@ -26,7 +26,7 @@
     },
     "contribution_provenance_ledger": {
       "path": "config/contribution_provenance_ledger.json",
-      "sha256": "4c1aba153af9d47e262c4bedb77624f545f1bf8a8ee363b1ed0a61a77b5d1445"
+      "sha256": "e9c6a8ecb7dbef75a6321cb1f79b4028173bb0decd03bbc4eb8e69a823f204a3"
     },
     "contribution_provenance_policy": {
       "path": "config/contribution_provenance_policy.json",
@@ -63,6 +63,10 @@
     "stage5_license_debt_baseline": {
       "path": "locks/stage5-license-debt-baseline.json",
       "sha256": "bdfcabdb6ca991a05d6c114ca5ee95c7414fd731e3d5c5fff38ea34aa892a319"
+    },
+    "stage8_ci_dedup_manifest": {
+      "path": "docs/evidence/contribution_provenance/STAGE8_CI_DEDUP_2026-09-20.json",
+      "sha256": "9d5fc29e95e6298feafad6a220ebfb094777749c52ee635b74c0052c02075b07"
     },
     "stage8_contribution_manifest": {
       "path": "docs/evidence/contribution_provenance/STAGE8_2026-09-20.json",
