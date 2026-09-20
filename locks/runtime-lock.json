@@ -26,7 +26,7 @@
     },
     "contribution_provenance_ledger": {
       "path": "config/contribution_provenance_ledger.json",
-      "sha256": "7004e033895a880d85d67c383f1fbe5258dc5a184df35885673fd2f705bef248"
+      "sha256": "81c61d7a532e45888a24f28e01db54acdb4734f14176613db9ba175c67603246"
     },
     "contribution_provenance_policy": {
       "path": "config/contribution_provenance_policy.json",
@@ -123,6 +123,10 @@
     "stage9_final_sync_manifest": {
       "path": "docs/evidence/contribution_provenance/STAGE9_FINAL_SYNC_2026-09-20.json",
       "sha256": "51458fc0a00ac56c975a4849d6a95fd5c4e3f54255ae6ca348704650f471e958"
+    },
+    "stage9_post_stage8_final_manifest": {
+      "path": "docs/evidence/contribution_provenance/STAGE9_POST_STAGE8_FINAL_2026-09-20.json",
+      "sha256": "afcce41adc2c83676d14953275a0461b6cc060b4647aee87c7f04970a0134688"
     },
     "stage9_residual_final_manifest": {
       "path": "docs/evidence/contribution_provenance/STAGE9_RESIDUAL_FINAL_2026-09-20.json",

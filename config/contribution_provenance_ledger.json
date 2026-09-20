@@ -244,6 +244,21 @@
       "stage": 9,
       "third_party_code_introduced": false,
       "third_party_component_ids": []
+    },
+    {
+      "assistance_class": "AI_ASSISTED_DECLARED",
+      "base_sha": "f49da2099ae16151851420a9c159b458a1874e0c",
+      "change_set_id": "STAGE9-POST-STAGE8-FINAL-2026-09-20",
+      "declared_at": "2026-09-20",
+      "declared_by_role": "repository_owner",
+      "human_direction": true,
+      "implementation_sha": "ba48d18b58890b4eece690c1bc656624fd11e3d7",
+      "legal_ownership_inferred": false,
+      "manifest_path": "docs/evidence/contribution_provenance/STAGE9_POST_STAGE8_FINAL_2026-09-20.json",
+      "origin_class": "REPOSITORY_NATIVE",
+      "stage": 9,
+      "third_party_code_introduced": false,
+      "third_party_component_ids": []
     }
   ],
   "schema": "omnigenis-contribution-provenance-ledger-v1"
