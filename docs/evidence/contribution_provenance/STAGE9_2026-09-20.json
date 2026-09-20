@@ -1,0 +1,77 @@
+{
+  "assistance_class": "AI_ASSISTED_DECLARED",
+  "base_sha": "cad67b4dd60a04870b02e748a73471b3a8818fd7",
+  "change_set_id": "STAGE9-2026-09-20",
+  "files": [
+    {
+      "path": ".github/workflows/genoma-ngs-runtime-gate.yml",
+      "sha256": "48cc8a3171e1596bc66797249c65eafaa28cc297361e738fec55ea3935710b66"
+    },
+    {
+      "path": ".github/workflows/scaffold-validation.yml",
+      "sha256": "d226438077ae758c8fa79e377b614f1b12053538f4485c57f7bc3ba78aa66a6a"
+    },
+    {
+      "path": "config/genetic_data_privacy_policy.json",
+      "sha256": "fccde092c54299ef641fad62bc81c2e8eba4ae67c7d43123e0d0362da2132c14"
+    },
+    {
+      "path": "config/residual_language_classification.json",
+      "sha256": "ea55494cadb6cf96037fc3b909f70b0ea6ac01c4b2b5cda275fab7dc34a381d1"
+    },
+    {
+      "path": "docs/compliance/STAGE9_LGPD_GENETIC_DATA.md",
+      "sha256": "88bb30e2be50eb8aa03e0da6ff1de5ab1c4d0ab1ce5c668db70b19c47a062d47"
+    },
+    {
+      "path": "main.nf",
+      "sha256": "b0aeeac0d209c5e7f4580b943f369ee0b8548d207b946bd5e4cc2a3ce2ef2a20"
+    },
+    {
+      "path": "scripts/genetic_data_privacy_gate.py",
+      "sha256": "8b16115bd9f9f8f1d2a86bf3289032796e4293899b4b7186662d57723a582ba3"
+    },
+    {
+      "path": "scripts/run_snp_array.py",
+      "sha256": "044f54be4a636831089a831df82e1b4936560c215ddc1af0ebc943e3e134c2eb"
+    },
+    {
+      "path": "scripts/validate_repo.py",
+      "sha256": "2f83f06c87692496a48d0e4a9b8a156e196e3e65ae961223c1a255a1eebddce8"
+    },
+    {
+      "path": "scripts/validate_stage9_genetic_privacy.py",
+      "sha256": "d13d57f0c671efd024b32dec81ca5ce05e0097a4e585c8f69a85d14d8be49d3a"
+    },
+    {
+      "path": "scripts/wgs_consent_gate.py",
+      "sha256": "6386cf92555f50bcbc6539e50a68e9dd4359cb0d4bfb181a3779a50da709fa1e"
+    },
+    {
+      "path": "tests/test_array_scientific_data_plane.py",
+      "sha256": "bcb4bacd9a84e934e3e09b715a7f55511f12c9188082d537caaa7c002ecbd041"
+    },
+    {
+      "path": "tests/test_ci_optimization_contract.py",
+      "sha256": "4fae6267a0d8e304663bba4e37e405b3760816c2ab0131c5d32daa2a246da6d3"
+    },
+    {
+      "path": "tests/test_stage9_genetic_privacy.py",
+      "sha256": "27b27d954602c5e686ea0c443f91c982aaf573732dc788a121103b64d281ceba"
+    },
+    {
+      "path": "tests/test_wgs_gates.py",
+      "sha256": "00ac02e8cc7738564a1e894b7e5fa8aaffb70becf802bf820764008b835b7f59"
+    },
+    {
+      "path": "workflows/array.nf",
+      "sha256": "ee37b6380bceacbe39b700e7377db3edfa3edd6582e4779a1b68933ddedc315c"
+    }
+  ],
+  "hash_algorithm": "sha256",
+  "human_direction": true,
+  "implementation_sha": "2243aa5973b5c5aaa7bff5c8128d6fd4681269d0",
+  "origin_class": "REPOSITORY_NATIVE",
+  "schema": "omnigenis-contribution-provenance-manifest-v1",
+  "third_party_code_introduced": false
+}
