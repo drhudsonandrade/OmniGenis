@@ -51,6 +51,14 @@
     "scientific_data_source_registry": {
       "path": "config/data_source_registry.yaml",
       "sha256": "dc39ad56030439f133c21b3043961bd11b321a14930de9c60748d37b55359599"
+    },
+    "data_use_purpose_policy": {
+      "path": "config/data_use_purpose_policy.json",
+      "sha256": "09ac380257dc8942f8220b35980f2ac053727a3c0eaa85fe8e64ec2ea72d5ec4"
+    },
+    "data_use_purpose_matrix": {
+      "path": "config/data_use_purpose_matrix.json",
+      "sha256": "29108f582cab90b9324334b8e0890dc210a579944e61c00a7605170eab73055e"
     }
   },
   "conda": {

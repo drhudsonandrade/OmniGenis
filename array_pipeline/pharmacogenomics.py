@@ -424,6 +424,9 @@ def _diplotype_for(
     if reasons:
         return {"status": UNAVAILABLE, "value": None, "reasons": reasons}
 
+    # Reaching this point proves the registry was present: a missing spec always appends a
+    # refusal reason above. Keep that invariant explicit for static type checking as well.
+    assert spec is not None
     # Exactly two elements, always. The registry named the reference haplotype, so a
     # heterozygous carrier gets allele/reference and a non-carrier gets reference/reference.
     reference = str(spec["reference_allele"]).strip()

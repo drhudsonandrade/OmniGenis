@@ -1,0 +1,16 @@
+STAGE 7 FULL PYTHON SUITE SUMMARY
+VALIDATED_IMPLEMENTATION_SHA=575a094c0e17fdb38394d6a94083cd5cd3e5d843
+VALIDATED_IMPLEMENTATION_TREE=bf50ec056f116be236a30e85a3e02fc919a2e0c0
+INTERPRETER=/tmp/omnigenis-stage7-575a-final-venv/bin/python
+INTERPRETER_VERSION=Python 3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]
+VERSION_COMMAND=/tmp/omnigenis-stage7-575a-final-venv/bin/python -VV
+COMMAND=/tmp/omnigenis-stage7-575a-final-venv/bin/python -m unittest discover -s tests -p test_*.py
+RESULT=PASS
+TESTS=1374
+SKIPPED=2
+DURATION_SECONDS=528.034
+ELAPSED_SECONDS=529.16
+EXIT_CODE=0
+RAW_EXECUTION_LOG_SHA256=a10fd51162387b9f5e27c0bf5fa777be6c2ece8e1dbe9b35c11629a3d2cf2c66
+RAW_LOG_DISTRIBUTED=false
+NORMALIZATION=Raw output contains expected negative-test diagnostics, local paths and localized fixtures. The distributed summary preserves interpreter identity, exact command, unittest result, timing, exit code and raw-log digest.

@@ -1,0 +1,15 @@
+STAGE 7 GATES AND FOCUSED VALIDATION SUMMARY
+VALIDATED_IMPLEMENTATION_SHA=575a094c0e17fdb38394d6a94083cd5cd3e5d843
+VALIDATED_IMPLEMENTATION_TREE=bf50ec056f116be236a30e85a3e02fc919a2e0c0
+INTERPRETER=/tmp/omnigenis-stage7-575a-final-venv/bin/python
+COMMAND_SET=Stage7 matrix check; Stage7 validator; Stage6 validator; supply-chain verifier; Stage7 focused tests; pharmacogenomic integration/regression tests; shell syntax; Python compileall; repository validator
+RESULT=PASS
+STAGE7_MATRIX=PASS resources=19 purposes=7 decisions=133
+STAGE7_FOCUSED_TESTS=PASS tests=21
+PHARMACOGENOMIC_AND_REVIEW_REGRESSION_TESTS=PASS tests=15 CPIC_REPORT_GENERATION=REVIEW_REQUIRED PREWRITE_BLOCK=true DIRECT_BUILD_PAYLOAD_AUTH_REQUIRED=true
+SUPPLY_CHAIN=PASS compliance_locks=13
+REPOSITORY_VALIDATOR=PASS
+SYNTAX_COMPILE=PASS
+RAW_EXECUTION_LOG_SHA256=e4a038ceab89efa581e1ed680d887050fb34543a82da450f2ef0fe219affd736
+RAW_LOG_DISTRIBUTED=false
+NORMALIZATION=Summary retains authoritative results and raw-log digest; fixture output and local paths are omitted from the distributed log.

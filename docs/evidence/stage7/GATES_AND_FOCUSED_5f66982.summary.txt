@@ -1,0 +1,14 @@
+STAGE 7 GATES AND FOCUSED VALIDATION SUMMARY
+VALIDATED_IMPLEMENTATION_SHA=5f66982b374094163dc980857b366f95065eb6cb
+VALIDATED_IMPLEMENTATION_TREE=ea34027d0118ca714216e4e6db62a809ea30295a
+COMMAND_SET=Stage7 matrix check; Stage7 validator; Stage6 validator; supply-chain verifier; Stage7 focused tests; pharmacogenomic report integration tests; CI contract tests; shell syntax; Python compileall; repository validator
+RESULT=PASS
+STAGE7_MATRIX=PASS resources=19 purposes=7 decisions=133
+STAGE7_FOCUSED_TESTS=PASS tests=20
+PHARMACOGENOMIC_INTEGRATION_TESTS=PASS tests=9 CPIC_REPORT_GENERATION=REVIEW_REQUIRED PREWRITE_BLOCK=true
+CI_CONTRACT_TESTS=PASS tests=33
+SUPPLY_CHAIN=PASS compliance_locks=13
+REPOSITORY_VALIDATOR=PASS
+RAW_EXECUTION_LOG_SHA256=0d0a3931ac53b9ca3f708af5a5436e39d3e3213d07bfd9719971e84271b2b0f4
+RAW_LOG_DISTRIBUTED=false
+NORMALIZATION=Summary retains authoritative results and raw-log digest; localized fixture output and local paths are omitted from the distributed log.

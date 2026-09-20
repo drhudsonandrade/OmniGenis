@@ -84,7 +84,7 @@ jobs:
       (needs.changes.result != 'success' ||
        needs.changes.outputs.validation_required == 'true')
     runs-on: ${{ ((github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' && github.ref_protected) && 'omnigenis-isolated' || 'ubuntu-latest' }}
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Require successful scope classification
         if: needs.changes.result != 'success'
@@ -122,6 +122,10 @@ jobs:
           fi
       - name: Enforce Stage 6 scientific data registry
         run: python3 scripts/validate_stage6_data_sources.py
+      - name: Enforce Stage 7 purpose-of-use gate
+        run: |
+          python3 scripts/build_stage7_purpose_matrix.py --check
+          python3 scripts/validate_stage7_purpose_use.py
       - name: Validate shell and Python
         run: |
           export TMPDIR="$RUNNER_TEMP"

@@ -18,7 +18,7 @@ provenance nothing describes must not be narrated with a borrowed sentence.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, TypedDict
 
 
 class UnknownAssayError(Exception):
@@ -122,7 +122,22 @@ PROJECTION_CLASS_REASONS = {
     "GBA1": "GBA1 exige caller que discrimine o pseudogene; o VCF genérico não basta",
 }
 
-ARRAY_MANIFEST = {
+
+class AssayManifest(TypedDict):
+    """Typed shared kwargs used by the SNP-array assay descriptions."""
+
+    evidence_prefix: str
+    input_kind: str
+    input_source: str
+    ingest_step: str
+    plane_summary: str
+    assayed_loci_method: str
+    not_established_reason: str
+    cyp2d6_reason: str
+    variant_class_reasons: dict[str, str]
+
+
+ARRAY_MANIFEST: AssayManifest = {
     "evidence_prefix": "array",
     "input_kind": "snp-array-export",
     "input_source": "consumer genotyping export, harmonized",

@@ -1,0 +1,148 @@
+{
+  "schema": "omnigenis-stage7-purpose-use-evidence-v1",
+  "date": "2026-09-19",
+  "base_main_sha": "016f92ae18051ca5a65238819d4414ba7cf37a08",
+  "base_main_tree": "ea4fa35f6c1d057049062e98fae61f8588275afb",
+  "policy_sha256": "09ac380257dc8942f8220b35980f2ac053727a3c0eaa85fe8e64ec2ea72d5ec4",
+  "matrix_sha256": "29108f582cab90b9324334b8e0890dc210a579944e61c00a7605170eab73055e",
+  "resource_count": 19,
+  "purpose_count": 7,
+  "decision_count": 133,
+  "decision_counts": {
+    "ALLOW_WITH_OBLIGATIONS": 31,
+    "DENY": 6,
+    "RECORD_LEVEL_REVIEW_REQUIRED": 7,
+    "REVIEW_REQUIRED": 89
+  },
+  "execution": {
+    "matrix_check": {
+      "status": "EXECUTED",
+      "result": "PASS",
+      "resources": 19,
+      "purposes": 7,
+      "decisions": 133,
+      "evidence": "docs/evidence/stage7/GATES_AND_FOCUSED_575a094.summary.txt",
+      "sha256": "797d0b8881ac7a005ae06285534d484b0a902aa4185b8592ea6e9f14a3f32411"
+    },
+    "purpose_validator": {
+      "status": "EXECUTED",
+      "result": "PASS",
+      "decision_counts": {
+        "ALLOW_WITH_OBLIGATIONS": 31,
+        "DENY": 6,
+        "RECORD_LEVEL_REVIEW_REQUIRED": 7,
+        "REVIEW_REQUIRED": 89
+      },
+      "evidence": "docs/evidence/stage7/GATES_AND_FOCUSED_575a094.summary.txt",
+      "sha256": "797d0b8881ac7a005ae06285534d484b0a902aa4185b8592ea6e9f14a3f32411"
+    },
+    "stage6_source_registry": {
+      "status": "EXECUTED",
+      "result": "PASS",
+      "resources": 19,
+      "evidence": "docs/evidence/stage7/GATES_AND_FOCUSED_575a094.summary.txt",
+      "sha256": "797d0b8881ac7a005ae06285534d484b0a902aa4185b8592ea6e9f14a3f32411"
+    },
+    "supply_chain": {
+      "status": "EXECUTED",
+      "result": "PASS",
+      "compliance_locks": 13,
+      "evidence": "docs/evidence/stage7/GATES_AND_FOCUSED_575a094.summary.txt",
+      "sha256": "797d0b8881ac7a005ae06285534d484b0a902aa4185b8592ea6e9f14a3f32411"
+    },
+    "focused_tests": {
+      "status": "EXECUTED",
+      "result": "PASS",
+      "tests": 21,
+      "evidence": "docs/evidence/stage7/GATES_AND_FOCUSED_575a094.summary.txt",
+      "sha256": "797d0b8881ac7a005ae06285534d484b0a902aa4185b8592ea6e9f14a3f32411"
+    },
+    "pharmacogenomic_integration_tests": {
+      "status": "EXECUTED",
+      "result": "PASS",
+      "tests": 15,
+      "cpic_report_generation": "REVIEW_REQUIRED",
+      "prewrite_block": true,
+      "direct_build_payload_auth_required": true,
+      "evidence": "docs/evidence/stage7/GATES_AND_FOCUSED_575a094.summary.txt",
+      "sha256": "797d0b8881ac7a005ae06285534d484b0a902aa4185b8592ea6e9f14a3f32411"
+    },
+    "ci_contract_tests": {
+      "status": "EXECUTED",
+      "result": "PASS",
+      "tests": 33,
+      "evidence": "docs/evidence/stage7/CI_CONTRACT_575a094.summary.txt",
+      "sha256": "d17b946359e513102f93d72b6e05ead202a5e558c0a1fcac739bf084702455be"
+    },
+    "repository_validator": {
+      "status": "EXECUTED",
+      "result": "PASS",
+      "evidence": "docs/evidence/stage7/GATES_AND_FOCUSED_575a094.summary.txt",
+      "sha256": "797d0b8881ac7a005ae06285534d484b0a902aa4185b8592ea6e9f14a3f32411"
+    },
+    "full_python_suite": {
+      "status": "EXECUTED",
+      "result": "PASS",
+      "tests": 1374,
+      "skipped": 2,
+      "duration_seconds": 528.034,
+      "elapsed_seconds": 529.16,
+      "exit_code": 0,
+      "interpreter": "/tmp/omnigenis-stage7-575a-final-venv/bin/python",
+      "interpreter_version": "Python 3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]",
+      "command": "/tmp/omnigenis-stage7-575a-final-venv/bin/python -m unittest discover -s tests -p test_*.py",
+      "evidence": "docs/evidence/stage7/FULL_PYTHON_575a094.summary.txt",
+      "sha256": "2803d3ae896b79a367336898b86abb5f26642f9439444db6509e087682e2d072"
+    },
+    "mcp_suite": {
+      "status": "EXECUTED",
+      "result": "PASS",
+      "tests": 46,
+      "passed": 45,
+      "skipped": 1,
+      "failed": 0,
+      "exit_code": 0,
+      "evidence": "docs/evidence/stage7/MCP_575a094.summary.txt",
+      "sha256": "cb8434474e12e2be4e88e53e8ff97e1e5a0a6ee700ce825f7faecd84906dbac7"
+    },
+    "npm_audit": {
+      "status": "EXECUTED",
+      "result": "PASS",
+      "vulnerabilities": 0,
+      "exit_code": 0,
+      "evidence": {
+        "path": "docs/evidence/stage7/NPM_AUDIT_575a094.summary.txt",
+        "sha256": "8be76394e587ce8a6ab770859674cde8c4405cd0c9d90881fdb7fc78ee4b58d4"
+      }
+    },
+    "implementation_binding": {
+      "status": "VERIFIED",
+      "result": "PASS",
+      "base_main_sha": "016f92ae18051ca5a65238819d4414ba7cf37a08",
+      "validated_implementation_sha": "575a094c0e17fdb38394d6a94083cd5cd3e5d843",
+      "validated_implementation_tree": "bf50ec056f116be236a30e85a3e02fc919a2e0c0"
+    },
+    "exact_head_ci": {
+      "status": "CI_REQUIRED",
+      "result": null
+    }
+  },
+  "claims": {
+    "legal_clearance": false,
+    "commercial_clearance": false,
+    "clinical_regulatory_clearance": false,
+    "privacy_consent_clearance": false
+  },
+  "validated_at_utc": "2026-09-19T19:22:03Z",
+  "validated_implementation_sha": "575a094c0e17fdb38394d6a94083cd5cd3e5d843",
+  "validated_implementation_tree": "bf50ec056f116be236a30e85a3e02fc919a2e0c0",
+  "artifact_index": {
+    "path": "docs/evidence/stage7/ARTIFACT_INDEX_575a094.json",
+    "sha256": "cad8c5d8238cba9e67786bb0cb37d73d99b957aad631d2ffe261bb45ef93cf0c"
+  },
+  "validation_output": {
+    "path": "docs/evidence/STAGE7_PURPOSE_USE_VALIDATION_2026-09-19.txt",
+    "sha256": "dac01d05b0868ea795633765d2925810341f57b4c7683f881fd760e98adabcfa",
+    "durable_locator": "docs/evidence/STAGE7_PURPOSE_USE_VALIDATION_2026-09-19.txt"
+  }
+}

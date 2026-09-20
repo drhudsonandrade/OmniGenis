@@ -390,7 +390,7 @@ def build_completeness_matrix(
         )
 
     counts = {name: sum(1 for e in entries if e["classification"] == name) for name in CLASSES}
-    interpretable = sum(1 for e in entries if e["interpretable"])
+    interpretable_count = sum(1 for e in entries if e["interpretable"])
     total = len(entries)
 
     now = evaluated_at or datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
@@ -412,8 +412,8 @@ def build_completeness_matrix(
         },
         "totals": {
             "targets": total,
-            "interpretable": interpretable,
-            "interpretable_fraction": (interpretable / total) if total else 0.0,
+            "interpretable": interpretable_count,
+            "interpretable_fraction": (interpretable_count / total) if total else 0.0,
             **{f"class_{name}": counts[name] for name in CLASSES},
         },
         "entries": entries,

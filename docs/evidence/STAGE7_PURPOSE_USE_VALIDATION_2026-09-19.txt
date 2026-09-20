@@ -1,0 +1,41 @@
+OMNIGENIS STAGE 7 PURPOSE-OF-USE VALIDATION
+
+EVIDENCE_STATUS=VERIFIED
+VALIDATED_AT_UTC=2026-09-19T19:22:03Z
+BASE_MAIN_SHA=016f92ae18051ca5a65238819d4414ba7cf37a08
+BASE_MAIN_TREE=ea4fa35f6c1d057049062e98fae61f8588275afb
+VALIDATED_IMPLEMENTATION_SHA=575a094c0e17fdb38394d6a94083cd5cd3e5d843
+VALIDATED_IMPLEMENTATION_TREE=bf50ec056f116be236a30e85a3e02fc919a2e0c0
+BASE_IMPLEMENTATION_DISTINCT=PASS
+
+STAGE7_MATRIX=PASS resources=19 purposes=7 decisions=133 allow_with_obligations=31 review_required=89 record_level_review_required=7 deny=6 allow=0
+STAGE7_PURPOSE_GATE=PASS
+STAGE6_SOURCE_REGISTRY=PASS resources=19 restricted=1 record_level=1 review_required=10
+SUPPLY_CHAIN=PASS compliance_locks=13
+STAGE7_FOCUSED_TESTS=PASS tests=21
+PHARMACOGENOMIC_AND_REVIEW_REGRESSION_TESTS=PASS tests=15 cpic_report_generation=REVIEW_REQUIRED prewrite_block=true direct_build_payload_auth_required=true
+CI_OPTIMIZATION_TESTS=PASS tests=33
+SYNTAX_COMPILE=PASS
+REPOSITORY_VALIDATOR=PASS
+PYTHON_SUITE=PASS tests=1374 skipped=2 duration_seconds=528.034 elapsed_seconds=529.16 exit_code=0
+MCP_SUITE=PASS tests=46 passed=45 skipped=1 failed=0 exit_code=0
+NPM_AUDIT=PASS vulnerabilities=0 exit_code=0
+
+REVIEW_FIXES=PASS malformed_registry_diagnostic strict_policy_type_narrowing attribution_list_required protected_token_decisions cpic_report_runtime_gate direct_build_payload_authorization_required null_purpose_map_guard execution_manifest_typing explicit_interpreter_evidence
+MODEL_TRAINING_AUTO_AUTHORIZED=false
+REVIEW_REQUIRED_AUTO_AUTHORIZED=false
+PGS_RECORD_LEVEL_FLATTENED=false
+PANELAPP_ENGLAND_COMMERCIAL=DENY
+PANELAPP_ENGLAND_CLINICAL=DENY
+LEGAL_CLEARANCE_CLAIM=false
+COMMERCIAL_CLEARANCE_CLAIM=false
+CLINICAL_REGULATORY_CLEARANCE_CLAIM=false
+PRIVACY_CONSENT_CLEARANCE_CLAIM=false
+
+PYTHON_INTERPRETER=/tmp/omnigenis-stage7-575a-final-venv/bin/python
+PYTHON_VERSION_COMMAND=/tmp/omnigenis-stage7-575a-final-venv/bin/python -VV
+PYTHON_VERSION=Python 3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]
+PYTHON_FULL_SUITE_COMMAND=/tmp/omnigenis-stage7-575a-final-venv/bin/python -m unittest discover -s tests -p test_*.py
+ARTIFACT_INDEX=docs/evidence/stage7/ARTIFACT_INDEX_575a094.json
+ARTIFACT_INDEX_SHA256=cad8c5d8238cba9e67786bb0cb37d73d99b957aad631d2ffe261bb45ef93cf0c
+VALIDATION_ENVIRONMENT=Python 3.12.3 isolated venv populated from reporting/requirements.txt with hash verification. The exact interpreter version and the exact absolute-path unittest command are recorded in the validation summaries.

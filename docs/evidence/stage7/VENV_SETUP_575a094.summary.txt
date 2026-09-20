@@ -1,0 +1,13 @@
+STAGE 7 VALIDATION ENVIRONMENT SUMMARY
+VALIDATED_IMPLEMENTATION_SHA=575a094c0e17fdb38394d6a94083cd5cd3e5d843
+VALIDATED_IMPLEMENTATION_TREE=bf50ec056f116be236a30e85a3e02fc919a2e0c0
+VENV=/tmp/omnigenis-stage7-575a-final-venv
+CREATE_COMMAND=uv venv --python /usr/bin/python3 /tmp/omnigenis-stage7-575a-final-venv
+INSTALL_COMMAND=uv pip install --python /tmp/omnigenis-stage7-575a-final-venv/bin/python --require-hashes -r reporting/requirements.txt
+VERSION_COMMAND=/tmp/omnigenis-stage7-575a-final-venv/bin/python -VV
+PYTHON_VERSION=Python 3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]
+FULL_SUITE_COMMAND=/tmp/omnigenis-stage7-575a-final-venv/bin/python -m unittest discover -s tests -p test_*.py
+RESULT=PASS
+RAW_EXECUTION_LOG_SHA256=a2ba6525c8676894e157838393fdb517a521f03f4eed5084bb82d0ad65f63a71
+RAW_LOG_DISTRIBUTED=false
+NORMALIZATION=Summary records the exact isolated interpreter version and exact full-suite command. Package-install chatter remains ephemeral and is bound by the raw-log digest.

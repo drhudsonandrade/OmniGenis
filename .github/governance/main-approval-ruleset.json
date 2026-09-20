@@ -19,13 +19,19 @@
   },
   "rules": [
     {
+      "type": "update",
+      "parameters": {
+        "update_allows_fetch_and_merge": false
+      }
+    },
+    {
       "type": "pull_request",
       "parameters": {
-        "required_approving_review_count": 1,
+        "required_approving_review_count": 0,
         "dismiss_stale_reviews_on_push": true,
         "required_reviewers": [],
         "require_code_owner_review": false,
-        "require_last_push_approval": true,
+        "require_last_push_approval": false,
         "required_review_thread_resolution": true,
         "require_extra_approval_for_unattributed_changes": false,
         "allowed_merge_methods": [

@@ -1,0 +1,8 @@
+STAGE 7 VALIDATION ENVIRONMENT SUMMARY
+VALIDATED_IMPLEMENTATION_SHA=5f66982b374094163dc980857b366f95065eb6cb
+VALIDATED_IMPLEMENTATION_TREE=ea34027d0118ca714216e4e6db62a809ea30295a
+COMMAND=uv venv --python /usr/bin/python3 /tmp/omnigenis-stage7-final-venv && uv pip install --python /tmp/omnigenis-stage7-final-venv/bin/python --require-hashes -r reporting/requirements.txt
+RESULT=PASS
+RAW_EXECUTION_LOG_SHA256=c6d98fbae867f2f0f6559825b766dd4875ed002c6c36273f6c33173beb53802a
+RAW_LOG_DISTRIBUTED=false
+NORMALIZATION=Summary retains command, result and raw-log digest; local absolute paths and package-install chatter are not distributed.
