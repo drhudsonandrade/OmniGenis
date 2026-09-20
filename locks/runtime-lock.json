@@ -26,7 +26,7 @@
     },
     "contribution_provenance_ledger": {
       "path": "config/contribution_provenance_ledger.json",
-      "sha256": "05a9eaf3fccfcccc1036aaa5a3d1cdf5acd833ae7c1720eb1c77a37b4a039791"
+      "sha256": "6c01c38a3926f2babb64cc9e6552061c01716b58777d9614b3792111f9994f8b"
     },
     "contribution_provenance_policy": {
       "path": "config/contribution_provenance_policy.json",
@@ -63,6 +63,10 @@
     "software_license_policy": {
       "path": "config/software_license_policy.json",
       "sha256": "724d54a5ae51ef8dceb4288f4be3ca2917fb1f8c98df72e25105513d65fa3260"
+    },
+    "stage10_use_boundary_manifest": {
+      "path": "docs/evidence/contribution_provenance/STAGE10_USE_BOUNDARY_2026-09-20.json",
+      "sha256": "7e4400eb93816d90191424dbb6f80094a5215a01bfe1d19471b3a22248488231"
     },
     "stage5_license_debt_baseline": {
       "path": "locks/stage5-license-debt-baseline.json",
