@@ -527,7 +527,9 @@ def collect_errors(root: Path = ROOT, *, base_sha: str | None = None) -> list[st
         entry_component_ids = entry.get("third_party_component_ids", [])
         manifest_component_ids = manifest.get("third_party_component_ids", [])
         if entry_component_ids != manifest_component_ids:
-            errors.append(f"{change_set_id}: manifest/ledger mismatch for third_party_component_ids")
+            errors.append(
+                f"{change_set_id}: manifest/ledger mismatch for third_party_component_ids"
+            )
         introduced = entry.get("third_party_code_introduced") is True
         if introduced:
             valid_ids = (
@@ -540,12 +542,15 @@ def collect_errors(root: Path = ROOT, *, base_sha: str | None = None) -> list[st
                 errors.append(f"{change_set_id}: third-party code requires unique component IDs")
             else:
                 if approved_third_party is None:
-                    approved_third_party, clearance_errors = _approved_third_party_component_ids(root)
+                    approved_third_party, clearance_errors = (
+                        _approved_third_party_component_ids(root)
+                    )
                     errors.extend(clearance_errors)
                 unapproved = sorted(set(entry_component_ids) - approved_third_party)
                 if unapproved:
                     errors.append(
-                        f"{change_set_id}: third-party components lack Stage 4/5 clearance: {unapproved}"
+                        f"{change_set_id}: third-party components lack Stage 4/5 "
+                        f"clearance: {unapproved}"
                     )
         elif entry_component_ids not in ([], None):
             errors.append(f"{change_set_id}: third-party component IDs require introduced=true")
