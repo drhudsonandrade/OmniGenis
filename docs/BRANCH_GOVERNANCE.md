@@ -9,9 +9,9 @@ Target branch: `main`.
 Required policy:
 
 - require a pull request before changes reach `main`;
-- require at least one approving review for actors without the scoped maintainer bypass;
+- require the final merge decision to remain manual; the current owner-authored workflow uses zero formal approving reviews because GitHub does not count an author self-approval;
 - dismiss stale approvals after new code-modifying commits;
-- require approval of the most recent reviewable push when GitHub makes that control available;
+- do not require a separate last-push approval while the repository operates with one owner performing the final human merge decision;
 - require status checks to pass before merge;
 - require the branch to be up to date before merge;
 - block force pushes;
@@ -27,6 +27,8 @@ The desired state for `main` is split into two layered rulesets:
 - `.github/governance/main-approval-ruleset.json` - pull-request/review policy only, with the approved User bypass actor represented by provider-stable identity rather than a persisted account name.
 
 The approval-layer bypass does not apply to the Security & CI ruleset, so required checks cannot be bypassed through this architecture. These files are desired-state artifacts, not evidence that GitHub has applied the rulesets.
+
+For the current user-owned repository workflow, the formal GitHub approving-review count is zero and `require_last_push_approval` is disabled. This does not authorize automatic merge: the repository owner must still make the final merge action manually after every required status check is green and every review conversation is resolved. The same ruleset also restricts updates to `main`; only the repository-owner bypass actor may bypass that update restriction, and its `pull_request` mode keeps direct pushes blocked. A collaborator with ordinary `write`/`push` permission therefore cannot complete or directly push an update to `main`. If an independent human reviewer becomes an enforced part of the operating model, the formal approval count can be raised again in a separately reviewed governance change.
 
 ## Reviewer retirement — 2026-09-15
 
@@ -61,7 +63,7 @@ models have identical findings, recall, or implementation.
 | Correctness, regressions, test integrity, and architectural review | `CodeRabbit`, with request-changes workflow enabled | `.coderabbit.yaml` review profile, path instructions, and error-mode pre-merge checks; `tests/test_coderabbit_guardrails.py` |
 | Repository, runtime, and policy regressions | `static`, `container-canary`, `Canonical policy + 263-rule contract`, and the existing conditional parity/runtime jobs | `.github/governance/main-ruleset.json` and the corresponding workflow contracts |
 | Static analysis, secrets, dependencies, and security findings | All existing DeepSource, GitGuardian, dependency-security, and Semgrep requirements | Unchanged remaining check identities and integration bindings in the protected-main manifest |
-| Independent approval and conversation resolution before manual merge | The separate pull-request approval ruleset | `.github/governance/main-approval-ruleset.json` |
+| Manual owner merge decision and mandatory conversation resolution | The separate pull-request governance ruleset | `.github/governance/main-approval-ruleset.json` |
 
 The acceptance evidence for this consolidation is the exact remaining-check
 manifest, authenticated live ruleset comparison, reviewer configuration tests,
