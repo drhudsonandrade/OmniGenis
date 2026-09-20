@@ -87,8 +87,8 @@ def collect_errors(root: Path = ROOT) -> list[str]:
     if '--privacy-record' not in array_runner or "load_and_evaluate" not in array_runner:
         errors.append("SNP-array runner is not bound to Stage 9 privacy clearance")
 
-    main = (root / "main.nf").read_text(encoding="utf-8")
-    if "privacy_record" not in main:
+    main_workflow = (root / "main.nf").read_text(encoding="utf-8")
+    if "privacy_record" not in main_workflow:
         errors.append("Nextflow entrypoint does not require a privacy record for array processing")
 
     array_flow = (root / "workflows/array.nf").read_text(encoding="utf-8")

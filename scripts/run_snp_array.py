@@ -124,7 +124,7 @@ def main() -> int:
             load_verified_attestation(args.strand_evidence, assertion="strand", input_path=input_path)
             if args.strand_evidence else None
         )
-    except (ValueError, OSError, GeneticPrivacyError) as exc:
+    except (ValueError, OSError) as exc:
         raise SystemExit(f"NÃO DISPONÍVEL: {exc}")
 
     result = inspect_array(

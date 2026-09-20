@@ -7,7 +7,8 @@ from scripts.genetic_data_privacy_gate import evaluate_privacy
 
 
 class Stage9GeneticPrivacyTests(unittest.TestCase):
-    def _record(self) -> dict[str, object]:
+    @staticmethod
+    def _record() -> dict[str, object]:
         verified = lambda ref: {"status": "VERIFICADO", "evidence_ref": ref}
         return {
             "schema": "omnigenis-genetic-data-privacy-record-v1",
