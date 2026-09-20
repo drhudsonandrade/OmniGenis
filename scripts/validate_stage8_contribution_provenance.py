@@ -13,6 +13,8 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 POLICY_REL = "config/contribution_provenance_policy.json"
 LEDGER_REL = "config/contribution_provenance_ledger.json"
+THIRD_PARTY_REGISTRY_REL = "config/third_party_software_registry.json"
+LICENSE_GATE_REGISTRY_REL = "config/software_license_gate_registry.json"
 LEGACY_MANIFEST_SCHEMA = "omnigenis-contribution-provenance-manifest-v1"
 CURRENT_MANIFEST_SCHEMA = "omnigenis-contribution-provenance-manifest-v2"
 SUPPORTED_CHANGE_STATUSES = frozenset({"A", "M", "D", "T"})
@@ -173,6 +175,34 @@ def _valid_sha256(value: object) -> bool:
     return isinstance(value, str) and len(value) == SHA256_LENGTH and all(
         char in "0123456789abcdefABCDEF" for char in value
     )
+
+
+def _approved_third_party_component_ids(root: Path) -> tuple[set[str], list[str]]:
+    """Return component IDs cleared by both the Stage 4 inventory and Stage 5 gate."""
+    errors: list[str] = []
+    try:
+        stage4 = _json(root / THIRD_PARTY_REGISTRY_REL)
+        stage5 = _json(root / LICENSE_GATE_REGISTRY_REL)
+    except (OSError, json.JSONDecodeError) as exc:
+        return set(), [f"Stage 8 third-party clearance registry load failed: {exc}"]
+    stage4_items = stage4.get("components") if isinstance(stage4, dict) else None
+    stage5_items = stage5.get("components") if isinstance(stage5, dict) else None
+    if not isinstance(stage4_items, list) or not isinstance(stage5_items, list):
+        return set(), ["Stage 8 third-party clearance registries are malformed"]
+    inventory_ids = {
+        str(item.get("id"))
+        for item in stage4_items
+        if isinstance(item, dict) and isinstance(item.get("id"), str)
+    }
+    approved = {
+        str(item.get("id"))
+        for item in stage5_items
+        if isinstance(item, dict)
+        and isinstance(item.get("id"), str)
+        and item.get("allowed_for_new_dependency") is True
+        and str(item.get("id")) in inventory_ids
+    }
+    return approved, errors
 
 
 def _validate_legacy_records(
@@ -356,6 +386,7 @@ def collect_errors(root: Path = ROOT, *, base_sha: str | None = None) -> list[st
         "third_party_rights_must_use_stage4_to_stage7_controls",
         "human_direction_required_for_repository_native_changesets",
         "retained_manifest_is_durable_evidence",
+        "third_party_code_must_reference_approved_component_ids",
     ):
         if rules.get(key) is not True:
             errors.append(f"Stage 8 protected rule must remain true: {key}")
@@ -382,6 +413,10 @@ def collect_errors(root: Path = ROOT, *, base_sha: str | None = None) -> list[st
         errors.append("Stage 8 runtime-lock control path drift")
     if evidence_prefix != "docs/evidence/contribution_provenance/":
         errors.append("Stage 8 evidence prefix drift")
+    if control.get("third_party_software_registry") != THIRD_PARTY_REGISTRY_REL:
+        errors.append("Stage 8 third-party software registry path drift")
+    if control.get("software_license_gate_registry") != LICENSE_GATE_REGISTRY_REL:
+        errors.append("Stage 8 software license gate registry path drift")
     if not isinstance(runtime_lock_rel, str) or not isinstance(evidence_prefix, str):
         return errors
 
@@ -414,6 +449,7 @@ def collect_errors(root: Path = ROOT, *, base_sha: str | None = None) -> list[st
 
     seen: set[str] = set()
     manifests_by_index: dict[int, dict[str, Any]] = {}
+    approved_third_party: set[str] | None = None
     for index, entry in enumerate(entries):
         if not isinstance(entry, dict):
             errors.append(f"Stage 8 ledger entry {index} must be an object")
@@ -442,12 +478,6 @@ def collect_errors(root: Path = ROOT, *, base_sha: str | None = None) -> list[st
             )
         if entry.get("legal_ownership_inferred") is not False:
             errors.append(f"{change_set_id}: legal_ownership_inferred must be false")
-        if entry.get("third_party_code_introduced") is not False:
-            errors.append(
-                f"{change_set_id}: third-party code introduction requires "
-                "separate Stage 4-7 clearance"
-            )
-
         base = entry.get("base_sha")
         implementation = entry.get("implementation_sha")
         manifest_rel = entry.get("manifest_path")
@@ -489,13 +519,36 @@ def collect_errors(root: Path = ROOT, *, base_sha: str | None = None) -> list[st
             "implementation_sha",
             "origin_class",
             "assistance_class",
+            "human_direction",
+            "third_party_code_introduced",
         ):
             if manifest.get(key) != entry.get(key):
                 errors.append(f"{change_set_id}: manifest/ledger mismatch for {key}")
-        if manifest.get("human_direction") is not True:
-            errors.append(f"{change_set_id}: manifest human_direction must be true")
-        if manifest.get("third_party_code_introduced") is not False:
-            errors.append(f"{change_set_id}: manifest cannot declare uncleared third-party code")
+        entry_component_ids = entry.get("third_party_component_ids", [])
+        manifest_component_ids = manifest.get("third_party_component_ids", [])
+        if entry_component_ids != manifest_component_ids:
+            errors.append(f"{change_set_id}: manifest/ledger mismatch for third_party_component_ids")
+        introduced = entry.get("third_party_code_introduced") is True
+        if introduced:
+            valid_ids = (
+                isinstance(entry_component_ids, list)
+                and bool(entry_component_ids)
+                and all(isinstance(value, str) and value for value in entry_component_ids)
+                and len(entry_component_ids) == len(set(entry_component_ids))
+            )
+            if not valid_ids:
+                errors.append(f"{change_set_id}: third-party code requires unique component IDs")
+            else:
+                if approved_third_party is None:
+                    approved_third_party, clearance_errors = _approved_third_party_component_ids(root)
+                    errors.extend(clearance_errors)
+                unapproved = sorted(set(entry_component_ids) - approved_third_party)
+                if unapproved:
+                    errors.append(
+                        f"{change_set_id}: third-party components lack Stage 4/5 clearance: {unapproved}"
+                    )
+        elif entry_component_ids not in ([], None):
+            errors.append(f"{change_set_id}: third-party component IDs require introduced=true")
         if manifest.get("hash_algorithm") != hash_algorithm:
             errors.append(f"{change_set_id}: manifest hash_algorithm drift")
         files = manifest.get("files")

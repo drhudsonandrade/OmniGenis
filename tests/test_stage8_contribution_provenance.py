@@ -120,6 +120,35 @@ class Stage8ContributionProvenanceTests(unittest.TestCase):
         errors = stage8.collect_errors(self._root(ledger, manifest))
         self.assertTrue(any("third-party code" in error for error in errors))
 
+    def test_cleared_third_party_component_is_recorded_truthfully(self) -> None:
+        ledger = self._ledger()
+        manifest = self._manifest()
+        entry = ledger["entries"][0]  # type: ignore[index]
+        entry["origin_class"] = "THIRD_PARTY"
+        entry["third_party_code_introduced"] = True
+        entry["third_party_component_ids"] = ["component-1"]
+        manifest["origin_class"] = "THIRD_PARTY"
+        manifest["third_party_code_introduced"] = True
+        manifest["third_party_component_ids"] = ["component-1"]
+        root = self._root(ledger, manifest)
+        with mock.patch.object(
+            stage8,
+            "_approved_third_party_component_ids",
+            return_value=({"component-1"}, []),
+        ):
+            errors = stage8.collect_errors(root)
+        self.assertFalse(any("third-party" in error for error in errors))
+
+    def test_human_direction_mismatch_between_ledger_and_manifest_is_rejected(self) -> None:
+        ledger = self._ledger()
+        manifest = self._manifest()
+        ledger["entries"][0]["origin_class"] = "THIRD_PARTY"  # type: ignore[index]
+        ledger["entries"][0]["human_direction"] = False  # type: ignore[index]
+        manifest["origin_class"] = "THIRD_PARTY"
+        manifest["human_direction"] = True
+        errors = stage8.collect_errors(self._root(ledger, manifest))
+        self.assertTrue(any("mismatch for human_direction" in error for error in errors))
+
     def test_append_only_history_detects_rewrite(self) -> None:
         ledger = self._ledger()
         manifest = self._manifest()
