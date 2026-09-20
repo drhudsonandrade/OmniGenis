@@ -16,6 +16,7 @@ from reporting.policy_control import (
     PolicyEvaluationVerificationError,
     verify_policy_evaluation,
 )
+from scripts.use_boundary_gate import UseBoundaryError, evaluate_use_boundary
 
 REQUIRED_PUBLICATION = (
     "consent_verified",
@@ -50,6 +51,20 @@ def _blocked_policy(reason: str) -> dict[str, Any]:
     }
 
 
+def _blocked_use_boundary(reason: str) -> dict[str, Any]:
+    """Return the fail-closed Stage 10 shape without inventing legal conclusions."""
+    return {
+        "schema": "omnigenis-use-boundary-gate-v1",
+        "gate": "RESEARCH_CLINICAL_REGULATORY_BOUNDARY_GATE",
+        "status": "NÃO DISPONÍVEL",
+        "ready_for_requested_release": False,
+        "regulatory_classification_determined_by_software": False,
+        "clinical_validity_determined_by_software": False,
+        "research_ethics_determined_by_software": False,
+        "errors": [reason],
+    }
+
+
 def _public_policy_projection(policy: dict[str, Any]) -> dict[str, Any]:
     """Expose only the policy verdict required by the publication gate."""
     public_keys = (
@@ -68,7 +83,11 @@ def _public_policy_projection(policy: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def assemble_release(curated: dict[str, Any], policy: dict[str, Any]) -> dict[str, Any]:
+def assemble_release(
+    curated: dict[str, Any],
+    policy: dict[str, Any],
+    use_boundary: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Assemble a release only from a Policy Control verdict re-executed for this case."""
     result = copy.deepcopy(curated)
     blockers: list[str] = []
@@ -76,6 +95,26 @@ def assemble_release(curated: dict[str, Any], policy: dict[str, Any]) -> dict[st
     raw_case_id = curated.get("case_id")
     case_id = raw_case_id.strip() if isinstance(raw_case_id, str) else ""
     input_sha256 = _curated_input_sha256(curated)
+
+    if not isinstance(use_boundary, dict):
+        boundary_result = _blocked_use_boundary("use-boundary record missing")
+    elif not case_id or not input_sha256:
+        boundary_result = _blocked_use_boundary(
+            "curated case_id and primary input SHA-256 are required before Stage 10"
+        )
+    else:
+        try:
+            boundary_result = evaluate_use_boundary(
+                use_boundary,
+                requested_operation="FINAL_AUDITED_REPORT",
+                expected_case_id=case_id,
+                expected_input_sha256=input_sha256,
+            )
+        except UseBoundaryError as exc:
+            boundary_result = _blocked_use_boundary(str(exc))
+    result["use_boundary_verification"] = copy.deepcopy(boundary_result)
+    if boundary_result.get("ready_for_requested_release") is not True:
+        blockers.append("use_boundary")
     try:
         if not case_id:
             raise PolicyEvaluationVerificationError("curated manifest case_id is missing")
@@ -136,11 +175,13 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--curated", required=True)
     parser.add_argument("--policy", required=True)
+    parser.add_argument("--use-boundary", required=True)
     parser.add_argument("--output", required=True)
     args = parser.parse_args()
     curated = json.loads(Path(args.curated).read_text(encoding="utf-8"))
     policy = json.loads(Path(args.policy).read_text(encoding="utf-8"))
-    result = assemble_release(curated, policy)
+    use_boundary = json.loads(Path(args.use_boundary).read_text(encoding="utf-8"))
+    result = assemble_release(curated, policy, use_boundary)
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")

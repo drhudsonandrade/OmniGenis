@@ -1,0 +1,82 @@
+{
+  "schema": "omnigenis-use-boundary-policy-v1",
+  "status": "ACTIVE",
+  "version": "1.1",
+  "effective_date": "2026-09-20",
+  "jurisdiction_profile": "BRAZIL_ANVISA_SINEP",
+  "use_classes": [
+    "RESEARCH_ONLY",
+    "TECHNICAL_QC",
+    "WELLNESS_NON_CLINICAL",
+    "CLINICAL_DECISION_SUPPORT",
+    "CLINICAL_DIAGNOSTIC",
+    "REGULATORY_EVIDENCE",
+    "MIXED_REPORT_SUITE"
+  ],
+  "nonclinical_use_classes": [
+    "RESEARCH_ONLY",
+    "TECHNICAL_QC",
+    "WELLNESS_NON_CLINICAL"
+  ],
+  "clinical_use_classes": [
+    "CLINICAL_DECISION_SUPPORT",
+    "CLINICAL_DIAGNOSTIC",
+    "MIXED_REPORT_SUITE"
+  ],
+  "regulatory_use_classes": [
+    "REGULATORY_EVIDENCE"
+  ],
+  "rules": {
+    "explicit_use_class_required": true,
+    "software_must_not_self_classify_regulatory_status": true,
+    "software_must_not_self_determine_research_ethics": true,
+    "nonclinical_outputs_must_disclaim_clinical_and_regulatory_authorization": true,
+    "human_subjects_research_requires_verified_ethics_assessment": true,
+    "clinical_release_requires_verified_clinical_validation": true,
+    "clinical_release_requires_verified_professional_review": true,
+    "clinical_release_requires_verified_regulatory_assessment": true,
+    "regulatory_release_requires_verified_regulatory_assessment": true,
+    "intended_use_reference_required": true,
+    "case_and_input_binding_required": true,
+    "purpose_change_requires_new_evaluation": true,
+    "research_scope_requires_verified_external_assessment": true
+  },
+  "regulatory_decisions_authorizing_stated_use": [
+    "CLEARED_FOR_STATED_USE",
+    "NOT_REGULATED_FOR_STATED_USE"
+  ],
+  "research_ethics_decisions_authorizing_research": [
+    "APPROVED_FOR_DECLARED_RESEARCH"
+  ],
+  "official_sources": [
+    {
+      "authority": "ANVISA",
+      "title": "Perguntas e Respostas — RDC 657/2022 (Software como Dispositivo Médico)",
+      "url": "https://www.gov.br/anvisa/pt-br/centraisdeconteudo/publicacoes/produtos-para-a-saude/manuais/software-como-dispositivo-medico-perguntas-e-respostas",
+      "accessed": "2026-09-20"
+    },
+    {
+      "authority": "ANVISA",
+      "title": "Manual para Regularização de Equipamento Médico e Software como Dispositivo Médico na Anvisa",
+      "url": "https://www.gov.br/anvisa/pt-br/centraisdeconteudo/publicacoes/produtos-para-a-saude/manuais/manual-regularizacao-gquip",
+      "accessed": "2026-09-20"
+    },
+    {
+      "authority": "Presidência da República",
+      "title": "Lei nº 14.874, de 28 de maio de 2024 — pesquisa com seres humanos",
+      "url": "https://www.gov.br/conselho-nacional-de-saude/pt-br/camaras-tecnicas-e-comissoes/conep/legislacao/resolucoes/lei-no-114-874.pdf",
+      "accessed": "2026-09-20"
+    },
+    {
+      "authority": "Presidência da República",
+      "title": "Decreto nº 12.651, de 7 de outubro de 2025",
+      "url": "https://www.planalto.gov.br/ccivil_03/_ato2023-2026/2025/decreto/d12651.htm",
+      "accessed": "2026-09-20"
+    }
+  ],
+  "boundary": "This policy enforces an operator-declared use boundary and verifies external evidence. It does not classify OmniGenis as a medical device, grant clinical validity, issue research-ethics approval, or create regulatory clearance.",
+  "research_scope_decisions": [
+    "HUMAN_SUBJECTS_RESEARCH",
+    "NOT_HUMAN_SUBJECTS_RESEARCH"
+  ]
+}
