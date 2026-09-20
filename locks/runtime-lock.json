@@ -26,7 +26,7 @@
     },
     "contribution_provenance_ledger": {
       "path": "config/contribution_provenance_ledger.json",
-      "sha256": "b3e09305201c8f7a529fa377881915984f79ddaa9f057d9456d529bbc7534568"
+      "sha256": "cb4e9e3733f70c7b51de8e2fa6a5e6baecaeb9d43af17715cab22b2ccbf60259"
     },
     "contribution_provenance_policy": {
       "path": "config/contribution_provenance_policy.json",
@@ -42,7 +42,7 @@
     },
     "genetic_data_privacy_policy": {
       "path": "config/genetic_data_privacy_policy.json",
-      "sha256": "8ea8c1ddcac7da79cff39f9f0e9ac17e2e511103ece3ed3281dae1498a6132dc"
+      "sha256": "dc6d89760d6631aca4889786d72476e0b064e09c3430b9991105a4201a45c9d2"
     },
     "python_license_metadata": {
       "path": "locks/python-license-metadata.json",
@@ -131,6 +131,10 @@
     "stage9_post_stage8_final_manifest": {
       "path": "docs/evidence/contribution_provenance/STAGE9_POST_STAGE8_FINAL_2026-09-20.json",
       "sha256": "afcce41adc2c83676d14953275a0461b6cc060b4647aee87c7f04970a0134688"
+    },
+    "stage9_privacy_hardening_manifest": {
+      "path": "docs/evidence/contribution_provenance/STAGE9_PRIVACY_HARDENING_2026-09-20.json",
+      "sha256": "7dd04a5937a656ed422b1f2fe41617fd6d6c3dc22526ac35cb07bf5dacec0745"
     },
     "stage9_residual_final_manifest": {
       "path": "docs/evidence/contribution_provenance/STAGE9_RESIDUAL_FINAL_2026-09-20.json",

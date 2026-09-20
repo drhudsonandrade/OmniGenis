@@ -289,6 +289,21 @@
       "stage": 9,
       "third_party_code_introduced": false,
       "third_party_component_ids": []
+    },
+    {
+      "assistance_class": "AI_ASSISTED_DECLARED",
+      "base_sha": "6ecaf0132b1ad163fd3fe7792bf69f62021a1262",
+      "change_set_id": "STAGE9-PRIVACY-HARDENING-2026-09-20",
+      "declared_at": "2026-09-20",
+      "declared_by_role": "repository_owner",
+      "human_direction": true,
+      "implementation_sha": "27f720fe4ecf433fcd7de4c1e33731f77e6b8874",
+      "legal_ownership_inferred": false,
+      "manifest_path": "docs/evidence/contribution_provenance/STAGE9_PRIVACY_HARDENING_2026-09-20.json",
+      "origin_class": "REPOSITORY_NATIVE",
+      "stage": 9,
+      "third_party_code_introduced": false,
+      "third_party_component_ids": []
     }
   ],
   "schema": "omnigenis-contribution-provenance-ledger-v1"
