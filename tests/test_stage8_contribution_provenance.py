@@ -144,7 +144,9 @@ class Stage8ContributionProvenanceTests(unittest.TestCase):
         root = self._root(self._ledger(), self._manifest())
         with (
             mock.patch.object(stage8, "_git", side_effect=AssertionError("historical Git lookup")),
-            mock.patch.object(stage8, "_git_bytes", side_effect=AssertionError("historical Git lookup")),
+            mock.patch.object(
+                stage8, "_git_bytes", side_effect=AssertionError("historical Git lookup")
+            ),
         ):
             self.assertEqual(stage8.collect_errors(root), [])
 

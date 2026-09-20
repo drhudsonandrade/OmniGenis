@@ -325,7 +325,10 @@ def collect_errors(root: Path = ROOT, *, base_sha: str | None = None) -> list[st
         ledger = _json(ledger_path)
     except (OSError, json.JSONDecodeError) as exc:
         return [f"Stage 8 JSON load failed: {exc}"]
-    if not isinstance(policy, dict) or policy.get("schema") != "omnigenis-contribution-provenance-policy-v1":
+    if (
+        not isinstance(policy, dict)
+        or policy.get("schema") != "omnigenis-contribution-provenance-policy-v1"
+    ):
         return ["invalid Stage 8 policy schema"]
     if policy.get("status") != "ACTIVE":
         errors.append("Stage 8 policy status must be ACTIVE")
@@ -385,7 +388,10 @@ def collect_errors(root: Path = ROOT, *, base_sha: str | None = None) -> list[st
     manifest_locks, lock_errors = _runtime_manifest_locks(root, runtime_lock_rel)
     errors.extend(lock_errors)
 
-    if not isinstance(ledger, dict) or ledger.get("schema") != "omnigenis-contribution-provenance-ledger-v1":
+    if (
+        not isinstance(ledger, dict)
+        or ledger.get("schema") != "omnigenis-contribution-provenance-ledger-v1"
+    ):
         return errors + ["invalid Stage 8 ledger schema"]
     if ledger.get("append_only") is not True:
         errors.append("Stage 8 ledger must be append-only")
@@ -423,15 +429,23 @@ def collect_errors(root: Path = ROOT, *, base_sha: str | None = None) -> list[st
             errors.append(f"{change_set_id}: unsupported origin_class")
         if entry.get("assistance_class") not in assistance_classes:
             errors.append(f"{change_set_id}: unsupported assistance_class")
-        if entry.get("origin_class") == "REPOSITORY_NATIVE" and entry.get("human_direction") is not True:
-            errors.append(f"{change_set_id}: repository-native changes require human_direction=true")
+        if (
+            entry.get("origin_class") == "REPOSITORY_NATIVE"
+            and entry.get("human_direction") is not True
+        ):
+            errors.append(
+                f"{change_set_id}: repository-native changes require human_direction=true"
+            )
         if entry.get("origin_class") == "UNKNOWN" and index in new_entry_indexes:
-            errors.append(f"{change_set_id}: UNKNOWN origin is not machine-authorized for a new ledger entry")
+            errors.append(
+                f"{change_set_id}: UNKNOWN origin is not machine-authorized for a new ledger entry"
+            )
         if entry.get("legal_ownership_inferred") is not False:
             errors.append(f"{change_set_id}: legal_ownership_inferred must be false")
         if entry.get("third_party_code_introduced") is not False:
             errors.append(
-                f"{change_set_id}: third-party code introduction requires separate Stage 4-7 clearance"
+                f"{change_set_id}: third-party code introduction requires "
+                "separate Stage 4-7 clearance"
             )
 
         base = entry.get("base_sha")
@@ -441,8 +455,13 @@ def collect_errors(root: Path = ROOT, *, base_sha: str | None = None) -> list[st
             errors.append(f"{change_set_id}: base_sha must be a full SHA")
         if not isinstance(implementation, str) or len(implementation) != 40:
             errors.append(f"{change_set_id}: implementation_sha must be a full SHA")
-        if not isinstance(manifest_rel, str) or not manifest_rel.startswith(evidence_prefix):
-            errors.append(f"{change_set_id}: manifest_path must be under the Stage 8 evidence prefix")
+        if (
+            not isinstance(manifest_rel, str)
+            or not manifest_rel.startswith(evidence_prefix)
+        ):
+            errors.append(
+                f"{change_set_id}: manifest_path must be under the Stage 8 evidence prefix"
+            )
             continue
         manifest_path = root / manifest_rel
         if not manifest_path.is_file():

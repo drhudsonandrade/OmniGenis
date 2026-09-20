@@ -143,7 +143,10 @@ def _read_nul_paths(path: Path) -> list[str]:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("mode", choices=("policy", "rego", "policy-container", "markdown", "container"))
+    parser.add_argument(
+        "mode",
+        choices=("policy", "rego", "policy-container", "markdown", "container"),
+    )
     parser.add_argument("--changed", type=Path, required=True)
     parser.add_argument("--deleted", type=Path)
     args = parser.parse_args()
