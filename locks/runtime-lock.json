@@ -26,7 +26,7 @@
     },
     "contribution_provenance_ledger": {
       "path": "config/contribution_provenance_ledger.json",
-      "sha256": "4212601ad069b5ef80364913e1df6d4cfcd54c55ffd28853bd642a0f64ae9804"
+      "sha256": "4c1aba153af9d47e262c4bedb77624f545f1bf8a8ee363b1ed0a61a77b5d1445"
     },
     "contribution_provenance_policy": {
       "path": "config/contribution_provenance_policy.json",
@@ -71,6 +71,10 @@
     "stage8_repair_manifest": {
       "path": "docs/evidence/contribution_provenance/STAGE8_REPAIR_2026-09-20.json",
       "sha256": "655ccbc53ab5b69c4ac6da7eb373e2d18057247cd0203c8a5a159e8c24706314"
+    },
+    "stage8_static_repair_manifest": {
+      "path": "docs/evidence/contribution_provenance/STAGE8_STATIC_REPAIR_2026-09-20.json",
+      "sha256": "6f1ca2154bb062bbf55a2075fcab1d8208697c70b671720ae0d40af10f89219e"
     },
     "third_party_registry": {
       "path": "config/third_party_software_registry.json",
