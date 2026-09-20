@@ -346,11 +346,10 @@ class PostMergeBootstrapGovernanceTests(unittest.TestCase):
             {rule["type"] for rule in approval["rules"]},
             {"update", "pull_request"},
         )
-        update_rule = next(rule for rule in approval["rules"] if rule["type"] == "update")
+        rules_by_type = {rule["type"]: rule for rule in approval["rules"]}
+        update_rule = rules_by_type["update"]
         self.assertFalse(update_rule["parameters"]["update_allows_fetch_and_merge"])
-        pull_request = next(
-            rule for rule in approval["rules"] if rule["type"] == "pull_request"
-        )["parameters"]
+        pull_request = rules_by_type["pull_request"]["parameters"]
         self.assertEqual(pull_request["required_approving_review_count"], 0)
         self.assertTrue(pull_request["dismiss_stale_reviews_on_push"])
         self.assertFalse(pull_request["require_last_push_approval"])
