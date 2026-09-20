@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
@@ -10,16 +11,99 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 POLICY_PATH = ROOT / "config" / "genetic_data_privacy_policy.json"
 RECORD_SCHEMA = "omnigenis-genetic-data-privacy-record-v1"
+POLICY_SCHEMA = "omnigenis-genetic-data-privacy-policy-v1"
+POLICY_STATUS = "ACTIVE"
+POLICY_JURISDICTION = "BR"
+REQUIRED_DATA_CLASSES = {
+    "GENETIC_SENSITIVE_PERSONAL_DATA",
+    "VERIFIED_ANONYMIZED_GENETIC_DATA",
+    "SYNTHETIC_NON_PERSONAL_GENETIC_FIXTURE",
+}
+REQUIRED_POLICY_RULES = (
+    "legal_basis_must_be_explicitly_verified",
+    "legal_basis_must_not_be_inferred_from_consent",
+    "purpose_limitation_required",
+    "data_minimization_required",
+    "access_control_required",
+    "retention_policy_required",
+    "incident_response_required",
+    "data_subject_rights_channel_required",
+    "sharing_or_transfer_review_required",
+    "risk_assessment_required",
+    "privacy_record_must_precede_genetic_processing",
+    "gate_does_not_claim_legal_compliance",
+    "synthetic_fixture_requires_explicit_verification",
+    "synthetic_fixture_separate_from_personal_data_legal_basis",
+    "synthetic_fixture_requires_synthetic_case_identity",
+    "synthetic_fixture_requires_no_natural_person",
+    "synthetic_fixture_requires_no_personal_data",
+    "verified_anonymized_data_requires_verified_determination",
+)
 
 
 class GeneticPrivacyError(ValueError):
     """The privacy record cannot authorize this processing context."""
 
 
+def validate_policy_contract(policy: Any) -> list[str]:
+    """Return Stage 9 policy-contract violations shared by runtime and repository validation."""
+    if not isinstance(policy, dict):
+        return ["privacy policy must be a JSON object"]
+
+    errors: list[str] = []
+    if policy.get("schema") != POLICY_SCHEMA:
+        errors.append(f"privacy policy schema must be {POLICY_SCHEMA}")
+    if policy.get("status") != POLICY_STATUS:
+        errors.append("privacy policy status must be ACTIVE")
+    if policy.get("jurisdiction") != POLICY_JURISDICTION:
+        errors.append("privacy policy jurisdiction must be BR")
+    if policy.get("required_status") != "VERIFICADO":
+        errors.append("privacy policy required_status must be VERIFICADO")
+    if policy.get("synthetic_fixture_class") != "SYNTHETIC_NON_PERSONAL_GENETIC_FIXTURE":
+        errors.append("privacy policy synthetic fixture class drift")
+
+    allowed = policy.get("allowed_data_classes")
+    if not isinstance(allowed, list) or not REQUIRED_DATA_CLASSES.issubset(set(allowed)):
+        errors.append("privacy policy allowed_data_classes is incomplete")
+
+    classification = policy.get("classification")
+    if not isinstance(classification, dict):
+        errors.append("privacy policy classification missing")
+    else:
+        if classification.get("linked_genetic_data") != "GENETIC_SENSITIVE_PERSONAL_DATA":
+            errors.append("linked genetic data classification drift")
+        if classification.get("default_sensitive") is not True:
+            errors.append("linked genetic data must default to sensitive")
+        if classification.get("anonymous_upgrade_is_automatic") is not False:
+            errors.append("anonymization may not be inferred automatically")
+
+    rules = policy.get("rules")
+    if not isinstance(rules, dict):
+        errors.append("privacy policy rules missing")
+    else:
+        for key in REQUIRED_POLICY_RULES:
+            if rules.get(key) is not True:
+                errors.append(f"privacy policy protected rule must remain true: {key}")
+
+    sources = policy.get("official_sources")
+    authorities = (
+        {str(item.get("authority")) for item in sources if isinstance(item, dict)}
+        if isinstance(sources, list)
+        else set()
+    )
+    if "ANPD" not in authorities or "Presidência da República" not in authorities:
+        errors.append("privacy policy must retain official ANPD and LGPD primary sources")
+    return errors
+
+
 def load_policy(root: Path = ROOT) -> dict[str, Any]:
-    payload = json.loads((root / "config" / "genetic_data_privacy_policy.json").read_text(encoding="utf-8"))
-    if not isinstance(payload, dict):
-        raise GeneticPrivacyError("privacy policy must be a JSON object")
+    payload = json.loads(
+        (root / "config" / "genetic_data_privacy_policy.json").read_text(encoding="utf-8")
+    )
+    errors = validate_policy_contract(payload)
+    if errors:
+        raise GeneticPrivacyError("; ".join(errors))
+    assert isinstance(payload, dict)
     return payload
 
 
@@ -152,6 +236,11 @@ def evaluate_privacy(
     if input_sha256 is not None and record_input_sha != str(input_sha256).lower():
         errors.append("privacy record does not bind to the requested input SHA-256")
 
+    if data_class == "VERIFIED_ANONYMIZED_GENETIC_DATA":
+        anonymization = _verified_block(record, "anonymization_determination", errors)
+        if not str(anonymization.get("evidence_ref") or "").strip():
+            errors.append("anonymization_determination.evidence_ref missing")
+
     legal_basis = _verified_block(record, "legal_basis", errors)
     if not str(legal_basis.get("reference") or "").strip():
         errors.append("legal_basis.reference missing")
@@ -203,15 +292,18 @@ def load_and_evaluate(
     input_sha256: str | None = None,
 ) -> dict[str, Any]:
     try:
-        payload = json.loads(Path(path).read_text(encoding="utf-8"))
+        raw = Path(path).read_bytes()
+        payload = json.loads(raw.decode("utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise GeneticPrivacyError(f"privacy record unreadable: {exc}") from exc
-    return evaluate_privacy(
+    result = evaluate_privacy(
         payload,
         requested_purpose=requested_purpose,
         case_id=case_id,
         input_sha256=input_sha256,
     )
+    result["privacy_record_sha256"] = hashlib.sha256(raw).hexdigest()
+    return result
 
 
 def main() -> int:

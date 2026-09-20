@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 import copy
+import json
+import shutil
+import tempfile
 import unittest
+from pathlib import Path
 
 from scripts.genetic_data_privacy_gate import evaluate_privacy
 
@@ -122,6 +126,45 @@ class Stage9GeneticPrivacyTests(unittest.TestCase):
         self.assertFalse(result["ready_for_genetic_processing"])
         self.assertTrue(any("must not claim" in e for e in result["errors"]))
 
+
+    def test_inactive_policy_fails_closed_at_runtime(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            config = root / "config"
+            config.mkdir()
+            policy = json.loads(
+                (Path(__file__).resolve().parents[1] / "config/genetic_data_privacy_policy.json").read_text(encoding="utf-8")
+            )
+            policy["status"] = "INACTIVE"
+            (config / "genetic_data_privacy_policy.json").write_text(json.dumps(policy), encoding="utf-8")
+            result = evaluate_privacy(
+                self._record(),
+                requested_purpose="genomic_analysis",
+                case_id="CASE-1",
+                input_sha256="a" * 64,
+                root=root,
+            )
+        self.assertFalse(result["ready_for_genetic_processing"])
+        self.assertTrue(any("policy unavailable" in e for e in result["errors"]))
+
+    def test_verified_anonymized_class_requires_verified_determination(self) -> None:
+        record = self._record()
+        record["data_class"] = "VERIFIED_ANONYMIZED_GENETIC_DATA"
+        result = evaluate_privacy(record, requested_purpose="genomic_analysis")
+        self.assertFalse(result["ready_for_genetic_processing"])
+        self.assertTrue(any("anonymization_determination" in e for e in result["errors"]))
+
+    def test_verified_anonymized_class_accepts_evidence_bound_determination(self) -> None:
+        record = self._record()
+        record["data_class"] = "VERIFIED_ANONYMIZED_GENETIC_DATA"
+        record["anonymization_determination"] = {
+            "status": "VERIFICADO",
+            "evidence_ref": "anonymization-review-1",
+        }
+        result = evaluate_privacy(record, requested_purpose="genomic_analysis")
+        self.assertTrue(result["ready_for_genetic_processing"])
+        self.assertFalse(result["sensitive_personal_data"])
+
     def test_consent_cannot_substitute_for_legal_basis(self) -> None:
         record = self._record()
         record["legal_basis"] = {
@@ -154,6 +197,69 @@ class Stage9GeneticPrivacyTests(unittest.TestCase):
         result = evaluate_privacy(record, requested_purpose="genomic_analysis")
         self.assertFalse(result["ready_for_genetic_processing"])
         self.assertTrue(any("incident_response" in error for error in result["errors"]))
+
+
+class Stage9StructuralValidatorMutationTests(unittest.TestCase):
+    def _root(self) -> Path:
+        td = tempfile.TemporaryDirectory()
+        self.addCleanup(td.cleanup)
+        root = Path(td.name)
+        source_root = Path(__file__).resolve().parents[1]
+        for relative in (
+            "config/genetic_data_privacy_policy.json",
+            "scripts/genetic_data_privacy_gate.py",
+            "scripts/wgs_consent_gate.py",
+            "scripts/run_snp_array.py",
+            "main.nf",
+            "workflows/array.nf",
+            ".github/workflows/genoma-snp-array.yml",
+        ):
+            target = root / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source_root / relative, target)
+        return root
+
+    @staticmethod
+    def _errors(root: Path) -> list[str]:
+        from scripts.validate_stage9_genetic_privacy import collect_errors
+        return collect_errors(root)
+
+    def test_validator_rejects_wgs_privacy_call_without_case_binding(self) -> None:
+        root = self._root()
+        path = root / "scripts/wgs_consent_gate.py"
+        text = path.read_text(encoding="utf-8").replace(
+            '        case_id=case_id or "__MISSING_CASE_ID__",\n', ""
+        )
+        path.write_text(text, encoding="utf-8")
+        self.assertTrue(any("case_id" in e for e in self._errors(root)))
+
+    def test_validator_rejects_removed_snp_privacy_call(self) -> None:
+        root = self._root()
+        path = root / "scripts/run_snp_array.py"
+        text = path.read_text(encoding="utf-8").replace(
+            "privacy_result = load_and_evaluate(", "privacy_result = load_and_ignore("
+        )
+        path.write_text(text, encoding="utf-8")
+        self.assertTrue(any("load_and_evaluate" in e for e in self._errors(root)))
+
+    def test_validator_rejects_removed_snp_fail_closed_guard(self) -> None:
+        root = self._root()
+        path = root / "scripts/run_snp_array.py"
+        text = path.read_text(encoding="utf-8").replace(
+            'if privacy_result.get("ready_for_genetic_processing") is not True:',
+            "if False:",
+        )
+        path.write_text(text, encoding="utf-8")
+        self.assertTrue(any("fail-closed privacy guard" in e for e in self._errors(root)))
+
+    def test_validator_rejects_array_workflow_without_privacy_argument(self) -> None:
+        root = self._root()
+        path = root / "workflows/array.nf"
+        text = path.read_text(encoding="utf-8").replace(
+            "      --privacy-record '${privacy_record}' \\\n", ""
+        )
+        path.write_text(text, encoding="utf-8")
+        self.assertTrue(any("structurally pass privacy_record" in e for e in self._errors(root)))
 
 
 if __name__ == "__main__":

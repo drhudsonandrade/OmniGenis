@@ -29,6 +29,15 @@ def build_manifest(qc: dict[str, Any], annotation: dict[str, Any], qc_path: Path
         raise ValueError("array QC is not VERIFICADO/PASS")
     if annotation.get("case_id") != qc.get("case_id") or annotation.get("input_sha256") != qc.get("input", {}).get("sha256"):
         raise ValueError("annotation does not bind to the same case/input as QC")
+    privacy_authorization = qc.get("privacy_authorization")
+    if not isinstance(privacy_authorization, dict):
+        raise ValueError("array QC is missing Stage 9 privacy authorization evidence")
+    if privacy_authorization.get("status") != "VERIFICADO" or privacy_authorization.get("decision") != "ALLOW":
+        raise ValueError("Stage 9 privacy authorization is not VERIFICADO/ALLOW")
+    if privacy_authorization.get("case_id") != qc.get("case_id"):
+        raise ValueError("Stage 9 privacy authorization case binding mismatch")
+    if privacy_authorization.get("input_sha256") != qc.get("input", {}).get("sha256"):
+        raise ValueError("Stage 9 privacy authorization input binding mismatch")
 
     evidence_verified = annotation.get("operational_status") == "VERIFICADO" and annotation.get("evidence_gate", {}).get("state") == "PASS"
     observed = annotation.get("observations", []) if isinstance(annotation.get("observations"), list) else []
@@ -46,7 +55,9 @@ def build_manifest(qc: dict[str, Any], annotation: dict[str, Any], qc_path: Path
             "strand": qc.get("input", {}).get("strand"),
             "unique_rsids": qc.get("metrics", {}).get("unique_rsids"),
             "call_rate": qc.get("metrics", {}).get("call_rate"),
+            "privacy_record_sha256": privacy_authorization.get("privacy_record_sha256"),
         },
+        "privacy_authorization": privacy_authorization,
         "capability_matrix": {
             "assayed_SNP_loci": {"status": "EXECUTADO", "method": "SNP-array observation + QC"},
             "targeted_evidence_retrieval": {"status": "VERIFICADO" if evidence_verified else ("PROPOSTO" if annotation.get("mode") == "plan-only" else "NÃO DISPONÍVEL"), "method": "bounded source-specific HTTPS adapters"},
@@ -63,10 +74,12 @@ def build_manifest(qc: dict[str, Any], annotation: dict[str, Any], qc_path: Path
         "sections": {
             "array_observations": observed,
             "array_qc": qc.get("gates", {}),
+            "privacy_authorization": privacy_authorization,
         },
         "limitations": annotation.get("limitations", []) + qc.get("limitations", []),
         "execution_manifest": [
-            {"step": "SNP-array ingest/QC", "status": "EXECUTADO", "evidence_refs": ["array-qc"]},
+            {"step": "Stage 9 genetic-data privacy authorization", "status": "VERIFICADO", "evidence_refs": ["privacy-authorization"]},
+            {"step": "SNP-array ingest/QC", "status": "EXECUTADO", "evidence_refs": ["array-qc", "privacy-authorization"]},
             {"step": "target observation extraction", "status": "EXECUTADO", "evidence_refs": ["partial-annotation"]},
             {"step": "external evidence retrieval", "status": "VERIFICADO" if evidence_verified else ("PROPOSTO" if annotation.get("mode") == "plan-only" else "NÃO DISPONÍVEL"), "evidence_refs": [x.get("id") for x in sources]},
             {"step": "clinical curation", "status": "PROPOSTO", "evidence_refs": []},
@@ -85,7 +98,7 @@ def build_manifest(qc: dict[str, Any], annotation: dict[str, Any], qc_path: Path
                 "policy_control": {"state": "PASS"},
                 "scientific_data": {"state": "PASS"},
                 "evidence": {"state": "PASS" if evidence_verified else "PENDING"},
-                "audit": {"state": "PENDING"}
+                "audit": {"state": "PENDING", "authorization_ref": "privacy-authorization"}
             },
             "gates": [{"gate": "FINAL_AUDIT_GATE", "state": "PENDING", "blocking": True}]
         },

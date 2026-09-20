@@ -48,6 +48,27 @@ class ArrayProvenanceAttestationTest(unittest.TestCase):
             },
         }
 
+
+    def test_stage9_authorization_reference_is_sanitized_and_bound(self):
+        module = load_script()
+        result = {
+            "gate": "GENETIC_DATA_PRIVACY_GATE",
+            "ready_for_genetic_processing": True,
+            "privacy_record_sha256": "f" * 64,
+            "processing_context_id": "CTX-ARRAY-1",
+            "data_class": "GENETIC_SENSITIVE_PERSONAL_DATA",
+            "requested_purpose": "genomic_analysis",
+            "synthetic_non_personal_fixture": False,
+            "subject_reference": "MUST-NOT-LEAK",
+        }
+        ref = module.build_privacy_authorization_reference(
+            result, case_id="CASE-1", input_sha256="a" * 64
+        )
+        self.assertEqual(ref["decision"], "ALLOW")
+        self.assertEqual(ref["case_id"], "CASE-1")
+        self.assertEqual(ref["input_sha256"], "a" * 64)
+        self.assertNotIn("subject_reference", ref)
+
     def test_plain_text_evidence_is_rejected(self):
         module = load_script()
         path, _ = self._input()

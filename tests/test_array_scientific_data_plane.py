@@ -40,6 +40,19 @@ class ArrayScientificDataPlaneTest(unittest.TestCase):
                 "metrics": {"unique_rsids": 2, "call_rate": 1.0},
                 "gates": {"LIMITED_INTERPRETATION_GATE": {"state": "PASS"}},
                 "limitations": [],
+                "privacy_authorization": {
+                    "schema": "omnigenis-stage9-authorization-reference-v1",
+                    "status": "VERIFICADO",
+                    "decision": "ALLOW",
+                    "privacy_record_sha256": "b" * 64,
+                    "processing_context_id": "CTX-SYN",
+                    "data_class": "SYNTHETIC_NON_PERSONAL_GENETIC_FIXTURE",
+                    "requested_purpose": "genomic_analysis",
+                    "case_id": "SYN",
+                    "input_sha256": "a" * 64,
+                    "synthetic_non_personal_fixture": True,
+                    "legal_basis_inferred": False,
+                },
             }
             ann = {
                 "case_id": "SYN",
@@ -57,6 +70,8 @@ class ArrayScientificDataPlaneTest(unittest.TestCase):
             self.assertEqual(payload["capability_matrix"]["CNV"]["status"], "NÃO DISPONÍVEL")
             self.assertEqual(payload["capability_matrix"]["SV"]["status"], "NÃO DISPONÍVEL")
             self.assertEqual(payload["capability_matrix"]["genome_wide_negative"]["status"], "NÃO DISPONÍVEL")
+            self.assertEqual(payload["privacy_authorization"]["decision"], "ALLOW")
+            self.assertEqual(payload["array_artifacts"]["privacy_record_sha256"], "b" * 64)
             self.assertFalse(payload["publication_gate"]["passed"])
             self.assertEqual(payload["post_deployment_status"], "PENDING")
 

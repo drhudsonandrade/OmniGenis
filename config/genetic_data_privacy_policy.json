@@ -52,11 +52,12 @@
     "synthetic_fixture_requires_no_natural_person": true,
     "synthetic_fixture_requires_no_personal_data": true,
     "synthetic_fixture_requires_synthetic_case_identity": true,
-    "synthetic_fixture_separate_from_personal_data_legal_basis": true
+    "synthetic_fixture_separate_from_personal_data_legal_basis": true,
+    "verified_anonymized_data_requires_verified_determination": true
   },
   "schema": "omnigenis-genetic-data-privacy-policy-v1",
   "scope": "Genetic and genomic data processing controlled by OmniGenis.",
   "status": "ACTIVE",
   "synthetic_fixture_class": "SYNTHETIC_NON_PERSONAL_GENETIC_FIXTURE",
-  "version": "1.1"
+  "version": "1.2"
 }
