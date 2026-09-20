@@ -26,11 +26,11 @@
     },
     "contribution_provenance_ledger": {
       "path": "config/contribution_provenance_ledger.json",
-      "sha256": "735e09fe75fc205cb113eaed279959f7475d52521b9fe8ffe7f6414809801387"
+      "sha256": "eb9aa0a2ed661083526e318f9608ed150c6f8be2c4fd572e866d4b2aab00a913"
     },
     "contribution_provenance_policy": {
       "path": "config/contribution_provenance_policy.json",
-      "sha256": "e2ff858a99ce3efc28a11daad885049e8a843dc0b885e94130238bf28dc54d98"
+      "sha256": "1544b0fc2f5944fe8e6cf864ad5867dcb7a542dc6886bf042be2bffed6a7b927"
     },
     "data_use_purpose_matrix": {
       "path": "config/data_use_purpose_matrix.json",
@@ -79,6 +79,14 @@
     "stage8_deepsource_major_manifest": {
       "path": "docs/evidence/contribution_provenance/STAGE8_DEEPSOURCE_MAJOR_2026-09-20.json",
       "sha256": "0abcebe7f0b7a9327b1c9052041df0c760898266927ed952047ee263e2fadb33"
+    },
+    "stage8_durable_final_manifest": {
+      "path": "docs/evidence/contribution_provenance/STAGE8_DURABLE_FINAL_2026-09-20.json",
+      "sha256": "4c76754bf521cc259800278378c502de288d3dec11baaa28bd45d32ee0e924fb"
+    },
+    "stage8_durable_patch_manifest": {
+      "path": "docs/evidence/contribution_provenance/STAGE8_DURABLE_PATCH_2026-09-20.json",
+      "sha256": "a4877eec1398411b388349a14b143fca5794f130c5bb26b89dc8cae52ef5827c"
     },
     "stage8_repair_manifest": {
       "path": "docs/evidence/contribution_provenance/STAGE8_REPAIR_2026-09-20.json",

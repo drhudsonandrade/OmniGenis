@@ -32,3 +32,20 @@ Any third-party code introduction remains subject to the Stage 4–7 inventory, 
 New ledger entries cannot use UNKNOWN origin as a machine-authorized state. Repository-native entries require explicit human direction. Any third-party-code introduction must be reviewed through the earlier licensing controls instead of being silently accepted.
 
 During pull-request validation, the ledger is checked for append-only continuity against the PR base and the latest manifest must cover the implementation diff. Control-plane evidence files are allowed only as the small evidence-only child of the implementation commit.
+## Durable manifest v2
+
+New change sets use `omnigenis-contribution-provenance-manifest-v2`. Each governed path records its Git transition (`A`, `M`, `D` or `T`) together with the SHA-256 state before and after the implementation commit. Deletions are represented by an explicit tombstone: the base digest is retained and the implementation digest is null. Rename detection is disabled deliberately, so a rename is preserved as one deletion plus one addition.
+
+The builder also records the base and implementation tree identities and declares that the Git objects were verified at capture time. Before a pull request can pass, the Stage 8 validator re-derives the latest manifest from the live Git objects, verifies the tree identities and file digests, and requires the implementation commit to be reachable from the current HEAD.
+
+After capture, only the ledger, runtime lock and that exact manifest may change before the evidence commit. The validator compares `implementation_sha..HEAD` directly, so editing an already-manifested implementation file again cannot disappear through path-set subtraction.
+
+## Durable historical verification
+
+Historical manifests are retained as hash-locked compliance artifacts in `locks/runtime-lock.json`. Once a change set has passed exact-Git validation, later repository validation verifies the retained artifact and its declared digests without requiring the intermediate implementation commit to remain reachable forever. This keeps provenance verifiable after an allowed squash/rebase or branch deletion instead of turning ephemeral Git objects into a permanent runtime dependency. Legacy v1 manifests remain readable as retained historical evidence; the latest entry of a new pull request must use v2.
+
+An `UNKNOWN` origin may remain in inherited historical ledger entries as explicitly unresolved provenance. A newly appended entry cannot use `UNKNOWN` as machine-authorized origin.
+
+## Governed documentation
+
+The Markdown-only CI optimization does not bypass Stage 8 for `AUTHORS.md`, `COPYRIGHT.md`, `CONTRIBUTING.md` or this document. Changes to these governance surfaces force repository validation and therefore require a corresponding provenance update.

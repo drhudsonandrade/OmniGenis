@@ -742,6 +742,13 @@ class CIOptimizationContractTest(unittest.TestCase):
     def test_markdown_classifier_behavior_on_modifications_deletions_and_renames(self):
         classifier = _load_classifier()
         self.assertFalse(classifier.validation_required(["docs/architecture.md"], []))
+        for governed in (
+            "AUTHORS.md",
+            "COPYRIGHT.md",
+            "CONTRIBUTING.md",
+            "docs/compliance/STAGE8_CONTRIBUTION_PROVENANCE.md",
+        ):
+            self.assertTrue(classifier.validation_required([governed], []))
         self.assertTrue(
             classifier.validation_required(["docs/architecture.md"], ["docs/required-contract.md"])
         )
