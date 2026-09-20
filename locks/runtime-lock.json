@@ -26,7 +26,7 @@
     },
     "contribution_provenance_ledger": {
       "path": "config/contribution_provenance_ledger.json",
-      "sha256": "28ca884d42a0ad7b43df9e13c883bda9eb2546295222e3151e112fe417b71a86"
+      "sha256": "643ec03226884c1bf6c8f21fec1107610f8a607821d3fe39ef4530ff3b17f0f5"
     },
     "contribution_provenance_policy": {
       "path": "config/contribution_provenance_policy.json",
@@ -68,9 +68,21 @@
       "path": "locks/stage5-license-debt-baseline.json",
       "sha256": "bdfcabdb6ca991a05d6c114ca5ee95c7414fd731e3d5c5fff38ea34aa892a319"
     },
+    "stage8_ci_dedup_manifest": {
+      "path": "docs/evidence/contribution_provenance/STAGE8_CI_DEDUP_2026-09-20.json",
+      "sha256": "9d5fc29e95e6298feafad6a220ebfb094777749c52ee635b74c0052c02075b07"
+    },
     "stage8_contribution_manifest": {
       "path": "docs/evidence/contribution_provenance/STAGE8_2026-09-20.json",
       "sha256": "bd06be7e2599cf1a82e7cb3516f4f98b2e9e27c3df3573ba61a4a450d8152db1"
+    },
+    "stage8_repair_manifest": {
+      "path": "docs/evidence/contribution_provenance/STAGE8_REPAIR_2026-09-20.json",
+      "sha256": "655ccbc53ab5b69c4ac6da7eb373e2d18057247cd0203c8a5a159e8c24706314"
+    },
+    "stage8_static_repair_manifest": {
+      "path": "docs/evidence/contribution_provenance/STAGE8_STATIC_REPAIR_2026-09-20.json",
+      "sha256": "6f1ca2154bb062bbf55a2075fcab1d8208697c70b671720ae0d40af10f89219e"
     },
     "stage9_contribution_manifest": {
       "path": "docs/evidence/contribution_provenance/STAGE9_2026-09-20.json",
