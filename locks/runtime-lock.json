@@ -26,7 +26,7 @@
     },
     "contribution_provenance_ledger": {
       "path": "config/contribution_provenance_ledger.json",
-      "sha256": "2116a0ca815fe7813a2ab346f34534d24782b581b1043e8d3a2c6033e8e617ac"
+      "sha256": "b3e09305201c8f7a529fa377881915984f79ddaa9f057d9456d529bbc7534568"
     },
     "contribution_provenance_policy": {
       "path": "config/contribution_provenance_policy.json",
@@ -143,6 +143,10 @@
     "stage9_synthetic_ci_final_manifest": {
       "path": "docs/evidence/contribution_provenance/STAGE9_SYNTHETIC_CI_FINAL_2026-09-20.json",
       "sha256": "eebeaa62031a1ba1a26b7043413ef058adb731139bd62563848fc8e736a8261d"
+    },
+    "stage9_zero_seal_historical_fix_manifest": {
+      "path": "docs/evidence/contribution_provenance/STAGE9_ZERO_SEAL_HISTORICAL_FIX_2026-09-20.json",
+      "sha256": "53c867cad2a1d73d8fbfa8eee6257f64b53c1ef9b85c3242b393ee0b9d4482a0"
     },
     "third_party_registry": {
       "path": "config/third_party_software_registry.json",
