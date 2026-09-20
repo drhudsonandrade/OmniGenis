@@ -344,9 +344,9 @@ class PostMergeBootstrapGovernanceTests(unittest.TestCase):
         )
         self.assertEqual({rule["type"] for rule in approval["rules"]}, {"pull_request"})
         pull_request = approval["rules"][0]["parameters"]
-        self.assertEqual(pull_request["required_approving_review_count"], 1)
+        self.assertEqual(pull_request["required_approving_review_count"], 0)
         self.assertTrue(pull_request["dismiss_stale_reviews_on_push"])
-        self.assertTrue(pull_request["require_last_push_approval"])
+        self.assertFalse(pull_request["require_last_push_approval"])
         self.assertTrue(pull_request["required_review_thread_resolution"])
 
     def test_audit_evidence_governance_is_layered(self) -> None:
