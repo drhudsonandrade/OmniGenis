@@ -234,7 +234,7 @@ def validate_sealed_ruleset(root: Path, errors: list[str]) -> None:
     """Record an error unless the sealed transport decodes to the canonical ruleset."""
     try:
         verify_transport(root / "normative" / "sealed")
-    except (OSError, UnicodeError, ValueError, SealedRulesetError) as exc:
+    except (OSError, ValueError, SealedRulesetError) as exc:
         errors.append(f"sealed normative transport invalid: {type(exc).__name__}: {exc}")
 
 
@@ -357,10 +357,10 @@ def _identity_declaration_strings(text: str) -> tuple[str, ...]:
             if getattr(node, "value", None) is not None:
                 values.append(node.value)
         elif isinstance(node, ast.Dict):
-            for key, value in zip(node.keys, node.values):
+            for key, dict_value in zip(node.keys, node.values):
                 key_text = _constant_value(key) if key is not None else None
                 if isinstance(key_text, str) and IDENTITY_BINDING_PATTERN.search(key_text):
-                    values.append(value)
+                    values.append(dict_value)
         for value in values:
             declarations.extend(
                 constant
@@ -1786,17 +1786,17 @@ def validate(root: Path) -> list[str]:
     for path in root.rglob("*"):
         if not path.is_file() or any(part in SKIP_PARTS for part in path.parts):
             continue
-        relative = path.relative_to(root)
+        relative_path = path.relative_to(root)
         name = path.name.lower()
         if name.endswith(FORBIDDEN_SUFFIXES) or name.endswith((".fastq.gz", ".fq.gz", ".vcf.gz")):
-            errors.append(f"genomic/reference payload must not be committed: {relative}")
+            errors.append(f"genomic/reference payload must not be committed: {relative_path}")
         if name == "grch38.lock.sha256.approved":
             errors.append("externally approved GRCh38 lock must not be committed")
         if path.suffix == ".json":
             try:
                 json.loads(path.read_text(encoding="utf-8"))
             except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-                errors.append(f"invalid JSON: {relative}: {exc}")
+                errors.append(f"invalid JSON: {relative_path}: {exc}")
     validate_language_policy(root, errors)
     validate_residual_language(root, errors)
     return errors

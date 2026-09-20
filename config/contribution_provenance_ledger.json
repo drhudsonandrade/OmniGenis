@@ -59,6 +59,20 @@
     },
     {
       "assistance_class": "AI_ASSISTED_DECLARED",
+      "base_sha": "69ee93c8262478996374345e3bc8543d66b62211",
+      "change_set_id": "STAGE8-DEEPSOURCE-MAJOR-2026-09-20",
+      "declared_at": "2026-09-20",
+      "declared_by_role": "repository_owner",
+      "human_direction": true,
+      "implementation_sha": "1cecd35bfa96e6abe3050f9ca56d88f614356574",
+      "legal_ownership_inferred": false,
+      "manifest_path": "docs/evidence/contribution_provenance/STAGE8_DEEPSOURCE_MAJOR_2026-09-20.json",
+      "origin_class": "REPOSITORY_NATIVE",
+      "stage": 8,
+      "third_party_code_introduced": false
+    },
+    {
+      "assistance_class": "AI_ASSISTED_DECLARED",
       "base_sha": "cad67b4dd60a04870b02e748a73471b3a8818fd7",
       "change_set_id": "STAGE9-2026-09-20",
       "declared_at": "2026-09-20",
