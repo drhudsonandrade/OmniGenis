@@ -364,15 +364,21 @@ def _resolve_evidence_delivery(implementation: str, payload_tree: str, base_main
 
 
 
-def _expected_ruleset_semantics() -> dict:
-    """Derive required live semantics from the current governance manifests."""
+def _expected_ruleset_semantics(implementation_sha: str | None = None) -> dict:
+    """Derive semantics from the manifests certified by the Phase 2D checkpoint."""
     manifests = {
         21303100: MAIN_RULESET_MANIFEST,
         22347095: APPROVAL_RULESET_MANIFEST,
     }
     expected: dict[str, dict] = {}
     for ruleset_id, path in manifests.items():
-        manifest = json.loads(path.read_text(encoding="utf-8"))
+        if implementation_sha is None:
+            manifest = json.loads(path.read_text(encoding="utf-8"))
+        else:
+            relative = path.relative_to(ROOT).as_posix()
+            manifest = json.loads(
+                _git_bytes("show", f"{implementation_sha}:{relative}").decode("utf-8")
+            )
         if manifest.get("target") != "branch":
             raise AssertionError(f"{path} must target branches")
         manifest["id"] = ruleset_id
@@ -1020,7 +1026,7 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
         self.assertEqual(set(captures), set(records))
         seen_ids: set[str] = set()
         times = {}
-        expected = _expected_ruleset_semantics()
+        expected = _expected_ruleset_semantics(evidence["implementation_head_sha"])
         for name, record in records.items():
             context = record.get("execution_provenance")
             self.assertIsInstance(context, dict, "query execution provenance is missing")
@@ -1076,7 +1082,7 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
             self.assertLessEqual(times[first][1], times[second][0])
 
     def test_governance_rulesets_match_authorized_hardened_semantics(self) -> None:
-        """Recompute live ruleset semantics from captured per-ID REST responses."""
+        """Recompute captured ruleset semantics against checkpoint-bound manifests."""
         evidence = self.load()
         bundle = self.load_validation_bundle(evidence)
         self._assert_external_query_executions(evidence, bundle)
@@ -1108,7 +1114,7 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
             self.assertEqual(by_id[ruleset_id]["name"], name)
             self.assertEqual(by_id[ruleset_id]["enforcement"], enforcement)
 
-        expected = _expected_ruleset_semantics()
+        expected = _expected_ruleset_semantics(evidence["implementation_head_sha"])
         expected_sha = hashlib.sha256(_canonical_json_bytes(expected)).hexdigest()
         comparison = evidence["ruleset_semantic_comparison"]
         manifest_sources = {
@@ -1119,7 +1125,12 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
         self.assertEqual(
             comparison["governance_manifest_sha256"],
             {
-                key: hashlib.sha256((ROOT / path).read_bytes()).hexdigest()
+                key: hashlib.sha256(
+                    _git_bytes(
+                        "show",
+                        f"{evidence['implementation_head_sha']}:{path}",
+                    )
+                ).hexdigest()
                 for key, path in manifest_sources.items()
             },
         )
@@ -1287,7 +1298,7 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
         )
         for key, record in bundle["canary_run_readbacks"].items():
             self.assertEqual(_live_canary_run_output(int(key)), record["raw_output"])
-        expected_rulesets = _expected_ruleset_semantics()
+        expected_rulesets = _expected_ruleset_semantics(evidence["implementation_head_sha"])
         for key, record in bundle["ruleset_readbacks"].items():
             live_raw = _live_ruleset_detail_output(int(key))
             self.assertEqual(
