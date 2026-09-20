@@ -28,7 +28,7 @@ The desired state for `main` is split into two layered rulesets:
 
 The approval-layer bypass does not apply to the Security & CI ruleset, so required checks cannot be bypassed through this architecture. These files are desired-state artifacts, not evidence that GitHub has applied the rulesets.
 
-For the current user-owned repository workflow, the formal GitHub approving-review count is zero and `require_last_push_approval` is disabled. This does not authorize automatic merge: the repository owner must still make the final merge action manually after every required status check is green and every review conversation is resolved. If an independent human reviewer becomes an enforced part of the operating model, the formal approval count can be raised again in a separately reviewed governance change.
+For the current user-owned repository workflow, the formal GitHub approving-review count is zero and `require_last_push_approval` is disabled. This does not authorize automatic merge: the repository owner must still make the final merge action manually after every required status check is green and every review conversation is resolved. The same ruleset also restricts updates to `main`; only the repository-owner bypass actor may bypass that update restriction, and its `pull_request` mode keeps direct pushes blocked. A collaborator with ordinary `write`/`push` permission therefore cannot complete or directly push an update to `main`. If an independent human reviewer becomes an enforced part of the operating model, the formal approval count can be raised again in a separately reviewed governance change.
 
 ## Reviewer retirement — 2026-09-15
 

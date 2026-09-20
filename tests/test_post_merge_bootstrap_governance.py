@@ -342,8 +342,15 @@ class PostMergeBootstrapGovernanceTests(unittest.TestCase):
             approval["bypass_actors"],
             [{"actor_id": 116986656, "actor_type": "User", "bypass_mode": "pull_request"}],
         )
-        self.assertEqual({rule["type"] for rule in approval["rules"]}, {"pull_request"})
-        pull_request = approval["rules"][0]["parameters"]
+        self.assertEqual(
+            {rule["type"] for rule in approval["rules"]},
+            {"update", "pull_request"},
+        )
+        update_rule = next(rule for rule in approval["rules"] if rule["type"] == "update")
+        self.assertFalse(update_rule["parameters"]["update_allows_fetch_and_merge"])
+        pull_request = next(
+            rule for rule in approval["rules"] if rule["type"] == "pull_request"
+        )["parameters"]
         self.assertEqual(pull_request["required_approving_review_count"], 0)
         self.assertTrue(pull_request["dismiss_stale_reviews_on_push"])
         self.assertFalse(pull_request["require_last_push_approval"])
