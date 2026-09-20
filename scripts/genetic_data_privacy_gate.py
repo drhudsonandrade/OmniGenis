@@ -33,6 +33,60 @@ def _verified_block(record: dict[str, Any], field: str, errors: list[str]) -> di
     return value
 
 
+def _synthetic_fixture_result(
+    record: dict[str, Any],
+    *,
+    requested_purpose: str,
+    case_id: str | None,
+    input_sha256: str | None,
+    errors: list[str],
+) -> dict[str, Any]:
+    """Evaluate a non-personal synthetic CI fixture without inventing an LGPD basis."""
+    if requested_purpose != "genomic_analysis":
+        errors.append("synthetic fixture is limited to genomic_analysis")
+
+    record_case_id = str(record.get("case_id") or "").strip()
+    if not record_case_id.startswith("SYNTHETIC-"):
+        errors.append("synthetic fixture case_id must start with SYNTHETIC-")
+    if case_id is not None and record_case_id != str(case_id):
+        errors.append("privacy record does not bind to the requested case_id")
+
+    record_input_sha = str(record.get("input_sha256") or "").strip().lower()
+    if input_sha256 is not None and record_input_sha != str(input_sha256).lower():
+        errors.append("privacy record does not bind to the requested input SHA-256")
+
+    if record.get("subject_reference") != "NO_NATURAL_PERSON":
+        errors.append("synthetic fixture subject_reference must be NO_NATURAL_PERSON")
+    if "legal_basis" in record:
+        errors.append("synthetic fixture must not claim a personal-data legal basis")
+
+    fixture = _verified_block(record, "synthetic_fixture", errors)
+    if fixture.get("contains_personal_data") is not False:
+        errors.append("synthetic fixture must declare contains_personal_data=false")
+    if fixture.get("generated_for") != "CI_CANARY":
+        errors.append("synthetic_fixture.generated_for must be CI_CANARY")
+    if not str(fixture.get("generator") or "").strip():
+        errors.append("synthetic_fixture.generator missing")
+    if not str(fixture.get("evidence_ref") or "").strip():
+        errors.append("synthetic_fixture.evidence_ref missing")
+
+    return {
+        "schema": "omnigenis-genetic-data-privacy-gate-v1",
+        "gate": "GENETIC_DATA_PRIVACY_GATE",
+        "status": "VERIFICADO" if not errors else "NÃO DISPONÍVEL",
+        "ready_for_genetic_processing": not errors,
+        "requested_purpose": requested_purpose,
+        "processing_context_id": str(record.get("processing_context_id") or "").strip() or None,
+        "data_class": record.get("data_class"),
+        "sensitive_personal_data": False,
+        "synthetic_non_personal_fixture": True,
+        "legal_basis_reference": None,
+        "legal_basis_inferred": False,
+        "lgpd_compliance_claimed": False,
+        "errors": errors,
+    }
+
+
 def evaluate_privacy(
     record: Any,
     *,
@@ -58,8 +112,16 @@ def evaluate_privacy(
     if record.get("status") != "VERIFICADO":
         errors.append("privacy status must be VERIFICADO")
 
+    data_class = record.get("data_class")
+    synthetic_class = policy.get("synthetic_fixture_class")
+    is_synthetic_fixture = (
+        isinstance(synthetic_class, str)
+        and data_class == synthetic_class
+    )
     allowed_classes = policy.get("allowed_data_classes")
-    if not isinstance(allowed_classes, list) or record.get("data_class") not in allowed_classes:
+    if not is_synthetic_fixture and (
+        not isinstance(allowed_classes, list) or data_class not in allowed_classes
+    ):
         errors.append("privacy data_class is not allowed by policy")
 
     context_id = str(record.get("processing_context_id") or "").strip()
@@ -72,6 +134,15 @@ def evaluate_privacy(
     purposes = record.get("authorized_purposes")
     if not isinstance(purposes, list) or requested_purpose not in purposes:
         errors.append(f"requested privacy purpose not authorized: {requested_purpose}")
+
+    if is_synthetic_fixture:
+        return _synthetic_fixture_result(
+            record,
+            requested_purpose=requested_purpose,
+            case_id=case_id,
+            input_sha256=input_sha256,
+            errors=errors,
+        )
 
     record_case_id = str(record.get("case_id") or "").strip()
     if case_id is not None and record_case_id != str(case_id):
@@ -116,6 +187,7 @@ def evaluate_privacy(
         "processing_context_id": context_id or None,
         "data_class": record.get("data_class"),
         "sensitive_personal_data": record.get("data_class") == "GENETIC_SENSITIVE_PERSONAL_DATA",
+        "synthetic_non_personal_fixture": False,
         "legal_basis_reference": legal_basis.get("reference"),
         "legal_basis_inferred": False,
         "lgpd_compliance_claimed": False,

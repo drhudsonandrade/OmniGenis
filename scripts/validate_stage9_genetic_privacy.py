@@ -30,6 +30,11 @@ def collect_errors(root: Path = ROOT) -> list[str]:
         errors.append("Stage 9 privacy policy must be ACTIVE")
     if policy.get("jurisdiction") != "BR":
         errors.append("Stage 9 jurisdiction must remain explicit as BR")
+    if policy.get("synthetic_fixture_class") != "SYNTHETIC_NON_PERSONAL_GENETIC_FIXTURE":
+        errors.append("Stage 9 synthetic fixture class drift")
+    allowed_classes = policy.get("allowed_data_classes")
+    if not isinstance(allowed_classes, list) or "SYNTHETIC_NON_PERSONAL_GENETIC_FIXTURE" not in allowed_classes:
+        errors.append("Stage 9 synthetic fixture class must remain explicitly allowed")
 
     classification = policy.get("classification")
     if not isinstance(classification, dict):
@@ -56,6 +61,11 @@ def collect_errors(root: Path = ROOT) -> list[str]:
         "risk_assessment_required",
         "privacy_record_must_precede_genetic_processing",
         "gate_does_not_claim_legal_compliance",
+        "synthetic_fixture_requires_explicit_verification",
+        "synthetic_fixture_separate_from_personal_data_legal_basis",
+        "synthetic_fixture_requires_synthetic_case_identity",
+        "synthetic_fixture_requires_no_natural_person",
+        "synthetic_fixture_requires_no_personal_data",
     )
     if not isinstance(rules, dict):
         errors.append("Stage 9 privacy rules missing")
@@ -78,6 +88,10 @@ def collect_errors(root: Path = ROOT) -> list[str]:
         errors.append("privacy gate must not claim LGPD legal compliance")
     if '"legal_basis_inferred": False' not in gate:
         errors.append("privacy gate must state legal basis is not inferred")
+    if '"synthetic_non_personal_fixture": True' not in gate:
+        errors.append("privacy gate must preserve the non-personal synthetic fixture path")
+    if '"legal_basis_reference": None' not in gate:
+        errors.append("synthetic fixture path must not invent a legal basis")
 
     wgs = (root / "scripts/wgs_consent_gate.py").read_text(encoding="utf-8")
     if "evaluate_privacy" not in wgs or "ready_for_genetic_processing" not in wgs:
@@ -94,6 +108,18 @@ def collect_errors(root: Path = ROOT) -> list[str]:
     array_flow = (root / "workflows/array.nf").read_text(encoding="utf-8")
     if "--privacy-record" not in array_flow:
         errors.append("array workflow does not pass privacy record to the processing gate")
+
+    array_ci = (root / ".github/workflows/genoma-snp-array.yml").read_text(encoding="utf-8")
+    for token in (
+        "SYNTHETIC_NON_PERSONAL_GENETIC_FIXTURE",
+        "NO_NATURAL_PERSON",
+        "CI_CANARY",
+        "privacy-record.json",
+        "--privacy-record",
+        "--privacy_record",
+    ):
+        if token not in array_ci:
+            errors.append(f"SNP-array synthetic CI privacy contract missing: {token}")
 
     return errors
 

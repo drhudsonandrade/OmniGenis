@@ -34,7 +34,7 @@ The requested processing purpose and, where available, case/input identity must 
 - WGS: the privacy record is evaluated inside the existing consent/provenance gate before the first DNA read.
 - SNP-array: `run_snp_array.py` evaluates the privacy record before calling the array QC/parser. The Nextflow array entrypoint requires the record and forwards it to that gate.
 
-Synthetic CI canaries remain outside this personal-data path because they contain no real person or patient data.
+Synthetic CI canaries remain outside the personal-data legal-basis path because they contain no real person or patient data. They must still present a Stage 9 synthetic privacy record bound to the case ID and input SHA-256, with `data_class=SYNTHETIC_NON_PERSONAL_GENETIC_FIXTURE`, `subject_reference=NO_NATURAL_PERSON`, `generated_for=CI_CANARY`, and an explicit `contains_personal_data=false` attestation. The synthetic path rejects any `legal_basis` field rather than inventing an LGPD basis for non-personal test data.
 
 ## What a PASS means
 

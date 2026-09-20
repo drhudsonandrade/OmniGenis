@@ -1,7 +1,8 @@
 {
   "allowed_data_classes": [
     "GENETIC_SENSITIVE_PERSONAL_DATA",
-    "VERIFIED_ANONYMIZED_GENETIC_DATA"
+    "VERIFIED_ANONYMIZED_GENETIC_DATA",
+    "SYNTHETIC_NON_PERSONAL_GENETIC_FIXTURE"
   ],
   "classification": {
     "anonymous_upgrade_is_automatic": false,
@@ -46,10 +47,16 @@
     "purpose_limitation_required": true,
     "retention_policy_required": true,
     "risk_assessment_required": true,
-    "sharing_or_transfer_review_required": true
+    "sharing_or_transfer_review_required": true,
+    "synthetic_fixture_requires_explicit_verification": true,
+    "synthetic_fixture_requires_no_natural_person": true,
+    "synthetic_fixture_requires_no_personal_data": true,
+    "synthetic_fixture_requires_synthetic_case_identity": true,
+    "synthetic_fixture_separate_from_personal_data_legal_basis": true
   },
   "schema": "omnigenis-genetic-data-privacy-policy-v1",
   "scope": "Genetic and genomic data processing controlled by OmniGenis.",
   "status": "ACTIVE",
-  "version": "1.0"
+  "synthetic_fixture_class": "SYNTHETIC_NON_PERSONAL_GENETIC_FIXTURE",
+  "version": "1.1"
 }

@@ -1033,6 +1033,20 @@ class CIOptimizationContractTest(unittest.TestCase):
         static = _job_block(_read("scaffold-validation.yml"), "static")
         self.assertIn("bash tests/test_ci_changed_paths.sh", static)
 
+    def test_snp_array_ci_binds_synthetic_privacy_record(self):
+        workflow = _read("genoma-snp-array.yml")
+        for token in (
+            "SYNTHETIC_NON_PERSONAL_GENETIC_FIXTURE",
+            "NO_NATURAL_PERSON",
+            "CI_CANARY",
+            "privacy-record.json",
+            "--privacy-record",
+            "--privacy_record",
+        ):
+            self.assertIn(token, workflow)
+        self.assertEqual(workflow.count("'contains_personal_data':False"), 2)
+        self.assertEqual(workflow.count("'generated_for':'CI_CANARY'"), 2)
+
     def test_high_volume_artifact_retention_is_bounded(self):
         """Keep disposable CI evidence short-lived while preserving bounded audit evidence."""
         scaffold = _read("scaffold-validation.yml")
