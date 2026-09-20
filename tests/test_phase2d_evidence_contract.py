@@ -364,8 +364,35 @@ def _resolve_evidence_delivery(implementation: str, payload_tree: str, base_main
 
 
 
-def _expected_ruleset_semantics(implementation_sha: str) -> dict:
-    """Derive semantics from the manifests certified by the Phase 2D checkpoint."""
+def _ruleset_manifest_source_commit(
+    implementation_sha: str,
+    payload_tree: str,
+    base_main: str,
+) -> str:
+    """Use the implementation commit when present, otherwise its proven delivery."""
+    implementation_available = subprocess.run(
+        [GIT, "cat-file", "-e", f"{implementation_sha}^{{commit}}"],
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+    )
+    if implementation_available.returncode == 0:
+        return implementation_sha
+    _, delivery = _resolve_evidence_delivery(implementation_sha, payload_tree, base_main)
+    return delivery
+
+
+def _expected_ruleset_semantics(
+    implementation_sha: str,
+    payload_tree: str,
+    base_main: str,
+) -> dict:
+    """Derive checkpoint ruleset semantics, including flattened squash delivery."""
+    source_commit = _ruleset_manifest_source_commit(
+        implementation_sha,
+        payload_tree,
+        base_main,
+    )
     manifests = {
         21303100: MAIN_RULESET_MANIFEST,
         22347095: APPROVAL_RULESET_MANIFEST,
@@ -374,7 +401,7 @@ def _expected_ruleset_semantics(implementation_sha: str) -> dict:
     for ruleset_id, path in manifests.items():
         relative = path.relative_to(ROOT).as_posix()
         manifest = json.loads(
-            _git_bytes("show", f"{implementation_sha}:{relative}").decode("utf-8")
+            _git_bytes("show", f"{source_commit}:{relative}").decode("utf-8")
         )
         if manifest.get("target") != "branch":
             raise AssertionError(f"{path} must target branches")
@@ -680,7 +707,49 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
             base = git("rev-parse", "HEAD")
             run("checkout", "-b", "feature")
             (repo / "implementation.txt").write_text("implementation\n", encoding="utf-8")
-            run("add", "implementation.txt")
+            governance = repo / ".github/governance"
+            governance.mkdir(parents=True)
+            main_manifest = governance / "main-ruleset.json"
+            approval_manifest = governance / "main-approval-ruleset.json"
+            main_manifest.write_text(
+                json.dumps(
+                    {
+                        "name": "GENOMA protected main",
+                        "target": "branch",
+                        "enforcement": "active",
+                        "rules": [
+                            {
+                                "type": "required_status_checks",
+                                "parameters": {
+                                    "required_status_checks": [{"context": "static"}]
+                                },
+                            }
+                        ],
+                    },
+                    sort_keys=True,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            approval_manifest.write_text(
+                json.dumps(
+                    {
+                        "name": "GENOMA approval gate",
+                        "target": "branch",
+                        "enforcement": "active",
+                        "rules": [{"type": "pull_request", "parameters": {}}],
+                    },
+                    sort_keys=True,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            run(
+                "add",
+                "implementation.txt",
+                ".github/governance/main-ruleset.json",
+                ".github/governance/main-approval-ruleset.json",
+            )
             run("commit", "-m", "implementation")
             implementation = git("rev-parse", "HEAD")
             implementation_tree = git("rev-parse", f"{implementation}^{{tree}}")
@@ -761,9 +830,24 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
                 mock.patch(f"{module}.TRANSCRIPT_RELATIVE", transcript_relative),
                 mock.patch(f"{module}.VALIDATION_BUNDLE", bundle_path),
                 mock.patch(f"{module}.VALIDATION_BUNDLE_RELATIVE", bundle_relative),
+                mock.patch(f"{module}.MAIN_RULESET_MANIFEST", main_manifest),
+                mock.patch(f"{module}.APPROVAL_RULESET_MANIFEST", approval_manifest),
                 mock.patch(f"{module}.MERGE_SHA", base),
             ):
                 case.test_implementation_tree_and_evidence_only_child_are_bound()
+                semantics = _expected_ruleset_semantics(
+                    implementation,
+                    payload_tree,
+                    base,
+                )
+            self.assertEqual(
+                semantics["21303100"]["required_status_contexts"],
+                ["static"],
+            )
+            self.assertEqual(
+                semantics["22347095"]["rules"][0]["type"],
+                "pull_request",
+            )
 
     def test_evidence_binding_accepts_merge_ref_wrapping_squash(self) -> None:
         """Accept a merge-ref whose second parent is a validated flattened squash."""
@@ -1023,7 +1107,11 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
         self.assertEqual(set(captures), set(records))
         seen_ids: set[str] = set()
         times = {}
-        expected = _expected_ruleset_semantics(evidence["implementation_head_sha"])
+        expected = _expected_ruleset_semantics(
+            evidence["implementation_head_sha"],
+            evidence["implementation_payload_tree_sha"],
+            evidence["base_main_sha"],
+        )
         for name, record in records.items():
             context = record.get("execution_provenance")
             self.assertIsInstance(context, dict, "query execution provenance is missing")
@@ -1111,7 +1199,16 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
             self.assertEqual(by_id[ruleset_id]["name"], name)
             self.assertEqual(by_id[ruleset_id]["enforcement"], enforcement)
 
-        expected = _expected_ruleset_semantics(evidence["implementation_head_sha"])
+        manifest_source = _ruleset_manifest_source_commit(
+            evidence["implementation_head_sha"],
+            evidence["implementation_payload_tree_sha"],
+            evidence["base_main_sha"],
+        )
+        expected = _expected_ruleset_semantics(
+            evidence["implementation_head_sha"],
+            evidence["implementation_payload_tree_sha"],
+            evidence["base_main_sha"],
+        )
         expected_sha = hashlib.sha256(_canonical_json_bytes(expected)).hexdigest()
         comparison = evidence["ruleset_semantic_comparison"]
         manifest_sources = {
@@ -1125,7 +1222,7 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
                 key: hashlib.sha256(
                     _git_bytes(
                         "show",
-                        f"{evidence['implementation_head_sha']}:{path}",
+                        f"{manifest_source}:{path}",
                     )
                 ).hexdigest()
                 for key, path in manifest_sources.items()
@@ -1295,7 +1392,11 @@ class Phase2DEvidenceContractTest(unittest.TestCase):
         )
         for key, record in bundle["canary_run_readbacks"].items():
             self.assertEqual(_live_canary_run_output(int(key)), record["raw_output"])
-        expected_rulesets = _expected_ruleset_semantics(evidence["implementation_head_sha"])
+        expected_rulesets = _expected_ruleset_semantics(
+            evidence["implementation_head_sha"],
+            evidence["implementation_payload_tree_sha"],
+            evidence["base_main_sha"],
+        )
         for key, record in bundle["ruleset_readbacks"].items():
             live_raw = _live_ruleset_detail_output(int(key))
             self.assertEqual(
