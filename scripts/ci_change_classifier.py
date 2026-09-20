@@ -69,6 +69,13 @@ CONTAINER_IGNORED_PREFIXES = (
     "tests/",
 )
 
+GOVERNED_MARKDOWN_FORCE_EXACT = {
+    "AUTHORS.md",
+    "COPYRIGHT.md",
+    "CONTRIBUTING.md",
+    "docs/compliance/STAGE8_CONTRIBUTION_PROVENANCE.md",
+}
+
 
 def _normalize(path: str) -> str:
     normalized = path.replace("\\", "/")
@@ -104,7 +111,10 @@ def policy_container_required(paths: Iterable[str]) -> bool:
 def validation_required(changed_paths: Iterable[str], deleted_paths: Iterable[str]) -> bool:
     if any(True for _ in deleted_paths):
         return True
-    return any(not _normalize(path).endswith(".md") for path in changed_paths)
+    normalized = [_normalize(path) for path in changed_paths]
+    if any(path in GOVERNED_MARKDOWN_FORCE_EXACT for path in normalized):
+        return True
+    return any(not path.endswith(".md") for path in normalized)
 
 
 def container_required(changed_paths: Iterable[str]) -> bool:
