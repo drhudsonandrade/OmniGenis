@@ -11,10 +11,12 @@ from scripts import validate_stage8_contribution_provenance as stage8
 
 
 class Stage8ContributionProvenanceTests(unittest.TestCase):
-    def _policy(self) -> dict[str, object]:
+    @staticmethod
+    def _policy() -> dict[str, object]:
         return json.loads((stage8.ROOT / stage8.POLICY_REL).read_text(encoding="utf-8"))
 
-    def _ledger(self) -> dict[str, object]:
+    @staticmethod
+    def _ledger() -> dict[str, object]:
         return {
             "schema": "omnigenis-contribution-provenance-ledger-v1",
             "append_only": True,
@@ -36,7 +38,8 @@ class Stage8ContributionProvenanceTests(unittest.TestCase):
             ],
         }
 
-    def _manifest(self) -> dict[str, object]:
+    @staticmethod
+    def _manifest() -> dict[str, object]:
         return {
             "schema": "omnigenis-contribution-provenance-manifest-v1",
             "change_set_id": "TEST-1",

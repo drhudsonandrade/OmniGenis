@@ -117,7 +117,10 @@ def main() -> int:
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    print(f"PASS\tstage8_manifest\tfiles={len(payload['files'])}\timplementation={args.implementation_sha}")
+    file_records = payload.get("files")
+    if not isinstance(file_records, list):
+        raise ProvenanceBuildError("generated manifest files must be a list")
+    print(f"PASS\tstage8_manifest\tfiles={len(file_records)}\timplementation={args.implementation_sha}")
     return 0
 
 
