@@ -26,7 +26,7 @@
     },
     "contribution_provenance_ledger": {
       "path": "config/contribution_provenance_ledger.json",
-      "sha256": "fec38dfd016996d89e01f9ada5466ec9d7ee3411822ffc386bba998eed9d6736"
+      "sha256": "26e66a5c8e4d8f8b0e09cd851bd8524fb7eb57ccf8eca62d8dd156bc76c310a5"
     },
     "contribution_provenance_policy": {
       "path": "config/contribution_provenance_policy.json",
@@ -42,7 +42,7 @@
     },
     "genetic_data_privacy_policy": {
       "path": "config/genetic_data_privacy_policy.json",
-      "sha256": "fccde092c54299ef641fad62bc81c2e8eba4ae67c7d43123e0d0362da2132c14"
+      "sha256": "8ea8c1ddcac7da79cff39f9f0e9ac17e2e511103ece3ed3281dae1498a6132dc"
     },
     "python_license_metadata": {
       "path": "locks/python-license-metadata.json",
@@ -123,6 +123,10 @@
     "stage9_static_repair_manifest": {
       "path": "docs/evidence/contribution_provenance/STAGE9_STATIC_REPAIR_2026-09-20.json",
       "sha256": "e30726b87bab28ec94aa97791bf03aa63f128609b32603ca4f35192dc5aad547"
+    },
+    "stage9_synthetic_ci_final_manifest": {
+      "path": "docs/evidence/contribution_provenance/STAGE9_SYNTHETIC_CI_FINAL_2026-09-20.json",
+      "sha256": "eebeaa62031a1ba1a26b7043413ef058adb731139bd62563848fc8e736a8261d"
     },
     "third_party_registry": {
       "path": "config/third_party_software_registry.json",

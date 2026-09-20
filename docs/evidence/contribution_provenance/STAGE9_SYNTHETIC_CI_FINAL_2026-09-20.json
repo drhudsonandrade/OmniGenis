@@ -1,0 +1,119 @@
+{
+  "assistance_class": "AI_ASSISTED_DECLARED",
+  "base_sha": "963b1b58d05b7c26487cabedc98f577a4f5eec0c",
+  "base_tree": "08e9a345755188441f6b119f6deba7c72f6df7b4",
+  "change_set_id": "STAGE9-SYNTHETIC-CI-FINAL-2026-09-20",
+  "files": [
+    {
+      "base_sha256": "7d799c6238855f4acd5afa07d484db68230709ee4e40b0b760effdef98b73c3b",
+      "path": ".github/workflows/genoma-ngs-runtime-gate.yml",
+      "sha256": "48cc8a3171e1596bc66797249c65eafaa28cc297361e738fec55ea3935710b66",
+      "status": "M"
+    },
+    {
+      "base_sha256": "acabaece9b25cb09ae935d20297b8556e3df8550f223ac3379d788496226635d",
+      "path": ".github/workflows/genoma-snp-array.yml",
+      "sha256": "0b5838c86ee11b56670d99caf0e469cb9e280bffa531181515cf7d5dd1fd9db6",
+      "status": "M"
+    },
+    {
+      "base_sha256": "d804c2ef8c1550b269eb64e852dd470dd2136f869bc563f59f1cc086a23aed05",
+      "path": ".github/workflows/scaffold-validation.yml",
+      "sha256": "097f53f5c83ef1c1e1d623ab2da41bd4ade93d3540bc6ab88a5ad4699c1413e3",
+      "status": "M"
+    },
+    {
+      "base_sha256": null,
+      "path": "config/genetic_data_privacy_policy.json",
+      "sha256": "8ea8c1ddcac7da79cff39f9f0e9ac17e2e511103ece3ed3281dae1498a6132dc",
+      "status": "A"
+    },
+    {
+      "base_sha256": "2331dcc826bb70b01b00db5a233d8b8a6dc834421b514baf93faa2098f7a6463",
+      "path": "config/residual_language_classification.json",
+      "sha256": "ea55494cadb6cf96037fc3b909f70b0ea6ac01c4b2b5cda275fab7dc34a381d1",
+      "status": "M"
+    },
+    {
+      "base_sha256": null,
+      "path": "docs/compliance/STAGE9_LGPD_GENETIC_DATA.md",
+      "sha256": "6b77016a021bfc4e0b09fcddea6d0e730e4c2ff2580abef2c80e4e12cc3756fb",
+      "status": "A"
+    },
+    {
+      "base_sha256": "c5ec93d51f0c471271926e39cb65774fe02fac1298f6fb6502a335225c646edf",
+      "path": "main.nf",
+      "sha256": "b0aeeac0d209c5e7f4580b943f369ee0b8548d207b946bd5e4cc2a3ce2ef2a20",
+      "status": "M"
+    },
+    {
+      "base_sha256": null,
+      "path": "scripts/genetic_data_privacy_gate.py",
+      "sha256": "19c1b31ffbabec5d84e6cb61019ddd558c6dc8af8f9e092c1a75c0caa4c919c4",
+      "status": "A"
+    },
+    {
+      "base_sha256": "5d7ddb6e9a46d1c31e0f49b63661341d3c9a98ce1560cf7f49dc0db1d6e08a62",
+      "path": "scripts/run_snp_array.py",
+      "sha256": "498d5f57a9f349269e104c0ce290c4b0df681dcca100b6309c2975f3d96f0910",
+      "status": "M"
+    },
+    {
+      "base_sha256": "352a192dcecdfa766fcf629664c20be7ca3ead935375d2e341e620191fa1ddd4",
+      "path": "scripts/validate_repo.py",
+      "sha256": "e58954023bfb92109ba961b29699b3a5f8a63cc9dee59621be91b4c94598b5f0",
+      "status": "M"
+    },
+    {
+      "base_sha256": null,
+      "path": "scripts/validate_stage9_genetic_privacy.py",
+      "sha256": "6bf075102418064b826022ffebdbbd67aaf100628c5c7256f9ac8363cb1f2751",
+      "status": "A"
+    },
+    {
+      "base_sha256": "5606a7a59e8507f34b7481e5ec0df6535145b4129c5ad3b72c0ddc8a44a24344",
+      "path": "scripts/wgs_consent_gate.py",
+      "sha256": "6386cf92555f50bcbc6539e50a68e9dd4359cb0d4bfb181a3779a50da709fa1e",
+      "status": "M"
+    },
+    {
+      "base_sha256": "08cf36cd1f59b7bd33451351b8547c1e33e745639431a0a1be8c952f152189e1",
+      "path": "tests/test_array_scientific_data_plane.py",
+      "sha256": "bcb4bacd9a84e934e3e09b715a7f55511f12c9188082d537caaa7c002ecbd041",
+      "status": "M"
+    },
+    {
+      "base_sha256": "2dbfb75cd04243d29e2c449549300e32878d1cebdd37ca758d1980cf4c18b8f4",
+      "path": "tests/test_ci_optimization_contract.py",
+      "sha256": "de34e9afa24fedf894ca676321ccf789377fe99ef8632d1426732129535dff50",
+      "status": "M"
+    },
+    {
+      "base_sha256": null,
+      "path": "tests/test_stage9_genetic_privacy.py",
+      "sha256": "62dc0763dc0fa4b572b8ea253eac3cb402d119e682088b360f17851a13a7efe0",
+      "status": "A"
+    },
+    {
+      "base_sha256": "ca35867c1754fc8cd9762fc01ea748183aecc87c3e88be8d10220d3d8feaf18f",
+      "path": "tests/test_wgs_gates.py",
+      "sha256": "00ac02e8cc7738564a1e894b7e5fa8aaffb70becf802bf820764008b835b7f59",
+      "status": "M"
+    },
+    {
+      "base_sha256": "7bebb3b8ebc9f8082f8f84ed7bb670008c04ec9f8ae16b673ddab44545dc0d30",
+      "path": "workflows/array.nf",
+      "sha256": "ee37b6380bceacbe39b700e7377db3edfa3edd6582e4779a1b68933ddedc315c",
+      "status": "M"
+    }
+  ],
+  "git_objects_verified_at_capture": true,
+  "hash_algorithm": "sha256",
+  "human_direction": true,
+  "implementation_sha": "3a11d15a8ca4c4d33477557e6a53be76a4bfc194",
+  "implementation_tree": "57c37f52c0fdceb76685b8acb322187e62313b26",
+  "origin_class": "REPOSITORY_NATIVE",
+  "schema": "omnigenis-contribution-provenance-manifest-v2",
+  "third_party_code_introduced": false,
+  "third_party_component_ids": []
+}
