@@ -26,7 +26,7 @@
     },
     "contribution_provenance_ledger": {
       "path": "config/contribution_provenance_ledger.json",
-      "sha256": "f836d5d371f51add4be1db5cace56776ec80a313575222527dea6b247326b464"
+      "sha256": "93cf1e7c0af27a059e642055152ea7071f47e541fed031772d1d9c932b8f346c"
     },
     "contribution_provenance_policy": {
       "path": "config/contribution_provenance_policy.json",
@@ -83,6 +83,10 @@
     "stage8_durable_patch_manifest": {
       "path": "docs/evidence/contribution_provenance/STAGE8_DURABLE_PATCH_2026-09-20.json",
       "sha256": "a4877eec1398411b388349a14b143fca5794f130c5bb26b89dc8cae52ef5827c"
+    },
+    "stage8_post_pr80_merge_manifest": {
+      "path": "docs/evidence/contribution_provenance/STAGE8_POST_PR80_MERGE_2026-09-20.json",
+      "sha256": "55f8ad02c510e7871b0ec7e6134984223ed7fd4fb017fc681e6f758afe72ae4e"
     },
     "stage8_repair_manifest": {
       "path": "docs/evidence/contribution_provenance/STAGE8_REPAIR_2026-09-20.json",

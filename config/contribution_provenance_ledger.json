@@ -128,6 +128,21 @@
       "stage": 8,
       "third_party_code_introduced": false,
       "third_party_component_ids": []
+    },
+    {
+      "assistance_class": "AI_ASSISTED_DECLARED",
+      "base_sha": "deb6db0a59b00dce86985d2dfc1cfda6037d1362",
+      "change_set_id": "STAGE8-POST-PR80-MERGE-2026-09-20",
+      "declared_at": "2026-09-20",
+      "declared_by_role": "repository_owner",
+      "human_direction": true,
+      "implementation_sha": "05bb6d8160e1fa6e51e97a5a77135d0daab759d3",
+      "legal_ownership_inferred": false,
+      "manifest_path": "docs/evidence/contribution_provenance/STAGE8_POST_PR80_MERGE_2026-09-20.json",
+      "origin_class": "REPOSITORY_NATIVE",
+      "stage": 8,
+      "third_party_code_introduced": false,
+      "third_party_component_ids": []
     }
   ],
   "schema": "omnigenis-contribution-provenance-ledger-v1"
