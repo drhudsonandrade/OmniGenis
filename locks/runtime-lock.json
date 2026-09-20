@@ -26,7 +26,7 @@
     },
     "contribution_provenance_ledger": {
       "path": "config/contribution_provenance_ledger.json",
-      "sha256": "cb4e9e3733f70c7b51de8e2fa6a5e6baecaeb9d43af17715cab22b2ccbf60259"
+      "sha256": "05a9eaf3fccfcccc1036aaa5a3d1cdf5acd833ae7c1720eb1c77a37b4a039791"
     },
     "contribution_provenance_policy": {
       "path": "config/contribution_provenance_policy.json",
@@ -131,6 +131,10 @@
     "stage9_post_stage8_final_manifest": {
       "path": "docs/evidence/contribution_provenance/STAGE9_POST_STAGE8_FINAL_2026-09-20.json",
       "sha256": "afcce41adc2c83676d14953275a0461b6cc060b4647aee87c7f04970a0134688"
+    },
+    "stage9_privacy_hardening_final_manifest": {
+      "path": "docs/evidence/contribution_provenance/STAGE9_PRIVACY_HARDENING_FINAL_2026-09-20.json",
+      "sha256": "f736b3221a37512c910dcb88a872da4c6f111f876541218b76b5d590a63b3dfb"
     },
     "stage9_privacy_hardening_manifest": {
       "path": "docs/evidence/contribution_provenance/STAGE9_PRIVACY_HARDENING_2026-09-20.json",
