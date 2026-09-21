@@ -128,6 +128,8 @@ process ARRAY_GENERATE_REPORTS {
     input:
     path curation_manifest
     path policy_evaluation
+    path use_boundary
+    path use_boundary_evidence_ledger
     val case_id
 
     output:
@@ -139,6 +141,8 @@ process ARRAY_GENERATE_REPORTS {
     python3 '${workflow.projectDir}/scripts/generate_all_reports.py' \
       --input '${curation_manifest}' \
       --policy '${policy_evaluation}' \
+      --use-boundary '${use_boundary}' \
+      --use-boundary-evidence-ledger '${use_boundary_evidence_ledger}' \
       --output-dir reports
     """
 }
@@ -154,13 +158,21 @@ workflow ARRAY_PRODUCTION {
     strand_evidence
     evidence_mode
     target_manifest
+    use_boundary
+    use_boundary_evidence_ledger
 
     main:
     ARRAY_QC(array_input, privacy_record, case_id, build, strand, build_evidence, strand_evidence)
     ARRAY_ANNOTATE(array_input, ARRAY_QC.out.qc_json, target_manifest, case_id, evidence_mode)
     ARRAY_BUILD_MANIFEST(ARRAY_QC.out.qc_json, ARRAY_ANNOTATE.out.annotation_json, case_id)
     ARRAY_POLICY_EVALUATE(ARRAY_BUILD_MANIFEST.out.curation_manifest, case_id)
-    ARRAY_GENERATE_REPORTS(ARRAY_BUILD_MANIFEST.out.curation_manifest, ARRAY_POLICY_EVALUATE.out.policy_evaluation, case_id)
+    ARRAY_GENERATE_REPORTS(
+        ARRAY_BUILD_MANIFEST.out.curation_manifest,
+        ARRAY_POLICY_EVALUATE.out.policy_evaluation,
+        use_boundary,
+        use_boundary_evidence_ledger,
+        case_id
+    )
 
     emit:
     qc = ARRAY_QC.out.qc_json

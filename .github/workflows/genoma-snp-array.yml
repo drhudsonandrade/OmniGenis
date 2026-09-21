@@ -180,7 +180,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/genoma-array/workspace"
           chmod 0777 "$RUNNER_TEMP/genoma-array/workspace"
           python3 - <<'PY'
-          import gzip, hashlib, json, os
+          import gzip, hashlib, hmac, json, os
           from pathlib import Path
           root=Path(os.environ['RUNNER_TEMP'])/'genoma-array'/'workspace'
           p=root/'synthetic.csv.gz'
@@ -230,8 +230,51 @@ jobs:
               },
           }
           (root/'privacy-record.json').write_text(json.dumps(privacy),encoding='utf-8')
+          stage10_key='PUBLIC_SYNTHETIC_STAGE10_CI_KEY_MATERIAL_ONLY_2026'
+          use_boundary={
+              'schema':'omnigenis-use-boundary-record-v1',
+              'status':'VERIFICADO',
+              'record_id':'USE-CI-NEXTFLOW-ARRAY',
+              'case_id':'SYNTHETIC-NEXTFLOW-NO-PERSONAL-DATA',
+              'input_sha256':sha,
+              'use_class':'RESEARCH_ONLY',
+              'requested_operation':'FINAL_AUDITED_REPORT',
+              'intended_use_ref':'ci:synthetic-array-research-only',
+              'clinical_use_authorized':False,
+              'regulatory_use_authorized':False,
+              'nonclinical_label_ref':'ci:not-for-clinical-use',
+              'research_scope':{
+                  'involves_human_subjects':False,
+                  'assessment':{
+                      'status':'VERIFICADO',
+                      'decision':'NOT_HUMAN_SUBJECTS_RESEARCH',
+                      'evidence_ref':'ci:stage10-synthetic-scope',
+                  },
+              },
+          }
+          entry={
+              'evidence_ref':'ci:stage10-synthetic-scope',
+              'label':'research_scope.assessment',
+              'status':'VERIFICADO',
+              'case_id':use_boundary['case_id'],
+              'input_sha256':sha,
+              'requested_operation':'FINAL_AUDITED_REPORT',
+              'use_class':'RESEARCH_ONLY',
+              'decision':'NOT_HUMAN_SUBJECTS_RESEARCH',
+              'evidence_sha256':hashlib.sha256(b'ci:stage10-synthetic-scope').hexdigest(),
+          }
+          raw=json.dumps(entry,ensure_ascii=False,sort_keys=True,separators=(',',':')).encode('utf-8')
+          entry['hmac_sha256']=hmac.new(stage10_key.encode('utf-8'),raw,hashlib.sha256).hexdigest()
+          ledger={
+              'schema':'omnigenis-use-boundary-evidence-ledger-v1',
+              'key_id':'stage10-evidence-v1',
+              'entries':[entry],
+          }
+          (root/'use-boundary.json').write_text(json.dumps(use_boundary),encoding='utf-8')
+          (root/'use-boundary-evidence-ledger.json').write_text(json.dumps(ledger),encoding='utf-8')
           PY
           docker run --rm \
+            -e OMNIGENIS_STAGE10_EVIDENCE_HMAC_KEY=PUBLIC_SYNTHETIC_STAGE10_CI_KEY_MATERIAL_ONLY_2026 \
             -v "$RUNNER_TEMP/genoma-array/workspace:/workspace" \
             genoma-array:${{ github.sha }} \
             nextflow run /opt/omnigenis/main.nf \
@@ -240,6 +283,8 @@ jobs:
               --array_input /workspace/synthetic.csv.gz \
               --case_id SYNTHETIC-NEXTFLOW-NO-PERSONAL-DATA \
               --privacy_record /workspace/privacy-record.json \
+              --use_boundary /workspace/use-boundary.json \
+              --use_boundary_evidence_ledger /workspace/use-boundary-evidence-ledger.json \
               --array_build GRCh37 \
               --array_strand forward \
               --array_build_evidence /workspace/build-attestation.json \

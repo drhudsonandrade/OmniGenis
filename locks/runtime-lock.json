@@ -26,7 +26,7 @@
     },
     "contribution_provenance_ledger": {
       "path": "config/contribution_provenance_ledger.json",
-      "sha256": "05a9eaf3fccfcccc1036aaa5a3d1cdf5acd833ae7c1720eb1c77a37b4a039791"
+      "sha256": "d64c49b55ca39bf758322ee53f5d908fac1d1dcbf72931d83ca331cf82e46068"
     },
     "contribution_provenance_policy": {
       "path": "config/contribution_provenance_policy.json",
@@ -63,6 +63,38 @@
     "software_license_policy": {
       "path": "config/software_license_policy.json",
       "sha256": "724d54a5ae51ef8dceb4288f4be3ca2917fb1f8c98df72e25105513d65fa3260"
+    },
+    "stage10_coderabbit_hardening_manifest": {
+      "path": "docs/evidence/contribution_provenance/STAGE10_CODERABBIT_HARDENING_2026-09-20.json",
+      "sha256": "4d9d973d086410c5fc0d00621a254121650f11362d6fd13a30436313fbe26808"
+    },
+    "stage10_deepsource_ast_visitor_manifest": {
+      "path": "docs/evidence/contribution_provenance/STAGE10_DEEPSOURCE_AST_VISITOR_2026-09-20.json",
+      "sha256": "5b7e668ae6da91026dfecf06feeefe1bc55285d4962d840b131abb38fec18049"
+    },
+    "stage10_deepsource_python_typecheck_manifest": {
+      "path": "docs/evidence/contribution_provenance/STAGE10_DEEPSOURCE_PYTHON_TYPECHECK_2026-09-21.json",
+      "sha256": "b3c5231e9988bf9c4361e576b99c64bed7926b11437e30812812c6cbd418ad78"
+    },
+    "stage10_final_review_cleanup_manifest": {
+      "path": "docs/evidence/contribution_provenance/STAGE10_FINAL_REVIEW_CLEANUP_2026-09-21.json",
+      "sha256": "a017bd17a73fd311b085c00c1e2a1be133e0488c8a7c6613ca4da5cf9bc15621"
+    },
+    "stage10_final_review_hardening_manifest": {
+      "path": "docs/evidence/contribution_provenance/STAGE10_FINAL_REVIEW_HARDENING_2026-09-21.json",
+      "sha256": "3efd7358c4751ecac71b65342c80267424fff25fa1d3f6b3e550819d2c278d8b"
+    },
+    "stage10_operation_mismatch_test_manifest": {
+      "path": "docs/evidence/contribution_provenance/STAGE10_OPERATION_MISMATCH_TEST_2026-09-21.json",
+      "sha256": "8fe77e44d11df5005a628a75c681356efa83e37d7a3be2fee55e1f8b9adf291a"
+    },
+    "stage10_review_fix_manifest": {
+      "path": "docs/evidence/contribution_provenance/STAGE10_REVIEW_FIX_2026-09-20.json",
+      "sha256": "6c79c715bda9db580ab8cc1525245817b5a1f87f62fffe339b85898508a07ba8"
+    },
+    "stage10_use_boundary_manifest": {
+      "path": "docs/evidence/contribution_provenance/STAGE10_USE_BOUNDARY_2026-09-20.json",
+      "sha256": "7e4400eb93816d90191424dbb6f80094a5215a01bfe1d19471b3a22248488231"
     },
     "stage5_license_debt_baseline": {
       "path": "locks/stage5-license-debt-baseline.json",

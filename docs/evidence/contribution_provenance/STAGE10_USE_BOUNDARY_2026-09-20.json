@@ -1,0 +1,89 @@
+{
+  "assistance_class": "MULTI_TOOL_ASSISTED_DECLARED",
+  "base_sha": "c25ba19a0fb4fbf2c8adc272165d7affa2ffc869",
+  "base_tree": "58aec7abfd537629951f39473820ff1f11c14795",
+  "change_set_id": "STAGE10-USE-BOUNDARY-2026-09-20",
+  "files": [
+    {
+      "base_sha256": "48cc8a3171e1596bc66797249c65eafaa28cc297361e738fec55ea3935710b66",
+      "path": ".github/workflows/genoma-ngs-runtime-gate.yml",
+      "sha256": "cf55b7409878d9d7cd7bd3b9c3e7e740ba497eddfed3dc13017dff848d90b108",
+      "status": "M"
+    },
+    {
+      "base_sha256": "097f53f5c83ef1c1e1d623ab2da41bd4ade93d3540bc6ab88a5ad4699c1413e3",
+      "path": ".github/workflows/scaffold-validation.yml",
+      "sha256": "c83859c3bf9efee370f4913d89b7d4e655b559477aaccdf376427fae664bf13c",
+      "status": "M"
+    },
+    {
+      "base_sha256": "79d928e4434723dbd2f0a88fa9dc294353dfbf7502c69ee904534605c7756e8c",
+      "path": "config/residual_language_classification.json",
+      "sha256": "bd75993423199576505771061a6596ad0186de722d0bfc86aad8fff2c8d92911",
+      "status": "M"
+    },
+    {
+      "base_sha256": null,
+      "path": "config/use_boundary_policy.json",
+      "sha256": "fdaee2315bc12a817a6577d62093ce8a9b238aeab9b1f6cfa4e5e76135b45bf7",
+      "status": "A"
+    },
+    {
+      "base_sha256": null,
+      "path": "docs/compliance/STAGE10_RESEARCH_CLINICAL_REGULATORY_BOUNDARY.md",
+      "sha256": "01bca90d80c24d49360c1408279c206ffeaaaafdd567a365979d6e78503f428e",
+      "status": "A"
+    },
+    {
+      "base_sha256": "19617f4b825087a5f965cb5a1e42a668a18558187e98001f3a09e705e9743067",
+      "path": "scripts/prepare_report_release.py",
+      "sha256": "4882dede474622f52b0ef390f7fe868568f3c641bbcb7fb703be52822e1b54b0",
+      "status": "M"
+    },
+    {
+      "base_sha256": null,
+      "path": "scripts/use_boundary_gate.py",
+      "sha256": "3de6824d424e0cecb26eb8c19831e5dfa4d74492b221e9c24d82cc2493afab6c",
+      "status": "A"
+    },
+    {
+      "base_sha256": "e58954023bfb92109ba961b29699b3a5f8a63cc9dee59621be91b4c94598b5f0",
+      "path": "scripts/validate_repo.py",
+      "sha256": "c497eb913bbc2a38791d26fb48f9733a0533ed9d6b82e89697cd6b9a79f5dbb5",
+      "status": "M"
+    },
+    {
+      "base_sha256": null,
+      "path": "scripts/validate_stage10_use_boundary.py",
+      "sha256": "8887f6ae4a543b99fb99653bcc60d2449b41e64674b03f657d1ff4bd4b81c74a",
+      "status": "A"
+    },
+    {
+      "base_sha256": "de34e9afa24fedf894ca676321ccf789377fe99ef8632d1426732129535dff50",
+      "path": "tests/test_ci_optimization_contract.py",
+      "sha256": "925b327987a94db3b46599b32c0d034d82b6be6aa56221169bd74beb6f021221",
+      "status": "M"
+    },
+    {
+      "base_sha256": "ec382de139006ddf71be30841ac60f0cb02053fced9f7b15e3e665b5bebe3e79",
+      "path": "tests/test_report_release_assembly.py",
+      "sha256": "6f9ee420650787b7ac79e035285ec8cbd3d1c8d4c9f24069ae8fb5bb6c8f303e",
+      "status": "M"
+    },
+    {
+      "base_sha256": null,
+      "path": "tests/test_stage10_use_boundary.py",
+      "sha256": "0970b0c9b18da2d2b294b45f532fcae84e94d880170d92b48e048cfcc9c21ad1",
+      "status": "A"
+    }
+  ],
+  "git_objects_verified_at_capture": true,
+  "hash_algorithm": "sha256",
+  "human_direction": true,
+  "implementation_sha": "bec877867ab25b46b04ed4bbad71deeb622537d7",
+  "implementation_tree": "37a248309ba919d04dc098527ed1b360b571e327",
+  "origin_class": "REPOSITORY_NATIVE",
+  "schema": "omnigenis-contribution-provenance-manifest-v2",
+  "third_party_code_introduced": false,
+  "third_party_component_ids": []
+}

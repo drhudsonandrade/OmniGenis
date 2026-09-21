@@ -5,7 +5,7 @@ import json
 import threading
 from copy import deepcopy
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from .editorial_v3_hifi import DESIGN, write_editorial_bundle as _programmatic_write_editorial_bundle
 from . import template_v3 as _template_v3
@@ -148,7 +148,8 @@ def _assert_final_provenance(rendered: dict[str, Any]) -> None:
         raise ReportReleaseError("rendered mode was mutated after rendering")
     if render_mode != "FINAL":
         return
-    data = rendered.get("data") if isinstance(rendered.get("data"), dict) else {}
+    raw_data = rendered.get("data")
+    data = cast(dict[str, Any], raw_data) if isinstance(raw_data, dict) else {}
     from .engine import ReportReleaseError, _publication_blockers
 
     report_id = str(metadata.get("report_id") or "")

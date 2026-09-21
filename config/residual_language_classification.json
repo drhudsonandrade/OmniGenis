@@ -64,8 +64,8 @@
       "path": ".github/workflows/genoma-snp-array.yml",
       "category": "normative",
       "reason": "Closed normative taxonomy, canonical runtime identifier, or policy/workflow wire value is intentionally preserved for contract compatibility.",
-      "count": 9,
-      "fingerprint": "c6316e735f652fea230ae4c2823e6a1c7c29cff855b14618c3d254d845928839"
+      "count": 12,
+      "fingerprint": "375aa9b943ae332ff23b02f5770cb2723f83d56e54a46a0c85a237a7374bd85b"
     },
     {
       "path": ".github/workflows/genoma-visual-qa-candidates.yml",
@@ -271,6 +271,13 @@
       "fingerprint": "bec1f1b2150aded08b12abee19b062eec72d6f61179c67549c65664dc6dbfdba"
     },
     {
+      "path": "config/use_boundary_policy.json",
+      "category": "localized",
+      "reason": "Official Brazilian authority and instrument titles are retained verbatim as source provenance; implementation keys and behavior remain English-first.",
+      "count": 5,
+      "fingerprint": "98bc422fd1e5e246a6608c662dedc118a63c3bb44e5e0466394234ca5c78e05c"
+    },
+    {
       "path": "deploy/attestations/bootstrap-project-v3.4.json",
       "category": "canonical",
       "reason": "Canonical or sealed identity content retains exact identifiers/bytes; translating it would alter an integrity or template contract.",
@@ -465,6 +472,13 @@
       "reason": "Versioned audit/evidence record preserves the language captured by the original historical execution or review artifact.",
       "count": 8,
       "fingerprint": "6986f4edd0df11cea6e2bee11d6934199f616c618bffa0ca8a86414e19803ca1"
+    },
+    {
+      "path": "docs/compliance/STAGE10_RESEARCH_CLINICAL_REGULATORY_BOUNDARY.md",
+      "category": "canonical",
+      "reason": "The Portuguese text is a closed serialized status literal retained to describe the exact governed wire contract.",
+      "count": 1,
+      "fingerprint": "ad8563883cee33c08c067ce7a7401fe9c7af29d6c75378a977109ddfd904b484"
     },
     {
       "path": "docs/compliance/STAGE9_LGPD_GENETIC_DATA.md",
@@ -1100,8 +1114,8 @@
       "path": "scripts/prepare_report_release.py",
       "category": "localized",
       "reason": "Portuguese here is pt-BR operator/report output or a canonical serialized value; the executable implementation language remains English-first.",
-      "count": 4,
-      "fingerprint": "37123641904d353a686ffac3b7c3c7280f81ab5da238c0fb74bb666148b34b18"
+      "count": 5,
+      "fingerprint": "f24e938ead7709a319cb8bca667070ee77e909739f0106a96f200a6fc2ced592"
     },
     {
       "path": "scripts/project_instructions_attestation.py",
@@ -1172,6 +1186,13 @@
       "reason": "Portuguese here is pt-BR operator/report output or a canonical serialized value; the executable implementation language remains English-first.",
       "count": 8,
       "fingerprint": "4681b228f818ed8b09d3f2059bcaee061164b332a30e6de99da1965729d27429"
+    },
+    {
+      "path": "scripts/use_boundary_gate.py",
+      "category": "canonical",
+      "reason": "Portuguese is limited to closed serialized operational status literals required by the existing repository contract.",
+      "count": 7,
+      "fingerprint": "3741b360607b11be2f822ef3c11616f5f54061f24ea03461d3463b6e293b312d"
     },
     {
       "path": "scripts/validate_repo.py",
@@ -1611,8 +1632,8 @@
       "path": "tests/test_report_release_assembly.py",
       "category": "compatibility-preserved",
       "reason": "Portuguese is retained as an exact wire/report/fixture expectation so regression tests continue to prove compatibility.",
-      "count": 7,
-      "fingerprint": "4f0b86b48d4660dd676729dfc9db7e955ce5a9599d100d06b4d125e1e96e2475"
+      "count": 9,
+      "fingerprint": "d10986b421eb292c0561664f986836dd413510cebff8387fe793ac1656a8db74"
     },
     {
       "path": "tests/test_reporting_language_compatibility.py",
@@ -1676,6 +1697,13 @@
       "reason": "Portuguese is retained as an exact wire/report/fixture expectation so regression tests continue to prove compatibility.",
       "count": 12,
       "fingerprint": "a54390b8b3f246dc3edbd7dbf863c1a1541af07e5d45a47753bb22e0d30ae032"
+    },
+    {
+      "path": "tests/test_stage10_use_boundary.py",
+      "category": "compatibility-preserved",
+      "reason": "Portuguese is retained only as exact serialized status fixtures so tests prove compatibility with the governed runtime contract.",
+      "count": 14,
+      "fingerprint": "4d89061cf68c70ad2b3b461bac7338738b2605af1ef36c3bb680726de2cde6ce"
     },
     {
       "path": "tests/test_stage9_genetic_privacy.py",

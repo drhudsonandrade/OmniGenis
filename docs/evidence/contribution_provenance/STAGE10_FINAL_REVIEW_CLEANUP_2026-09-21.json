@@ -1,0 +1,119 @@
+{
+  "assistance_class": "MULTI_TOOL_ASSISTED_DECLARED",
+  "base_sha": "c25ba19a0fb4fbf2c8adc272165d7affa2ffc869",
+  "base_tree": "58aec7abfd537629951f39473820ff1f11c14795",
+  "change_set_id": "STAGE10-FINAL-REVIEW-CLEANUP-2026-09-21",
+  "files": [
+    {
+      "base_sha256": "48cc8a3171e1596bc66797249c65eafaa28cc297361e738fec55ea3935710b66",
+      "path": ".github/workflows/genoma-ngs-runtime-gate.yml",
+      "sha256": "cf55b7409878d9d7cd7bd3b9c3e7e740ba497eddfed3dc13017dff848d90b108",
+      "status": "M"
+    },
+    {
+      "base_sha256": "0b5838c86ee11b56670d99caf0e469cb9e280bffa531181515cf7d5dd1fd9db6",
+      "path": ".github/workflows/genoma-snp-array.yml",
+      "sha256": "1d95c56cc634d06fb1f660b98a1ce50de56f9f6c0c52d9ac4c27498edfafc84c",
+      "status": "M"
+    },
+    {
+      "base_sha256": "097f53f5c83ef1c1e1d623ab2da41bd4ade93d3540bc6ab88a5ad4699c1413e3",
+      "path": ".github/workflows/scaffold-validation.yml",
+      "sha256": "c83859c3bf9efee370f4913d89b7d4e655b559477aaccdf376427fae664bf13c",
+      "status": "M"
+    },
+    {
+      "base_sha256": "79d928e4434723dbd2f0a88fa9dc294353dfbf7502c69ee904534605c7756e8c",
+      "path": "config/residual_language_classification.json",
+      "sha256": "a9767f73895fdfd9e309699c150cd17c73db96fc84b6170d9f40e5acc95abbc9",
+      "status": "M"
+    },
+    {
+      "base_sha256": null,
+      "path": "config/use_boundary_policy.json",
+      "sha256": "1d22d8d9c75861d326a711fa491bd1083e927db33b4e70c46d2f67662c839c00",
+      "status": "A"
+    },
+    {
+      "base_sha256": null,
+      "path": "docs/compliance/STAGE10_RESEARCH_CLINICAL_REGULATORY_BOUNDARY.md",
+      "sha256": "59ce3ed9edf8f8210849326f660cf7fa856939d34ed83aa0fe410adc2be8b153",
+      "status": "A"
+    },
+    {
+      "base_sha256": "b0aeeac0d209c5e7f4580b943f369ee0b8548d207b946bd5e4cc2a3ce2ef2a20",
+      "path": "main.nf",
+      "sha256": "dd6b53043822f2227a01129c21c218dcb85aa7a408c06b8307ca7ea5fa872254",
+      "status": "M"
+    },
+    {
+      "base_sha256": "705eebbaf49be0af96e5e3c564efadeb36e8a7f52e45d53d2b745b10c7f3a599",
+      "path": "scripts/generate_all_reports.py",
+      "sha256": "fcd126e7d9eecea699fd266634ddc0cb2b2154e4a09c94cddad6c04b1af68e3d",
+      "status": "M"
+    },
+    {
+      "base_sha256": "19617f4b825087a5f965cb5a1e42a668a18558187e98001f3a09e705e9743067",
+      "path": "scripts/prepare_report_release.py",
+      "sha256": "e60b056d22b7380f4156e74c3564fa37862ef9296dc4e823ebd5b57217217562",
+      "status": "M"
+    },
+    {
+      "base_sha256": null,
+      "path": "scripts/use_boundary_gate.py",
+      "sha256": "d6bb33b36117e6f0e39ef5f7c95c95f84b72bbc92a46f9653a6a8e64caa228c7",
+      "status": "A"
+    },
+    {
+      "base_sha256": "e58954023bfb92109ba961b29699b3a5f8a63cc9dee59621be91b4c94598b5f0",
+      "path": "scripts/validate_repo.py",
+      "sha256": "c497eb913bbc2a38791d26fb48f9733a0533ed9d6b82e89697cd6b9a79f5dbb5",
+      "status": "M"
+    },
+    {
+      "base_sha256": null,
+      "path": "scripts/validate_stage10_use_boundary.py",
+      "sha256": "1e454d1f53c99967d7273458cb9ecc2b361760d73402324ec4da5cd6504de4b1",
+      "status": "A"
+    },
+    {
+      "base_sha256": "de34e9afa24fedf894ca676321ccf789377fe99ef8632d1426732129535dff50",
+      "path": "tests/test_ci_optimization_contract.py",
+      "sha256": "925b327987a94db3b46599b32c0d034d82b6be6aa56221169bd74beb6f021221",
+      "status": "M"
+    },
+    {
+      "base_sha256": "ec382de139006ddf71be30841ac60f0cb02053fced9f7b15e3e665b5bebe3e79",
+      "path": "tests/test_report_release_assembly.py",
+      "sha256": "6f3d0d534e957df1e38b43e0ab2d4f2729cc74e8e7780264a4f46329a4ed9dc4",
+      "status": "M"
+    },
+    {
+      "base_sha256": null,
+      "path": "tests/test_stage10_use_boundary.py",
+      "sha256": "8d1c3a927d582ebdfe999ba51c89c1672fcaab9176dbcc5e37dc0152585343aa",
+      "status": "A"
+    },
+    {
+      "base_sha256": "ee37b6380bceacbe39b700e7377db3edfa3edd6582e4779a1b68933ddedc315c",
+      "path": "workflows/array.nf",
+      "sha256": "3f3a8bf96449abb34eaf57c28ce00cdc993fee3e3e55120c49d040917a16e9cb",
+      "status": "M"
+    },
+    {
+      "base_sha256": "cfab1bb35b61e74d5ca8a51b1e487702a0e9aeeff0a99477b55b36a2f2633abf",
+      "path": "workflows/wgs.nf",
+      "sha256": "62e46691d650ea6eb3209a0250a62a5720c3cfd36847b4967f350fcbeb43c168",
+      "status": "M"
+    }
+  ],
+  "git_objects_verified_at_capture": true,
+  "hash_algorithm": "sha256",
+  "human_direction": true,
+  "implementation_sha": "8898531341f5d8ac657ebd9d614fc83993c3c284",
+  "implementation_tree": "4222d735778c2dfd83d23c38b13d666834ae79a3",
+  "origin_class": "REPOSITORY_NATIVE",
+  "schema": "omnigenis-contribution-provenance-manifest-v2",
+  "third_party_code_introduced": false,
+  "third_party_component_ids": []
+}

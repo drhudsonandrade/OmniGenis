@@ -10,13 +10,13 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from reporting.editorial_v3 import (
+from reporting.editorial_v3 import (  # noqa: E402
     UnapprovedRendererError,
     prepare_editorial_render,
     write_editorial_bundle,
 )
-from reporting.engine import ReportReleaseError, load_catalog, render_document, write_bundle
-from scripts.prepare_report_release import assemble_release
+from reporting.engine import ReportReleaseError, load_catalog, render_document, write_bundle  # noqa: E402
+from scripts.prepare_report_release import assemble_release  # noqa: E402
 
 
 def main() -> int:
@@ -24,13 +24,46 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", required=True)
     parser.add_argument("--policy", help="actual policy evaluation JSON; if omitted, a staged evaluation.json is used when present")
+    parser.add_argument("--use-boundary", help="Stage 10 declared-use record JSON")
+    parser.add_argument("--use-boundary-evidence-ledger", help="authenticated Stage 10 evidence ledger JSON")
     parser.add_argument("--output-dir", required=True)
     args = parser.parse_args()
     data = json.loads(Path(args.input).read_text(encoding="utf-8"))
     policy_path = Path(args.policy) if args.policy else Path("evaluation.json")
-    if policy_path.is_file():
-        policy = json.loads(policy_path.read_text(encoding="utf-8"))
-        data = assemble_release(data, policy)
+    boundary_path = Path(args.use_boundary) if args.use_boundary else None
+    ledger_path = (
+        Path(args.use_boundary_evidence_ledger)
+        if args.use_boundary_evidence_ledger
+        else None
+    )
+    for label, candidate in (
+        ("--use-boundary", boundary_path),
+        ("--use-boundary-evidence-ledger", ledger_path),
+    ):
+        if candidate is not None and not candidate.is_file():
+            print(f"STAGE10 INPUT MISSING: {label}={candidate}", file=sys.stderr)
+            return 2
+
+    if args.policy and not policy_path.is_file():
+        print(f"POLICY INPUT MISSING: --policy={policy_path}", file=sys.stderr)
+        return 2
+
+    policy = (
+        json.loads(policy_path.read_text(encoding="utf-8"))
+        if policy_path.is_file()
+        else {}
+    )
+    use_boundary = (
+        json.loads(boundary_path.read_text(encoding="utf-8"))
+        if boundary_path is not None
+        else None
+    )
+    evidence_ledger = (
+        json.loads(ledger_path.read_text(encoding="utf-8"))
+        if ledger_path is not None
+        else None
+    )
+    data = assemble_release(data, policy, use_boundary, evidence_ledger)
 
     out = Path(args.output_dir)
     out.mkdir(parents=True, exist_ok=True)

@@ -1,7 +1,10 @@
 import copy
+import os
 import unittest
+from unittest.mock import patch
 
 from tests.test_policy_evaluation_binding import INPUT_SHA, _manifest, _ruleset, real_evaluation
+from tests.test_stage10_use_boundary import TEST_EVIDENCE_KEY_TEXT, signed_evidence_ledger
 
 
 def curated(
@@ -25,12 +28,52 @@ def curated(
     }
 
 
+def valid_use_boundary() -> dict:
+    return {
+        "schema": "omnigenis-use-boundary-record-v1",
+        "status": "VERIFICADO",
+        "record_id": "USE-TEST-RESEARCH",
+        "case_id": "CASE-1",
+        "input_sha256": INPUT_SHA,
+        "use_class": "RESEARCH_ONLY",
+        "requested_operation": "FINAL_AUDITED_REPORT",
+        "intended_use_ref": "test:research-only",
+        "clinical_use_authorized": False,
+        "regulatory_use_authorized": False,
+        "nonclinical_label_ref": "label:not-for-clinical-use",
+        "research_scope": {
+            "involves_human_subjects": False,
+            "assessment": {
+                "status": "VERIFICADO",
+                "decision": "NOT_HUMAN_SUBJECTS_RESEARCH",
+                "evidence_ref": "assessment:not-human-subjects-research",
+            },
+        },
+    }
+
+
+def assemble_with_boundary(curated_payload: dict, policy_payload: dict) -> dict:
+    from scripts.prepare_report_release import assemble_release
+
+    boundary = valid_use_boundary()
+    with patch.dict(
+        os.environ,
+        {"OMNIGENIS_STAGE10_EVIDENCE_HMAC_KEY": TEST_EVIDENCE_KEY_TEXT},
+    ):
+        return assemble_release(
+            curated_payload,
+            policy_payload,
+            boundary,
+            signed_evidence_ledger(boundary),
+        )
+
+
 class ReportReleaseAssemblyTest(unittest.TestCase):
     def test_reexecuted_policy_plus_verified_prerequisites_releases_reports(self):
         from scripts.prepare_report_release import assemble_release, _public_policy_projection
 
         policy = real_evaluation()
-        result = assemble_release(curated(), policy)
+        result = assemble_with_boundary(curated(), policy)
         self.assertTrue(result["publication_gate"]["passed"])
         self.assertEqual(
             result["policy_evaluation"],
@@ -44,7 +87,7 @@ class ReportReleaseAssemblyTest(unittest.TestCase):
     def test_policy_pass_cannot_override_missing_evidence_or_consent(self):
         from scripts.prepare_report_release import assemble_release
 
-        result = assemble_release(curated(consent=False, evidence=False), real_evaluation())
+        result = assemble_with_boundary(curated(consent=False, evidence=False), real_evaluation())
         self.assertFalse(result["publication_gate"]["passed"])
         self.assertEqual(result["report_release_status"], "NÃO DISPONÍVEL")
         self.assertIn("consent_verified", result["report_release_blockers"])
@@ -53,7 +96,7 @@ class ReportReleaseAssemblyTest(unittest.TestCase):
     def test_policy_pass_cannot_override_consent_scope_refusal(self):
         from scripts.prepare_report_release import assemble_release
 
-        result = assemble_release(curated(consent_scope=False), real_evaluation())
+        result = assemble_with_boundary(curated(consent_scope=False), real_evaluation())
         self.assertFalse(result["publication_gate"]["passed"])
         self.assertEqual(result["report_release_status"], "NÃO DISPONÍVEL")
         self.assertIn("consent_scope_verified", result["report_release_blockers"])
@@ -68,7 +111,7 @@ class ReportReleaseAssemblyTest(unittest.TestCase):
         policy = PolicyEngine(_ruleset()).evaluate(manifest).to_internal_dict()
 
         self.assertFalse(policy["ready_for_requested_operation"])
-        result = assemble_release(curated(), policy)
+        result = assemble_with_boundary(curated(), policy)
         self.assertFalse(result["publication_gate"]["passed"])
         self.assertEqual(result["report_release_status"], "NÃO DISPONÍVEL")
         self.assertIn("FINAL_AUDIT_GATE", result["report_release_blockers"])
@@ -76,7 +119,7 @@ class ReportReleaseAssemblyTest(unittest.TestCase):
     def test_numeric_case_identity_cannot_authorize_release(self):
         from scripts.prepare_report_release import assemble_release
 
-        result = assemble_release(curated(case_id=7), real_evaluation(case_id=7))
+        result = assemble_with_boundary(curated(case_id=7), real_evaluation(case_id=7))
         self.assertFalse(result["publication_gate"]["passed"])
         self.assertEqual(result["report_release_status"], "NÃO DISPONÍVEL")
         self.assertIn("policy_evaluation_binding", result["report_release_blockers"])
@@ -91,7 +134,7 @@ class ReportReleaseAssemblyTest(unittest.TestCase):
         policy["binding"] = binding
         for key in ("case_id", "session_id", "input_sha256", "operation", "manifest_sha256"):
             policy[key] = copy.deepcopy(binding[key])
-        result = assemble_release(curated(), policy)
+        result = assemble_with_boundary(curated(), policy)
         self.assertFalse(result["publication_gate"]["passed"])
         self.assertEqual(result["policy_evaluation_verification"]["status"], "NÃO DISPONÍVEL")
         self.assertIn("policy_evaluation_binding", result["report_release_blockers"])
