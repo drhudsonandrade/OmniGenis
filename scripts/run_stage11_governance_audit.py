@@ -23,6 +23,7 @@ from scripts.validate_stage7_purpose_use import collect_errors as validate_stage
 from scripts.validate_stage8_contribution_provenance import collect_errors as validate_stage8
 from scripts.validate_stage9_genetic_privacy import collect_errors as validate_stage9
 from scripts.validate_stage10_use_boundary import collect_errors as validate_stage10
+from scripts.validate_stage11_governance_audit import validate_policy_contract
 
 EXECUTED = "EXECUTADO"
 UNAVAILABLE = "NÃO DISPONÍVEL"
@@ -95,6 +96,8 @@ def _stage1_errors(root: Path) -> list[str]:
         )
     except (OSError, json.JSONDecodeError) as exc:
         return [f"Stage 1 identity provenance authorization unreadable: {exc}"]
+    if not isinstance(auth, dict):
+        return ["Stage 1 identity provenance authorization must be an object"]
     if auth.get("schema") != "omnigenis-identity-provenance-authorization-v1":
         errors.append("Stage 1 identity provenance authorization schema mismatch")
     items = auth.get("authorizations")
@@ -152,15 +155,27 @@ def _is_ancestor(root: Path, commit: str, head: str) -> bool:
     return completed.returncode == 0
 
 
+def _require_object(value: object, label: str) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        raise ValueError(f"{label} must be an object")
+    return value
+
+
 def _governance_manifest_errors(root: Path) -> list[str]:
     errors: list[str] = []
     approval_path = root / ".github/governance/main-approval-ruleset.json"
     protected_path = root / ".github/governance/main-ruleset.json"
     try:
-        approval = json.loads(approval_path.read_text(encoding="utf-8"))
-        protected = json.loads(protected_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        return [f"governance manifest unavailable: {exc}"]
+        approval = _require_object(
+            json.loads(approval_path.read_text(encoding="utf-8")),
+            "approval ruleset root",
+        )
+        protected = _require_object(
+            json.loads(protected_path.read_text(encoding="utf-8")),
+            "protected-main ruleset root",
+        )
+    except (OSError, ValueError) as exc:
+        raise ValueError(f"governance manifest unavailable: {exc}") from exc
 
     if approval.get("name") != "GENOMA approval gate":
         errors.append("approval ruleset name mismatch")
@@ -178,17 +193,28 @@ def _governance_manifest_errors(root: Path) -> list[str]:
         }
     ]:
         errors.append("approval ruleset bypass actor mismatch")
+
     approval_rules = approval.get("rules")
     if not isinstance(approval_rules, list):
         errors.append("approval ruleset rules missing")
     else:
-        types = [rule.get("type") for rule in approval_rules if isinstance(rule, dict)]
-        if types != ["pull_request"]:
-            errors.append("approval ruleset must contain only the pull_request rule")
-        elif approval_rules[0].get("parameters", {}).get(
-            "required_review_thread_resolution"
-        ) is not True:
-            errors.append("approval ruleset must require review-thread resolution")
+        typed_rules = [rule for rule in approval_rules if isinstance(rule, dict)]
+        types = [rule.get("type") for rule in typed_rules]
+        if types != ["update", "pull_request"]:
+            errors.append("approval ruleset must contain update then pull_request rules")
+        else:
+            update_parameters = _require_object(
+                typed_rules[0].get("parameters"),
+                "approval update parameters",
+            )
+            if update_parameters.get("update_allows_fetch_and_merge") is not False:
+                errors.append("approval update rule must keep upstream merge disabled")
+            pull_parameters = _require_object(
+                typed_rules[1].get("parameters"),
+                "approval pull_request parameters",
+            )
+            if pull_parameters.get("required_review_thread_resolution") is not True:
+                errors.append("approval ruleset must require review-thread resolution")
 
     if protected.get("name") != "GENOMA protected main":
         errors.append("protected-main ruleset name mismatch")
@@ -198,20 +224,18 @@ def _governance_manifest_errors(root: Path) -> list[str]:
     if not isinstance(protected_rules, list):
         errors.append("protected-main rules missing")
     else:
-        types = [
-            rule.get("type") for rule in protected_rules if isinstance(rule, dict)
-        ]
+        typed_rules = [rule for rule in protected_rules if isinstance(rule, dict)]
+        types = [rule.get("type") for rule in typed_rules]
         if types != ["deletion", "non_fast_forward", "required_status_checks"]:
             errors.append("protected-main rule set drift")
-        status_rules = [
-            rule
-            for rule in protected_rules
-            if isinstance(rule, dict) and rule.get("type") == "required_status_checks"
-        ]
+        status_rules = [rule for rule in typed_rules if rule.get("type") == "required_status_checks"]
         if len(status_rules) != 1:
             errors.append("protected-main required-status rule count mismatch")
         else:
-            parameters = status_rules[0].get("parameters", {})
+            parameters = _require_object(
+                status_rules[0].get("parameters"),
+                "protected-main required-status parameters",
+            )
             if parameters.get("strict_required_status_checks_policy") is not True:
                 errors.append("protected-main strict status checks must remain enabled")
             checks = parameters.get("required_status_checks")
@@ -272,40 +296,121 @@ def _command_control(root: Path, control_id: str, command: list[str]) -> dict[st
     }
 
 
+def _execute_stage(
+    root: Path,
+    stage: dict[str, Any],
+    head: str,
+) -> dict[str, Any]:
+    number = stage.get("stage")
+    merge_commit = stage.get("merge_commit")
+    ancestry = (
+        _is_ancestor(root, merge_commit, head)
+        if isinstance(merge_commit, str) and merge_commit
+        else False
+    )
+    validator_spec = VALIDATORS.get(number) if isinstance(number, int) else None
+    if validator_spec is None:
+        return {
+            "stage": number,
+            "pr": stage.get("pr"),
+            "name": stage.get("name"),
+            "merge_commit": merge_commit,
+            "merge_ancestry_verified": ancestry,
+            "validator": None,
+            "operational_status": UNAVAILABLE,
+            "result": ERROR,
+            "errors": [f"Stage {number} validator unavailable"],
+        }
+
+    validator_name, validator = validator_spec
+    try:
+        errors = validator(root)
+        operational_status = EXECUTED
+        result = PASS if not errors else FAIL
+    except (OSError, ValueError) as exc:
+        errors = [f"{type(exc).__name__}: {exc}"]
+        operational_status = UNAVAILABLE
+        result = ERROR
+    if not ancestry and result == PASS:
+        result = FAIL
+        errors = [*errors, "stage merge commit is not an ancestor of audited HEAD"]
+    return {
+        "stage": number,
+        "pr": stage.get("pr"),
+        "name": stage.get("name"),
+        "merge_commit": merge_commit,
+        "merge_ancestry_verified": ancestry,
+        "validator": validator_name,
+        "operational_status": operational_status,
+        "result": result,
+        "errors": errors,
+    }
+
+
+def _write_audit_payload(payload: dict[str, Any], output: Path | None) -> None:
+    if output is None:
+        return
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _policy_failure_payload(
+    root: Path,
+    head: str,
+    tree: str,
+    policy: dict[str, Any],
+    errors: list[str],
+    *,
+    operational_status: str = EXECUTED,
+    result: str = FAIL,
+) -> dict[str, Any]:
+    boundary = policy.get("claim_boundary")
+    return {
+        "schema": "omnigenis-final-governance-audit-evidence-v1",
+        "audit_scope": policy.get("audit_scope"),
+        "operational_status": operational_status,
+        "result": result,
+        "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+        "implementation_sha": head,
+        "tree_sha": tree,
+        "policy_sha256": _sha256(root / POLICY_REL),
+        "runner_sha256": _sha256(root / "scripts/run_stage11_governance_audit.py"),
+        "stages": [],
+        "global_controls": [],
+        "claim_boundary": dict(boundary) if isinstance(boundary, dict) else {},
+        "policy_contract_errors": errors,
+        "note": "Stage 11 policy contract failed closed before stage execution.",
+    }
+
+
 def run_audit(root: Path = ROOT, output: Path | None = None) -> dict[str, Any]:
-    policy = load_policy(root)
     head = _git(root, "rev-parse", "HEAD")
     tree = _git(root, "rev-parse", "HEAD^{tree}")
-    stage_records: list[dict[str, Any]] = []
-    for stage in policy["stages"]:
-        number = int(stage["stage"])
-        validator_name, validator = VALIDATORS[number]
-        try:
-            errors = validator(root)
-            operational_status = EXECUTED
-            result = PASS if not errors else FAIL
-        except (OSError, ValueError) as exc:
-            errors = [f"{type(exc).__name__}: {exc}"]
-            operational_status = UNAVAILABLE
-            result = ERROR
-        ancestry = _is_ancestor(root, stage["merge_commit"], head)
-        if not ancestry and result == PASS:
-            result = FAIL
-            errors = [*errors, "stage merge commit is not an ancestor of audited HEAD"]
-        stage_records.append(
-            {
-                "stage": number,
-                "pr": stage["pr"],
-                "name": stage["name"],
-                "merge_commit": stage["merge_commit"],
-                "merge_ancestry_verified": ancestry,
-                "validator": validator_name,
-                "operational_status": operational_status,
-                "result": result,
-                "errors": errors,
-            }
+    try:
+        policy = load_policy(root)
+    except (OSError, ValueError) as exc:
+        payload = _policy_failure_payload(
+            root,
+            head,
+            tree,
+            {},
+            [f"{type(exc).__name__}: {exc}"],
+            operational_status=UNAVAILABLE,
+            result=ERROR,
         )
+        _write_audit_payload(payload, output)
+        return payload
 
+    policy_errors = validate_policy_contract(policy)
+    if policy_errors:
+        payload = _policy_failure_payload(root, head, tree, policy, policy_errors)
+        _write_audit_payload(payload, output)
+        return payload
+
+    stage_records = [_execute_stage(root, stage, head) for stage in policy["stages"]]
     controls = [
         _governance_manifest_control(root),
         _command_control(
@@ -343,18 +448,14 @@ def run_audit(root: Path = ROOT, output: Path | None = None) -> dict[str, Any]:
         "stages": stage_records,
         "global_controls": controls,
         "claim_boundary": dict(policy["claim_boundary"]),
+        "policy_contract_errors": [],
         "note": (
             "This audit verifies repository governance contracts and evidence integrity. "
             "It does not replace the clinical FINAL_AUDIT_GATE and does not issue legal, "
             "licensing, regulatory, clinical-validity, or research-ethics determinations."
         ),
     }
-    if output is not None:
-        output.parent.mkdir(parents=True, exist_ok=True)
-        output.write_text(
-            json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
-            encoding="utf-8",
-        )
+    _write_audit_payload(payload, output)
     return payload
 
 

@@ -6,10 +6,14 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 from scripts.run_stage11_governance_audit import (
     EXPECTED_STAGE_CHAIN,
+    VALIDATORS,
+    _execute_stage,
+    _governance_manifest_control,
     _stage1_errors,
     load_policy,
     run_audit,
@@ -116,6 +120,8 @@ class Stage11LiveGovernanceEvidenceTests(unittest.TestCase):
                     "id": 22347095,
                     "payload": approval,
                     "raw_semantics_sha256": "b" * 64,
+                    "owner_only_update_verified": True,
+                    "pr_only_owner_bypass_verified": True,
                 },
             },
         }
@@ -123,13 +129,43 @@ class Stage11LiveGovernanceEvidenceTests(unittest.TestCase):
     def test_live_ruleset_readback_matches_versioned_manifests(self) -> None:
         self.assertEqual(validate_live_governance_evidence(self._fixture(), ROOT), [])
 
-    def test_live_ruleset_readback_rejects_update_rule(self) -> None:
+    def test_live_ruleset_readback_accepts_provider_normalized_update_rule(self) -> None:
         payload = self._fixture()
-        payload["rulesets"]["22347095"]["payload"]["rules"].append(
-            {"type": "update"}
+        approval = payload["rulesets"]["22347095"]["payload"]
+        update_rules = [
+            rule for rule in approval["rules"] if rule.get("type") == "update"
+        ]
+        pull_rules = [
+            rule for rule in approval["rules"] if rule.get("type") == "pull_request"
+        ]
+        self.assertEqual(len(update_rules), 1)
+        self.assertEqual(len(pull_rules), 1)
+        normalized_update = {"type": "update"}
+        approval["rules"] = [pull_rules[0], normalized_update]
+        self.assertEqual(validate_live_governance_evidence(payload, ROOT), [])
+
+    def test_live_ruleset_readback_requires_owner_only_update_rule(self) -> None:
+        payload = self._fixture()
+        approval = payload["rulesets"]["22347095"]["payload"]
+        approval["rules"] = [
+            rule for rule in approval["rules"] if rule.get("type") != "update"
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            governance = root / ".github/governance"
+            governance.mkdir(parents=True)
+            protected = payload["rulesets"]["21303100"]["payload"]
+            (governance / "main-ruleset.json").write_text(
+                json.dumps(protected), encoding="utf-8"
+            )
+            (governance / "main-approval-ruleset.json").write_text(
+                json.dumps(approval), encoding="utf-8"
+            )
+            errors = validate_live_governance_evidence(payload, root)
+        self.assertIn(
+            "Stage 11 approval ruleset missing owner-only update restriction",
+            errors,
         )
-        errors = validate_live_governance_evidence(payload, ROOT)
-        self.assertTrue(any("approval ruleset" in item for item in errors), errors)
 
 
 class Stage11PolicyContractTests(unittest.TestCase):
@@ -161,6 +197,9 @@ class Stage11PolicyContractTests(unittest.TestCase):
                 "protected_main": 21303100,
                 "approval_gate": 22347095,
             },
+        )
+        self.assertTrue(
+            policy["github_governance"]["owner_only_updates_required"]
         )
 
 
@@ -199,6 +238,107 @@ class Stage11Stage1Tests(unittest.TestCase):
                 any("COPYRIGHT.md" in item and "missing" in item for item in errors),
                 errors,
             )
+
+
+    def test_stage1_nonobject_authorization_is_structured_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for relative in (
+                "LICENSE",
+                "policy_engine/LICENSE",
+                "COPYRIGHT.md",
+                "AUTHORS.md",
+                "THIRD_PARTY_NOTICES.md",
+                "docs/compliance/LICENSING_POLICY.md",
+                "docs/compliance/DEPENDENCY_POLICY.md",
+                "licenses/README.md",
+            ):
+                target = root / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text("fixture\n", encoding="utf-8")
+            auth = root / "config/identity_provenance_authorizations.json"
+            auth.parent.mkdir(parents=True, exist_ok=True)
+            auth.write_text("[]\n", encoding="utf-8")
+            errors = _stage1_errors(root)
+        self.assertIn(
+            "Stage 1 identity provenance authorization must be an object", errors
+        )
+
+
+class Stage11RunnerFailClosedTests(unittest.TestCase):
+    def test_invalid_policy_contract_returns_structured_failure(self) -> None:
+        policy = load_policy(ROOT)
+        policy["stages"] = policy["stages"][:-1]
+        with patch(
+            "scripts.run_stage11_governance_audit.load_policy",
+            return_value=policy,
+        ):
+            payload = run_audit(ROOT)
+        self.assertEqual(payload["operational_status"], "EXECUTADO")
+        self.assertEqual(payload["result"], "FAIL")
+        self.assertEqual(payload["stages"], [])
+        self.assertTrue(payload["policy_contract_errors"])
+
+    def test_missing_stage_validator_is_structured_unavailable_error(self) -> None:
+        policy = load_policy(ROOT)
+        stage = policy["stages"][-1]
+        head = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        with patch.dict(VALIDATORS, {10: None}):
+            record = _execute_stage(ROOT, stage, head)
+        self.assertEqual(record["operational_status"], "NÃO DISPONÍVEL")
+        self.assertEqual(record["result"], "ERROR")
+        self.assertIn("validator unavailable", record["errors"][0])
+
+    def test_nonobject_governance_manifest_is_structured_unavailable_error(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            governance = root / ".github/governance"
+            governance.mkdir(parents=True)
+            (governance / "main-approval-ruleset.json").write_text(
+                "[]\n", encoding="utf-8"
+            )
+            (governance / "main-ruleset.json").write_text(
+                "{}\n", encoding="utf-8"
+            )
+            control = _governance_manifest_control(root)
+        self.assertEqual(control["operational_status"], "NÃO DISPONÍVEL")
+        self.assertEqual(control["result"], "ERROR")
+        self.assertIn("must be an object", control["evidence"])
+
+    def test_nonobject_rule_parameters_are_structured_unavailable_error(self) -> None:
+        approval = json.loads(
+            (ROOT / ".github/governance/main-approval-ruleset.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        protected = json.loads(
+            (ROOT / ".github/governance/main-ruleset.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        for rule in protected["rules"]:
+            if rule.get("type") == "required_status_checks":
+                rule["parameters"] = []
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            governance = root / ".github/governance"
+            governance.mkdir(parents=True)
+            (governance / "main-approval-ruleset.json").write_text(
+                json.dumps(approval), encoding="utf-8"
+            )
+            (governance / "main-ruleset.json").write_text(
+                json.dumps(protected), encoding="utf-8"
+            )
+            control = _governance_manifest_control(root)
+        self.assertEqual(control["operational_status"], "NÃO DISPONÍVEL")
+        self.assertEqual(control["result"], "ERROR")
+        self.assertIn("parameters must be an object", control["evidence"])
 
 
 class Stage11EvidenceTests(unittest.TestCase):

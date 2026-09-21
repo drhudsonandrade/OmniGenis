@@ -78,6 +78,7 @@
       "protected_main": 21303100,
       "approval_gate": 22347095
     },
-    "readback_evidence": "docs/evidence/STAGE11_GITHUB_RULESET_READBACK_2026-09-21.json"
+    "readback_evidence": "docs/evidence/STAGE11_GITHUB_RULESET_READBACK_2026-09-21.json",
+    "owner_only_updates_required": true
   }
 }

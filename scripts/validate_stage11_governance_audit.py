@@ -81,6 +81,8 @@ def validate_policy_contract(policy: object) -> list[str]:
             errors.append("Stage 11 GitHub ruleset identity drift")
         if github.get("readback_evidence") != GITHUB_EVIDENCE_REL:
             errors.append("Stage 11 GitHub readback evidence path drift")
+        if github.get("owner_only_updates_required") is not True:
+            errors.append("Stage 11 owner-only update requirement must remain enabled")
     return errors
 
 
@@ -156,6 +158,11 @@ def validate_live_governance_evidence(
     elif protected_spec != neutral_protected:
         errors.append("Stage 11 protected-main ruleset differs from manifest")
 
+    if approval_record.get("owner_only_update_verified") is not True:
+        errors.append("Stage 11 live owner-only update verification missing")
+    if approval_record.get("pr_only_owner_bypass_verified") is not True:
+        errors.append("Stage 11 live PR-only owner bypass verification missing")
+
     protected_hash = protected_record.get("raw_semantics_sha256")
     approval_hash = approval_record.get("raw_semantics_sha256")
     if not isinstance(protected_hash, str) or SHA256.fullmatch(protected_hash) is None:
@@ -201,13 +208,55 @@ def validate_live_governance_evidence(
 
     if live_approval is None:
         errors.append("Stage 11 approval live payload invalid")
-    elif approval_spec != live_approval:
-        errors.append("Stage 11 approval ruleset differs from manifest")
-    elif any(
-        isinstance(rule, dict) and rule.get("type") == "update"
-        for rule in live_approval.get("rules", [])
-    ):
-        errors.append("Stage 11 approval ruleset unexpectedly restricts updates")
+        return errors
+
+    for key in ("name", "target", "enforcement", "bypass_actors", "conditions"):
+        if approval_spec.get(key) != live_approval.get(key):
+            errors.append(f"Stage 11 approval ruleset {key} differs from manifest")
+
+    approval_rules = live_approval.get("rules")
+    if not isinstance(approval_rules, list):
+        errors.append("Stage 11 approval live rules must be a list")
+        return errors
+
+    update_rules = [
+        rule
+        for rule in approval_rules
+        if isinstance(rule, dict) and rule.get("type") == "update"
+    ]
+    pull_rules = [
+        rule
+        for rule in approval_rules
+        if isinstance(rule, dict) and rule.get("type") == "pull_request"
+    ]
+    if len(update_rules) != 1:
+        errors.append("Stage 11 approval ruleset missing owner-only update restriction")
+    else:
+        parameters = update_rules[0].get("parameters")
+        if parameters is not None and (
+            not isinstance(parameters, dict)
+            or parameters.get("update_allows_fetch_and_merge") is not False
+        ):
+            errors.append("Stage 11 approval owner-only update parameters invalid")
+
+    tracked_rules = approval_spec.get("rules")
+    tracked_pull = [
+        rule
+        for rule in tracked_rules
+        if isinstance(rule, dict) and rule.get("type") == "pull_request"
+    ] if isinstance(tracked_rules, list) else []
+    if len(pull_rules) != 1 or len(tracked_pull) != 1:
+        errors.append("Stage 11 approval pull_request rule coverage mismatch")
+    elif pull_rules[0].get("parameters") != tracked_pull[0].get("parameters"):
+        errors.append("Stage 11 approval pull_request parameters differ from manifest")
+
+    live_types = sorted(
+        rule.get("type")
+        for rule in approval_rules
+        if isinstance(rule, dict) and isinstance(rule.get("type"), str)
+    )
+    if live_types != ["pull_request", "update"]:
+        errors.append("Stage 11 approval live rule set differs from manifest")
     return errors
 
 

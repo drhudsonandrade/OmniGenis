@@ -344,10 +344,11 @@ class PostMergeBootstrapGovernanceTests(unittest.TestCase):
         )
         self.assertEqual(
             {rule["type"] for rule in approval["rules"]},
-            {"pull_request"},
+            {"update", "pull_request"},
         )
         rules_by_type = {rule["type"]: rule for rule in approval["rules"]}
-        self.assertNotIn("update", rules_by_type)
+        update_rule = rules_by_type["update"]
+        self.assertFalse(update_rule["parameters"]["update_allows_fetch_and_merge"])
         pull_request = rules_by_type["pull_request"]["parameters"]
         self.assertEqual(pull_request["required_approving_review_count"], 0)
         self.assertTrue(pull_request["dismiss_stale_reviews_on_push"])

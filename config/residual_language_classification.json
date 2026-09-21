@@ -1744,8 +1744,8 @@
       "path": "tests/test_stage11_final_governance_audit.py",
       "category": "localized",
       "reason": "Portuguese here is a canonical serialized audit status used by existing repository evidence contracts; the executable implementation language remains English-first.",
-      "count": 4,
-      "fingerprint": "74efbb9ad0211af3d296e1e4d1e87a3cc991ed658352828288e780628cd1bf9f"
+      "count": 8,
+      "fingerprint": "b4008109756594558f287c0b7f3c17f35769b492d359577940887a40b24ff27e"
     },
     {
       "path": "tests/test_stage9_genetic_privacy.py",

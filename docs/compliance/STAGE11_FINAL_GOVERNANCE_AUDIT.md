@@ -29,7 +29,7 @@ The audit also executes the supply-chain lock verifier, residual-language audit 
 
 Stage 11 also validates the desired-state manifests for the two active `main` rulesets and requires a captured live readback from GitHub for rulesets `21303100` (`GENOMA protected main`) and `22347095` (`GENOMA approval gate`). The protected-main readback resolves the versioned dependency-security fingerprint against the concrete provider context before semantic comparison.
 
-The approval gate intentionally contains only the pull-request rule. GitHub's separate `update` restriction is excluded because it can block an otherwise valid manual pull-request merge unless a bypass is selected. This change does not remove required status checks, deletion/non-fast-forward protection, thread-resolution requirements or the human-only final merge decision.
+The approval gate contains an owner-only `update` restriction plus the pull-request rule. The repository owner is the only bypass actor and that bypass is limited to pull requests, so ordinary write collaborators cannot update or merge into `main`. The owner may choose the explicit PR-only bypass for the final human merge while the separate protected-main ruleset continues to require the CI/security checks with no bypass actors.
 
 The live readback is execution evidence for the observed GitHub state at the Stage 11 checkpoint; it is not a permanent assertion that provider state can never change.
 
