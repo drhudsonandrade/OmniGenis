@@ -26,7 +26,7 @@
     },
     "contribution_provenance_ledger": {
       "path": "config/contribution_provenance_ledger.json",
-      "sha256": "d64c49b55ca39bf758322ee53f5d908fac1d1dcbf72931d83ca331cf82e46068"
+      "sha256": "cb508f457885d1234f33a956cc1037b6e91bd48e6ba91ea4f80cc593406d54a9"
     },
     "contribution_provenance_policy": {
       "path": "config/contribution_provenance_policy.json",
@@ -95,6 +95,42 @@
     "stage10_use_boundary_manifest": {
       "path": "docs/evidence/contribution_provenance/STAGE10_USE_BOUNDARY_2026-09-20.json",
       "sha256": "7e4400eb93816d90191424dbb6f80094a5215a01bfe1d19471b3a22248488231"
+    },
+    "stage11_approval_ruleset_manifest": {
+      "path": ".github/governance/main-approval-ruleset.json",
+      "sha256": "93075bdeab566ec6403234b239f7058e3a814f6f2b71d22ece3e9713c5d6789e"
+    },
+    "stage11_contribution_manifest": {
+      "path": "docs/evidence/contribution_provenance/STAGE11_FINAL_GOVERNANCE_AUDIT_CHANGESET_2026-09-21.json",
+      "sha256": "7542322c0298559540b377abce6f7dfa8c89263856c684187420b18d76f17baf"
+    },
+    "stage11_final_governance_audit_evidence": {
+      "path": "docs/evidence/STAGE11_FINAL_GOVERNANCE_AUDIT_2026-09-21.json",
+      "sha256": "6740c342f18b560d6eaf5aa2794aea197c54845af8c02509aa4ac611d46e75c1"
+    },
+    "stage11_final_review_hardening_manifest": {
+      "path": "docs/evidence/contribution_provenance/STAGE11_FINAL_REVIEW_HARDENING_2026-09-21.json",
+      "sha256": "d34ef0063a549ee757933dfe45cf3effe28223b99b169b52143ea1dc19dd1583"
+    },
+    "stage11_github_ruleset_readback_evidence": {
+      "path": "docs/evidence/STAGE11_GITHUB_RULESET_READBACK_2026-09-21.json",
+      "sha256": "7ea8746cbb50904551b94cd2f0ff524fd2002ef3eeaf6c8befe5ca87aefc87ef"
+    },
+    "stage11_governance_audit_policy": {
+      "path": "config/stage11_governance_audit_policy.json",
+      "sha256": "25e4495489052d67179ec229f79f58ad9c1ef4cd26f589034262734c2cd3682c"
+    },
+    "stage11_governance_audit_runner": {
+      "path": "scripts/run_stage11_governance_audit.py",
+      "sha256": "6b30af851b453b1504137997f0e47ba33907e7976478505650264f2a9427b4f2"
+    },
+    "stage11_governance_audit_validator": {
+      "path": "scripts/validate_stage11_governance_audit.py",
+      "sha256": "89a79bb6ceb1561dd9a40b329edcf1d16b3c09d0cf095e7e87d7756fd4981dd8"
+    },
+    "stage11_protected_main_ruleset_manifest": {
+      "path": ".github/governance/main-ruleset.json",
+      "sha256": "aa1555dc175846b64f682aaf0129dcb79ff4b8584991fa120eea5bf0c9e370c5"
     },
     "stage5_license_debt_baseline": {
       "path": "locks/stage5-license-debt-baseline.json",

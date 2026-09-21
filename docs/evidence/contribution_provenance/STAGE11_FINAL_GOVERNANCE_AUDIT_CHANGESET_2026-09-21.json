@@ -1,0 +1,95 @@
+{
+  "assistance_class": "MULTI_TOOL_ASSISTED_DECLARED",
+  "base_sha": "8ab7dcf50c51d4fe16de7a70b35b8e0ae14e349f",
+  "base_tree": "9b0159b364752de41057ff0a952721c21d5b8ee0",
+  "change_set_id": "STAGE11-FINAL-GOVERNANCE-AUDIT-2026-09-21",
+  "files": [
+    {
+      "base_sha256": "cf55b7409878d9d7cd7bd3b9c3e7e740ba497eddfed3dc13017dff848d90b108",
+      "path": ".github/workflows/genoma-ngs-runtime-gate.yml",
+      "sha256": "8e349cd4f18e9d9e38041ff342ce87c0575099fc2439a6cbacabd5215db058ee",
+      "status": "M"
+    },
+    {
+      "base_sha256": "c83859c3bf9efee370f4913d89b7d4e655b559477aaccdf376427fae664bf13c",
+      "path": ".github/workflows/scaffold-validation.yml",
+      "sha256": "0f592e921db6e36c218d57b30e7d2883150af383eea6ba89cf2f4bb43311206d",
+      "status": "M"
+    },
+    {
+      "base_sha256": "a9767f73895fdfd9e309699c150cd17c73db96fc84b6170d9f40e5acc95abbc9",
+      "path": "config/residual_language_classification.json",
+      "sha256": "1ef8cc671bf7433e69e9a85b07a0aba47e8af0d07ff9adc089bdc6b50c909e85",
+      "status": "M"
+    },
+    {
+      "base_sha256": null,
+      "path": "config/stage11_governance_audit_policy.json",
+      "sha256": "25e4495489052d67179ec229f79f58ad9c1ef4cd26f589034262734c2cd3682c",
+      "status": "A"
+    },
+    {
+      "base_sha256": "065496cc2492dafdf111d5a0eca169b2b0354aee586335b857501deb198c6739",
+      "path": "docs/BRANCH_GOVERNANCE.md",
+      "sha256": "fcb4e5d3a2e2faa4813b062457fd9192755ad4a3cf7eb961e567e90f8ad7a4fe",
+      "status": "M"
+    },
+    {
+      "base_sha256": null,
+      "path": "docs/compliance/STAGE11_FINAL_GOVERNANCE_AUDIT.md",
+      "sha256": "8df62e49707ec2fa3f357ad8c454510dbadb4a772d2f68dff90bfc31e12ca893",
+      "status": "A"
+    },
+    {
+      "base_sha256": null,
+      "path": "docs/evidence/STAGE11_FINAL_GOVERNANCE_AUDIT_2026-09-21.json",
+      "sha256": "6740c342f18b560d6eaf5aa2794aea197c54845af8c02509aa4ac611d46e75c1",
+      "status": "A"
+    },
+    {
+      "base_sha256": null,
+      "path": "docs/evidence/STAGE11_GITHUB_RULESET_READBACK_2026-09-21.json",
+      "sha256": "7ea8746cbb50904551b94cd2f0ff524fd2002ef3eeaf6c8befe5ca87aefc87ef",
+      "status": "A"
+    },
+    {
+      "base_sha256": null,
+      "path": "scripts/run_stage11_governance_audit.py",
+      "sha256": "6b30af851b453b1504137997f0e47ba33907e7976478505650264f2a9427b4f2",
+      "status": "A"
+    },
+    {
+      "base_sha256": "c497eb913bbc2a38791d26fb48f9733a0533ed9d6b82e89697cd6b9a79f5dbb5",
+      "path": "scripts/validate_repo.py",
+      "sha256": "031897a99ca29378e7b2ef2b9ed4588f6b80aa10990d0f2c42be68b449cf6f96",
+      "status": "M"
+    },
+    {
+      "base_sha256": null,
+      "path": "scripts/validate_stage11_governance_audit.py",
+      "sha256": "b84ce51090eee520eeaf34c61ba77a901655d1f61eaba9b5d76edba0573f8753",
+      "status": "A"
+    },
+    {
+      "base_sha256": "925b327987a94db3b46599b32c0d034d82b6be6aa56221169bd74beb6f021221",
+      "path": "tests/test_ci_optimization_contract.py",
+      "sha256": "10f48487cb47784722f764e2878c0686c3f938efc245057cfee82ae450893f31",
+      "status": "M"
+    },
+    {
+      "base_sha256": null,
+      "path": "tests/test_stage11_final_governance_audit.py",
+      "sha256": "d2b23c96dc1587cd22a059ff69a7b125ed99f5711f7890550423c5bd986026c6",
+      "status": "A"
+    }
+  ],
+  "git_objects_verified_at_capture": true,
+  "hash_algorithm": "sha256",
+  "human_direction": true,
+  "implementation_sha": "fd677c09a40e862d42146121b2a4983540e512f1",
+  "implementation_tree": "64bf9448f7e3f171d1645c1a85d2533a603201fe",
+  "origin_class": "REPOSITORY_NATIVE",
+  "schema": "omnigenis-contribution-provenance-manifest-v2",
+  "third_party_code_introduced": false,
+  "third_party_component_ids": []
+}

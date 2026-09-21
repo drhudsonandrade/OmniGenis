@@ -481,6 +481,13 @@
       "fingerprint": "ad8563883cee33c08c067ce7a7401fe9c7af29d6c75378a977109ddfd904b484"
     },
     {
+      "path": "docs/compliance/STAGE11_FINAL_GOVERNANCE_AUDIT.md",
+      "category": "localized",
+      "reason": "Portuguese here is a canonical serialized audit status used by existing repository evidence contracts; the executable implementation language remains English-first.",
+      "count": 2,
+      "fingerprint": "3bff07b7c74e208d45aaf1737f1c4d306beb86a029d0cd73cd5486f295cc32db"
+    },
+    {
       "path": "docs/compliance/STAGE9_LGPD_GENETIC_DATA.md",
       "category": "localized",
       "reason": "Brazilian legal terminology is retained where the compliance boundary names the LGPD jurisdiction and official concepts.",
@@ -556,6 +563,20 @@
       "reason": "Versioned editorial QA evidence preserves canonical Portuguese template filenames and the established status value; these are compatibility identifiers, not implementation prose.",
       "count": 10,
       "fingerprint": "076f3f1ff64879896f402a4da2d60ec413f9c0cd769572d25a84f6e4e3e4ca4b"
+    },
+    {
+      "path": "docs/evidence/STAGE11_FINAL_GOVERNANCE_AUDIT_2026-09-21.json",
+      "category": "historical",
+      "reason": "Portuguese here is a canonical serialized audit status inside immutable Stage 11 execution evidence; it is evidence data rather than implementation language.",
+      "count": 15,
+      "fingerprint": "aef0902f50d29cfddb303337c83f90fb49b73910cf37050739954a4c9bc98713"
+    },
+    {
+      "path": "docs/evidence/STAGE11_GITHUB_RULESET_READBACK_2026-09-21.json",
+      "category": "historical",
+      "reason": "Portuguese here is a canonical serialized audit status inside immutable Stage 11 execution evidence; it is evidence data rather than implementation language.",
+      "count": 1,
+      "fingerprint": "c2a9a3d6dbfbec7dbc7617fb8854273b9f583bc17a09785bec9f3483cd5c2729"
     },
     {
       "path": "docs/evidence/stage3/full_test_suite.log",
@@ -1174,6 +1195,13 @@
       "fingerprint": "ffc922bc3135c9b6462c12bf4f222f47cb93d7045a9b97c782d3d4915258fdea"
     },
     {
+      "path": "scripts/run_stage11_governance_audit.py",
+      "category": "localized",
+      "reason": "Portuguese here is a canonical serialized audit status used by existing repository evidence contracts; the executable implementation language remains English-first.",
+      "count": 2,
+      "fingerprint": "4a190a4939321fc4123b57e65ff2891a96bc179aa3119a4c5f167b5311223d7e"
+    },
+    {
       "path": "scripts/runtime_resource_gate.py",
       "category": "localized",
       "reason": "Portuguese here is pt-BR operator/report output or a canonical serialized value; the executable implementation language remains English-first.",
@@ -1200,6 +1228,13 @@
       "reason": "Portuguese here is pt-BR operator/report output or a canonical serialized value; the executable implementation language remains English-first.",
       "count": 11,
       "fingerprint": "60a89330b26d5217cbb5cdd07b07ed7df635e651793acabb99110b2d5d8f8032"
+    },
+    {
+      "path": "scripts/validate_stage11_governance_audit.py",
+      "category": "localized",
+      "reason": "Portuguese here is a canonical serialized audit status used by existing repository evidence contracts; the executable implementation language remains English-first.",
+      "count": 4,
+      "fingerprint": "1bb60f72d662916b1de8aa10e27b2efe1398b5e65896d4cc57f945555f40ba8c"
     },
     {
       "path": "scripts/verify_prebuilt_bwa_mem2_bundle.py",
@@ -1704,6 +1739,13 @@
       "reason": "Portuguese is retained only as exact serialized status fixtures so tests prove compatibility with the governed runtime contract.",
       "count": 14,
       "fingerprint": "4d89061cf68c70ad2b3b461bac7338738b2605af1ef36c3bb680726de2cde6ce"
+    },
+    {
+      "path": "tests/test_stage11_final_governance_audit.py",
+      "category": "localized",
+      "reason": "Portuguese here is a canonical serialized audit status used by existing repository evidence contracts; the executable implementation language remains English-first.",
+      "count": 8,
+      "fingerprint": "b4008109756594558f287c0b7f3c17f35769b492d359577940887a40b24ff27e"
     },
     {
       "path": "tests/test_stage9_genetic_privacy.py",
