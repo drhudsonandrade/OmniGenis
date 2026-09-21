@@ -7,7 +7,7 @@
     "regulatory_approval_determined_by_software": false,
     "research_ethics_determined_by_software": false
   },
-  "generated_at_utc": "2026-09-21T15:42:59.024692+00:00",
+  "generated_at_utc": "2026-09-21T16:16:24.352925+00:00",
   "global_controls": [
     {
       "evidence": "{\"errors\": []}",
@@ -38,12 +38,12 @@
       "returncode": 0
     }
   ],
-  "implementation_sha": "62f80afe32caa7b522eac69817e1a30089691c18",
+  "implementation_sha": "16ae77d3378ca641e6ecda40feda43df488a0dfd",
   "note": "This audit verifies repository governance contracts and evidence integrity. It does not replace the clinical FINAL_AUDIT_GATE and does not issue legal, licensing, regulatory, clinical-validity, or research-ethics determinations.",
   "operational_status": "EXECUTADO",
   "policy_sha256": "83a5718525ce8507f0f80afda39c05d59a86a1f3e3143e422a526ac618d8430c",
   "result": "PASS",
-  "runner_sha256": "653e608a12e4c84a951038a17e4ef79aec7c6dcdc6b16e877a2921868e3a4d92",
+  "runner_sha256": "02d458e9a9e2c02d0a1fd8ba584a43840c1c7d6b9a3553cb24435c974be607c3",
   "schema": "omnigenis-final-governance-audit-evidence-v1",
   "stages": [
     {
@@ -157,5 +157,5 @@
       "validator": "validate_stage10_use_boundary"
     }
   ],
-  "tree_sha": "fcde37582f8efad2192f44ec0f8b91a38be0ab45"
+  "tree_sha": "3cccc51406b4ff199dabb0c18ad88a3476759d0b"
 }
