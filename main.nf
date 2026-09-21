@@ -22,6 +22,19 @@ params.array_target_manifest = params.array_target_manifest ?: 'config/partial_g
 include { WGS_PRODUCTION } from './workflows/wgs'
 include { ARRAY_PRODUCTION } from './workflows/array'
 
+def requireSingleRegularFile(value, label) {
+    def resolved = file(value, checkIfExists: true)
+    def candidates = resolved instanceof List ? resolved : [resolved]
+    if (candidates.size() != 1) {
+        error "${label} must resolve to exactly one file; found ${candidates.size()}"
+    }
+    def candidate = candidates[0]
+    if (!candidate.toFile().isFile()) {
+        error "${label} must resolve to one regular file: ${candidate}"
+    }
+    return candidate
+}
+
 process CANARY {
     tag 'synthetic-germline-canary'
     cpus 2
@@ -67,10 +80,14 @@ workflow {
         ref_root_ch = Channel.value(params.ref_root)
         case_id_ch = Channel.value(params.case_id)
         sample_id_ch = Channel.value(params.sample_id)
-        use_boundary_ch = Channel.fromPath(params.use_boundary, checkIfExists: true)
-        use_boundary_evidence_ledger_ch = Channel.fromPath(
+        use_boundary_path = requireSingleRegularFile(params.use_boundary, 'use_boundary')
+        use_boundary_evidence_ledger_path = requireSingleRegularFile(
             params.use_boundary_evidence_ledger,
-            checkIfExists: true
+            'use_boundary_evidence_ledger'
+        )
+        use_boundary_ch = Channel.value(use_boundary_path)
+        use_boundary_evidence_ledger_ch = Channel.value(
+            use_boundary_evidence_ledger_path
         )
 
         WGS_PRODUCTION(
@@ -109,10 +126,14 @@ workflow {
         build_evidence_ch = Channel.value(params.array_build_evidence)
         strand_evidence_ch = Channel.value(params.array_strand_evidence)
         evidence_mode_ch = Channel.value(params.array_evidence_mode)
-        use_boundary_ch = Channel.fromPath(params.use_boundary, checkIfExists: true)
-        use_boundary_evidence_ledger_ch = Channel.fromPath(
+        use_boundary_path = requireSingleRegularFile(params.use_boundary, 'use_boundary')
+        use_boundary_evidence_ledger_path = requireSingleRegularFile(
             params.use_boundary_evidence_ledger,
-            checkIfExists: true
+            'use_boundary_evidence_ledger'
+        )
+        use_boundary_ch = Channel.value(use_boundary_path)
+        use_boundary_evidence_ledger_ch = Channel.value(
+            use_boundary_evidence_ledger_path
         )
 
         ARRAY_PRODUCTION(

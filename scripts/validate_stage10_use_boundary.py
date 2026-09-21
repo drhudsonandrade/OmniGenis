@@ -43,59 +43,49 @@ def _call_name(call: ast.Call) -> str | None:
     return None
 
 
-class _ReachableCallVisitor(ast.NodeVisitor):
-    """Collect executable calls while excluding nested definitions and dead literals."""
+_NESTED_SCOPES = (
+    ast.FunctionDef,
+    ast.AsyncFunctionDef,
+    ast.Lambda,
+    ast.ClassDef,
+)
 
-    def __init__(self, name: str) -> None:
-        self.name = name
-        self.calls: list[ast.Call] = []
 
-    def visit_Call(self, node: ast.Call) -> None:
-        if _call_name(node) == self.name:
-            self.calls.append(node)
-        self.generic_visit(node)
-
-    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
-        """Treat nested synchronous functions as opaque to direct release flow."""
-        return None
-
-    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
-        """Treat nested asynchronous functions as opaque to direct release flow."""
-        return None
-
-    def visit_Lambda(self, node: ast.Lambda) -> None:
-        """Treat nested lambdas as opaque to direct release flow."""
-        return None
-
-    def visit_ClassDef(self, node: ast.ClassDef) -> None:
-        """Treat nested classes as opaque to direct release flow."""
-        return None
-
-    def visit_If(self, node: ast.If) -> None:
-        self.visit(node.test)
-        if isinstance(node.test, ast.Constant) and isinstance(node.test.value, bool):
+def _iter_reachable_nodes(node: ast.AST):
+    """Yield reachable nodes while treating nested scopes and literal dead branches as opaque."""
+    if isinstance(node, _NESTED_SCOPES):
+        return
+    yield node
+    if isinstance(node, ast.If) and isinstance(node.test, ast.Constant):
+        if isinstance(node.test.value, bool):
+            yield from _iter_reachable_nodes(node.test)
             selected = node.body if node.test.value else node.orelse
             for statement in selected:
-                self.visit(statement)
+                yield from _iter_reachable_nodes(statement)
             return
-        for statement in node.body:
-            self.visit(statement)
-        for statement in node.orelse:
-            self.visit(statement)
+    for child in ast.iter_child_nodes(node):
+        if isinstance(child, _NESTED_SCOPES):
+            continue
+        yield from _iter_reachable_nodes(child)
 
 
 def _reachable_calls(function: ast.AST, name: str) -> list[ast.Call]:
-    visitor = _ReachableCallVisitor(name)
-    body = getattr(function, "body", [])
-    for statement in body:
-        visitor.visit(statement)
-    return visitor.calls
+    calls: list[ast.Call] = []
+    for statement in getattr(function, "body", []):
+        calls.extend(
+            node
+            for node in _iter_reachable_nodes(statement)
+            if isinstance(node, ast.Call) and _call_name(node) == name
+        )
+    return calls
 
 
 def _statement_calls(statement: ast.stmt, name: str) -> list[ast.Call]:
-    visitor = _ReachableCallVisitor(name)
-    visitor.visit(statement)
-    return visitor.calls
+    return [
+        node
+        for node in _iter_reachable_nodes(statement)
+        if isinstance(node, ast.Call) and _call_name(node) == name
+    ]
 
 
 def _keywords(call: ast.Call) -> set[str]:
@@ -123,6 +113,18 @@ def _direct_assigns(statement: ast.stmt, name: str) -> bool:
     if isinstance(statement, ast.AnnAssign):
         return _target_has_name(statement.target, name)
     return False
+
+
+def _direct_assignment_calls(
+    statement: ast.stmt,
+    target_name: str,
+    call_name: str,
+) -> bool:
+    if not isinstance(statement, ast.Assign):
+        return False
+    if not any(_target_has_name(target, target_name) for target in statement.targets):
+        return False
+    return isinstance(statement.value, ast.Call) and _call_name(statement.value) == call_name
 
 
 def _block_assigns_on_all_paths(statements: list[ast.stmt], name: str) -> bool:
@@ -157,6 +159,20 @@ def _statement_assigns_on_all_paths(statement: ast.stmt, name: str) -> bool:
             _block_assigns_on_all_paths(handler.body, name)
             for handler in statement.handlers
         )
+    return False
+
+
+def _statement_reassigns_reachable(statement: ast.stmt, name: str) -> bool:
+    for node in _iter_reachable_nodes(statement):
+        if isinstance(node, ast.Assign):
+            if any(_target_has_name(target, name) for target in node.targets):
+                return True
+        elif isinstance(node, ast.AnnAssign):
+            if _target_has_name(node.target, name):
+                return True
+        elif isinstance(node, ast.NamedExpr):
+            if _target_has_name(node.target, name):
+                return True
     return False
 
 
@@ -256,42 +272,142 @@ def _release_flow_errors(
         errors.append(
             "Stage 10 boundary decision and blocker must dominate final publication evaluation"
         )
+    if guard_index is not None and decision_index < guard_index:
+        for statement in function.body[decision_index + 1 : guard_index]:
+            if _statement_reassigns_reachable(statement, "boundary_result"):
+                errors.append(
+                    "report release reassigns boundary_result before the Stage 10 guard"
+                )
+                break
     return errors
 
 
-def _workflow_run_commands(text: str) -> list[str]:
-    """Extract only YAML step run bodies, excluding path filters and comments."""
+def _yaml_scalar(value: str) -> str:
+    return value.strip().strip("'\"").strip()
+
+
+def _literal_bool(value: str | None) -> bool | None:
+    if value is None:
+        return None
+    normalized = _yaml_scalar(value)
+    if normalized.startswith("$" + "{{") and normalized.endswith("}}"):
+        normalized = normalized[3:-2].strip()
+    normalized = normalized.casefold()
+    if normalized == "true":
+        return True
+    if normalized == "false":
+        return False
+    return None
+
+
+def _workflow_step_records(text: str) -> list[dict[str, str | None]]:
+    """Extract run commands with their enclosing job and step control metadata."""
     lines = text.splitlines()
-    commands: list[str] = []
-    index = 0
-    while index < len(lines):
-        line = lines[index]
-        stripped = line.lstrip()
-        indent = len(line) - len(stripped)
-        if not stripped.startswith("run:"):
-            index += 1
+    jobs_index = next(
+        (index for index, line in enumerate(lines) if line.strip() == "jobs:"),
+        None,
+    )
+    if jobs_index is None:
+        return []
+
+    job_starts = [
+        index
+        for index in range(jobs_index + 1, len(lines))
+        if (
+            len(lines[index]) - len(lines[index].lstrip()) == 2
+            and lines[index].lstrip().endswith(":")
+            and not lines[index].lstrip().startswith(("-", "#"))
+        )
+    ]
+    job_starts.append(len(lines))
+    records: list[dict[str, str | None]] = []
+
+    for position in range(len(job_starts) - 1):
+        job_lines = lines[job_starts[position] : job_starts[position + 1]]
+        steps_offset = next(
+            (
+                offset
+                for offset, line in enumerate(job_lines)
+                if len(line) - len(line.lstrip()) == 4
+                and line.strip() == "steps:"
+            ),
+            None,
+        )
+        if steps_offset is None:
             continue
-        value = stripped[len("run:") :].strip()
-        if value and value not in {"|", ">"}:
-            commands.append(value)
-            index += 1
-            continue
-        block: list[str] = []
-        index += 1
-        while index < len(lines):
-            candidate = lines[index]
-            candidate_stripped = candidate.lstrip()
-            candidate_indent = len(candidate) - len(candidate_stripped)
-            if candidate_stripped and candidate_indent <= indent:
-                break
-            if candidate_stripped and not candidate_stripped.startswith("#"):
-                block.append(candidate_stripped)
-            index += 1
-        commands.append("\n".join(block))
-    return commands
+
+        job_if: str | None = None
+        job_continue: str | None = None
+        for line in job_lines[1:]:
+            stripped = line.lstrip()
+            if len(line) - len(stripped) != 4:
+                continue
+            if stripped.startswith("if:"):
+                job_if = stripped[3:].strip()
+            elif stripped.startswith("continue-on-error:"):
+                job_continue = stripped.split(":", 1)[1].strip()
+
+        step_lines = job_lines[steps_offset + 1 :]
+        step_starts = [
+            offset
+            for offset, line in enumerate(step_lines)
+            if len(line) - len(line.lstrip()) == 6
+            and line.lstrip().startswith("- ")
+        ]
+        step_starts.append(len(step_lines))
+        for step_position in range(len(step_starts) - 1):
+            step = step_lines[
+                step_starts[step_position] : step_starts[step_position + 1]
+            ]
+            step_if: str | None = None
+            step_continue: str | None = None
+            command: str | None = None
+            for index, line in enumerate(step):
+                stripped = line.lstrip()
+                indent = len(line) - len(stripped)
+                if indent != 8:
+                    continue
+                if stripped.startswith("if:"):
+                    step_if = stripped[3:].strip()
+                elif stripped.startswith("continue-on-error:"):
+                    step_continue = stripped.split(":", 1)[1].strip()
+                elif stripped.startswith("run:"):
+                    value = stripped[4:].strip()
+                    if value and value not in {"|", ">"}:
+                        command = value
+                        continue
+                    block: list[str] = []
+                    for candidate in step[index + 1 :]:
+                        candidate_stripped = candidate.lstrip()
+                        candidate_indent = len(candidate) - len(candidate_stripped)
+                        if candidate_stripped and candidate_indent <= indent:
+                            break
+                        if (
+                            candidate_stripped
+                            and not candidate_stripped.startswith("#")
+                        ):
+                            block.append(candidate_stripped)
+                    command = "\n".join(block)
+            if command is not None:
+                records.append(
+                    {
+                        "command": command,
+                        "job_if": job_if,
+                        "job_continue_on_error": job_continue,
+                        "step_if": step_if,
+                        "step_continue_on_error": step_continue,
+                    }
+                )
+    return records
+
+
+def _command_masks_failure(command: str) -> bool:
+    return re.search(r"\|\|\s*(?:true|:)(?:\s|$)", command) is not None
 
 
 def _command_runs_script(command: str, script: str) -> bool:
+    if _command_masks_failure(command):
+        return False
     pattern = re.compile(
         rf"(?m)^(?:\s*(?:[A-Za-z_][A-Za-z0-9_]*=[^ ]+\s+)*)"
         rf"(?:python3|python)\s+{re.escape(script)}(?:\s|$)"
@@ -299,17 +415,33 @@ def _command_runs_script(command: str, script: str) -> bool:
     return pattern.search(command) is not None
 
 
+def _record_can_enforce(record: dict[str, str | None]) -> bool:
+    return (
+        _literal_bool(record.get("job_if")) is not False
+        and _literal_bool(record.get("step_if")) is not False
+        and _literal_bool(record.get("job_continue_on_error")) is not True
+        and _literal_bool(record.get("step_continue_on_error")) is not True
+    )
+
+
 def _workflow_executes_stage10(root: Path, workflow_path: Path) -> bool:
     text = workflow_path.read_text(encoding="utf-8")
-    commands = _workflow_run_commands(text)
+    records = [
+        record
+        for record in _workflow_step_records(text)
+        if _record_can_enforce(record)
+    ]
     if any(
-        _command_runs_script(command, "scripts/validate_stage10_use_boundary.py")
-        for command in commands
+        _command_runs_script(
+            str(record["command"]),
+            "scripts/validate_stage10_use_boundary.py",
+        )
+        for record in records
     ):
         return True
     if any(
-        _command_runs_script(command, "scripts/validate_repo.py")
-        for command in commands
+        _command_runs_script(str(record["command"]), "scripts/validate_repo.py")
+        for record in records
     ):
         repo_validator = (root / "scripts/validate_repo.py").read_text(
             encoding="utf-8"
@@ -342,6 +474,7 @@ def collect_errors(root: Path = ROOT) -> list[str]:
         "scripts/use_boundary_gate.py",
         "scripts/prepare_report_release.py",
         "scripts/generate_all_reports.py",
+        "main.nf",
         "docs/compliance/STAGE10_RESEARCH_CLINICAL_REGULATORY_BOUNDARY.md",
         "tests/test_stage10_use_boundary.py",
     )
@@ -399,12 +532,46 @@ def collect_errors(root: Path = ROOT) -> list[str]:
                 "report release must fail closed on Stage 10 policy/gate errors"
             )
 
-    generator_text = (root / "scripts/generate_all_reports.py").read_text(
-        encoding="utf-8"
-    )
+    generator_path = root / "scripts/generate_all_reports.py"
+    generator_text = generator_path.read_text(encoding="utf-8")
     for token in ("--use-boundary", "--use-boundary-evidence-ledger"):
         if token not in generator_text:
             errors.append(f"generate_all_reports.py missing Stage 10 input: {token}")
+    generator_main = _function(generator_path, "main")
+    if generator_main is None:
+        errors.append("generate_all_reports.py main is missing or unparsable")
+    else:
+        direct_assembly = [
+            statement
+            for statement in generator_main.body
+            if _direct_assignment_calls(statement, "data", "assemble_release")
+        ]
+        if len(direct_assembly) != 1:
+            errors.append(
+                "generate_all_reports.py must unconditionally assemble Stage 10 release"
+            )
+
+    try:
+        main_text = (root / "main.nf").read_text(encoding="utf-8")
+    except OSError as exc:
+        errors.append(f"Stage 10 Nextflow entrypoint unavailable: {exc}")
+    else:
+        for parameter in ("use_boundary", "use_boundary_evidence_ledger"):
+            pattern = (
+                r"requireSingleRegularFile\(\s*params\."
+                + re.escape(parameter)
+                + r","
+            )
+            if len(re.findall(pattern, main_text)) != 2:
+                errors.append(
+                    f"Stage 10 Nextflow cardinality guard drift: {parameter}"
+                )
+            if f"Channel.fromPath(params.{parameter}" in main_text:
+                errors.append(
+                    f"Stage 10 Nextflow must not stream unresolved globs: {parameter}"
+                )
+        if "def requireSingleRegularFile" not in main_text:
+            errors.append("Stage 10 Nextflow single-file resolver missing")
 
     for workflow_rel in (
         ".github/workflows/genoma-ngs-runtime-gate.yml",

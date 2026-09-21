@@ -5,7 +5,10 @@ import hashlib
 import hmac
 import json
 import os
+import re
 import shutil
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -240,6 +243,8 @@ class Stage10ValidatorMutationTests(unittest.TestCase):
             "scripts/use_boundary_gate.py",
             "scripts/prepare_report_release.py",
             "scripts/generate_all_reports.py",
+            "scripts/validate_repo.py",
+            "main.nf",
             "docs/compliance/STAGE10_RESEARCH_CLINICAL_REGULATORY_BOUNDARY.md",
             "tests/test_stage10_use_boundary.py",
             ".github/workflows/genoma-ngs-runtime-gate.yml",
@@ -515,6 +520,190 @@ class Stage10ReviewerRegressionTests(unittest.TestCase):
             )
         finally:
             temporary.cleanup()
+
+    def test_nextflow_requires_single_regular_stage10_artifacts(self) -> None:
+        main = (ROOT / "main.nf").read_text(encoding="utf-8")
+        self.assertIn("def requireSingleRegularFile", main)
+        self.assertEqual(
+            2,
+            len(
+                re.findall(
+                    r"requireSingleRegularFile\(\s*params\.use_boundary,",
+                    main,
+                )
+            ),
+        )
+        self.assertEqual(
+            2,
+            len(
+                re.findall(
+                    r"requireSingleRegularFile\(\s*"
+                    r"params\.use_boundary_evidence_ledger,",
+                    main,
+                )
+            ),
+        )
+        self.assertNotIn("Channel.fromPath(params.use_boundary", main)
+        self.assertNotIn(
+            "Channel.fromPath(params.use_boundary_evidence_ledger",
+            main,
+        )
+
+    def test_generate_all_reports_cannot_bypass_stage10_without_policy(self) -> None:
+        import scripts.generate_all_reports as generator
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            input_path = root / "curated.json"
+            output_dir = root / "reports"
+            input_path.write_text(
+                json.dumps(
+                    {
+                        "case_id": "CASE-1",
+                        "input_sha256": INPUT_SHA,
+                        "publication_gate": {"passed": True},
+                    }
+                ),
+                encoding="utf-8",
+            )
+            blocked_payload = {
+                "case_id": "CASE-1",
+                "publication_gate": {"passed": False},
+                "report_release_blockers": [
+                    "use_boundary",
+                    "policy_evaluation_binding",
+                ],
+            }
+            argv = [
+                "generate_all_reports.py",
+                "--input",
+                str(input_path),
+                "--output-dir",
+                str(output_dir),
+            ]
+            with (
+                patch.object(sys, "argv", argv),
+                patch.object(
+                    generator,
+                    "assemble_release",
+                    return_value=blocked_payload,
+                ) as assemble,
+            ):
+                result = generator.main()
+            self.assertEqual(result, 0)
+            assemble.assert_called_once()
+            self.assertEqual(assemble.call_args.args[1], {})
+            self.assertIsNone(assemble.call_args.args[2])
+            self.assertIsNone(assemble.call_args.args[3])
+            blocked = json.loads(
+                (output_dir / "REPORTS_BLOCKED.json").read_text(encoding="utf-8")
+            )
+            self.assertIn("use_boundary", blocked["blockers"])
+            self.assertIn("policy_evaluation_binding", blocked["blockers"])
+
+    def test_generate_all_reports_rejects_explicit_missing_stage10_path(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            input_path = root / "curated.json"
+            output_dir = root / "reports"
+            input_path.write_text(
+                json.dumps(
+                    {
+                        "case_id": "CASE-1",
+                        "input_sha256": INPUT_SHA,
+                        "publication_gate": {"passed": False},
+                    }
+                ),
+                encoding="utf-8",
+            )
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(ROOT / "scripts/generate_all_reports.py"),
+                    "--input",
+                    str(input_path),
+                    "--use-boundary",
+                    str(root / "missing-boundary.json"),
+                    "--output-dir",
+                    str(output_dir),
+                ],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(completed.returncode, 2)
+            self.assertIn("STAGE10 INPUT MISSING", completed.stderr)
+
+    def test_validator_rejects_boundary_result_reassignment_before_guard(self) -> None:
+        temporary, root = self._mutated_root()
+        try:
+            release = root / "scripts/prepare_report_release.py"
+            text = release.read_text(encoding="utf-8")
+            anchor = '    result["use_boundary_verification"] = copy.deepcopy(boundary_result)\n'
+            self.assertIn(anchor, text)
+            release.write_text(
+                text.replace(
+                    anchor,
+                    '    boundary_result = {"ready_for_requested_release": True}\n' + anchor,
+                    1,
+                ),
+                encoding="utf-8",
+            )
+            errors = collect_errors(root)
+            self.assertIn(
+                "report release reassigns boundary_result before the Stage 10 guard",
+                errors,
+            )
+        finally:
+            temporary.cleanup()
+
+    def _workflow_bypass_errors(self, replacement: str) -> list[str]:
+        temporary, root = self._mutated_root()
+        try:
+            workflow = root / ".github/workflows/scaffold-validation.yml"
+            text = workflow.read_text(encoding="utf-8")
+            original = (
+                "      - name: Enforce Stage 10 research-clinical-regulatory boundary\n"
+                "        run: python3 scripts/validate_stage10_use_boundary.py\n"
+            )
+            self.assertIn(original, text)
+            workflow.write_text(text.replace(original, replacement, 1), encoding="utf-8")
+            return collect_errors(root)
+        finally:
+            temporary.cleanup()
+
+    def test_validator_rejects_workflow_if_false_bypass(self) -> None:
+        errors = self._workflow_bypass_errors(
+            "      - name: Enforce Stage 10 research-clinical-regulatory boundary\n"
+            "        if: false\n"
+            "        run: python3 scripts/validate_stage10_use_boundary.py\n"
+        )
+        self.assertIn(
+            "Stage 10 validator is not executed by .github/workflows/scaffold-validation.yml",
+            errors,
+        )
+
+    def test_validator_rejects_workflow_continue_on_error_bypass(self) -> None:
+        errors = self._workflow_bypass_errors(
+            "      - name: Enforce Stage 10 research-clinical-regulatory boundary\n"
+            "        continue-on-error: true\n"
+            "        run: python3 scripts/validate_stage10_use_boundary.py\n"
+        )
+        self.assertIn(
+            "Stage 10 validator is not executed by .github/workflows/scaffold-validation.yml",
+            errors,
+        )
+
+    def test_validator_rejects_workflow_or_true_bypass(self) -> None:
+        errors = self._workflow_bypass_errors(
+            "      - name: Enforce Stage 10 research-clinical-regulatory boundary\n"
+            "        run: python3 scripts/validate_stage10_use_boundary.py || true\n"
+        )
+        self.assertIn(
+            "Stage 10 validator is not executed by .github/workflows/scaffold-validation.yml",
+            errors,
+        )
 
     def test_validator_requires_executable_workflow_step(self) -> None:
         temporary, root = self._mutated_root()

@@ -30,25 +30,40 @@ def main() -> int:
     args = parser.parse_args()
     data = json.loads(Path(args.input).read_text(encoding="utf-8"))
     policy_path = Path(args.policy) if args.policy else Path("evaluation.json")
-    if policy_path.is_file():
-        policy = json.loads(policy_path.read_text(encoding="utf-8"))
-        boundary_path = Path(args.use_boundary) if args.use_boundary else None
-        ledger_path = (
-            Path(args.use_boundary_evidence_ledger)
-            if args.use_boundary_evidence_ledger
-            else None
-        )
-        use_boundary = (
-            json.loads(boundary_path.read_text(encoding="utf-8"))
-            if boundary_path is not None and boundary_path.is_file()
-            else None
-        )
-        evidence_ledger = (
-            json.loads(ledger_path.read_text(encoding="utf-8"))
-            if ledger_path is not None and ledger_path.is_file()
-            else None
-        )
-        data = assemble_release(data, policy, use_boundary, evidence_ledger)
+    boundary_path = Path(args.use_boundary) if args.use_boundary else None
+    ledger_path = (
+        Path(args.use_boundary_evidence_ledger)
+        if args.use_boundary_evidence_ledger
+        else None
+    )
+    for label, candidate in (
+        ("--use-boundary", boundary_path),
+        ("--use-boundary-evidence-ledger", ledger_path),
+    ):
+        if candidate is not None and not candidate.is_file():
+            print(f"STAGE10 INPUT MISSING: {label}={candidate}", file=sys.stderr)
+            return 2
+
+    if args.policy and not policy_path.is_file():
+        print(f"POLICY INPUT MISSING: --policy={policy_path}", file=sys.stderr)
+        return 2
+
+    policy = (
+        json.loads(policy_path.read_text(encoding="utf-8"))
+        if policy_path.is_file()
+        else {}
+    )
+    use_boundary = (
+        json.loads(boundary_path.read_text(encoding="utf-8"))
+        if boundary_path is not None
+        else None
+    )
+    evidence_ledger = (
+        json.loads(ledger_path.read_text(encoding="utf-8"))
+        if ledger_path is not None
+        else None
+    )
+    data = assemble_release(data, policy, use_boundary, evidence_ledger)
 
     out = Path(args.output_dir)
     out.mkdir(parents=True, exist_ok=True)
