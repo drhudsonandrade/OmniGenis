@@ -26,7 +26,7 @@
     },
     "contribution_provenance_ledger": {
       "path": "config/contribution_provenance_ledger.json",
-      "sha256": "e7f7785e49c25c5fddbc7585d25955a8ea28cf429a48a5ed18f1dc0ad226bb00"
+      "sha256": "52f534b78919c6db5eb5d1fd09201d761286172dd60babf9b0778484938f2adf"
     },
     "contribution_provenance_policy": {
       "path": "config/contribution_provenance_policy.json",
@@ -102,7 +102,7 @@
     },
     "stage11_contribution_manifest": {
       "path": "docs/evidence/contribution_provenance/STAGE11_FINAL_GOVERNANCE_AUDIT_CHANGESET_2026-09-21.json",
-      "sha256": "d1c766bf6e14e2cbc9e2cd98c8b7051b11fd344cd5846c2cb1895fe6ea0b347d"
+      "sha256": "7542322c0298559540b377abce6f7dfa8c89263856c684187420b18d76f17baf"
     },
     "stage11_final_governance_audit_evidence": {
       "path": "docs/evidence/STAGE11_FINAL_GOVERNANCE_AUDIT_2026-09-21.json",
