@@ -26,7 +26,7 @@
     },
     "contribution_provenance_ledger": {
       "path": "config/contribution_provenance_ledger.json",
-      "sha256": "a6ac7928a24979213266d33de76ed7a76e54cf7d4ac6e6344b24a85af40adf5c"
+      "sha256": "33e578803b90a9a149ac1f66939a8fdebe1a6e6dfc8759432fa945270ba80841"
     },
     "contribution_provenance_policy": {
       "path": "config/contribution_provenance_policy.json",
@@ -75,6 +75,10 @@
     "stage10_final_review_hardening_manifest": {
       "path": "docs/evidence/contribution_provenance/STAGE10_FINAL_REVIEW_HARDENING_2026-09-21.json",
       "sha256": "3efd7358c4751ecac71b65342c80267424fff25fa1d3f6b3e550819d2c278d8b"
+    },
+    "stage10_operation_mismatch_test_manifest": {
+      "path": "docs/evidence/contribution_provenance/STAGE10_OPERATION_MISMATCH_TEST_2026-09-21.json",
+      "sha256": "8fe77e44d11df5005a628a75c681356efa83e37d7a3be2fee55e1f8b9adf291a"
     },
     "stage10_review_fix_manifest": {
       "path": "docs/evidence/contribution_provenance/STAGE10_REVIEW_FIX_2026-09-20.json",
