@@ -56,13 +56,16 @@ def _iter_reachable_nodes(node: ast.AST):
     if isinstance(node, _NESTED_SCOPES):
         return
     yield node
-    if isinstance(node, ast.If) and isinstance(node.test, ast.Constant):
-        if isinstance(node.test.value, bool):
-            yield from _iter_reachable_nodes(node.test)
-            selected = node.body if node.test.value else node.orelse
-            for statement in selected:
-                yield from _iter_reachable_nodes(statement)
-            return
+    if (
+        isinstance(node, ast.If)
+        and isinstance(node.test, ast.Constant)
+        and isinstance(node.test.value, bool)
+    ):
+        yield from _iter_reachable_nodes(node.test)
+        selected = node.body if node.test.value else node.orelse
+        for statement in selected:
+            yield from _iter_reachable_nodes(statement)
+        return
     for child in ast.iter_child_nodes(node):
         if isinstance(child, _NESTED_SCOPES):
             continue
@@ -533,23 +536,29 @@ def collect_errors(root: Path = ROOT) -> list[str]:
             )
 
     generator_path = root / "scripts/generate_all_reports.py"
-    generator_text = generator_path.read_text(encoding="utf-8")
-    for token in ("--use-boundary", "--use-boundary-evidence-ledger"):
-        if token not in generator_text:
-            errors.append(f"generate_all_reports.py missing Stage 10 input: {token}")
-    generator_main = _function(generator_path, "main")
-    if generator_main is None:
-        errors.append("generate_all_reports.py main is missing or unparsable")
+    try:
+        generator_text = generator_path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        errors.append(f"Stage 10 report generator unavailable: {exc}")
     else:
-        direct_assembly = [
-            statement
-            for statement in generator_main.body
-            if _direct_assignment_calls(statement, "data", "assemble_release")
-        ]
-        if len(direct_assembly) != 1:
-            errors.append(
-                "generate_all_reports.py must unconditionally assemble Stage 10 release"
-            )
+        for token in ("--use-boundary", "--use-boundary-evidence-ledger"):
+            if token not in generator_text:
+                errors.append(
+                    f"generate_all_reports.py missing Stage 10 input: {token}"
+                )
+        generator_main = _function(generator_path, "main")
+        if generator_main is None:
+            errors.append("generate_all_reports.py main is missing or unparsable")
+        else:
+            direct_assembly = [
+                statement
+                for statement in generator_main.body
+                if _direct_assignment_calls(statement, "data", "assemble_release")
+            ]
+            if len(direct_assembly) != 1:
+                errors.append(
+                    "generate_all_reports.py must unconditionally assemble Stage 10 release"
+                )
 
     try:
         main_text = (root / "main.nf").read_text(encoding="utf-8")

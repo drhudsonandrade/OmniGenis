@@ -565,6 +565,7 @@ class Stage10ReviewerRegressionTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
+            previous_cwd = Path.cwd()
             input_path = root / "curated.json"
             output_dir = root / "reports"
             input_path.write_text(
@@ -600,7 +601,11 @@ class Stage10ReviewerRegressionTests(unittest.TestCase):
                     return_value=blocked_payload,
                 ) as assemble,
             ):
-                result = generator.main()
+                try:
+                    os.chdir(root)
+                    result = generator.main()
+                finally:
+                    os.chdir(previous_cwd)
             self.assertEqual(result, 0)
             assemble.assert_called_once()
             self.assertEqual(assemble.call_args.args[1], {})
@@ -715,6 +720,22 @@ class Stage10ReviewerRegressionTests(unittest.TestCase):
             "Stage 10 validator is not executed by .github/workflows/scaffold-validation.yml",
             errors,
         )
+
+    def test_validator_reports_unreadable_report_generator(self) -> None:
+        temporary, root = self._mutated_root()
+        try:
+            generator = root / "scripts/generate_all_reports.py"
+            generator.write_bytes(b"\xff\xfe\x00")
+            errors = collect_errors(root)
+            self.assertTrue(
+                any(
+                    "Stage 10 report generator unavailable" in error
+                    for error in errors
+                ),
+                errors,
+            )
+        finally:
+            temporary.cleanup()
 
     def test_validator_requires_executable_workflow_step(self) -> None:
         temporary, root = self._mutated_root()
