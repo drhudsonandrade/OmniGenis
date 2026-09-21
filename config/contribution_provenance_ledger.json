@@ -379,6 +379,21 @@
       "stage": 10,
       "third_party_code_introduced": false,
       "third_party_component_ids": []
+    },
+    {
+      "assistance_class": "MULTI_TOOL_ASSISTED_DECLARED",
+      "base_sha": "c25ba19a0fb4fbf2c8adc272165d7affa2ffc869",
+      "change_set_id": "STAGE10-FINAL-REVIEW-HARDENING-2026-09-21",
+      "declared_at": "2026-09-21",
+      "declared_by_role": "repository_owner",
+      "human_direction": true,
+      "implementation_sha": "033fe871b037194e1a3151ac4a687d794cb69a1a",
+      "legal_ownership_inferred": false,
+      "manifest_path": "docs/evidence/contribution_provenance/STAGE10_FINAL_REVIEW_HARDENING_2026-09-21.json",
+      "origin_class": "REPOSITORY_NATIVE",
+      "stage": 10,
+      "third_party_code_introduced": false,
+      "third_party_component_ids": []
     }
   ],
   "schema": "omnigenis-contribution-provenance-ledger-v1"
