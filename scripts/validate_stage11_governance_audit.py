@@ -260,10 +260,13 @@ def validate_live_governance_evidence(
     live_types: list[str] = []
     for rule in approval_rules:
         if not isinstance(rule, dict):
+            errors.append("Stage 11 approval live rule must be an object")
             continue
         rule_type = rule.get("type")
-        if isinstance(rule_type, str):
-            live_types.append(rule_type)
+        if not isinstance(rule_type, str):
+            errors.append("Stage 11 approval live rule type must be a string")
+            continue
+        live_types.append(rule_type)
     live_types.sort()
     if live_types != ["pull_request", "update"]:
         errors.append("Stage 11 approval live rule set differs from manifest")

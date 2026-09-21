@@ -169,6 +169,19 @@ class Stage11LiveGovernanceEvidenceTests(unittest.TestCase):
                     errors = validate_live_governance_evidence(payload, root)
                 self.assertIn(expected_error, errors)
 
+    def test_live_ruleset_readback_rejects_invalid_live_rule_entries(self) -> None:
+        """Fail closed when a live approval rule lacks an object/string type."""
+        for invalid_rule, expected_error in (
+            (None, "Stage 11 approval live rule must be an object"),
+            ({"type": None}, "Stage 11 approval live rule type must be a string"),
+        ):
+            with self.subTest(invalid_rule=invalid_rule):
+                payload = self._fixture()
+                approval = payload["rulesets"]["22347095"]["payload"]
+                approval["rules"].append(invalid_rule)
+                errors = validate_live_governance_evidence(payload, ROOT)
+                self.assertIn(expected_error, errors)
+
     def test_live_ruleset_readback_accepts_provider_normalized_update_rule(self) -> None:
         payload = self._fixture()
         approval = payload["rulesets"]["22347095"]["payload"]
