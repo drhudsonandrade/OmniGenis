@@ -7,7 +7,7 @@
     "regulatory_approval_determined_by_software": false,
     "research_ethics_determined_by_software": false
   },
-  "generated_at_utc": "2026-09-21T16:16:24.352925+00:00",
+  "generated_at_utc": "2026-09-21T16:56:40.503478+00:00",
   "global_controls": [
     {
       "evidence": "{\"errors\": []}",
@@ -24,7 +24,7 @@
       "returncode": 0
     },
     {
-      "evidence": "{\"category_files\": {\"canonical\": 15, \"compatibility-preserved\": 113, \"historical\": 30, \"localized\": 74, \"normative\": 38}, \"category_lines\": {\"canonical\": 39, \"compatibility-preserved\": 4926, \"historical\": 788, \"localized\": 1765, \"normative\": 224}, \"clean\": true, \"detected_lines\": 7742, \"drift\": [], \"missing\": [], \"schema\": \"genoma-residual-language-audit-v1\", \"tracked_files_with_residuals\": 270, \"unclassified\": []}\n\n",
+      "evidence": "{\"category_files\": {\"canonical\": 15, \"compatibility-preserved\": 113, \"historical\": 30, \"localized\": 74, \"normative\": 38}, \"category_lines\": {\"canonical\": 39, \"compatibility-preserved\": 4926, \"historical\": 788, \"localized\": 1769, \"normative\": 224}, \"clean\": true, \"detected_lines\": 7746, \"drift\": [], \"missing\": [], \"schema\": \"genoma-residual-language-audit-v1\", \"tracked_files_with_residuals\": 270, \"unclassified\": []}\n\n",
       "id": "RESIDUAL_LANGUAGE_AUDIT",
       "operational_status": "EXECUTADO",
       "result": "PASS",
@@ -38,12 +38,13 @@
       "returncode": 0
     }
   ],
-  "implementation_sha": "16ae77d3378ca641e6ecda40feda43df488a0dfd",
+  "implementation_sha": "eeae32e63858ae2088e529da8930efb0c0eedf9b",
   "note": "This audit verifies repository governance contracts and evidence integrity. It does not replace the clinical FINAL_AUDIT_GATE and does not issue legal, licensing, regulatory, clinical-validity, or research-ethics determinations.",
   "operational_status": "EXECUTADO",
-  "policy_sha256": "83a5718525ce8507f0f80afda39c05d59a86a1f3e3143e422a526ac618d8430c",
+  "policy_contract_errors": [],
+  "policy_sha256": "25e4495489052d67179ec229f79f58ad9c1ef4cd26f589034262734c2cd3682c",
   "result": "PASS",
-  "runner_sha256": "02d458e9a9e2c02d0a1fd8ba584a43840c1c7d6b9a3553cb24435c974be607c3",
+  "runner_sha256": "6b30af851b453b1504137997f0e47ba33907e7976478505650264f2a9427b4f2",
   "schema": "omnigenis-final-governance-audit-evidence-v1",
   "stages": [
     {
@@ -157,5 +158,5 @@
       "validator": "validate_stage10_use_boundary"
     }
   ],
-  "tree_sha": "3cccc51406b4ff199dabb0c18ad88a3476759d0b"
+  "tree_sha": "46ff78315324ebb5f676f29b92d343438fbcfdf5"
 }

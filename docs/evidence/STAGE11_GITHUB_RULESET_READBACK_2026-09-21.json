@@ -1,6 +1,6 @@
 {
-  "candidate_implementation_sha": "16ae77d3378ca641e6ecda40feda43df488a0dfd",
-  "captured_at_utc": "2026-09-21T16:16:25.513144+00:00",
+  "candidate_implementation_sha": "eeae32e63858ae2088e529da8930efb0c0eedf9b",
+  "captured_at_utc": "2026-09-21T16:55:49.003184+00:00",
   "main_sha_at_capture": "8ab7dcf50c51d4fe16de7a70b35b8e0ae14e349f",
   "operational_status": "EXECUTADO",
   "repository": "OmniGenis",
@@ -107,6 +107,7 @@
     },
     "22347095": {
       "id": 22347095,
+      "owner_only_update_verified": true,
       "payload": {
         "bypass_actors": [
           {
@@ -142,11 +143,15 @@
               "required_reviewers": []
             },
             "type": "pull_request"
+          },
+          {
+            "type": "update"
           }
         ],
         "target": "branch"
       },
-      "raw_semantics_sha256": "fd4eccf94ec55704eb291ba5b257eba9c822f5d84bbddde58e87e041c605ca9d"
+      "pr_only_owner_bypass_verified": true,
+      "raw_semantics_sha256": "b05d1ca6f5ca4223167ff19a8627614f047778e4011fc5954b49bf4ed740d83c"
     }
   },
   "schema": "omnigenis-stage11-github-governance-readback-v1",

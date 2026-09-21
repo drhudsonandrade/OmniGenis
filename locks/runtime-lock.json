@@ -106,11 +106,11 @@
     },
     "stage11_final_governance_audit_evidence": {
       "path": "docs/evidence/STAGE11_FINAL_GOVERNANCE_AUDIT_2026-09-21.json",
-      "sha256": "d973c6e7283768d85fa9afd476613ff1e3860d6da9ad056111f02bf8c4285bde"
+      "sha256": "6740c342f18b560d6eaf5aa2794aea197c54845af8c02509aa4ac611d46e75c1"
     },
     "stage11_github_ruleset_readback_evidence": {
       "path": "docs/evidence/STAGE11_GITHUB_RULESET_READBACK_2026-09-21.json",
-      "sha256": "44b535b325ed84468169e4b5a68f03f89671a10ec9ec16632ae042a0853b2f49"
+      "sha256": "7ea8746cbb50904551b94cd2f0ff524fd2002ef3eeaf6c8befe5ca87aefc87ef"
     },
     "stage11_governance_audit_policy": {
       "path": "config/stage11_governance_audit_policy.json",
