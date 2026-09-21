@@ -26,7 +26,7 @@
     },
     "contribution_provenance_ledger": {
       "path": "config/contribution_provenance_ledger.json",
-      "sha256": "6c01c38a3926f2babb64cc9e6552061c01716b58777d9614b3792111f9994f8b"
+      "sha256": "3d534c2f8766d4b51738d0d98266a10a92a724da0c82567adb14e0f196aa870b"
     },
     "contribution_provenance_policy": {
       "path": "config/contribution_provenance_policy.json",
@@ -63,6 +63,10 @@
     "software_license_policy": {
       "path": "config/software_license_policy.json",
       "sha256": "724d54a5ae51ef8dceb4288f4be3ca2917fb1f8c98df72e25105513d65fa3260"
+    },
+    "stage10_review_fix_manifest": {
+      "path": "docs/evidence/contribution_provenance/STAGE10_REVIEW_FIX_2026-09-20.json",
+      "sha256": "6c79c715bda9db580ab8cc1525245817b5a1f87f62fffe339b85898508a07ba8"
     },
     "stage10_use_boundary_manifest": {
       "path": "docs/evidence/contribution_provenance/STAGE10_USE_BOUNDARY_2026-09-20.json",
