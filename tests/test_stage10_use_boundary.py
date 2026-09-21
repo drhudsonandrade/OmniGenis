@@ -1,10 +1,15 @@
 from __future__ import annotations
 
 import copy
+import hashlib
+import hmac
+import json
+import os
 import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from scripts.use_boundary_gate import (
     UseBoundaryError,
@@ -15,6 +20,66 @@ from scripts.validate_stage10_use_boundary import collect_errors
 
 ROOT = Path(__file__).resolve().parents[1]
 INPUT_SHA = "a" * 64
+TEST_EVIDENCE_KEY_TEXT = "public-test-stage10-evidence-key-material-32-bytes"
+TEST_EVIDENCE_KEY = TEST_EVIDENCE_KEY_TEXT.encode("utf-8")
+
+
+def _signed_entry(*, evidence_ref: str, label: str, case_id: str, input_sha256: str,
+                  requested_operation: str, use_class: str, decision: str) -> dict:
+    entry = {
+        "evidence_ref": evidence_ref,
+        "label": label,
+        "status": "VERIFICADO",
+        "case_id": case_id,
+        "input_sha256": input_sha256,
+        "requested_operation": requested_operation,
+        "use_class": use_class,
+        "decision": decision,
+        "evidence_sha256": hashlib.sha256(evidence_ref.encode("utf-8")).hexdigest(),
+    }
+    raw = json.dumps(
+        entry, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
+    entry["hmac_sha256"] = hmac.new(TEST_EVIDENCE_KEY, raw, hashlib.sha256).hexdigest()
+    return entry
+
+
+def signed_evidence_ledger(record: dict) -> dict:
+    blocks: list[tuple[str, dict]] = []
+    scope = record.get("research_scope")
+    if isinstance(scope, dict) and isinstance(scope.get("assessment"), dict):
+        blocks.append(("research_scope.assessment", scope["assessment"]))
+    for label in (
+        "research_ethics_assessment",
+        "clinical_validation",
+        "professional_review",
+        "regulatory_assessment",
+    ):
+        block = record.get(label)
+        if isinstance(block, dict):
+            blocks.append((label, block))
+    entries = []
+    for label, block in blocks:
+        evidence_ref = block.get("evidence_ref")
+        decision = block.get("decision")
+        if isinstance(evidence_ref, str) and evidence_ref and isinstance(decision, str) and decision:
+            entries.append(
+                _signed_entry(
+                    evidence_ref=evidence_ref,
+                    label=label,
+                    case_id=str(record["case_id"]),
+                    input_sha256=str(record["input_sha256"]),
+                    requested_operation=str(record["requested_operation"]),
+                    use_class=str(record["use_class"]),
+                    decision=decision,
+                )
+            )
+    return {
+        "schema": "omnigenis-use-boundary-evidence-ledger-v1",
+        "key_id": "stage10-evidence-v1",
+        "entries": entries,
+    }
+
 
 
 class Stage10UseBoundaryTests(unittest.TestCase):
@@ -54,10 +119,13 @@ class Stage10UseBoundaryTests(unittest.TestCase):
             "regulatory_use_authorized": False,
             "clinical_validation": {
                 "status": "VERIFICADO",
+                "decision": "VALIDATED_FOR_STATED_USE",
                 "evidence_ref": "validation:clinical-1",
             },
             "professional_review": {
                 "status": "VERIFICADO",
+                "decision": "PROFESSIONAL_REVIEW_COMPLETED",
+                "evidence_ref": "professional-review:1",
                 "responsible_professional_ref": "professional:responsible-1",
             },
             "regulatory_assessment": {
@@ -68,13 +136,18 @@ class Stage10UseBoundaryTests(unittest.TestCase):
         }
 
     def evaluate(self, record: dict) -> dict:
-        return evaluate_use_boundary(
-            record,
-            requested_operation="FINAL_AUDITED_REPORT",
-            expected_case_id="CASE-1",
-            expected_input_sha256=INPUT_SHA,
-            policy=self.policy,
-        )
+        with patch.dict(
+            os.environ,
+            {"OMNIGENIS_STAGE10_EVIDENCE_HMAC_KEY": TEST_EVIDENCE_KEY_TEXT},
+        ):
+            return evaluate_use_boundary(
+                record,
+                requested_operation="FINAL_AUDITED_REPORT",
+                expected_case_id="CASE-1",
+                expected_input_sha256=INPUT_SHA,
+                policy=self.policy,
+                evidence_ledger=signed_evidence_ledger(record),
+            )
 
     def test_research_release_requires_explicit_nonclinical_boundary(self) -> None:
         result = self.evaluate(self.research)
@@ -166,6 +239,7 @@ class Stage10ValidatorMutationTests(unittest.TestCase):
             "config/use_boundary_policy.json",
             "scripts/use_boundary_gate.py",
             "scripts/prepare_report_release.py",
+            "scripts/generate_all_reports.py",
             "docs/compliance/STAGE10_RESEARCH_CLINICAL_REGULATORY_BOUNDARY.md",
             "tests/test_stage10_use_boundary.py",
             ".github/workflows/genoma-ngs-runtime-gate.yml",
@@ -205,6 +279,261 @@ class Stage10ValidatorMutationTests(unittest.TestCase):
                 "Stage 10 must have only one operational policy source",
                 errors,
             )
+
+
+class Stage10EvidenceAuthenticationTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.policy = load_policy()
+        self.record = {
+            "schema": "omnigenis-use-boundary-record-v1",
+            "status": "VERIFICADO",
+            "record_id": "USE-EVIDENCE-1",
+            "case_id": "CASE-1",
+            "input_sha256": INPUT_SHA,
+            "use_class": "RESEARCH_ONLY",
+            "requested_operation": "FINAL_AUDITED_REPORT",
+            "intended_use_ref": "protocol:evidence",
+            "clinical_use_authorized": False,
+            "regulatory_use_authorized": False,
+            "nonclinical_label_ref": "label:not-for-clinical-use",
+            "research_scope": {
+                "involves_human_subjects": False,
+                "assessment": {
+                    "status": "VERIFICADO",
+                    "decision": "NOT_HUMAN_SUBJECTS_RESEARCH",
+                    "evidence_ref": "scope:verified",
+                },
+            },
+        }
+
+    def _evaluate(self, ledger: dict) -> dict:
+        with patch.dict(
+            os.environ,
+            {"OMNIGENIS_STAGE10_EVIDENCE_HMAC_KEY": TEST_EVIDENCE_KEY_TEXT},
+        ):
+            return evaluate_use_boundary(
+                self.record,
+                requested_operation="FINAL_AUDITED_REPORT",
+                expected_case_id="CASE-1",
+                expected_input_sha256=INPUT_SHA,
+                policy=self.policy,
+                evidence_ledger=ledger,
+            )
+
+    def test_signed_bound_evidence_is_accepted(self) -> None:
+        result = self._evaluate(signed_evidence_ledger(self.record))
+        self.assertTrue(result["ready_for_requested_release"])
+
+    def test_tampered_evidence_signature_is_rejected(self) -> None:
+        ledger = signed_evidence_ledger(self.record)
+        ledger["entries"][0]["hmac_sha256"] = "0" * 64
+        result = self._evaluate(ledger)
+        self.assertFalse(result["ready_for_requested_release"])
+        self.assertTrue(any("signature" in item for item in result["errors"]))
+
+    def test_evidence_reuse_with_wrong_case_binding_is_rejected(self) -> None:
+        ledger = signed_evidence_ledger(self.record)
+        entry = ledger["entries"][0]
+        entry["case_id"] = "CASE-OTHER"
+        unsigned = {k: v for k, v in entry.items() if k != "hmac_sha256"}
+        raw = json.dumps(
+            unsigned, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+        ).encode("utf-8")
+        entry["hmac_sha256"] = hmac.new(
+            TEST_EVIDENCE_KEY, raw, hashlib.sha256
+        ).hexdigest()
+        result = self._evaluate(ledger)
+        self.assertFalse(result["ready_for_requested_release"])
+        self.assertTrue(any("case_id binding" in item for item in result["errors"]))
+
+
+
+
+class Stage10ReviewerRegressionTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.policy = load_policy()
+        self.record = {
+            "schema": "omnigenis-use-boundary-record-v1",
+            "status": "VERIFICADO",
+            "record_id": "USE-REVIEW-1",
+            "case_id": "CASE-1",
+            "input_sha256": INPUT_SHA,
+            "use_class": "RESEARCH_ONLY",
+            "requested_operation": "FINAL_AUDITED_REPORT",
+            "intended_use_ref": "protocol:review",
+            "clinical_use_authorized": False,
+            "regulatory_use_authorized": False,
+            "nonclinical_label_ref": "label:not-for-clinical-use",
+            "research_scope": {
+                "involves_human_subjects": False,
+                "assessment": {
+                    "status": "VERIFICADO",
+                    "decision": "NOT_HUMAN_SUBJECTS_RESEARCH",
+                    "evidence_ref": "fabricated:scope",
+                },
+            },
+        }
+
+    def test_policy_version_drift_is_rejected(self) -> None:
+        policy = copy.deepcopy(self.policy)
+        policy["version"] = "999"
+        with self.assertRaises(UseBoundaryError):
+            evaluate_use_boundary(
+                self.record,
+                requested_operation="FINAL_AUDITED_REPORT",
+                expected_case_id="CASE-1",
+                expected_input_sha256=INPUT_SHA,
+                policy=policy,
+            )
+
+    def test_policy_effective_date_drift_is_rejected(self) -> None:
+        policy = copy.deepcopy(self.policy)
+        policy["effective_date"] = "2099-01-01"
+        with self.assertRaises(UseBoundaryError):
+            evaluate_use_boundary(
+                self.record,
+                requested_operation="FINAL_AUDITED_REPORT",
+                expected_case_id="CASE-1",
+                expected_input_sha256=INPUT_SHA,
+                policy=policy,
+            )
+
+    def test_fabricated_evidence_reference_cannot_authorize_release(self) -> None:
+        result = evaluate_use_boundary(
+            self.record,
+            requested_operation="FINAL_AUDITED_REPORT",
+            expected_case_id="CASE-1",
+            expected_input_sha256=INPUT_SHA,
+            policy=self.policy,
+        )
+        self.assertFalse(result["ready_for_requested_release"])
+        self.assertTrue(any("authenticated evidence" in item for item in result["errors"]))
+
+    def test_report_entrypoints_require_stage10_inputs(self) -> None:
+        generator = (ROOT / "scripts/generate_all_reports.py").read_text(encoding="utf-8")
+        main = (ROOT / "main.nf").read_text(encoding="utf-8")
+        array = (ROOT / "workflows/array.nf").read_text(encoding="utf-8")
+        wgs = (ROOT / "workflows/wgs.nf").read_text(encoding="utf-8")
+        for token in ("--use-boundary", "--use-boundary-evidence-ledger"):
+            self.assertIn(token, generator)
+            self.assertIn(token, array)
+            self.assertIn(token, wgs)
+        for token in ("use_boundary", "use_boundary_evidence_ledger"):
+            self.assertIn(f"params.{token}", main)
+            self.assertIn(token, array)
+            self.assertIn(token, wgs)
+
+    @staticmethod
+    def _mutated_root():
+        temporary = tempfile.TemporaryDirectory()
+        root = Path(temporary.name)
+        Stage10ValidatorMutationTests._fixture(root)
+        return temporary, root
+
+    def test_validator_rejects_nested_only_boundary_call(self) -> None:
+        temporary, root = self._mutated_root()
+        try:
+            release = root / "scripts/prepare_report_release.py"
+            text = release.read_text(encoding="utf-8")
+            old = '''            boundary_result = evaluate_use_boundary(
+                use_boundary,
+                requested_operation="FINAL_AUDITED_REPORT",
+                expected_case_id=case_id,
+                expected_input_sha256=input_sha256,
+                evidence_ledger=use_boundary_evidence_ledger,
+            )
+'''
+            new = '''            def hidden_boundary_call():
+                return evaluate_use_boundary(
+                    use_boundary,
+                    requested_operation="FINAL_AUDITED_REPORT",
+                    expected_case_id=case_id,
+                    expected_input_sha256=input_sha256,
+                    evidence_ledger=use_boundary_evidence_ledger,
+                )
+            boundary_result = _blocked_use_boundary("hidden call must not count")
+'''
+            self.assertIn(old, text)
+            release.write_text(text.replace(old, new, 1), encoding="utf-8")
+            errors = collect_errors(root)
+            self.assertIn(
+                "report release does not execute a reachable top-level Stage 10 boundary decision",
+                errors,
+            )
+        finally:
+            temporary.cleanup()
+
+    def test_validator_rejects_unreachable_boundary_call(self) -> None:
+        temporary, root = self._mutated_root()
+        try:
+            release = root / "scripts/prepare_report_release.py"
+            text = release.read_text(encoding="utf-8")
+            old = '''            boundary_result = evaluate_use_boundary(
+                use_boundary,
+                requested_operation="FINAL_AUDITED_REPORT",
+                expected_case_id=case_id,
+                expected_input_sha256=input_sha256,
+                evidence_ledger=use_boundary_evidence_ledger,
+            )
+'''
+            new = '''            if False:
+                boundary_result = evaluate_use_boundary(
+                    use_boundary,
+                    requested_operation="FINAL_AUDITED_REPORT",
+                    expected_case_id=case_id,
+                    expected_input_sha256=input_sha256,
+                    evidence_ledger=use_boundary_evidence_ledger,
+                )
+            else:
+                boundary_result = _blocked_use_boundary("dead branch must not count")
+'''
+            self.assertIn(old, text)
+            release.write_text(text.replace(old, new, 1), encoding="utf-8")
+            errors = collect_errors(root)
+            self.assertIn(
+                "report release does not execute a reachable top-level Stage 10 boundary decision",
+                errors,
+            )
+        finally:
+            temporary.cleanup()
+
+    def test_validator_rejects_wrong_release_operation_binding(self) -> None:
+        temporary, root = self._mutated_root()
+        try:
+            release = root / "scripts/prepare_report_release.py"
+            text = release.read_text(encoding="utf-8")
+            text = text.replace(
+                'requested_operation="FINAL_AUDITED_REPORT"',
+                'requested_operation="REGULATORY_SUBMISSION"',
+                1,
+            )
+            release.write_text(text, encoding="utf-8")
+            errors = collect_errors(root)
+            self.assertIn(
+                "report release Stage 10 requested_operation must be FINAL_AUDITED_REPORT",
+                errors,
+            )
+        finally:
+            temporary.cleanup()
+
+    def test_validator_requires_executable_workflow_step(self) -> None:
+        temporary, root = self._mutated_root()
+        try:
+            workflow = root / ".github/workflows/scaffold-validation.yml"
+            text = workflow.read_text(encoding="utf-8")
+            old = "run: python3 scripts/validate_stage10_use_boundary.py"
+            self.assertIn(old, text)
+            workflow.write_text(
+                text.replace(old, "run: echo scripts/validate_stage10_use_boundary.py", 1),
+                encoding="utf-8",
+            )
+            errors = collect_errors(root)
+            self.assertIn(
+                "Stage 10 validator is not executed by .github/workflows/scaffold-validation.yml",
+                errors,
+            )
+        finally:
+            temporary.cleanup()
 
 
 if __name__ == "__main__":

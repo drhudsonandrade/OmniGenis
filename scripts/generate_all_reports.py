@@ -24,13 +24,31 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", required=True)
     parser.add_argument("--policy", help="actual policy evaluation JSON; if omitted, a staged evaluation.json is used when present")
+    parser.add_argument("--use-boundary", help="Stage 10 declared-use record JSON")
+    parser.add_argument("--use-boundary-evidence-ledger", help="authenticated Stage 10 evidence ledger JSON")
     parser.add_argument("--output-dir", required=True)
     args = parser.parse_args()
     data = json.loads(Path(args.input).read_text(encoding="utf-8"))
     policy_path = Path(args.policy) if args.policy else Path("evaluation.json")
     if policy_path.is_file():
         policy = json.loads(policy_path.read_text(encoding="utf-8"))
-        data = assemble_release(data, policy)
+        boundary_path = Path(args.use_boundary) if args.use_boundary else None
+        ledger_path = (
+            Path(args.use_boundary_evidence_ledger)
+            if args.use_boundary_evidence_ledger
+            else None
+        )
+        use_boundary = (
+            json.loads(boundary_path.read_text(encoding="utf-8"))
+            if boundary_path is not None and boundary_path.is_file()
+            else None
+        )
+        evidence_ledger = (
+            json.loads(ledger_path.read_text(encoding="utf-8"))
+            if ledger_path is not None and ledger_path.is_file()
+            else None
+        )
+        data = assemble_release(data, policy, use_boundary, evidence_ledger)
 
     out = Path(args.output_dir)
     out.mkdir(parents=True, exist_ok=True)

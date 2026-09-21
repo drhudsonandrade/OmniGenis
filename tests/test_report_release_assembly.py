@@ -1,7 +1,10 @@
 import copy
+import os
 import unittest
+from unittest.mock import patch
 
 from tests.test_policy_evaluation_binding import INPUT_SHA, _manifest, _ruleset, real_evaluation
+from tests.test_stage10_use_boundary import TEST_EVIDENCE_KEY_TEXT, signed_evidence_ledger
 
 
 def curated(
@@ -52,7 +55,17 @@ def valid_use_boundary() -> dict:
 def assemble_with_boundary(curated_payload: dict, policy_payload: dict) -> dict:
     from scripts.prepare_report_release import assemble_release
 
-    return assemble_release(curated_payload, policy_payload, valid_use_boundary())
+    boundary = valid_use_boundary()
+    with patch.dict(
+        os.environ,
+        {"OMNIGENIS_STAGE10_EVIDENCE_HMAC_KEY": TEST_EVIDENCE_KEY_TEXT},
+    ):
+        return assemble_release(
+            curated_payload,
+            policy_payload,
+            boundary,
+            signed_evidence_ledger(boundary),
+        )
 
 
 class ReportReleaseAssemblyTest(unittest.TestCase):

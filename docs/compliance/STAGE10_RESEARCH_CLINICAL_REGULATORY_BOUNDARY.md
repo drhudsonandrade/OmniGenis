@@ -4,7 +4,7 @@ Stage 10 prevents a technically successful genomic workflow from silently changi
 
 ## Canonical policy
 
-The single operational source is `config/use_boundary_policy.json`. The runtime gate rejects an invalid policy contract and binds every release decision to the exact `case_id`, input SHA-256 and requested operation.
+The single operational source is `config/use_boundary_policy.json`, version `1.2`, effective `2026-09-20`. The runtime gate rejects any policy identity drift and binds every release decision to the exact `case_id`, input SHA-256 and requested operation.
 
 The software verifies externally recorded decisions. It does not decide whether OmniGenis, a module or an output is legally a medical device, clinically valid, or ethically approved for research.
 
@@ -17,6 +17,12 @@ Every final-release authorization carries exactly one declared class:
 - regulatory evidence: `REGULATORY_EVIDENCE`.
 
 A purpose or intended-use change requires a new evaluation. A prior record cannot be reused for a different case, input hash or release operation.
+
+## Authenticated external evidence
+
+A non-empty `evidence_ref` is never sufficient by itself. Every Stage 10 evidence reference used to authorize release must resolve to an entry in an authenticated evidence ledger. Each ledger entry is HMAC-SHA256 authenticated and binds the evidence reference to its role, `case_id`, input SHA-256, requested operation, declared use class and decision.
+
+The HMAC key is runtime-only (`OMNIGENIS_STAGE10_EVIDENCE_HMAC_KEY`) and is never committed to the repository. Missing, malformed, tampered or differently bound evidence fails closed. Synthetic CI uses an explicitly public test-only key and non-personal fixture data; it is not production authorization material.
 
 ## Research boundary
 

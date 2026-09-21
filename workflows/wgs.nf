@@ -298,6 +298,8 @@ process GENERATE_REPORTS {
     input:
     path curation_manifest
     path policy_evaluation
+    path use_boundary
+    path use_boundary_evidence_ledger
 
     output:
     path 'reports', emit: reports
@@ -307,6 +309,9 @@ process GENERATE_REPORTS {
     test -s '${policy_evaluation}'
     python3 '${workflow.projectDir}/scripts/generate_all_reports.py' \
       --input '${curation_manifest}' \
+      --policy '${policy_evaluation}' \
+      --use-boundary '${use_boundary}' \
+      --use-boundary-evidence-ledger '${use_boundary_evidence_ledger}' \
       --output-dir reports
     """
 }
@@ -319,6 +324,8 @@ workflow WGS_PRODUCTION {
     ref_root
     case_id
     sample_id
+    use_boundary
+    use_boundary_evidence_ledger
 
     main:
     VERIFY_RUNTIME_GATE(runtime_gate_manifest)
@@ -345,7 +352,12 @@ workflow WGS_PRODUCTION {
         sample_id
     )
     POLICY_EVALUATE(BUILD_CURATED_MANIFEST.out.curation_manifest)
-    GENERATE_REPORTS(BUILD_CURATED_MANIFEST.out.curation_manifest, POLICY_EVALUATE.out.policy_evaluation)
+    GENERATE_REPORTS(
+        BUILD_CURATED_MANIFEST.out.curation_manifest,
+        POLICY_EVALUATE.out.policy_evaluation,
+        use_boundary,
+        use_boundary_evidence_ledger
+    )
 
     emit:
     normalized_vcf = NORMALIZE_VARIANTS.out.normalized_vcf

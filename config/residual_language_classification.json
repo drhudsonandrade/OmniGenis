@@ -64,8 +64,8 @@
       "path": ".github/workflows/genoma-snp-array.yml",
       "category": "normative",
       "reason": "Closed normative taxonomy, canonical runtime identifier, or policy/workflow wire value is intentionally preserved for contract compatibility.",
-      "count": 9,
-      "fingerprint": "c6316e735f652fea230ae4c2823e6a1c7c29cff855b14618c3d254d845928839"
+      "count": 12,
+      "fingerprint": "375aa9b943ae332ff23b02f5770cb2723f83d56e54a46a0c85a237a7374bd85b"
     },
     {
       "path": ".github/workflows/genoma-visual-qa-candidates.yml",
@@ -1191,8 +1191,8 @@
       "path": "scripts/use_boundary_gate.py",
       "category": "canonical",
       "reason": "Portuguese is limited to closed serialized operational status literals required by the existing repository contract.",
-      "count": 8,
-      "fingerprint": "433de61d961de4442f42a1faae8a5e513e3cf58f848864e25fc6ef11775277a7"
+      "count": 7,
+      "fingerprint": "3741b360607b11be2f822ef3c11616f5f54061f24ea03461d3463b6e293b312d"
     },
     {
       "path": "scripts/validate_repo.py",
@@ -1702,8 +1702,8 @@
       "path": "tests/test_stage10_use_boundary.py",
       "category": "compatibility-preserved",
       "reason": "Portuguese is retained only as exact serialized status fixtures so tests prove compatibility with the governed runtime contract.",
-      "count": 9,
-      "fingerprint": "40c1cc699257f6691cf7c45424399054674d32a9b378b5c396ad7616cf640397"
+      "count": 14,
+      "fingerprint": "4d89061cf68c70ad2b3b461bac7338738b2605af1ef36c3bb680726de2cde6ce"
     },
     {
       "path": "tests/test_stage9_genetic_privacy.py",

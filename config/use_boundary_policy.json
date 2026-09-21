@@ -1,7 +1,7 @@
 {
   "schema": "omnigenis-use-boundary-policy-v1",
   "status": "ACTIVE",
-  "version": "1.1",
+  "version": "1.2",
   "effective_date": "2026-09-20",
   "jurisdiction_profile": "BRAZIL_ANVISA_SINEP",
   "use_classes": [
@@ -39,7 +39,9 @@
     "intended_use_reference_required": true,
     "case_and_input_binding_required": true,
     "purpose_change_requires_new_evaluation": true,
-    "research_scope_requires_verified_external_assessment": true
+    "research_scope_requires_verified_external_assessment": true,
+    "authenticated_external_evidence_required": true,
+    "evidence_reuse_requires_exact_binding": true
   },
   "regulatory_decisions_authorizing_stated_use": [
     "CLEARED_FOR_STATED_USE",
@@ -78,5 +80,18 @@
   "research_scope_decisions": [
     "HUMAN_SUBJECTS_RESEARCH",
     "NOT_HUMAN_SUBJECTS_RESEARCH"
+  ],
+  "evidence_authentication": {
+    "ledger_schema": "omnigenis-use-boundary-evidence-ledger-v1",
+    "algorithm": "HMAC-SHA256",
+    "key_id": "stage10-evidence-v1",
+    "secret_env": "OMNIGENIS_STAGE10_EVIDENCE_HMAC_KEY",
+    "minimum_secret_bytes": 32
+  },
+  "clinical_validation_decisions": [
+    "VALIDATED_FOR_STATED_USE"
+  ],
+  "professional_review_decisions": [
+    "PROFESSIONAL_REVIEW_COMPLETED"
   ]
 }

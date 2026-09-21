@@ -10,6 +10,8 @@ params.case_id = params.case_id ?: null
 params.sample_id = params.sample_id ?: null
 params.array_input = params.array_input ?: null
 params.privacy_record = params.privacy_record ?: null
+params.use_boundary = params.use_boundary ?: null
+params.use_boundary_evidence_ledger = params.use_boundary_evidence_ledger ?: null
 params.array_build = params.array_build ?: null
 params.array_strand = params.array_strand ?: null
 params.array_build_evidence = params.array_build_evidence ?: null
@@ -53,6 +55,8 @@ workflow {
         if (!params.ref_root) missing << 'ref_root'
         if (!params.case_id) missing << 'case_id'
         if (!params.sample_id) missing << 'sample_id'
+        if (!params.use_boundary) missing << 'use_boundary'
+        if (!params.use_boundary_evidence_ledger) missing << 'use_boundary_evidence_ledger'
         if (missing) {
             error "WGS_PRODUCTION blocked: missing required parameters: ${missing.join(', ')}"
         }
@@ -63,6 +67,11 @@ workflow {
         ref_root_ch = Channel.value(params.ref_root)
         case_id_ch = Channel.value(params.case_id)
         sample_id_ch = Channel.value(params.sample_id)
+        use_boundary_ch = Channel.fromPath(params.use_boundary, checkIfExists: true)
+        use_boundary_evidence_ledger_ch = Channel.fromPath(
+            params.use_boundary_evidence_ledger,
+            checkIfExists: true
+        )
 
         WGS_PRODUCTION(
             sample_dir_ch,
@@ -70,7 +79,9 @@ workflow {
             freshness_state_ch,
             ref_root_ch,
             case_id_ch,
-            sample_id_ch
+            sample_id_ch,
+            use_boundary_ch,
+            use_boundary_evidence_ledger_ch
         )
     }
     else if (params.mode == 'array') {
@@ -82,6 +93,8 @@ workflow {
         if (!params.array_strand) missing << 'array_strand'
         if (!params.array_build_evidence) missing << 'array_build_evidence'
         if (!params.array_strand_evidence) missing << 'array_strand_evidence'
+        if (!params.use_boundary) missing << 'use_boundary'
+        if (!params.use_boundary_evidence_ledger) missing << 'use_boundary_evidence_ledger'
         if (!(params.array_evidence_mode in ['plan-only', 'live'])) missing << 'array_evidence_mode(plan-only|live)'
         if (missing) {
             error "ARRAY_PRODUCTION blocked: missing/invalid required parameters: ${missing.join(', ')}"
@@ -96,6 +109,11 @@ workflow {
         build_evidence_ch = Channel.value(params.array_build_evidence)
         strand_evidence_ch = Channel.value(params.array_strand_evidence)
         evidence_mode_ch = Channel.value(params.array_evidence_mode)
+        use_boundary_ch = Channel.fromPath(params.use_boundary, checkIfExists: true)
+        use_boundary_evidence_ledger_ch = Channel.fromPath(
+            params.use_boundary_evidence_ledger,
+            checkIfExists: true
+        )
 
         ARRAY_PRODUCTION(
             array_input_ch,
@@ -106,7 +124,9 @@ workflow {
             build_evidence_ch,
             strand_evidence_ch,
             evidence_mode_ch,
-            target_manifest_ch
+            target_manifest_ch,
+            use_boundary_ch,
+            use_boundary_evidence_ledger_ch
         )
     }
     else {

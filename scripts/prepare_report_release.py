@@ -87,6 +87,7 @@ def assemble_release(
     curated: dict[str, Any],
     policy: dict[str, Any],
     use_boundary: dict[str, Any] | None = None,
+    use_boundary_evidence_ledger: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Assemble a release only when Policy Control and Stage 10 both authorize it.
 
@@ -113,6 +114,7 @@ def assemble_release(
                 requested_operation="FINAL_AUDITED_REPORT",
                 expected_case_id=case_id,
                 expected_input_sha256=input_sha256,
+                evidence_ledger=use_boundary_evidence_ledger,
             )
         except UseBoundaryError as exc:
             boundary_result = _blocked_use_boundary(str(exc))
@@ -180,12 +182,16 @@ def main() -> int:
     parser.add_argument("--curated", required=True)
     parser.add_argument("--policy", required=True)
     parser.add_argument("--use-boundary", required=True)
+    parser.add_argument("--use-boundary-evidence-ledger", required=True)
     parser.add_argument("--output", required=True)
     args = parser.parse_args()
     curated = json.loads(Path(args.curated).read_text(encoding="utf-8"))
     policy = json.loads(Path(args.policy).read_text(encoding="utf-8"))
     use_boundary = json.loads(Path(args.use_boundary).read_text(encoding="utf-8"))
-    result = assemble_release(curated, policy, use_boundary)
+    evidence_ledger = json.loads(
+        Path(args.use_boundary_evidence_ledger).read_text(encoding="utf-8")
+    )
+    result = assemble_release(curated, policy, use_boundary, evidence_ledger)
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
