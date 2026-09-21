@@ -142,6 +142,13 @@ def validate_live_governance_evidence(
         errors.append(f"Stage 11 governance manifest unavailable: {exc}")
         return errors
 
+    if not isinstance(protected_spec, dict):
+        errors.append("Stage 11 protected-main manifest must be an object")
+    if not isinstance(approval_spec, dict):
+        errors.append("Stage 11 approval manifest must be an object")
+    if errors:
+        return errors
+
     protected_record = rulesets.get("21303100")
     approval_record = rulesets.get("22347095")
     if not isinstance(protected_record, dict) or protected_record.get("id") != 21303100:

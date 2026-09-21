@@ -129,6 +129,46 @@ class Stage11LiveGovernanceEvidenceTests(unittest.TestCase):
     def test_live_ruleset_readback_matches_versioned_manifests(self) -> None:
         self.assertEqual(validate_live_governance_evidence(self._fixture(), ROOT), [])
 
+    def test_live_ruleset_readback_rejects_non_object_manifests(self) -> None:
+        """Reject valid JSON manifests whose root is not an object."""
+        payload = self._fixture()
+        manifests = {
+            "main-ruleset.json": (
+                [],
+                "Stage 11 protected-main manifest must be an object",
+            ),
+            "main-approval-ruleset.json": (
+                [],
+                "Stage 11 approval manifest must be an object",
+            ),
+        }
+        for filename, (invalid_manifest, expected_error) in manifests.items():
+            with self.subTest(filename=filename):
+                with tempfile.TemporaryDirectory() as tmp:
+                    root = Path(tmp)
+                    governance = root / ".github/governance"
+                    governance.mkdir(parents=True)
+                    protected = payload["rulesets"]["21303100"]["payload"]
+                    approval = payload["rulesets"]["22347095"]["payload"]
+                    (governance / "main-ruleset.json").write_text(
+                        json.dumps(
+                            invalid_manifest
+                            if filename == "main-ruleset.json"
+                            else protected
+                        ),
+                        encoding="utf-8",
+                    )
+                    (governance / "main-approval-ruleset.json").write_text(
+                        json.dumps(
+                            invalid_manifest
+                            if filename == "main-approval-ruleset.json"
+                            else approval
+                        ),
+                        encoding="utf-8",
+                    )
+                    errors = validate_live_governance_evidence(payload, root)
+                self.assertIn(expected_error, errors)
+
     def test_live_ruleset_readback_accepts_provider_normalized_update_rule(self) -> None:
         payload = self._fixture()
         approval = payload["rulesets"]["22347095"]["payload"]

@@ -122,7 +122,7 @@
     },
     "stage11_governance_audit_validator": {
       "path": "scripts/validate_stage11_governance_audit.py",
-      "sha256": "3ea92df38caa3034539e819d20514c78dc8db7276d35b90cae55e15506e5754b"
+      "sha256": "a6e44eff9d3f7c19a9d09d0881af29bdd2d895b7d31ad33fff5731b25ec3d346"
     },
     "stage11_protected_main_ruleset_manifest": {
       "path": ".github/governance/main-ruleset.json",
