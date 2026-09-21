@@ -19,7 +19,7 @@
     {
       "base_sha256": "a9767f73895fdfd9e309699c150cd17c73db96fc84b6170d9f40e5acc95abbc9",
       "path": "config/residual_language_classification.json",
-      "sha256": "9b308e93b10aa30a7b59fac3bc75cc2436f8fbc1d2c259ea05f7e957f10d65aa",
+      "sha256": "fa6400a7f546582692cd05efe571c103045034faa353b661908b91f8445be428",
       "status": "M"
     },
     {
@@ -38,6 +38,18 @@
       "base_sha256": null,
       "path": "docs/compliance/STAGE11_FINAL_GOVERNANCE_AUDIT.md",
       "sha256": "fe934400b5b8ffe6c1db15cb2573c17990d51ed2b203905d9e9750976a1e54b2",
+      "status": "A"
+    },
+    {
+      "base_sha256": null,
+      "path": "docs/evidence/STAGE11_FINAL_GOVERNANCE_AUDIT_2026-09-21.json",
+      "sha256": "946b0be0647d5cd31640166bfe1d4faa3f370e1b1e3dac2f4e2f9e5b46399338",
+      "status": "A"
+    },
+    {
+      "base_sha256": null,
+      "path": "docs/evidence/STAGE11_GITHUB_RULESET_READBACK_2026-09-21.json",
+      "sha256": "3aa67f2c0bf87ce53d50f9e11c597d835ebabf89530f543b4f2d4a8513437d77",
       "status": "A"
     },
     {
@@ -74,8 +86,8 @@
   "git_objects_verified_at_capture": true,
   "hash_algorithm": "sha256",
   "human_direction": true,
-  "implementation_sha": "a5be3eaa3c4b253ebd14d875cc21166a19179edb",
-  "implementation_tree": "9702873d1d8101ef1f28d1c9b6a32c92baa52aab",
+  "implementation_sha": "ae0b6a00b9d387ff9ab80b80e79856c3b2b38514",
+  "implementation_tree": "388f9343cab872578e9317fc1341b66ebceb0ad2",
   "origin_class": "REPOSITORY_NATIVE",
   "schema": "omnigenis-contribution-provenance-manifest-v2",
   "third_party_code_introduced": false,
