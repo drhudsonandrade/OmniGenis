@@ -26,7 +26,7 @@
     },
     "contribution_provenance_ledger": {
       "path": "config/contribution_provenance_ledger.json",
-      "sha256": "52f534b78919c6db5eb5d1fd09201d761286172dd60babf9b0778484938f2adf"
+      "sha256": "cb508f457885d1234f33a956cc1037b6e91bd48e6ba91ea4f80cc593406d54a9"
     },
     "contribution_provenance_policy": {
       "path": "config/contribution_provenance_policy.json",
@@ -107,6 +107,10 @@
     "stage11_final_governance_audit_evidence": {
       "path": "docs/evidence/STAGE11_FINAL_GOVERNANCE_AUDIT_2026-09-21.json",
       "sha256": "6740c342f18b560d6eaf5aa2794aea197c54845af8c02509aa4ac611d46e75c1"
+    },
+    "stage11_final_review_hardening_manifest": {
+      "path": "docs/evidence/contribution_provenance/STAGE11_FINAL_REVIEW_HARDENING_2026-09-21.json",
+      "sha256": "d34ef0063a549ee757933dfe45cf3effe28223b99b169b52143ea1dc19dd1583"
     },
     "stage11_github_ruleset_readback_evidence": {
       "path": "docs/evidence/STAGE11_GITHUB_RULESET_READBACK_2026-09-21.json",
