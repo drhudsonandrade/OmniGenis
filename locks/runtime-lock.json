@@ -26,7 +26,7 @@
     },
     "contribution_provenance_ledger": {
       "path": "config/contribution_provenance_ledger.json",
-      "sha256": "d1ac7c02905c3fbab1993571d099c1672ff8dc8cc2afaaca756fcb8af05c5b56"
+      "sha256": "d64c49b55ca39bf758322ee53f5d908fac1d1dcbf72931d83ca331cf82e46068"
     },
     "contribution_provenance_policy": {
       "path": "config/contribution_provenance_policy.json",
@@ -71,6 +71,10 @@
     "stage10_deepsource_ast_visitor_manifest": {
       "path": "docs/evidence/contribution_provenance/STAGE10_DEEPSOURCE_AST_VISITOR_2026-09-20.json",
       "sha256": "5b7e668ae6da91026dfecf06feeefe1bc55285d4962d840b131abb38fec18049"
+    },
+    "stage10_deepsource_python_typecheck_manifest": {
+      "path": "docs/evidence/contribution_provenance/STAGE10_DEEPSOURCE_PYTHON_TYPECHECK_2026-09-21.json",
+      "sha256": "b3c5231e9988bf9c4361e576b99c64bed7926b11437e30812812c6cbd418ad78"
     },
     "stage10_final_review_cleanup_manifest": {
       "path": "docs/evidence/contribution_provenance/STAGE10_FINAL_REVIEW_CLEANUP_2026-09-21.json",
