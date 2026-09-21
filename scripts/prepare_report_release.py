@@ -88,7 +88,11 @@ def assemble_release(
     policy: dict[str, Any],
     use_boundary: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Assemble a release only from a Policy Control verdict re-executed for this case."""
+    """Assemble a release only when Policy Control and Stage 10 both authorize it.
+
+    The use_boundary argument is the external Stage 10 declared-use record required
+    for publication; it is evaluated and bound to this case and primary input SHA-256.
+    """
     result = copy.deepcopy(curated)
     blockers: list[str] = []
 

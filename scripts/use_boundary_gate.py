@@ -52,11 +52,19 @@ def validate_policy_contract(policy: object) -> list[str]:
     regulatory = policy.get("regulatory_use_classes")
     if not isinstance(use_classes, list) or len(use_classes) != 7 or len(set(use_classes)) != 7:
         errors.append("use-boundary use-class vocabulary drift")
-    if not all(isinstance(value, list) for value in (nonclinical, clinical, regulatory)):
-        errors.append("use-boundary class partitions must be lists")
-    else:
+    class_partitions: list[list[Any]] = []
+    for name, value in (
+        ("nonclinical_use_classes", nonclinical),
+        ("clinical_use_classes", clinical),
+        ("regulatory_use_classes", regulatory),
+    ):
+        if not isinstance(value, list):
+            errors.append(f"use-boundary {name} must be a list")
+        else:
+            class_partitions.append(value)
+    if len(class_partitions) == 3:
         expected = set(use_classes) if isinstance(use_classes, list) else set()
-        partitions = [set(nonclinical), set(clinical), set(regulatory)]
+        partitions = [set(value) for value in class_partitions]
         if set().union(*partitions) != expected:
             errors.append("use-boundary class partitions do not cover the vocabulary")
         if any(partitions[i] & partitions[j] for i in range(3) for j in range(i + 1, 3)):

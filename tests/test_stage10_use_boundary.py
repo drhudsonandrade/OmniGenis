@@ -160,7 +160,8 @@ class Stage10UseBoundaryTests(unittest.TestCase):
 
 
 class Stage10ValidatorMutationTests(unittest.TestCase):
-    def _fixture(self, root: Path) -> None:
+    @staticmethod
+    def _fixture(root: Path) -> None:
         for rel in (
             "config/use_boundary_policy.json",
             "scripts/use_boundary_gate.py",
