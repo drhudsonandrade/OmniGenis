@@ -118,7 +118,7 @@
     },
     "stage11_governance_audit_runner": {
       "path": "scripts/run_stage11_governance_audit.py",
-      "sha256": "653e608a12e4c84a951038a17e4ef79aec7c6dcdc6b16e877a2921868e3a4d92"
+      "sha256": "02d458e9a9e2c02d0a1fd8ba584a43840c1c7d6b9a3553cb24435c974be607c3"
     },
     "stage11_governance_audit_validator": {
       "path": "scripts/validate_stage11_governance_audit.py",

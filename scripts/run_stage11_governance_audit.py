@@ -229,7 +229,7 @@ def _governance_manifest_errors(root: Path) -> list[str]:
 def _governance_manifest_control(root: Path) -> dict[str, Any]:
     try:
         errors = _governance_manifest_errors(root)
-    except (OSError, ValueError, json.JSONDecodeError) as exc:
+    except (OSError, ValueError) as exc:
         return {
             "id": "GITHUB_GOVERNANCE_MANIFESTS",
             "operational_status": UNAVAILABLE,
@@ -284,7 +284,7 @@ def run_audit(root: Path = ROOT, output: Path | None = None) -> dict[str, Any]:
             errors = validator(root)
             operational_status = EXECUTED
             result = PASS if not errors else FAIL
-        except (OSError, ValueError, json.JSONDecodeError) as exc:
+        except (OSError, ValueError) as exc:
             errors = [f"{type(exc).__name__}: {exc}"]
             operational_status = UNAVAILABLE
             result = ERROR

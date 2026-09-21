@@ -80,11 +80,13 @@ class Stage11LiveGovernanceEvidenceTests(unittest.TestCase):
                 encoding="utf-8"
             )
         )
-        checks = next(
-            rule["parameters"]["required_status_checks"]
+        status_rules = [
+            rule
             for rule in protected["rules"]
             if rule["type"] == "required_status_checks"
-        )
+        ]
+        self.assertEqual(len(status_rules), 1)
+        checks = status_rules[0]["parameters"]["required_status_checks"]
         fingerprints = [
             item["context_fingerprint"]
             for item in checks
