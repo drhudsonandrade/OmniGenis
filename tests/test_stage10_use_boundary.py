@@ -213,14 +213,25 @@ class Stage10UseBoundaryTests(unittest.TestCase):
 
     def test_operation_mismatch_fails_closed(self) -> None:
         record = copy.deepcopy(self.research)
-        result = evaluate_use_boundary(
-            record,
-            requested_operation="REGULATORY_SUBMISSION",
-            expected_case_id="CASE-1",
-            expected_input_sha256=INPUT_SHA,
-            policy=self.policy,
-        )
+        ledger_record = copy.deepcopy(record)
+        ledger_record["requested_operation"] = "REGULATORY_SUBMISSION"
+        with patch.dict(
+            os.environ,
+            {"OMNIGENIS_STAGE10_EVIDENCE_HMAC_KEY": TEST_EVIDENCE_KEY_TEXT},
+        ):
+            result = evaluate_use_boundary(
+                record,
+                requested_operation="REGULATORY_SUBMISSION",
+                expected_case_id="CASE-1",
+                expected_input_sha256=INPUT_SHA,
+                policy=self.policy,
+                evidence_ledger=signed_evidence_ledger(ledger_record),
+            )
         self.assertFalse(result["ready_for_requested_release"])
+        self.assertIn(
+            "requested_operation does not match this release",
+            result["errors"],
+        )
 
     def test_invalid_policy_cannot_authorize_release(self) -> None:
         policy = copy.deepcopy(self.policy)
