@@ -80,23 +80,41 @@ class Stage11LiveGovernanceEvidenceTests(unittest.TestCase):
                 encoding="utf-8"
             )
         )
-        protected = json.loads(json.dumps(protected))
         checks = next(
             rule["parameters"]["required_status_checks"]
             for rule in protected["rules"]
             if rule["type"] == "required_status_checks"
         )
-        for index, item in enumerate(checks):
-            if "context_fingerprint" in item:
-                checks[index] = {"context": "security/snyk (drhudsonandrade)"}
+        fingerprints = [
+            item["context_fingerprint"]
+            for item in checks
+            if "context_fingerprint" in item
+        ]
+        self.assertEqual(len(fingerprints), 1)
+        fingerprint = fingerprints[0]
         return {
             "schema": "omnigenis-stage11-github-governance-readback-v1",
-            "repository": "drhudsonandrade/OmniGenis",
+            "repository": "OmniGenis",
             "operational_status": "EXECUTADO",
             "result": "PASS",
             "rulesets": {
-                "21303100": {"id": 21303100, "payload": protected},
-                "22347095": {"id": 22347095, "payload": approval},
+                "21303100": {
+                    "id": 21303100,
+                    "payload": protected,
+                    "raw_semantics_sha256": "a" * 64,
+                    "fingerprint_resolution": [
+                        {
+                            **fingerprint,
+                            "matched_live_context": True,
+                            "plaintext_persisted": False,
+                        }
+                    ],
+                },
+                "22347095": {
+                    "id": 22347095,
+                    "payload": approval,
+                    "raw_semantics_sha256": "b" * 64,
+                },
             },
         }
 

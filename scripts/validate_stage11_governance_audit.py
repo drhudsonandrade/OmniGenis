@@ -13,12 +13,11 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.governance_context_identity import materialize_ruleset_spec  # noqa: E402
-
 POLICY_REL = "config/stage11_governance_audit_policy.json"
 EVIDENCE_REL = "docs/evidence/STAGE11_FINAL_GOVERNANCE_AUDIT_2026-09-21.json"
 GITHUB_EVIDENCE_REL = "docs/evidence/STAGE11_GITHUB_RULESET_READBACK_2026-09-21.json"
 GIT_OID = re.compile(r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")
+SHA256 = re.compile(r"^[0-9a-f]{64}$")
 
 EXPECTED_STAGE_CHAIN = (
     (1, 74, "3df0c18b39dee583f785ff99fe23411af2ca45e2"),
@@ -73,7 +72,7 @@ def validate_policy_contract(policy: object) -> list[str]:
     if not isinstance(github, dict):
         errors.append("Stage 11 GitHub governance contract missing")
     else:
-        if github.get("repository") != "drhudsonandrade/OmniGenis":
+        if github.get("repository") != "OmniGenis":
             errors.append("Stage 11 GitHub repository identity drift")
         if github.get("rulesets") != {
             "protected_main": 21303100,
@@ -113,7 +112,7 @@ def validate_live_governance_evidence(
     errors: list[str] = []
     if payload.get("schema") != "omnigenis-stage11-github-governance-readback-v1":
         errors.append("Stage 11 GitHub governance evidence schema mismatch")
-    if payload.get("repository") != "drhudsonandrade/OmniGenis":
+    if payload.get("repository") != "OmniGenis":
         errors.append("Stage 11 GitHub governance repository mismatch")
     if (
         payload.get("operational_status") != "EXECUTADO"
@@ -150,21 +149,55 @@ def validate_live_governance_evidence(
     if errors:
         return errors
 
-    live_protected = _canonical_ruleset_payload(protected_record.get("payload"))
+    neutral_protected = _canonical_ruleset_payload(protected_record.get("payload"))
     live_approval = _canonical_ruleset_payload(approval_record.get("payload"))
-    if live_protected is None:
-        errors.append("Stage 11 protected-main live payload invalid")
+    if neutral_protected is None:
+        errors.append("Stage 11 protected-main neutralized payload invalid")
+    elif protected_spec != neutral_protected:
+        errors.append("Stage 11 protected-main ruleset differs from manifest")
+
+    protected_hash = protected_record.get("raw_semantics_sha256")
+    approval_hash = approval_record.get("raw_semantics_sha256")
+    if not isinstance(protected_hash, str) or SHA256.fullmatch(protected_hash) is None:
+        errors.append("Stage 11 protected-main raw semantics hash invalid")
+    if not isinstance(approval_hash, str) or SHA256.fullmatch(approval_hash) is None:
+        errors.append("Stage 11 approval raw semantics hash invalid")
+
+    expected_fingerprints: list[dict[str, Any]] = []
+    for rule in protected_spec.get("rules", []):
+        if not isinstance(rule, dict) or rule.get("type") != "required_status_checks":
+            continue
+        checks = rule.get("parameters", {}).get("required_status_checks", [])
+        if not isinstance(checks, list):
+            continue
+        expected_fingerprints.extend(
+            item["context_fingerprint"]
+            for item in checks
+            if isinstance(item, dict) and isinstance(item.get("context_fingerprint"), dict)
+        )
+    resolutions = protected_record.get("fingerprint_resolution")
+    if not isinstance(resolutions, list) or len(resolutions) != len(expected_fingerprints):
+        errors.append("Stage 11 protected-main fingerprint-resolution coverage mismatch")
     else:
-        try:
-            expected_protected = materialize_ruleset_spec(
-                protected_spec,
-                live_protected,
-            )
-        except ValueError as exc:
-            errors.append(f"Stage 11 protected-main fingerprint resolution failed: {exc}")
-        else:
-            if expected_protected != live_protected:
-                errors.append("Stage 11 protected-main ruleset differs from manifest")
+        for expected in expected_fingerprints:
+            matches = [
+                item
+                for item in resolutions
+                if isinstance(item, dict)
+                and item.get("algorithm") == expected.get("algorithm")
+                and item.get("digest") == expected.get("digest")
+                and item.get("case_sensitive") == expected.get("case_sensitive")
+                and item.get("provider_family") == expected.get("provider_family")
+            ]
+            if len(matches) != 1:
+                errors.append("Stage 11 protected-main fingerprint-resolution identity mismatch")
+                continue
+            resolution = matches[0]
+            if (
+                resolution.get("matched_live_context") is not True
+                or resolution.get("plaintext_persisted") is not False
+            ):
+                errors.append("Stage 11 protected-main fingerprint resolution not privacy-safe")
 
     if live_approval is None:
         errors.append("Stage 11 approval live payload invalid")

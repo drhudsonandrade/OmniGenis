@@ -73,7 +73,7 @@
     "research_ethics_determined_by_software": false
   },
   "github_governance": {
-    "repository": "drhudsonandrade/OmniGenis",
+    "repository": "OmniGenis",
     "rulesets": {
       "protected_main": 21303100,
       "approval_gate": 22347095
