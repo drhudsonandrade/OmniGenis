@@ -26,7 +26,7 @@
     },
     "contribution_provenance_ledger": {
       "path": "config/contribution_provenance_ledger.json",
-      "sha256": "714e7c1bf756c3eb21be967c4bb117ecf29aeb4336c56f16523561be2003b575"
+      "sha256": "b3f1cb3c78faa5e31c36f26495b15f5f1757d22e1571dc8ed6f432d906d8c046"
     },
     "contribution_provenance_policy": {
       "path": "config/contribution_provenance_policy.json",
@@ -67,6 +67,10 @@
     "stage10_coderabbit_hardening_manifest": {
       "path": "docs/evidence/contribution_provenance/STAGE10_CODERABBIT_HARDENING_2026-09-20.json",
       "sha256": "4d9d973d086410c5fc0d00621a254121650f11362d6fd13a30436313fbe26808"
+    },
+    "stage10_deepsource_ast_visitor_manifest": {
+      "path": "docs/evidence/contribution_provenance/STAGE10_DEEPSOURCE_AST_VISITOR_2026-09-20.json",
+      "sha256": "5b7e668ae6da91026dfecf06feeefe1bc55285d4962d840b131abb38fec18049"
     },
     "stage10_review_fix_manifest": {
       "path": "docs/evidence/contribution_provenance/STAGE10_REVIEW_FIX_2026-09-20.json",
