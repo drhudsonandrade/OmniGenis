@@ -250,11 +250,14 @@ def validate_live_governance_evidence(
     elif pull_rules[0].get("parameters") != tracked_pull[0].get("parameters"):
         errors.append("Stage 11 approval pull_request parameters differ from manifest")
 
-    live_types = sorted(
-        rule.get("type")
-        for rule in approval_rules
-        if isinstance(rule, dict) and isinstance(rule.get("type"), str)
-    )
+    live_types: list[str] = []
+    for rule in approval_rules:
+        if not isinstance(rule, dict):
+            continue
+        rule_type = rule.get("type")
+        if isinstance(rule_type, str):
+            live_types.append(rule_type)
+    live_types.sort()
     if live_types != ["pull_request", "update"]:
         errors.append("Stage 11 approval live rule set differs from manifest")
     return errors
