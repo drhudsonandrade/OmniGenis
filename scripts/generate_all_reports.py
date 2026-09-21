@@ -10,13 +10,13 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from reporting.editorial_v3 import (
+from reporting.editorial_v3 import (  # noqa: E402
     UnapprovedRendererError,
     prepare_editorial_render,
     write_editorial_bundle,
 )
-from reporting.engine import ReportReleaseError, load_catalog, render_document, write_bundle
-from scripts.prepare_report_release import assemble_release
+from reporting.engine import ReportReleaseError, load_catalog, render_document, write_bundle  # noqa: E402
+from scripts.prepare_report_release import assemble_release  # noqa: E402
 
 
 def main() -> int:

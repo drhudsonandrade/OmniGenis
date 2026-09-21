@@ -12,7 +12,7 @@ import shutil
 import tempfile
 import zlib
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from pypdf import PdfReader, PdfWriter
 from reportlab.pdfbase import pdfmetrics
@@ -553,7 +553,8 @@ def render_pdf_from_template(
     manifest = load_reference_manifest()
     template, meta = resolve_template_pdf(report_id, template_dir, manifest)
     data = rendered.get("data", {}) if isinstance(rendered.get("data"), dict) else {}
-    fields = data.get("template_fields") if isinstance(data.get("template_fields"), dict) else {}
+    raw_fields = data.get("template_fields")
+    fields = cast(dict[str, Any], raw_fields) if isinstance(raw_fields, dict) else {}
     systems = _system_values(data)
     fonts = _register_fonts()
     reader = PdfReader(str(template))
@@ -866,7 +867,8 @@ def render_docx_from_template(
     manifest = load_reference_manifest()
     template, meta = resolve_template_pdf(report_id, template_dir, manifest)
     data = rendered.get("data", {}) if isinstance(rendered.get("data"), dict) else {}
-    fields = data.get("template_fields") if isinstance(data.get("template_fields"), dict) else {}
+    raw_fields = data.get("template_fields")
+    fields = cast(dict[str, Any], raw_fields) if isinstance(raw_fields, dict) else {}
     systems = _system_values(data)
     bold_font = _register_fonts()["bold"]
     unresolved: list[str] = []
