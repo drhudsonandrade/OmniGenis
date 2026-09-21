@@ -141,6 +141,8 @@ jobs:
         run: python3 scripts/validate_stage9_genetic_privacy.py
       - name: Enforce Stage 10 research-clinical-regulatory boundary
         run: python3 scripts/validate_stage10_use_boundary.py
+      - name: Enforce Stage 11 final governance audit
+        run: python3 scripts/validate_stage11_governance_audit.py
       - name: Validate shell and Python
         run: |
           export TMPDIR="$RUNNER_TEMP"

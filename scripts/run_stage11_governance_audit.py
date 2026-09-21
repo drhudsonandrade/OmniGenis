@@ -11,6 +11,8 @@ from pathlib import Path
 from typing import Any, Callable
 
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 POLICY_REL = "config/stage11_governance_audit_policy.json"
 
 from scripts.validate_repo import validate_stage2_pdf_contract, validate_stage3_copyleft_contract

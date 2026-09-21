@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -17,6 +19,46 @@ from scripts.validate_stage11_governance_audit import (
 )
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+class Stage11CliTests(unittest.TestCase):
+    def test_runner_script_is_directly_executable(self) -> None:
+        completed = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts/run_stage11_governance_audit.py"),
+                "--help",
+            ],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertIn("--output", completed.stdout)
+
+
+class Stage11IntegrationTests(unittest.TestCase):
+    def test_validate_repo_invokes_stage11_gate(self) -> None:
+        text = (ROOT / "scripts/validate_repo.py").read_text(encoding="utf-8")
+        self.assertIn(
+            "from scripts.validate_stage11_governance_audit import collect_errors as validate_stage11_governance_audit",
+            text,
+        )
+        self.assertIn("errors.extend(validate_stage11_governance_audit(root))", text)
+
+    def test_scaffold_executes_stage11_validator(self) -> None:
+        text = (ROOT / ".github/workflows/scaffold-validation.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn(
+            "- name: Enforce Stage 11 final governance audit",
+            text,
+        )
+        self.assertIn(
+            "run: python3 scripts/validate_stage11_governance_audit.py",
+            text,
+        )
 
 
 class Stage11PolicyContractTests(unittest.TestCase):

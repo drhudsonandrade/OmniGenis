@@ -481,6 +481,13 @@
       "fingerprint": "ad8563883cee33c08c067ce7a7401fe9c7af29d6c75378a977109ddfd904b484"
     },
     {
+      "path": "docs/compliance/STAGE11_FINAL_GOVERNANCE_AUDIT.md",
+      "category": "localized",
+      "reason": "Portuguese here is a canonical serialized audit status used by existing repository evidence contracts; the executable implementation language remains English-first.",
+      "count": 2,
+      "fingerprint": "3bff07b7c74e208d45aaf1737f1c4d306beb86a029d0cd73cd5486f295cc32db"
+    },
+    {
       "path": "docs/compliance/STAGE9_LGPD_GENETIC_DATA.md",
       "category": "localized",
       "reason": "Brazilian legal terminology is retained where the compliance boundary names the LGPD jurisdiction and official concepts.",
@@ -1174,6 +1181,13 @@
       "fingerprint": "ffc922bc3135c9b6462c12bf4f222f47cb93d7045a9b97c782d3d4915258fdea"
     },
     {
+      "path": "scripts/run_stage11_governance_audit.py",
+      "category": "localized",
+      "reason": "Portuguese here is a canonical serialized audit status used by existing repository evidence contracts; the executable implementation language remains English-first.",
+      "count": 2,
+      "fingerprint": "4a190a4939321fc4123b57e65ff2891a96bc179aa3119a4c5f167b5311223d7e"
+    },
+    {
       "path": "scripts/runtime_resource_gate.py",
       "category": "localized",
       "reason": "Portuguese here is pt-BR operator/report output or a canonical serialized value; the executable implementation language remains English-first.",
@@ -1200,6 +1214,13 @@
       "reason": "Portuguese here is pt-BR operator/report output or a canonical serialized value; the executable implementation language remains English-first.",
       "count": 11,
       "fingerprint": "60a89330b26d5217cbb5cdd07b07ed7df635e651793acabb99110b2d5d8f8032"
+    },
+    {
+      "path": "scripts/validate_stage11_governance_audit.py",
+      "category": "localized",
+      "reason": "Portuguese here is a canonical serialized audit status used by existing repository evidence contracts; the executable implementation language remains English-first.",
+      "count": 3,
+      "fingerprint": "8d850e85171b1c589d7954c7059fe20fa20c09b59b5b812f868dbefdbe1fd898"
     },
     {
       "path": "scripts/verify_prebuilt_bwa_mem2_bundle.py",
