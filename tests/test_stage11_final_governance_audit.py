@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import subprocess
 import sys
@@ -15,6 +16,7 @@ from scripts.run_stage11_governance_audit import (
 )
 from scripts.validate_stage11_governance_audit import (
     validate_evidence_payload,
+    validate_live_governance_evidence,
     validate_policy_contract,
 )
 
@@ -59,6 +61,55 @@ class Stage11IntegrationTests(unittest.TestCase):
             "run: python3 scripts/validate_stage11_governance_audit.py",
             text,
         )
+        repo_validator = (ROOT / "scripts/validate_repo.py").read_text(encoding="utf-8")
+        self.assertIn(
+            "docs/evidence/STAGE11_GITHUB_RULESET_READBACK_2026-09-21.json",
+            repo_validator,
+        )
+
+
+class Stage11LiveGovernanceEvidenceTests(unittest.TestCase):
+    def _fixture(self) -> dict:
+        approval = json.loads(
+            (ROOT / ".github/governance/main-approval-ruleset.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        protected = json.loads(
+            (ROOT / ".github/governance/main-ruleset.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        protected = json.loads(json.dumps(protected))
+        checks = next(
+            rule["parameters"]["required_status_checks"]
+            for rule in protected["rules"]
+            if rule["type"] == "required_status_checks"
+        )
+        for index, item in enumerate(checks):
+            if "context_fingerprint" in item:
+                checks[index] = {"context": "security/snyk (drhudsonandrade)"}
+        return {
+            "schema": "omnigenis-stage11-github-governance-readback-v1",
+            "repository": "drhudsonandrade/OmniGenis",
+            "operational_status": "EXECUTADO",
+            "result": "PASS",
+            "rulesets": {
+                "21303100": {"id": 21303100, "payload": protected},
+                "22347095": {"id": 22347095, "payload": approval},
+            },
+        }
+
+    def test_live_ruleset_readback_matches_versioned_manifests(self) -> None:
+        self.assertEqual(validate_live_governance_evidence(self._fixture(), ROOT), [])
+
+    def test_live_ruleset_readback_rejects_update_rule(self) -> None:
+        payload = self._fixture()
+        payload["rulesets"]["22347095"]["payload"]["rules"].append(
+            {"type": "update"}
+        )
+        errors = validate_live_governance_evidence(payload, ROOT)
+        self.assertTrue(any("approval ruleset" in item for item in errors), errors)
 
 
 class Stage11PolicyContractTests(unittest.TestCase):
@@ -83,6 +134,13 @@ class Stage11PolicyContractTests(unittest.TestCase):
         self.assertEqual(
             policy["audit_scope"],
             "COPYRIGHT_AND_GOVERNANCE_CHAIN_ONLY",
+        )
+        self.assertEqual(
+            policy["github_governance"]["rulesets"],
+            {
+                "protected_main": 21303100,
+                "approval_gate": 22347095,
+            },
         )
 
 
@@ -131,7 +189,91 @@ class Stage11EvidenceTests(unittest.TestCase):
             self.assertEqual(payload["result"], "PASS")
             self.assertEqual(len(payload["stages"]), 10)
             self.assertTrue(all(item["result"] == "PASS" for item in payload["stages"]))
+            controls = {item["id"]: item for item in payload["global_controls"]}
+            self.assertEqual(controls["GITHUB_GOVERNANCE_MANIFESTS"]["result"], "PASS")
             self.assertTrue(output.is_file())
+
+    def test_validator_accepts_repository_git_oid_width(self) -> None:
+        head = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        tree = subprocess.run(
+            ["git", "rev-parse", "HEAD^{tree}"],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        policy_bytes = subprocess.run(
+            [
+                "git",
+                "show",
+                f"{head}:config/stage11_governance_audit_policy.json",
+            ],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+        ).stdout
+        runner_bytes = subprocess.run(
+            [
+                "git",
+                "show",
+                f"{head}:scripts/run_stage11_governance_audit.py",
+            ],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+        ).stdout
+        policy = json.loads(policy_bytes.decode("utf-8"))
+        payload = {
+            "schema": "omnigenis-final-governance-audit-evidence-v1",
+            "audit_scope": "COPYRIGHT_AND_GOVERNANCE_CHAIN_ONLY",
+            "operational_status": "EXECUTADO",
+            "result": "PASS",
+            "implementation_sha": head,
+            "tree_sha": tree,
+            "policy_sha256": hashlib.sha256(policy_bytes).hexdigest(),
+            "runner_sha256": hashlib.sha256(runner_bytes).hexdigest(),
+            "stages": [
+                {
+                    "stage": item["stage"],
+                    "pr": item["pr"],
+                    "name": item["name"],
+                    "merge_commit": item["merge_commit"],
+                    "merge_ancestry_verified": True,
+                    "validator": "fixture",
+                    "operational_status": "EXECUTADO",
+                    "result": "PASS",
+                    "errors": [],
+                }
+                for item in policy["stages"]
+            ],
+            "global_controls": [
+                {
+                    "id": control,
+                    "operational_status": "EXECUTADO",
+                    "result": "PASS",
+                    "returncode": 0,
+                    "evidence": "fixture",
+                }
+                for control in (
+                    "GITHUB_GOVERNANCE_MANIFESTS",
+                    "SUPPLY_CHAIN_LOCK",
+                    "RESIDUAL_LANGUAGE_AUDIT",
+                    "CODE_LANGUAGE_GUARD",
+                )
+            ],
+            "claim_boundary": dict(policy["claim_boundary"]),
+        }
+        errors = validate_evidence_payload(payload, ROOT)
+        self.assertNotIn("Stage 11 implementation SHA invalid", errors)
+        self.assertNotIn("Stage 11 tree SHA invalid", errors)
+        self.assertEqual(errors, [])
+
 
     def test_validator_rejects_missing_stage_record(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

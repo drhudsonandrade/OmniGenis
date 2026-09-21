@@ -10,9 +10,15 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from scripts.governance_context_identity import materialize_ruleset_spec  # noqa: E402
+
 POLICY_REL = "config/stage11_governance_audit_policy.json"
 EVIDENCE_REL = "docs/evidence/STAGE11_FINAL_GOVERNANCE_AUDIT_2026-09-21.json"
-SHA256 = re.compile(r"^[0-9a-f]{64}$")
+GITHUB_EVIDENCE_REL = "docs/evidence/STAGE11_GITHUB_RULESET_READBACK_2026-09-21.json"
+GIT_OID = re.compile(r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")
 
 EXPECTED_STAGE_CHAIN = (
     (1, 74, "3df0c18b39dee583f785ff99fe23411af2ca45e2"),
@@ -63,6 +69,19 @@ def validate_policy_contract(policy: object) -> list[str]:
     boundary = policy.get("claim_boundary")
     if not isinstance(boundary, dict) or any(boundary.get(key) is not False for key in FALSE_CLAIMS):
         errors.append("Stage 11 policy claim boundary must remain false")
+    github = policy.get("github_governance")
+    if not isinstance(github, dict):
+        errors.append("Stage 11 GitHub governance contract missing")
+    else:
+        if github.get("repository") != "drhudsonandrade/OmniGenis":
+            errors.append("Stage 11 GitHub repository identity drift")
+        if github.get("rulesets") != {
+            "protected_main": 21303100,
+            "approval_gate": 22347095,
+        }:
+            errors.append("Stage 11 GitHub ruleset identity drift")
+        if github.get("readback_evidence") != GITHUB_EVIDENCE_REL:
+            errors.append("Stage 11 GitHub readback evidence path drift")
     return errors
 
 
@@ -74,6 +93,89 @@ def _git_show_bytes(root: Path, commit: str, relative: str) -> bytes:
         capture_output=True,
     )
     return completed.stdout
+
+
+def _canonical_ruleset_payload(payload: object) -> dict[str, Any] | None:
+    if not isinstance(payload, dict):
+        return None
+    required = ("name", "target", "enforcement", "bypass_actors", "conditions", "rules")
+    if any(key not in payload for key in required):
+        return None
+    return {key: payload[key] for key in required}
+
+
+def validate_live_governance_evidence(
+    payload: object,
+    root: Path = ROOT,
+) -> list[str]:
+    if not isinstance(payload, dict):
+        return ["Stage 11 GitHub governance evidence must be an object"]
+    errors: list[str] = []
+    if payload.get("schema") != "omnigenis-stage11-github-governance-readback-v1":
+        errors.append("Stage 11 GitHub governance evidence schema mismatch")
+    if payload.get("repository") != "drhudsonandrade/OmniGenis":
+        errors.append("Stage 11 GitHub governance repository mismatch")
+    if (
+        payload.get("operational_status") != "EXECUTADO"
+        or payload.get("result") != "PASS"
+    ):
+        errors.append("Stage 11 GitHub governance readback is not an executed PASS")
+
+    rulesets = payload.get("rulesets")
+    if not isinstance(rulesets, dict) or set(rulesets) != {"21303100", "22347095"}:
+        errors.append("Stage 11 GitHub ruleset readback coverage mismatch")
+        return errors
+
+    try:
+        protected_spec = json.loads(
+            (root / ".github/governance/main-ruleset.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        approval_spec = json.loads(
+            (root / ".github/governance/main-approval-ruleset.json").read_text(
+                encoding="utf-8"
+            )
+        )
+    except (OSError, json.JSONDecodeError) as exc:
+        errors.append(f"Stage 11 governance manifest unavailable: {exc}")
+        return errors
+
+    protected_record = rulesets.get("21303100")
+    approval_record = rulesets.get("22347095")
+    if not isinstance(protected_record, dict) or protected_record.get("id") != 21303100:
+        errors.append("Stage 11 protected-main ruleset identity mismatch")
+    if not isinstance(approval_record, dict) or approval_record.get("id") != 22347095:
+        errors.append("Stage 11 approval ruleset identity mismatch")
+    if errors:
+        return errors
+
+    live_protected = _canonical_ruleset_payload(protected_record.get("payload"))
+    live_approval = _canonical_ruleset_payload(approval_record.get("payload"))
+    if live_protected is None:
+        errors.append("Stage 11 protected-main live payload invalid")
+    else:
+        try:
+            expected_protected = materialize_ruleset_spec(
+                protected_spec,
+                live_protected,
+            )
+        except ValueError as exc:
+            errors.append(f"Stage 11 protected-main fingerprint resolution failed: {exc}")
+        else:
+            if expected_protected != live_protected:
+                errors.append("Stage 11 protected-main ruleset differs from manifest")
+
+    if live_approval is None:
+        errors.append("Stage 11 approval live payload invalid")
+    elif approval_spec != live_approval:
+        errors.append("Stage 11 approval ruleset differs from manifest")
+    elif any(
+        isinstance(rule, dict) and rule.get("type") == "update"
+        for rule in live_approval.get("rules", [])
+    ):
+        errors.append("Stage 11 approval ruleset unexpectedly restricts updates")
+    return errors
 
 
 def validate_evidence_payload(payload: object, root: Path = ROOT) -> list[str]:
@@ -105,7 +207,7 @@ def validate_evidence_payload(payload: object, root: Path = ROOT) -> list[str]:
             ):
                 errors.append(f"Stage 11 stage {item.get('stage')} is not a clean PASS")
     controls = payload.get("global_controls")
-    if not isinstance(controls, list) or len(controls) != 3:
+    if not isinstance(controls, list) or len(controls) != 4:
         errors.append("Stage 11 global control coverage mismatch")
     elif any(
         not isinstance(item, dict)
@@ -120,10 +222,10 @@ def validate_evidence_payload(payload: object, root: Path = ROOT) -> list[str]:
 
     implementation_sha = payload.get("implementation_sha")
     tree_sha = payload.get("tree_sha")
-    if not isinstance(implementation_sha, str) or SHA256.fullmatch(implementation_sha) is None:
+    if not isinstance(implementation_sha, str) or GIT_OID.fullmatch(implementation_sha) is None:
         errors.append("Stage 11 implementation SHA invalid")
         return errors
-    if not isinstance(tree_sha, str) or SHA256.fullmatch(tree_sha) is None:
+    if not isinstance(tree_sha, str) or GIT_OID.fullmatch(tree_sha) is None:
         errors.append("Stage 11 tree SHA invalid")
     try:
         actual_tree = subprocess.run(
@@ -167,13 +269,24 @@ def collect_errors(root: Path = ROOT) -> list[str]:
     evidence_path = root / EVIDENCE_REL
     if not evidence_path.is_file():
         errors.append(f"Stage 11 evidence missing: {EVIDENCE_REL}")
-        return errors
-    try:
-        evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        errors.append(f"Stage 11 evidence unavailable: {exc}")
-        return errors
-    errors.extend(validate_evidence_payload(evidence, root))
+    else:
+        try:
+            evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            errors.append(f"Stage 11 evidence unavailable: {exc}")
+        else:
+            errors.extend(validate_evidence_payload(evidence, root))
+
+    github_path = root / GITHUB_EVIDENCE_REL
+    if not github_path.is_file():
+        errors.append(f"Stage 11 GitHub governance evidence missing: {GITHUB_EVIDENCE_REL}")
+    else:
+        try:
+            github_evidence = json.loads(github_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            errors.append(f"Stage 11 GitHub governance evidence unavailable: {exc}")
+        else:
+            errors.extend(validate_live_governance_evidence(github_evidence, root))
     return errors
 
 

@@ -152,6 +152,100 @@ def _is_ancestor(root: Path, commit: str, head: str) -> bool:
     return completed.returncode == 0
 
 
+def _governance_manifest_errors(root: Path) -> list[str]:
+    errors: list[str] = []
+    approval_path = root / ".github/governance/main-approval-ruleset.json"
+    protected_path = root / ".github/governance/main-ruleset.json"
+    try:
+        approval = json.loads(approval_path.read_text(encoding="utf-8"))
+        protected = json.loads(protected_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return [f"governance manifest unavailable: {exc}"]
+
+    if approval.get("name") != "GENOMA approval gate":
+        errors.append("approval ruleset name mismatch")
+    if approval.get("target") != "branch" or approval.get("enforcement") != "active":
+        errors.append("approval ruleset activation mismatch")
+    if approval.get("conditions") != {
+        "ref_name": {"include": ["refs/heads/main"], "exclude": []}
+    }:
+        errors.append("approval ruleset branch condition mismatch")
+    if approval.get("bypass_actors") != [
+        {
+            "actor_id": 116986656,
+            "actor_type": "User",
+            "bypass_mode": "pull_request",
+        }
+    ]:
+        errors.append("approval ruleset bypass actor mismatch")
+    approval_rules = approval.get("rules")
+    if not isinstance(approval_rules, list):
+        errors.append("approval ruleset rules missing")
+    else:
+        types = [rule.get("type") for rule in approval_rules if isinstance(rule, dict)]
+        if types != ["pull_request"]:
+            errors.append("approval ruleset must contain only the pull_request rule")
+        elif approval_rules[0].get("parameters", {}).get(
+            "required_review_thread_resolution"
+        ) is not True:
+            errors.append("approval ruleset must require review-thread resolution")
+
+    if protected.get("name") != "GENOMA protected main":
+        errors.append("protected-main ruleset name mismatch")
+    if protected.get("bypass_actors") != []:
+        errors.append("protected-main ruleset must not have bypass actors")
+    protected_rules = protected.get("rules")
+    if not isinstance(protected_rules, list):
+        errors.append("protected-main rules missing")
+    else:
+        types = [
+            rule.get("type") for rule in protected_rules if isinstance(rule, dict)
+        ]
+        if types != ["deletion", "non_fast_forward", "required_status_checks"]:
+            errors.append("protected-main rule set drift")
+        status_rules = [
+            rule
+            for rule in protected_rules
+            if isinstance(rule, dict) and rule.get("type") == "required_status_checks"
+        ]
+        if len(status_rules) != 1:
+            errors.append("protected-main required-status rule count mismatch")
+        else:
+            parameters = status_rules[0].get("parameters", {})
+            if parameters.get("strict_required_status_checks_policy") is not True:
+                errors.append("protected-main strict status checks must remain enabled")
+            checks = parameters.get("required_status_checks")
+            if not isinstance(checks, list) or len(checks) != 14:
+                errors.append("protected-main required-check coverage mismatch")
+            elif any(
+                "greptile" in str(item.get("context", "")).casefold()
+                for item in checks
+                if isinstance(item, dict)
+            ):
+                errors.append("retired Greptile check reintroduced")
+    return errors
+
+
+def _governance_manifest_control(root: Path) -> dict[str, Any]:
+    try:
+        errors = _governance_manifest_errors(root)
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        return {
+            "id": "GITHUB_GOVERNANCE_MANIFESTS",
+            "operational_status": UNAVAILABLE,
+            "result": ERROR,
+            "returncode": None,
+            "evidence": f"{type(exc).__name__}: {exc}",
+        }
+    return {
+        "id": "GITHUB_GOVERNANCE_MANIFESTS",
+        "operational_status": EXECUTED,
+        "result": PASS if not errors else FAIL,
+        "returncode": 0 if not errors else 1,
+        "evidence": json.dumps({"errors": errors}, sort_keys=True),
+    }
+
+
 def _command_control(root: Path, control_id: str, command: list[str]) -> dict[str, Any]:
     try:
         completed = subprocess.run(
@@ -213,6 +307,7 @@ def run_audit(root: Path = ROOT, output: Path | None = None) -> dict[str, Any]:
         )
 
     controls = [
+        _governance_manifest_control(root),
         _command_control(
             root,
             "SUPPLY_CHAIN_LOCK",

@@ -25,6 +25,14 @@ For each stage, the audit verifies that the recorded merge commit is an ancestor
 
 The audit also executes the supply-chain lock verifier, residual-language audit and code-language guard as cross-stage integrity controls.
 
+## GitHub governance readback
+
+Stage 11 also validates the desired-state manifests for the two active `main` rulesets and requires a captured live readback from GitHub for rulesets `21303100` (`GENOMA protected main`) and `22347095` (`GENOMA approval gate`). The protected-main readback resolves the versioned dependency-security fingerprint against the concrete provider context before semantic comparison.
+
+The approval gate intentionally contains only the pull-request rule. GitHub's separate `update` restriction is excluded because it can block an otherwise valid manual pull-request merge unless a bypass is selected. This change does not remove required status checks, deletion/non-fast-forward protection, thread-resolution requirements or the human-only final merge decision.
+
+The live readback is execution evidence for the observed GitHub state at the Stage 11 checkpoint; it is not a permanent assertion that provider state can never change.
+
 ## Evidence semantics
 
 The Stage 11 evidence keeps execution status separate from result:

@@ -1219,8 +1219,8 @@
       "path": "scripts/validate_stage11_governance_audit.py",
       "category": "localized",
       "reason": "Portuguese here is a canonical serialized audit status used by existing repository evidence contracts; the executable implementation language remains English-first.",
-      "count": 3,
-      "fingerprint": "8d850e85171b1c589d7954c7059fe20fa20c09b59b5b812f868dbefdbe1fd898"
+      "count": 4,
+      "fingerprint": "1bb60f72d662916b1de8aa10e27b2efe1398b5e65896d4cc57f945555f40ba8c"
     },
     {
       "path": "scripts/verify_prebuilt_bwa_mem2_bundle.py",
@@ -1725,6 +1725,13 @@
       "reason": "Portuguese is retained only as exact serialized status fixtures so tests prove compatibility with the governed runtime contract.",
       "count": 14,
       "fingerprint": "4d89061cf68c70ad2b3b461bac7338738b2605af1ef36c3bb680726de2cde6ce"
+    },
+    {
+      "path": "tests/test_stage11_final_governance_audit.py",
+      "category": "localized",
+      "reason": "Portuguese here is a canonical serialized audit status used by existing repository evidence contracts; the executable implementation language remains English-first.",
+      "count": 4,
+      "fingerprint": "74efbb9ad0211af3d296e1e4d1e87a3cc991ed658352828288e780628cd1bf9f"
     },
     {
       "path": "tests/test_stage9_genetic_privacy.py",

@@ -120,6 +120,7 @@ REQUIRED_PATHS = (
     "config/stage11_governance_audit_policy.json", "scripts/run_stage11_governance_audit.py",
     "scripts/validate_stage11_governance_audit.py", "docs/compliance/STAGE11_FINAL_GOVERNANCE_AUDIT.md",
     "docs/evidence/STAGE11_FINAL_GOVERNANCE_AUDIT_2026-09-21.json",
+    "docs/evidence/STAGE11_GITHUB_RULESET_READBACK_2026-09-21.json",
     "evidence_adapters/__init__.py", "policy_engine/pyproject.toml", "policy_engine/genoma_policy/engine.py",
     "policy_engine/genoma_policy/attestation.py", "policy_engine/genoma_policy/ledger.py",
     "policy_engine/genoma_policy/version.py", "policy_engine/policy/schema/execution-manifest.schema.json",
