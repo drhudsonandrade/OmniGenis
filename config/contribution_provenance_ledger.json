@@ -447,7 +447,7 @@
       "declared_at": "2026-09-21",
       "declared_by_role": "repository_owner",
       "human_direction": true,
-      "implementation_sha": "fc7a755509deb6e3d48c6761cb53e1b2bee88d71",
+      "implementation_sha": "d1d963f598d1d8ec77142a6ee43597beb8b8caad",
       "legal_ownership_inferred": false,
       "manifest_path": "docs/evidence/contribution_provenance/STAGE11_FINAL_GOVERNANCE_AUDIT_CHANGESET_2026-09-21.json",
       "origin_class": "REPOSITORY_NATIVE",

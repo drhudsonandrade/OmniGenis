@@ -49,19 +49,19 @@
     {
       "base_sha256": null,
       "path": "docs/evidence/STAGE11_FINAL_GOVERNANCE_AUDIT_2026-09-21.json",
-      "sha256": "1d01634cb28622424899cdc3cd17dbf8b859ab9b24ad0f587a9f61e223bef4e4",
+      "sha256": "d973c6e7283768d85fa9afd476613ff1e3860d6da9ad056111f02bf8c4285bde",
       "status": "A"
     },
     {
       "base_sha256": null,
       "path": "docs/evidence/STAGE11_GITHUB_RULESET_READBACK_2026-09-21.json",
-      "sha256": "705e729f72a9d3008af28101a3d719e6ec65bea14e7861e2c2a548e7f0619e19",
+      "sha256": "44b535b325ed84468169e4b5a68f03f89671a10ec9ec16632ae042a0853b2f49",
       "status": "A"
     },
     {
       "base_sha256": null,
       "path": "scripts/run_stage11_governance_audit.py",
-      "sha256": "653e608a12e4c84a951038a17e4ef79aec7c6dcdc6b16e877a2921868e3a4d92",
+      "sha256": "02d458e9a9e2c02d0a1fd8ba584a43840c1c7d6b9a3553cb24435c974be607c3",
       "status": "A"
     },
     {
@@ -91,15 +91,15 @@
     {
       "base_sha256": null,
       "path": "tests/test_stage11_final_governance_audit.py",
-      "sha256": "a1127ded4fd134f61c1a59c75d0e437d17e1f39dab899fe7cbd6ded7f964e930",
+      "sha256": "d268066f48b587dd761a1426275e3bc966a60e0bfa7cf2f61c1008d1d95a39b2",
       "status": "A"
     }
   ],
   "git_objects_verified_at_capture": true,
   "hash_algorithm": "sha256",
   "human_direction": true,
-  "implementation_sha": "fc7a755509deb6e3d48c6761cb53e1b2bee88d71",
-  "implementation_tree": "38905053b65666a070426e9be440dc485fa9b0b4",
+  "implementation_sha": "d1d963f598d1d8ec77142a6ee43597beb8b8caad",
+  "implementation_tree": "c7eed019ab48ad2feb2b53b22c4cb09f8059df9b",
   "origin_class": "REPOSITORY_NATIVE",
   "schema": "omnigenis-contribution-provenance-manifest-v2",
   "third_party_code_introduced": false,
