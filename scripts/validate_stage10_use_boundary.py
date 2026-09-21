@@ -56,16 +56,20 @@ class _ReachableCallVisitor(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
-        return
+        """Treat nested synchronous functions as opaque to direct release flow."""
+        return None
 
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
-        return
+        """Treat nested asynchronous functions as opaque to direct release flow."""
+        return None
 
     def visit_Lambda(self, node: ast.Lambda) -> None:
-        return
+        """Treat nested lambdas as opaque to direct release flow."""
+        return None
 
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
-        return
+        """Treat nested classes as opaque to direct release flow."""
+        return None
 
     def visit_If(self, node: ast.If) -> None:
         self.visit(node.test)
