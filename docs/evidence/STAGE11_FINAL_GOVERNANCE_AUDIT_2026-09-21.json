@@ -1,0 +1,161 @@
+{
+  "audit_scope": "COPYRIGHT_AND_GOVERNANCE_CHAIN_ONLY",
+  "claim_boundary": {
+    "clinical_validity_determined_by_software": false,
+    "legal_compliance_determined_by_software": false,
+    "license_clean_certification": false,
+    "regulatory_approval_determined_by_software": false,
+    "research_ethics_determined_by_software": false
+  },
+  "generated_at_utc": "2026-09-21T15:11:51.892581+00:00",
+  "global_controls": [
+    {
+      "evidence": "{\"errors\": []}",
+      "id": "GITHUB_GOVERNANCE_MANIFESTS",
+      "operational_status": "EXECUTADO",
+      "result": "PASS",
+      "returncode": 0
+    },
+    {
+      "evidence": "PASS\tactions_immutable\t10 action identities observed\nPASS\tcontainer_digests\tbase image\nPASS\texternal_secret_scanner\tGitGuardian Security Checks@46505\nPASS\truntime_versions\texact critical conda pins\nPASS\tcompliance_locks\t46 artifacts\n\n",
+      "id": "SUPPLY_CHAIN_LOCK",
+      "operational_status": "EXECUTADO",
+      "result": "PASS",
+      "returncode": 0
+    },
+    {
+      "evidence": "{\"category_files\": {\"canonical\": 15, \"compatibility-preserved\": 113, \"historical\": 28, \"localized\": 74, \"normative\": 38}, \"category_lines\": {\"canonical\": 39, \"compatibility-preserved\": 4926, \"historical\": 772, \"localized\": 1765, \"normative\": 224}, \"clean\": true, \"detected_lines\": 7726, \"drift\": [], \"missing\": [], \"schema\": \"genoma-residual-language-audit-v1\", \"tracked_files_with_residuals\": 268, \"unclassified\": []}\n\n",
+      "id": "RESIDUAL_LANGUAGE_AUDIT",
+      "operational_status": "EXECUTADO",
+      "result": "PASS",
+      "returncode": 0
+    },
+    {
+      "evidence": "\n",
+      "id": "CODE_LANGUAGE_GUARD",
+      "operational_status": "EXECUTADO",
+      "result": "PASS",
+      "returncode": 0
+    }
+  ],
+  "implementation_sha": "a5be3eaa3c4b253ebd14d875cc21166a19179edb",
+  "note": "This audit verifies repository governance contracts and evidence integrity. It does not replace the clinical FINAL_AUDIT_GATE and does not issue legal, licensing, regulatory, clinical-validity, or research-ethics determinations.",
+  "operational_status": "EXECUTADO",
+  "policy_sha256": "83a5718525ce8507f0f80afda39c05d59a86a1f3e3143e422a526ac618d8430c",
+  "result": "PASS",
+  "runner_sha256": "653e608a12e4c84a951038a17e4ef79aec7c6dcdc6b16e877a2921868e3a4d92",
+  "schema": "omnigenis-final-governance-audit-evidence-v1",
+  "stages": [
+    {
+      "errors": [],
+      "merge_ancestry_verified": true,
+      "merge_commit": "3df0c18b39dee583f785ff99fe23411af2ca45e2",
+      "name": "Ownership & Licensing Baseline",
+      "operational_status": "EXECUTADO",
+      "pr": 74,
+      "result": "PASS",
+      "stage": 1,
+      "validator": "stage1_baseline"
+    },
+    {
+      "errors": [],
+      "merge_ancestry_verified": true,
+      "merge_commit": "6ea2a8879cb0cadc953cef25084acb21f5d60900",
+      "name": "PyMuPDF Replacement",
+      "operational_status": "EXECUTADO",
+      "pr": 75,
+      "result": "PASS",
+      "stage": 2,
+      "validator": "validate_stage2_pdf_contract"
+    },
+    {
+      "errors": [],
+      "merge_ancestry_verified": true,
+      "merge_commit": "181bd15f56c1d00ff00fa21c1e78aca6e6daf0ae",
+      "name": "Strong Copyleft Runtime Cleanup",
+      "operational_status": "EXECUTADO",
+      "pr": 76,
+      "result": "PASS",
+      "stage": 3,
+      "validator": "validate_stage3_copyleft_contract"
+    },
+    {
+      "errors": [],
+      "merge_ancestry_verified": true,
+      "merge_commit": "9a379f58ac9fe0bb101ebfd737ac648e510bbca2",
+      "name": "Third-Party Inventory and SBOM",
+      "operational_status": "EXECUTADO",
+      "pr": 77,
+      "result": "PASS",
+      "stage": 4,
+      "validator": "validate_stage4_compliance"
+    },
+    {
+      "errors": [],
+      "merge_ancestry_verified": true,
+      "merge_commit": "5bb0b03d25f9bc3be26850a72a85950f34a61dca",
+      "name": "Automated Software License Gate",
+      "operational_status": "EXECUTADO",
+      "pr": 78,
+      "result": "PASS",
+      "stage": 5,
+      "validator": "validate_stage5_license_gate"
+    },
+    {
+      "errors": [],
+      "merge_ancestry_verified": true,
+      "merge_commit": "016f92ae18051ca5a65238819d4414ba7cf37a08",
+      "name": "Scientific Data Licensing Registry",
+      "operational_status": "EXECUTADO",
+      "pr": 79,
+      "result": "PASS",
+      "stage": 6,
+      "validator": "validate_stage6_data_sources"
+    },
+    {
+      "errors": [],
+      "merge_ancestry_verified": true,
+      "merge_commit": "deb6db0a59b00dce86985d2dfc1cfda6037d1362",
+      "name": "Purpose-Bound Data Use",
+      "operational_status": "EXECUTADO",
+      "pr": 80,
+      "result": "PASS",
+      "stage": 7,
+      "validator": "validate_stage7_purpose_use"
+    },
+    {
+      "errors": [],
+      "merge_ancestry_verified": true,
+      "merge_commit": "6ecaf0132b1ad163fd3fe7792bf69f62021a1262",
+      "name": "Contribution Provenance",
+      "operational_status": "EXECUTADO",
+      "pr": 81,
+      "result": "PASS",
+      "stage": 8,
+      "validator": "validate_stage8_contribution_provenance"
+    },
+    {
+      "errors": [],
+      "merge_ancestry_verified": true,
+      "merge_commit": "c25ba19a0fb4fbf2c8adc272165d7affa2ffc869",
+      "name": "Genetic-Data Privacy",
+      "operational_status": "EXECUTADO",
+      "pr": 82,
+      "result": "PASS",
+      "stage": 9,
+      "validator": "validate_stage9_genetic_privacy"
+    },
+    {
+      "errors": [],
+      "merge_ancestry_verified": true,
+      "merge_commit": "8ab7dcf50c51d4fe16de7a70b35b8e0ae14e349f",
+      "name": "Research Clinical Regulatory Boundary",
+      "operational_status": "EXECUTADO",
+      "pr": 83,
+      "result": "PASS",
+      "stage": 10,
+      "validator": "validate_stage10_use_boundary"
+    }
+  ],
+  "tree_sha": "9702873d1d8101ef1f28d1c9b6a32c92baa52aab"
+}

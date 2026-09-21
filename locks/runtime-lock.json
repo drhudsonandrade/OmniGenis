@@ -26,7 +26,7 @@
     },
     "contribution_provenance_ledger": {
       "path": "config/contribution_provenance_ledger.json",
-      "sha256": "d64c49b55ca39bf758322ee53f5d908fac1d1dcbf72931d83ca331cf82e46068"
+      "sha256": "5b8a4ee67c0cb3be43b35677423e426bf30737b2cd617ee5dfeb72cb5a40a6bf"
     },
     "contribution_provenance_policy": {
       "path": "config/contribution_provenance_policy.json",
@@ -95,6 +95,38 @@
     "stage10_use_boundary_manifest": {
       "path": "docs/evidence/contribution_provenance/STAGE10_USE_BOUNDARY_2026-09-20.json",
       "sha256": "7e4400eb93816d90191424dbb6f80094a5215a01bfe1d19471b3a22248488231"
+    },
+    "stage11_approval_ruleset_manifest": {
+      "path": ".github/governance/main-approval-ruleset.json",
+      "sha256": "2ac0e13b0cbad0f35eda6577116b3a42f401a1afb9294c091b94fa5d074b1ba6"
+    },
+    "stage11_contribution_manifest": {
+      "path": "docs/evidence/contribution_provenance/STAGE11_FINAL_GOVERNANCE_AUDIT_CHANGESET_2026-09-21.json",
+      "sha256": "7922266abeb8c4420592dc7c1f725edb31e0b193d93bb25b4c5681643194492f"
+    },
+    "stage11_final_governance_audit_evidence": {
+      "path": "docs/evidence/STAGE11_FINAL_GOVERNANCE_AUDIT_2026-09-21.json",
+      "sha256": "946b0be0647d5cd31640166bfe1d4faa3f370e1b1e3dac2f4e2f9e5b46399338"
+    },
+    "stage11_github_ruleset_readback_evidence": {
+      "path": "docs/evidence/STAGE11_GITHUB_RULESET_READBACK_2026-09-21.json",
+      "sha256": "3aa67f2c0bf87ce53d50f9e11c597d835ebabf89530f543b4f2d4a8513437d77"
+    },
+    "stage11_governance_audit_policy": {
+      "path": "config/stage11_governance_audit_policy.json",
+      "sha256": "83a5718525ce8507f0f80afda39c05d59a86a1f3e3143e422a526ac618d8430c"
+    },
+    "stage11_governance_audit_runner": {
+      "path": "scripts/run_stage11_governance_audit.py",
+      "sha256": "653e608a12e4c84a951038a17e4ef79aec7c6dcdc6b16e877a2921868e3a4d92"
+    },
+    "stage11_governance_audit_validator": {
+      "path": "scripts/validate_stage11_governance_audit.py",
+      "sha256": "11733973c9ebdb51a7e3f686b1cd4800999eedde92002d1bbb75488a47226bec"
+    },
+    "stage11_protected_main_ruleset_manifest": {
+      "path": ".github/governance/main-ruleset.json",
+      "sha256": "aa1555dc175846b64f682aaf0129dcb79ff4b8584991fa120eea5bf0c9e370c5"
     },
     "stage5_license_debt_baseline": {
       "path": "locks/stage5-license-debt-baseline.json",

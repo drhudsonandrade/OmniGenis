@@ -565,6 +565,20 @@
       "fingerprint": "076f3f1ff64879896f402a4da2d60ec413f9c0cd769572d25a84f6e4e3e4ca4b"
     },
     {
+      "path": "docs/evidence/STAGE11_FINAL_GOVERNANCE_AUDIT_2026-09-21.json",
+      "category": "historical",
+      "reason": "Portuguese here is a canonical serialized audit status inside immutable Stage 11 execution evidence; it is evidence data rather than implementation language.",
+      "count": 15,
+      "fingerprint": "aef0902f50d29cfddb303337c83f90fb49b73910cf37050739954a4c9bc98713"
+    },
+    {
+      "path": "docs/evidence/STAGE11_GITHUB_RULESET_READBACK_2026-09-21.json",
+      "category": "historical",
+      "reason": "Portuguese here is a canonical serialized audit status inside immutable Stage 11 execution evidence; it is evidence data rather than implementation language.",
+      "count": 1,
+      "fingerprint": "c2a9a3d6dbfbec7dbc7617fb8854273b9f583bc17a09785bec9f3483cd5c2729"
+    },
+    {
       "path": "docs/evidence/stage3/full_test_suite.log",
       "category": "historical",
       "reason": "Immutable Stage 3 execution evidence preserves localized runtime wire-status values exactly as emitted by the verified test run.",

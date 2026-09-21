@@ -1,0 +1,83 @@
+{
+  "assistance_class": "MULTI_TOOL_ASSISTED_DECLARED",
+  "base_sha": "8ab7dcf50c51d4fe16de7a70b35b8e0ae14e349f",
+  "base_tree": "9b0159b364752de41057ff0a952721c21d5b8ee0",
+  "change_set_id": "STAGE11-FINAL-GOVERNANCE-AUDIT-2026-09-21",
+  "files": [
+    {
+      "base_sha256": "93075bdeab566ec6403234b239f7058e3a814f6f2b71d22ece3e9713c5d6789e",
+      "path": ".github/governance/main-approval-ruleset.json",
+      "sha256": "2ac0e13b0cbad0f35eda6577116b3a42f401a1afb9294c091b94fa5d074b1ba6",
+      "status": "M"
+    },
+    {
+      "base_sha256": "c83859c3bf9efee370f4913d89b7d4e655b559477aaccdf376427fae664bf13c",
+      "path": ".github/workflows/scaffold-validation.yml",
+      "sha256": "0f592e921db6e36c218d57b30e7d2883150af383eea6ba89cf2f4bb43311206d",
+      "status": "M"
+    },
+    {
+      "base_sha256": "a9767f73895fdfd9e309699c150cd17c73db96fc84b6170d9f40e5acc95abbc9",
+      "path": "config/residual_language_classification.json",
+      "sha256": "9b308e93b10aa30a7b59fac3bc75cc2436f8fbc1d2c259ea05f7e957f10d65aa",
+      "status": "M"
+    },
+    {
+      "base_sha256": null,
+      "path": "config/stage11_governance_audit_policy.json",
+      "sha256": "83a5718525ce8507f0f80afda39c05d59a86a1f3e3143e422a526ac618d8430c",
+      "status": "A"
+    },
+    {
+      "base_sha256": "065496cc2492dafdf111d5a0eca169b2b0354aee586335b857501deb198c6739",
+      "path": "docs/BRANCH_GOVERNANCE.md",
+      "sha256": "455a5ffad933a24a528194d5337c714c1cb1692b434a5b33248a4f4ff26b89f7",
+      "status": "M"
+    },
+    {
+      "base_sha256": null,
+      "path": "docs/compliance/STAGE11_FINAL_GOVERNANCE_AUDIT.md",
+      "sha256": "fe934400b5b8ffe6c1db15cb2573c17990d51ed2b203905d9e9750976a1e54b2",
+      "status": "A"
+    },
+    {
+      "base_sha256": null,
+      "path": "scripts/run_stage11_governance_audit.py",
+      "sha256": "653e608a12e4c84a951038a17e4ef79aec7c6dcdc6b16e877a2921868e3a4d92",
+      "status": "A"
+    },
+    {
+      "base_sha256": "c497eb913bbc2a38791d26fb48f9733a0533ed9d6b82e89697cd6b9a79f5dbb5",
+      "path": "scripts/validate_repo.py",
+      "sha256": "031897a99ca29378e7b2ef2b9ed4588f6b80aa10990d0f2c42be68b449cf6f96",
+      "status": "M"
+    },
+    {
+      "base_sha256": null,
+      "path": "scripts/validate_stage11_governance_audit.py",
+      "sha256": "11733973c9ebdb51a7e3f686b1cd4800999eedde92002d1bbb75488a47226bec",
+      "status": "A"
+    },
+    {
+      "base_sha256": "def6bb18270ffd6a8a606ccb5decf3cc1aaf989bf64de7f3b2d54c4729bcd9a2",
+      "path": "tests/test_post_merge_bootstrap_governance.py",
+      "sha256": "73f1c59610c015629ab37233a35101e7cdea26f7db3000429a70b80158572329",
+      "status": "M"
+    },
+    {
+      "base_sha256": null,
+      "path": "tests/test_stage11_final_governance_audit.py",
+      "sha256": "a1127ded4fd134f61c1a59c75d0e437d17e1f39dab899fe7cbd6ded7f964e930",
+      "status": "A"
+    }
+  ],
+  "git_objects_verified_at_capture": true,
+  "hash_algorithm": "sha256",
+  "human_direction": true,
+  "implementation_sha": "a5be3eaa3c4b253ebd14d875cc21166a19179edb",
+  "implementation_tree": "9702873d1d8101ef1f28d1c9b6a32c92baa52aab",
+  "origin_class": "REPOSITORY_NATIVE",
+  "schema": "omnigenis-contribution-provenance-manifest-v2",
+  "third_party_code_introduced": false,
+  "third_party_component_ids": []
+}

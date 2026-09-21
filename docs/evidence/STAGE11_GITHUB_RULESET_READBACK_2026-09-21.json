@@ -1,0 +1,154 @@
+{
+  "candidate_implementation_sha": "a5be3eaa3c4b253ebd14d875cc21166a19179edb",
+  "captured_at_utc": "2026-09-21T15:11:53.155202+00:00",
+  "main_sha_at_capture": "8ab7dcf50c51d4fe16de7a70b35b8e0ae14e349f",
+  "operational_status": "EXECUTADO",
+  "repository": "OmniGenis",
+  "result": "PASS",
+  "rulesets": {
+    "21303100": {
+      "fingerprint_resolution": [
+        {
+          "algorithm": "sha256",
+          "case_sensitive": true,
+          "digest": "13148c18c6ce9155ee89d2c0de0435a9ff86e658bc56851d2a8ec24062134bf7",
+          "matched_live_context": true,
+          "plaintext_persisted": false,
+          "provider_family": "dependency-security"
+        }
+      ],
+      "id": 21303100,
+      "payload": {
+        "bypass_actors": [],
+        "conditions": {
+          "ref_name": {
+            "exclude": [],
+            "include": [
+              "refs/heads/main"
+            ]
+          }
+        },
+        "enforcement": "active",
+        "name": "GENOMA protected main",
+        "rules": [
+          {
+            "type": "deletion"
+          },
+          {
+            "type": "non_fast_forward"
+          },
+          {
+            "parameters": {
+              "do_not_enforce_on_create": false,
+              "required_status_checks": [
+                {
+                  "context": "static"
+                },
+                {
+                  "context": "container-canary"
+                },
+                {
+                  "context": "Canonical policy + 263-rule contract"
+                },
+                {
+                  "context": "OPA/Rego parity"
+                },
+                {
+                  "context": "Real Docker + canonical read-only mount"
+                },
+                {
+                  "context": "CodeRabbit"
+                },
+                {
+                  "context": "GitGuardian Security Checks",
+                  "integration_id": 46505
+                },
+                {
+                  "context": "DeepSource: Python",
+                  "integration_id": 16372
+                },
+                {
+                  "context": "DeepSource: JavaScript",
+                  "integration_id": 16372
+                },
+                {
+                  "context": "DeepSource: Shell",
+                  "integration_id": 16372
+                },
+                {
+                  "context": "DeepSource: Docker",
+                  "integration_id": 16372
+                },
+                {
+                  "context": "DeepSource: SQL",
+                  "integration_id": 16372
+                },
+                {
+                  "context_fingerprint": {
+                    "algorithm": "sha256",
+                    "case_sensitive": true,
+                    "digest": "13148c18c6ce9155ee89d2c0de0435a9ff86e658bc56851d2a8ec24062134bf7",
+                    "provider_family": "dependency-security"
+                  }
+                },
+                {
+                  "context": "semgrep-cloud-platform/scan",
+                  "integration_id": 4836909
+                }
+              ],
+              "strict_required_status_checks_policy": true
+            },
+            "type": "required_status_checks"
+          }
+        ],
+        "target": "branch"
+      },
+      "raw_semantics_sha256": "ac74f428c465c597224c1d14e84ab6274bf1d08fb9a73b6c3652ce28c7e3de71"
+    },
+    "22347095": {
+      "id": 22347095,
+      "payload": {
+        "bypass_actors": [
+          {
+            "actor_id": 116986656,
+            "actor_type": "User",
+            "bypass_mode": "pull_request"
+          }
+        ],
+        "conditions": {
+          "ref_name": {
+            "exclude": [],
+            "include": [
+              "refs/heads/main"
+            ]
+          }
+        },
+        "enforcement": "active",
+        "name": "GENOMA approval gate",
+        "rules": [
+          {
+            "parameters": {
+              "allowed_merge_methods": [
+                "merge",
+                "squash",
+                "rebase"
+              ],
+              "dismiss_stale_reviews_on_push": true,
+              "require_code_owner_review": false,
+              "require_extra_approval_for_unattributed_changes": false,
+              "require_last_push_approval": false,
+              "required_approving_review_count": 0,
+              "required_review_thread_resolution": true,
+              "required_reviewers": []
+            },
+            "type": "pull_request"
+          }
+        ],
+        "target": "branch"
+      },
+      "raw_semantics_sha256": "fd4eccf94ec55704eb291ba5b257eba9c822f5d84bbddde58e87e041c605ca9d"
+    }
+  },
+  "schema": "omnigenis-stage11-github-governance-readback-v1",
+  "source": "GitHub REST API via authenticated readback"
+}

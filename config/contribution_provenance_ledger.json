@@ -439,6 +439,21 @@
       "stage": 10,
       "third_party_code_introduced": false,
       "third_party_component_ids": []
+    },
+    {
+      "assistance_class": "MULTI_TOOL_ASSISTED_DECLARED",
+      "base_sha": "8ab7dcf50c51d4fe16de7a70b35b8e0ae14e349f",
+      "change_set_id": "STAGE11-FINAL-GOVERNANCE-AUDIT-2026-09-21",
+      "declared_at": "2026-09-21",
+      "declared_by_role": "repository_owner",
+      "human_direction": true,
+      "implementation_sha": "a5be3eaa3c4b253ebd14d875cc21166a19179edb",
+      "legal_ownership_inferred": false,
+      "manifest_path": "docs/evidence/contribution_provenance/STAGE11_FINAL_GOVERNANCE_AUDIT_CHANGESET_2026-09-21.json",
+      "origin_class": "REPOSITORY_NATIVE",
+      "stage": 11,
+      "third_party_code_introduced": false,
+      "third_party_component_ids": []
     }
   ],
   "schema": "omnigenis-contribution-provenance-ledger-v1"
