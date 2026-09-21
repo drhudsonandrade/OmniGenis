@@ -1,0 +1,25 @@
+{
+  "schema": "omnigenis-final-governance-audit-policy-v1",
+  "status": "ACTIVE",
+  "version": "1.0",
+  "audit_scope": "COPYRIGHT_AND_GOVERNANCE_CHAIN_ONLY",
+  "stages": [
+    {"stage": 1, "pr": 74, "name": "Ownership & Licensing Baseline", "merge_commit": "3df0c18b39dee583f785ff99fe23411af2ca45e2"},
+    {"stage": 2, "pr": 75, "name": "PyMuPDF Replacement", "merge_commit": "6ea2a8879cb0cadc953cef25084acb21f5d60900"},
+    {"stage": 3, "pr": 76, "name": "Strong Copyleft Runtime Cleanup", "merge_commit": "181bd15f56c1d00ff00fa21c1e78aca6e6daf0ae"},
+    {"stage": 4, "pr": 77, "name": "Third-Party Inventory and SBOM", "merge_commit": "9a379f58ac9fe0bb101ebfd737ac648e510bbca2"},
+    {"stage": 5, "pr": 78, "name": "Automated Software License Gate", "merge_commit": "5bb0b03d25f9bc3be26850a72a85950f34a61dca"},
+    {"stage": 6, "pr": 79, "name": "Scientific Data Licensing Registry", "merge_commit": "016f92ae18051ca5a65238819d4414ba7cf37a08"},
+    {"stage": 7, "pr": 80, "name": "Purpose-Bound Data Use", "merge_commit": "deb6db0a59b00dce86985d2dfc1cfda6037d1362"},
+    {"stage": 8, "pr": 81, "name": "Contribution Provenance", "merge_commit": "6ecaf0132b1ad163fd3fe7792bf69f62021a1262"},
+    {"stage": 9, "pr": 82, "name": "Genetic-Data Privacy", "merge_commit": "c25ba19a0fb4fbf2c8adc272165d7affa2ffc869"},
+    {"stage": 10, "pr": 83, "name": "Research Clinical Regulatory Boundary", "merge_commit": "8ab7dcf50c51d4fe16de7a70b35b8e0ae14e349f"}
+  ],
+  "claim_boundary": {
+    "legal_compliance_determined_by_software": false,
+    "license_clean_certification": false,
+    "clinical_validity_determined_by_software": false,
+    "regulatory_approval_determined_by_software": false,
+    "research_ethics_determined_by_software": false
+  }
+}
