@@ -28,6 +28,11 @@ from reporting.pdf_generated_source_job import render_pdf_candidate
 from test_reporting_typed_pdf_source import document, digest
 
 ROOT = Path(__file__).resolve().parents[1]
+_LARGE_RESPONSE_CASE = None
+_LARGE_RESPONSE_ATTEMPTED = False
+_LARGE_RESPONSE_INPUT = None
+_OPERATION_BUDGET_ATTEMPTED = False
+_OPERATION_BUDGET_INPUT = None
 
 
 def encoded(value):
@@ -45,7 +50,11 @@ def native_fixture(rows, wrapped=False):
             'cells': ('AB  CD EF GH IJ KL MN OP QR ST UV WX YZ ' * 8,
                       '0.12345678901234567890'),
         }
-    source = document(rows, **options)
+    return rendered_fixture(document(rows, **options)).pdf_bytes
+
+
+def rendered_fixture(source):
+    """Retain the real renderer receipt for one sealed public synthetic source."""
     typed, _ = prepare_typed_html(presentation_ir=source,
                                  expected_ir_sha256=digest(source))
     body = typed.split('<body>', 1)[1].split('</body>', 1)[0]
@@ -57,7 +66,49 @@ def native_fixture(rows, wrapped=False):
             f'<style>{_FIXED_SEMANTIC_CSS}'
             'h1,h2,p,caption,th,td{white-space:pre-wrap}</style></head><body>'
             + body + '</body></html>')
-    return render_pdf_candidate(html, sha256(html.encode()).hexdigest()).pdf_bytes
+    return render_pdf_candidate(html, sha256(html.encode()).hexdigest())
+
+
+def large_response_fixture():
+    """Generate the fixed 96-by-499 positive once; retain inputs before observation."""
+    global _LARGE_RESPONSE_CASE, _LARGE_RESPONSE_ATTEMPTED, _LARGE_RESPONSE_INPUT
+    if _LARGE_RESPONSE_CASE is None:
+        if _LARGE_RESPONSE_ATTEMPTED:
+            raise RuntimeError('fixed large response fixture already failed')
+        _LARGE_RESPONSE_ATTEMPTED = True
+        cell = ' '.join(f'C{i:03d}' for i in range(100))
+        source = document(96, paragraph='Synthetic dense table response regression.',
+                          labels=('Column', 'Column'), cells=(cell, cell))
+        source_bytes = encoded(source)
+        _LARGE_RESPONSE_INPUT = (source_bytes, None)
+        rendered = rendered_fixture(source)
+        _LARGE_RESPONSE_INPUT = (source_bytes, rendered)
+        observer = importlib.import_module('reporting.pdf_typed_observation')
+        observed = observer.observe_typed_pdf(
+            pdf_bytes=rendered.pdf_bytes,
+            expected_pdf_sha256=sha256(rendered.pdf_bytes).hexdigest())
+        _LARGE_RESPONSE_CASE = (source_bytes, rendered, observed)
+    source_bytes, rendered, observed = _LARGE_RESPONSE_CASE
+    return json.loads(source_bytes), rendered, observed
+
+
+def operation_budget_fixture():
+    """Attempt the unchanged 96-by-599 negative once through the native observer."""
+    global _OPERATION_BUDGET_ATTEMPTED, _OPERATION_BUDGET_INPUT
+    if _OPERATION_BUDGET_ATTEMPTED:
+        raise RuntimeError('fixed operation-budget fixture already attempted')
+    _OPERATION_BUDGET_ATTEMPTED = True
+    cell = ' '.join(f'C{i:03d}' for i in range(120))
+    source = document(96, paragraph='Synthetic dense table response regression.',
+                      labels=('Column', 'Column'), cells=(cell, cell))
+    source_bytes = encoded(source)
+    _OPERATION_BUDGET_INPUT = (source_bytes, None)
+    rendered = rendered_fixture(source)
+    _OPERATION_BUDGET_INPUT = (source_bytes, rendered)
+    observer = importlib.import_module('reporting.pdf_typed_observation')
+    return observer.observe_typed_pdf(
+        pdf_bytes=rendered.pdf_bytes,
+        expected_pdf_sha256=sha256(rendered.pdf_bytes).hexdigest())
 
 
 def changed(pdf, change):
@@ -127,6 +178,61 @@ class TypedPdfObservationTests(unittest.TestCase):
         pdf = changed(self.fixtures['wrapped'], change)
         with self.assertRaises(self.m.TypedPdfObservationError):
             self.observe(pdf)
+
+    def test_large_native_response_preserves_closed_trace_and_replay(self):
+        source, rendered, observed = large_response_fixture()
+        payload = observed.to_bytes()
+        self.assertEqual(source['counts']['table_rows'], 96)
+        self.assertGreater(len(payload), 4 * 1024 * 1024)
+        self.assertLessEqual(len(payload), 11 * 1024 * 1024)
+        data = observed.to_dict()
+        self.assertLessEqual(data['counts']['operations'], 20000)
+        self.assertEqual(encoded(data), payload)
+        self.assertEqual(data['pdf_sha256'], sha256(rendered.pdf_bytes).hexdigest())
+        self.assertEqual(data['page_count'], rendered.page_count)
+        self.assertEqual(data['limits'], {
+            'memory_bytes': 268435456, 'cpu_seconds': 5,
+            'file_bytes': 11 * 1024 * 1024, 'open_files': 128})
+        self.assertLessEqual(
+            len(encoded({'protocol_version': 1, 'observation': data})),
+            11 * 1024 * 1024)
+
+        # A larger admitted trace still has to match replayed glyph text.
+        data['trace']['pages'][0]['runs'][0]['text'] += 'invented'
+        with self.assertRaises(self.m.TypedPdfObservationError):
+            self.m._decode(
+                encoded({'protocol_version': 1, 'observation': data}),
+                sha256(rendered.pdf_bytes).hexdigest(), len(rendered.pdf_bytes))
+
+    def test_operation_budget_refuses_original_dense_fixture_before_decode(self):
+        with patch.object(self.m, '_run_worker', wraps=self.m._run_worker) as worker, \
+                patch.object(self.m, '_decode', wraps=self.m._decode) as decode:
+            with self.assertRaisesRegex(self.m.TypedPdfObservationError,
+                                        '^typed_pdf_observation_execution_failed$'):
+                operation_budget_fixture()
+        worker.assert_called_once()
+        decode.assert_not_called()
+
+    def test_exact_response_byte_ceiling_and_preparse_oversize_refusal(self):
+        maximum = 11 * 1024 * 1024
+        self.assertEqual(self.m.RESULT_BYTES, maximum)
+        frame = self.frame()
+        self.assertLess(len(frame), maximum)
+        exact = frame + b' ' * (maximum - len(frame))
+        self.assertEqual(self.decode(exact).to_dict(), self.data())
+        oversized = exact + b' '
+
+        # Profile JSON is admitted separately; only response parsing is spied on.
+        profile_sha = self.m._profile()
+        with patch.object(self.m, '_profile', return_value=profile_sha), \
+                patch.object(self.m, '_loads') as parse:
+            with self.assertRaises(self.m.TypedPdfObservationError):
+                self.decode(oversized)
+            parse.assert_not_called()
+        with patch.object(self.m, '_loads') as parse:
+            with self.assertRaises(self.m.TypedPdfObservationError):
+                self.m.TypedPdfObservation(oversized)
+            parse.assert_not_called()
 
     def test_empty_table_retains_an_explicit_empty_body(self):
         data = self.data('empty')
@@ -307,7 +413,7 @@ class TypedPdfObservationTests(unittest.TestCase):
                    encoded({'protocol_version': 2, 'observation': self.data()}),
                    encoded({'protocol_version': True, 'observation': self.data()}),
                    encoded({'protocol_version': 1, 'observation': self.data(), 'extra': 0}),
-                   b'{}', good[:-1], b' ' * (4 * 1024 * 1024 + 1)]
+                   b'{}', good[:-1], b' ' * (11 * 1024 * 1024 + 1)]
         for sample in samples:
             with self.subTest(size=len(sample)):
                 with self.assertRaises(self.m.TypedPdfObservationError):
@@ -575,7 +681,7 @@ class TypedPdfObservationTests(unittest.TestCase):
         self.assertEqual(data['profile_sha256'], sha256(encoded(profile)).hexdigest())
         self.assertEqual(data['limits'], {
             'memory_bytes': 268435456, 'cpu_seconds': 5,
-            'file_bytes': 4194304, 'open_files': 128})
+            'file_bytes': 11 * 1024 * 1024, 'open_files': 128})
         self.assertFalse(profile['default_pipeline_activated'])
         self.assertFalse(profile['aggregate_job_resources_qualified'])
         for name, expected in profile['source_sha256'].items():

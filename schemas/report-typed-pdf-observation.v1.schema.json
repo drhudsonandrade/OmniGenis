@@ -46,7 +46,7 @@
           "const": 5
         },
         "file_bytes": {
-          "const": 4194304
+          "const": 11534336
         },
         "open_files": {
           "const": 128

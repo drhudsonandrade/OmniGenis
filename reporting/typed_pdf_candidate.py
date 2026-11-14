@@ -31,7 +31,8 @@ from reporting.pdf_raster_windows import (
     PdfRasterWindowInspection, inspect_pdf_raster_window,
 )
 from reporting.pdf_typed_observation import (
-    TypedPdfObservation, _DIGEST, _loads, _profile as _observer_profile,
+    RESULT_BYTES as MAX_OBSERVATION_BYTES, TypedPdfObservation,
+    _DIGEST, _loads, _profile as _observer_profile,
     observe_typed_pdf,
 )
 from reporting.typed_html import (
@@ -47,7 +48,7 @@ MAX_PAGES = 64
 MAX_EVIDENCE_BYTES = 65536
 RASTER_WIDTH = 4
 RASTER_PROFILE_ID = 'generated-pdf-raster-window-v1'
-OBSERVER_PROFILE_SHA256 = '36c205e0a99c57ba11afeb0663904240746d1ae6cfdb94ad1ce6df8c62637efa'
+OBSERVER_PROFILE_SHA256 = 'ee3515c48bd0a65f960e22ca3f8d3cbff66677e98abb76b975eb4e767019176a'
 PASSIVE_POLICY = 'EFFECTIVE_GRAPH_DENIALS_WITH_VERIFIED_TABLE_ATTRIBUTES_ONLY'
 ROOT = Path(__file__).resolve().parents[1]
 _PROFILE_FILE = ROOT / 'reporting/pdf-typed-candidate.v1.json'
@@ -272,7 +273,7 @@ def _execute(presentation_ir, expected_ir_sha256,
     observed = observe_typed_pdf(pdf_bytes=pdf, expected_pdf_sha256=pdf_sha)
     _require(type(observed) is TypedPdfObservation)
     payload = object.__getattribute__(observed, '_payload')
-    _require(type(payload) is bytes and 0 < len(payload) <= 4194304)
+    _require(type(payload) is bytes and 0 < len(payload) <= MAX_OBSERVATION_BYTES)
     # Reconstruct the closed bounded trace, including its reverse structure and
     # decoded text, before using either its counts or declared digests.
     admitted = TypedPdfObservation(payload)
