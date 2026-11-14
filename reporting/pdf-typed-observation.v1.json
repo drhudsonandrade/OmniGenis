@@ -11,7 +11,7 @@
     "pages": 64,
     "pdf_bytes": 16777216,
     "request_header_bytes": 67,
-    "result_bytes": 4194304,
+    "result_bytes": 11534336,
     "tree_depth": 64,
     "tree_visits": 20000
   },
@@ -19,7 +19,7 @@
   "graphics_policy": "OUTSIDE_FRAGMENTS_OR_COLOR_ALPHA_BEFORE_BT",
   "limits": {
     "cpu_seconds": 5,
-    "file_bytes": 4194304,
+    "file_bytes": 11534336,
     "memory_bytes": 268435456,
     "open_files": 128
   },
@@ -157,7 +157,7 @@
     "reporting/pdf_tounicode_width_coverage.py": "c071b95cfe024cbce4abeacaac117b421ce792bc4a072698a4c7a28642ec1189",
     "reporting/pdf_tounicode_zlib.py": "805425e429c6bb6368147b502f50f4e9df0de1755044a164472df7aacd6e6de4",
     "reporting/pdf_trailer_catalog.py": "1dd5c1f70b463c9eb15c6c7c3f8e3e94337c667791233ae7b4d77018d5c1f251",
-    "reporting/pdf_typed_observation.py": "347c7cd8a494afd5e48e82eaa1995b42127e80db98326699f297afe1922fd57f",
+    "reporting/pdf_typed_observation.py": "723b521027b4f99b556d87eaba0df4c1cdb43b93c82952cb1fddd55e90192f0e",
     "reporting/pdf_validation.py": "711b81c6cc46c9141731cb563ed7bec9498b90866e43fec42adb6c39dbc0541e",
     "reporting/pdf_visual.py": "7ca796df7fa13870f54edc7796c35960736488983e52664fc047ce71367d4485",
     "reporting/pdf_xref_entries.py": "477521ba3d063522b364037e032cfd3911d7fcf557be6be89dd276b4a43e0c1a",
@@ -168,7 +168,7 @@
     "reporting/typed_html.py": "9b0dcd5dd6220302eaf1dcb101fedbed767b80b29fcc33c7fc19fc46a6e6f9fb",
     "reporting/viewmodel.py": "f019d116291beb4fad588a5b9639d1d49da0679a63cfc3ba922a2532380d800e",
     "reporting/workflow.py": "039e7b9f5d6781262ff512b01371091b537d21abd8885cb59372d6e305b70e41",
-    "schemas/report-typed-pdf-observation.v1.schema.json": "6a41975ec58edc74fe7211dc775027e7cafcb32b8cb92b2c0bf7ae87c07ac331"
+    "schemas/report-typed-pdf-observation.v1.schema.json": "886c60a0e05d6df4374fbf94d658e09ca321461817a45be5eb0673851d60c549"
   },
   "structure_policy": "ORDERED_NATIVE_K_AND_REVERSE_PARENT_TREE",
   "text_policy": "EXACT_SAME_FONT_BFCHAR_UTF16BE_NO_POSITIONING_INFERENCE",

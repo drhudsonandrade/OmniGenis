@@ -18,6 +18,7 @@ from reporting.typed_pdf_source import prepare_typed_pdf_source
 from reporting.pdf_typed_observation import TypedPdfObservation
 from test_reporting_typed_pdf_source import digest
 from test_reporting_typed_pdf_association import declarations
+from test_reporting_typed_pdf_observation import large_response_fixture
 
 ROOT = Path(__file__).resolve().parents[1]
 STAGES = ('render_pdf_candidate', 'observe_typed_pdf', 'associate_typed_pdf',
@@ -216,11 +217,50 @@ class TypedPdfCandidateTests(unittest.TestCase):
         self.refused(substitutions={'observe_typed_pdf': [foreign]})
         self.last_mocks['associate_typed_pdf'].assert_not_called()
 
+    def test_large_observation_is_readmitted_before_association(self):
+        source, rendered, observed = large_response_fixture()
+        self.assertGreater(len(observed.to_bytes()), 4 * 1024 * 1024)
+        self.assertLessEqual(len(observed.to_bytes()), 11 * 1024 * 1024)
+        with patch.object(self.m, 'render_pdf_candidate', return_value=rendered) as render, \
+                patch.object(self.m, 'observe_typed_pdf', return_value=observed) as observe, \
+                patch.object(self.m, 'associate_typed_pdf',
+                             side_effect=RuntimeError('intentional boundary stop')) as associate, \
+                patch.object(self.m, 'inspect_pdf_raster_window') as raster:
+            with self.assertRaisesRegex(self.m.TypedPdfCandidateError,
+                                        '^typed_pdf_candidate_refused$'):
+                self.m.prepare_typed_pdf_candidate(**self.inputs(source))
+        render.assert_called_once()
+        observe.assert_called_once_with(
+            pdf_bytes=rendered.pdf_bytes,
+            expected_pdf_sha256=sha256(rendered.pdf_bytes).hexdigest())
+        associate.assert_called_once()
+        admitted = associate.call_args.kwargs['observation']
+        self.assertIs(type(admitted), TypedPdfObservation)
+        self.assertIsNot(admitted, observed)
+        self.assertEqual(admitted.to_bytes(), observed.to_bytes())
+        self.assertEqual(associate.call_args.kwargs['expected_observation_sha256'],
+                         admitted.observation_sha256)
+        raster.assert_not_called()
+
     def test_oversized_forged_observation_refuses_before_association(self):
+        self.case()
         forged = object.__new__(TypedPdfObservation)
-        object.__setattr__(forged, '_payload', b' ' * (4194304 + 1))
-        self.refused(substitutions={'observe_typed_pdf': [forged]})
+        object.__setattr__(forged, '_payload', b' ' * (11 * 1024 * 1024 + 1))
+        with patch.object(TypedPdfObservation, '__post_init__') as reconstruct:
+            self.refused(substitutions={'observe_typed_pdf': [forged]})
+            reconstruct.assert_not_called()
         self.last_mocks['associate_typed_pdf'].assert_not_called()
+
+    def test_association_receipt_keeps_its_separate_four_mib_ceiling(self):
+        original = self.case()['outputs']['associate_typed_pdf'][0]
+        forged = copy.copy(original)
+        oversized = b' ' * (4 * 1024 * 1024 + 1)
+        object.__setattr__(forged, '_serialized', oversized)
+        object.__setattr__(forged, 'association_sha256', sha256(oversized).hexdigest())
+        with patch.object(type(forged), 'summary') as summarize:
+            self.refused(substitutions={'associate_typed_pdf': [forged]})
+            summarize.assert_not_called()
+        self.last_mocks['inspect_pdf_raster_window'].assert_not_called()
 
     def test_wrong_stage_result_types_are_refused(self):
         for stage in STAGES:
