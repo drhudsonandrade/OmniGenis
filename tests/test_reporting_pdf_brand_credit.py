@@ -42,10 +42,14 @@ class BrandCreditCandidateTests(unittest.TestCase):
         prepared = self.prepare()
         html = prepared.html
         self.assertEqual(html.count('data-component="visual-asset-credits"'), 1)
-        self.assertEqual(html.count(escape(REQUIRED_CREDIT_EN)), 1)
+        self.assertEqual(html.replace("\n", "").count(escape(REQUIRED_CREDIT_EN)), 1)
         self.assertIn("<h2>Visual asset credits</h2>", html)
-        self.assertIn("<p>" + escape(REQUIRED_CREDIT_EN) + "</p>", html)
+        self.assertIn("<pre>{&quot;notice&quot;:&quot;" + escape(REQUIRED_CREDIT_EN) + "&quot;}</pre>", html.replace("\n", ""))
         self.assertEqual(prepared.html_sha256, sha256(html.encode()).hexdigest())
+        from reporting.pdf_generated_source_job import _expected_content
+        self.assertEqual(_expected_content(prepared.presentation_ir),
+                         (prepared.credited_ir_sha256, prepared.expected_text_sha256))
+        self.assertNotEqual(prepared.source_ir_sha256, prepared.credited_ir_sha256)
         self.assertEqual(html.count("<section "), 6)
         self.assertEqual(html.count("</section>"), 6)
 
@@ -107,6 +111,10 @@ class BrandCreditCandidateTests(unittest.TestCase):
         object.__setattr__(separate, "permission_sha256", "0" * 64)
         with self.assertRaises(self.m.BrandCreditError):
             separate.to_dict()
+        nested = self.prepare()
+        nested.presentation_ir["components"][-1]["content"]["notice"] = "changed"
+        with self.assertRaises(self.m.BrandCreditError):
+            nested.to_dict()
 
     def test_actual_native_pdf_contains_approved_credit_once(self):
         from reporting.pdf_generated_source_job import render_pdf_candidate
@@ -119,6 +127,15 @@ class BrandCreditCandidateTests(unittest.TestCase):
         self.assertEqual(compact.count(REQUIRED_CREDIT_EN), 1)
         self.assertEqual(candidate.to_dict()["release_authorized"], False)
         self.assertGreater(len(candidate.pdf_bytes), 1000)
+        from reporting.pdf_candidate_qa import validate_pdf_candidate_qa
+        checked = validate_pdf_candidate_qa(
+            presentation_ir=prepared.presentation_ir,
+            expected_ir_sha256=prepared.credited_ir_sha256,
+            pdf_bytes=candidate.pdf_bytes,
+            expected_pdf_sha256=candidate.pdf_sha256,
+        )
+        self.assertTrue(checked.passed, checked.to_dict())
+        self.assertEqual(len(checked.gates), 6)
 
 
 if __name__ == "__main__":
