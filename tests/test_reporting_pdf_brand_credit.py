@@ -116,6 +116,19 @@ class BrandCreditCandidateTests(unittest.TestCase):
         with self.assertRaises(self.m.BrandCreditError):
             nested.to_dict()
 
+    def test_direct_constructor_rejects_other_asset_identities(self):
+        approved = self.prepare()
+        for bundle, permission in (
+                ("0" * 64, approved.permission_sha256),
+                (approved.brand_bundle_sha256, "0" * 64)):
+            with self.subTest(bundle=bundle, permission=permission):
+                with self.assertRaises(self.m.BrandCreditError):
+                    self.m.PreparedBrandCredit(
+                        approved.html, approved.presentation_ir,
+                        approved.html_sha256, approved.source_ir_sha256,
+                        approved.credited_ir_sha256,
+                        approved.expected_text_sha256, bundle, permission)
+
     def test_actual_native_pdf_contains_approved_credit_once(self):
         from reporting.pdf_generated_source_job import render_pdf_candidate
         from pypdf import PdfReader

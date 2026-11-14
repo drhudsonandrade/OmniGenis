@@ -16,7 +16,7 @@ from html import escape
 from reporting import pdf_bound_candidate as bound_source
 from reporting import pdf_generated_source_job as generated
 from reporting.brand_assets import (
-    BoundBrandAssets, BrandAssetError, REQUIRED_CREDIT_EN,
+    BoundBrandAssets, BrandAssetError, REQUIRED_CREDIT_EN, _PERMISSION_SHA256,
 )
 from reporting.pdf_bound_raster_candidate import _bounded_semantic_html
 from reporting.requests import BoundReportRequest
@@ -25,6 +25,11 @@ PROFILE_ID = "original-brand-credit-html-v1"
 CREDIT_SECTION_ID = "visual-asset-credits"
 _CLOSING_HTML = "</body></html>"
 _MAX_HTML_BYTES = 64 * 1024 * 1024
+# Pinned digest of the exact two approved assets and their permission manifest.
+# Direct construction must never relabel a credited document with another bundle.
+_APPROVED_BRAND_BUNDLE_SHA256 = (
+    "c4332907b19ae45524534ad352c1b521db08ec9fc8fd88ae73fa2ec4ba8c0eeb"
+)
 
 
 class BrandCreditError(ValueError):
@@ -58,6 +63,8 @@ class PreparedBrandCredit:
         for value in (self.source_ir_sha256, self.brand_bundle_sha256, self.permission_sha256):
             _require(type(value) is str and len(value) == 64
                      and all(char in "0123456789abcdef" for char in value))
+        _require(self.brand_bundle_sha256 == _APPROVED_BRAND_BUNDLE_SHA256
+                 and self.permission_sha256 == _PERMISSION_SHA256)
         _require(type(self.presentation_ir) is dict
                  and generated._validate_ir(self.presentation_ir)
                  and len(self.presentation_ir["components"]) == 6)
