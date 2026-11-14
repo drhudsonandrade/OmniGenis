@@ -9,6 +9,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+from time import monotonic_ns
 import unittest
 from unittest.mock import patch
 import zlib
@@ -686,3 +687,239 @@ class TypedPdfObservationTests(unittest.TestCase):
         self.assertFalse(profile['aggregate_job_resources_qualified'])
         for name, expected in profile['source_sha256'].items():
             self.assertEqual(sha256((ROOT / name).read_bytes()).hexdigest(), expected)
+
+
+class TypedPdfProcessObservationTests(unittest.TestCase):
+    """Optional records describe actual parent observations, not authenticated events."""
+
+    _small_pdf = None
+    _small_attempted = False
+
+    def setUp(self):
+        self.m = importlib.import_module('reporting.pdf_typed_observation')
+
+    @classmethod
+    def small_pdf(cls):
+        if cls._small_pdf is None:
+            if cls._small_attempted:
+                raise RuntimeError('small process-observation fixture already failed')
+            cls._small_attempted = True
+            cls._small_pdf = native_fixture(0)
+        return cls._small_pdf
+
+    def observed(self, pdf=None):
+        pdf = self.small_pdf() if pdf is None else pdf
+        return self.m.observe_typed_pdf_with_processes(
+            pdf_bytes=pdf, expected_pdf_sha256=sha256(pdf).hexdigest())
+
+
+    def test_observed_api_binds_one_real_worker_to_same_observation(self):
+        observer = importlib.import_module('reporting.pdf_typed_observation')
+        observe = getattr(observer, 'observe_typed_pdf_with_processes', None)
+        self.assertTrue(callable(observe), 'explicit observed typed PDF API is missing')
+        pdf = self.small_pdf()
+        pdf_sha = sha256(pdf).hexdigest()
+        worker = ROOT / 'reporting/_pdf_typed_observation_worker.py'
+        started = []
+        original_start = observer._start
+
+        def capture_start(*args, **kwargs):
+            process = original_start(*args, **kwargs)
+            started.append(process)
+            return process
+
+        before = monotonic_ns()
+        with patch.object(observer, '_start', side_effect=capture_start) as start, \
+                patch.object(observer, '_wait', wraps=observer._wait) as wait, \
+                patch.object(observer, '_decode', wraps=observer._decode) as decode:
+            observed, record = observe(pdf_bytes=pdf, expected_pdf_sha256=pdf_sha)
+        after = monotonic_ns()
+
+        start.assert_called_once()
+        self.assertEqual(len(started), 1)
+        wait.assert_called_once_with(started[0])
+        decode.assert_called_once()
+        self.assertIsInstance(observed, observer.TypedPdfObservation)
+        self.assertEqual(set(record), {
+            'kind', 'worker', 'worker_source_sha256', 'parent_pid', 'pid',
+            'spawn_monotonic_ns', 'exit_monotonic_ns', 'exit_code',
+            'request_header_sha256', 'pdf_sha256', 'pdf_byte_count', 'page_count',
+            'typed_observation_sha256', 'profile_sha256', 'observation_sha256',
+        })
+        self.assertEqual(record['kind'], 'typed_observation')
+        self.assertEqual(record['worker'], worker.name)
+        self.assertEqual(record['worker_source_sha256'], sha256(worker.read_bytes()).hexdigest())
+        self.assertEqual(record['parent_pid'], os.getpid())
+        self.assertEqual(record['pid'], started[0].pid)
+        self.assertNotEqual(record['pid'], record['parent_pid'])
+        self.assertEqual(record['exit_code'], 0)
+        self.assertEqual(started[0].returncode, 0)
+        self.assertIs(type(record['spawn_monotonic_ns']), int)
+        self.assertIs(type(record['exit_monotonic_ns']), int)
+        self.assertLessEqual(before, record['spawn_monotonic_ns'])
+        self.assertLessEqual(record['spawn_monotonic_ns'], record['exit_monotonic_ns'])
+        self.assertLessEqual(record['exit_monotonic_ns'], after)
+        self.assertEqual(record['request_header_sha256'],
+                         sha256(b'1 ' + pdf_sha.encode('ascii') + b'\n').hexdigest())
+        self.assertEqual(record['pdf_sha256'], pdf_sha)
+        self.assertEqual(record['pdf_byte_count'], len(pdf))
+        metadata = observed.to_dict()
+        self.assertEqual(record['page_count'], metadata['page_count'])
+        self.assertEqual(record['profile_sha256'], metadata['profile_sha256'])
+        self.assertEqual(record['typed_observation_sha256'], observed.observation_sha256)
+        self.assertTrue(all(metadata[name] is False for name in observer.NONCLAIMS))
+        unsigned = dict(record)
+        checksum = unsigned.pop('observation_sha256')
+        self.assertEqual(checksum, sha256(encoded(unsigned)).hexdigest())
+        self.assertLessEqual(len(encoded(record)), 2048)
+
+    def test_observed_api_input_disable_and_scope_guards_precede_launch(self):
+        pdf = b'%PDF-1.7\nsynthetic input for prelaunch refusals'
+        pdf_sha = sha256(pdf).hexdigest()
+        cases = [(bytearray(pdf), pdf_sha), (b'not a PDF', pdf_sha),
+                 (pdf, 'f' * 64), (pdf, True)]
+        with patch.object(self.m, '_start') as start:
+            for value, expected in cases:
+                with self.subTest(value_type=type(value).__name__, expected_type=type(expected).__name__):
+                    with self.assertRaises(self.m.TypedPdfObservationError):
+                        self.m.observe_typed_pdf_with_processes(
+                            pdf_bytes=value, expected_pdf_sha256=expected)
+            with patch.dict(os.environ, {'OMNIGENIS_TYPED_PDF_OBSERVATION_DISABLED': '1'}):
+                with self.assertRaises(self.m.TypedPdfObservationError):
+                    self.observed(pdf)
+            with patch.object(self.m, 'require_no_active_scope',
+                              side_effect=ValueError('active scope')) as guard:
+                with self.assertRaises(self.m.TypedPdfObservationError):
+                    self.m.observe_typed_pdf_with_processes(
+                        pdf_bytes=None, expected_pdf_sha256=None)
+                guard.assert_called_once()
+            with self.assertRaises(TypeError):
+                self.m.observe_typed_pdf_with_processes(
+                    pdf_bytes=pdf, expected_pdf_sha256=pdf_sha, direct_record={})
+        start.assert_not_called()
+
+    def test_observed_api_rejects_fake_process_without_cleanup_or_decode(self):
+        pdf = b'%PDF-1.7\nsynthetic input for fake launch refusal'
+        with patch.object(self.m, '_start', return_value=object()) as start, \
+                patch.object(self.m, '_cleanup_owned') as cleanup, \
+                patch.object(self.m, '_wait') as wait, \
+                patch.object(self.m, '_decode') as decode:
+            with self.assertRaisesRegex(self.m.TypedPdfObservationError,
+                                        '^typed_pdf_observation_execution_failed$'):
+                self.observed(pdf)
+        start.assert_called_once()
+        cleanup.assert_not_called()
+        wait.assert_not_called()
+        decode.assert_not_called()
+
+    def test_lost_or_reaped_child_identity_is_terminal_without_cleanup_retry(self):
+        pdf = b'%PDF-1.7\nsynthetic input for lost ownership refusal'
+        for returncode in (None, 0):
+            with self.subTest(returncode=returncode):
+                def foreign(command, _fds):
+                    process = object.__new__(self.m._Process)
+                    process._child_created = False
+                    process.args = command
+                    process.pid = os.getppid()
+                    process.returncode = returncode
+                    return process
+                with patch.object(self.m, '_start', side_effect=foreign), \
+                        patch.object(self.m, '_cleanup_owned') as cleanup, \
+                        patch.object(self.m, '_wait') as wait, \
+                        patch.object(self.m, '_decode') as decode, \
+                        patch.object(self.m.os, 'killpg') as kill_group, \
+                        patch.object(self.m.os, 'kill') as kill_child:
+                    with self.assertRaises(self.m.TypedPdfObservationError):
+                        self.observed(pdf)
+                cleanup.assert_not_called()
+                wait.assert_not_called()
+                decode.assert_not_called()
+                kill_group.assert_not_called()
+                kill_child.assert_not_called()
+
+    def test_capture_failure_reaps_owned_child_before_refusal(self):
+        pdf = self.small_pdf()
+        started = []
+        original_start = self.m._start
+
+        def capture_start(*args):
+            process = original_start(*args)
+            started.append(process)
+            return process
+
+        with patch.object(self.m, '_start', side_effect=capture_start) as start, \
+                patch.object(self.m, 'monotonic_ns', side_effect=ValueError('capture clock unavailable')), \
+                patch.object(self.m, '_cleanup_owned', wraps=self.m._cleanup_owned) as cleanup, \
+                patch.object(self.m, '_wait', wraps=self.m._wait) as wait, \
+                patch.object(self.m, '_decode', wraps=self.m._decode) as decode:
+            with self.assertRaisesRegex(self.m.TypedPdfObservationError,
+                                        '^typed_pdf_observation_execution_failed$'):
+                self.observed(pdf)
+        start.assert_called_once()
+        self.assertEqual(len(started), 1)
+        cleanup.assert_called_once_with(started[0], wall_seconds=0)
+        wait.assert_not_called()
+        decode.assert_not_called()
+        self.assertIsNotNone(started[0].returncode)
+        with self.assertRaises(ChildProcessError):
+            os.waitpid(started[0].pid, os.WNOHANG)
+
+    def test_foreign_command_metadata_cleans_the_held_original_child(self):
+        pdf = self.small_pdf()
+        started = []
+        original_start = self.m._start
+
+        def altered_start(command, fds):
+            process = original_start(command, fds)
+            started.append(process)
+            process.args = [*command, 'foreign']
+            return process
+
+        with patch.object(self.m, '_start', side_effect=altered_start) as start, \
+                patch.object(self.m, '_cleanup_owned', wraps=self.m._cleanup_owned) as cleanup, \
+                patch.object(self.m, '_wait', wraps=self.m._wait) as wait, \
+                patch.object(self.m, '_decode', wraps=self.m._decode) as decode:
+            with self.assertRaises(self.m.TypedPdfObservationError):
+                self.observed(pdf)
+        start.assert_called_once()
+        cleanup.assert_called_once_with(started[0], wall_seconds=0)
+        wait.assert_not_called()
+        decode.assert_not_called()
+        self.assertIsNotNone(started[0].returncode)
+        with self.assertRaises(ChildProcessError):
+            os.waitpid(started[0].pid, os.WNOHANG)
+
+    def test_invalid_exit_clock_or_status_withholds_decode_after_owned_wait(self):
+        pdf = self.small_pdf()
+        for failure in ('backwards_clock', 'clock_overflow', 'boolean_exit', 'foreign_exit'):
+            with self.subTest(failure=failure):
+                started = []
+                original_start, original_wait = self.m._start, self.m._wait
+
+                def capture_start(*args):
+                    process = original_start(*args)
+                    started.append(process)
+                    return process
+
+                def observed_wait(process):
+                    code = original_wait(process)
+                    self.assertEqual(code, 0)
+                    if failure == 'boolean_exit':
+                        return False
+                    if failure == 'foreign_exit':
+                        process.returncode = 1
+                    return code
+
+                clocks = [200, 199] if failure == 'backwards_clock' else (
+                    [200, 9223372036854775808] if failure == 'clock_overflow' else [200, 201])
+                with patch.object(self.m, '_start', side_effect=capture_start) as start, \
+                        patch.object(self.m, '_wait', side_effect=observed_wait) as wait, \
+                        patch.object(self.m, 'monotonic_ns', side_effect=clocks), \
+                        patch.object(self.m, '_decode', wraps=self.m._decode) as decode:
+                    with self.assertRaises(self.m.TypedPdfObservationError):
+                        self.observed(pdf)
+                start.assert_called_once()
+                wait.assert_called_once_with(started[0])
+                decode.assert_not_called()
+                with self.assertRaises(ChildProcessError):
+                    os.waitpid(started[0].pid, os.WNOHANG)

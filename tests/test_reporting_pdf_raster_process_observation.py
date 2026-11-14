@@ -12,7 +12,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from tests.test_reporting_pdf_text_windows import fixture_pdf
 
@@ -294,6 +294,269 @@ class RasterProcessObservationTests(unittest.TestCase):
         self.assertEqual(receipt.inspected_pages,4)
         self.assertLessEqual(len(canonical(result)),self.h.MAX_RECORD_BYTES)
         self.assertLessEqual(len(canonical(record)),self.m.RESULT_BYTES)
+
+    def test_process_observed_window_binds_actual_worker_and_nested_children(self):
+        """The standalone triple binds one real reaped worker to its exact nested reply."""
+        operation = getattr(self.m, 'inspect_process_observed_pdf_raster_window', None)
+        self.assertTrue(callable(operation), 'process-observed raster window API missing')
+        processes = []
+        headers = []
+        original = self.m._start
+
+        def capture(command, fds, scratch):
+            """Retain the actual owned process and request before the original wait."""
+            header = os.pread(fds[0], 512, 0).split(b'\n', 1)[0] + b'\n'
+            process = original(command, fds, scratch)
+            processes.append(process)
+            headers.append(header)
+            return process
+
+        with patch.object(self.m, '_start', side_effect=capture):
+            receipt, nested, direct = operation(**self.arguments())
+        self.assertEqual(len(processes), 1)
+        process = processes[0]
+        self.assertEqual(set(direct), {
+            'kind', 'worker', 'worker_source_sha256', 'parent_pid', 'pid',
+            'spawn_monotonic_ns', 'exit_monotonic_ns', 'exit_code',
+            'request_header_sha256', 'identity', 'inspection_sha256',
+            'nested_observation_sha256', 'observation_sha256',
+        })
+        self.assertEqual(direct['kind'], 'raster_windows')
+        self.assertEqual(direct['worker'], '_pdf_raster_window_worker.py')
+        worker = Path(self.m.__file__).with_name('_pdf_raster_window_worker.py')
+        self.assertEqual(direct['worker_source_sha256'],
+                         hashlib.sha256(worker.read_bytes()).hexdigest())
+        self.assertEqual(direct['parent_pid'], os.getpid())
+        self.assertEqual(direct['pid'], process.pid)
+        self.assertEqual(direct['pid'], nested['worker_pid'])
+        self.assertEqual(direct['exit_code'], 0)
+        self.assertEqual(process.returncode, 0)
+        with self.assertRaises(ChildProcessError):
+            os.waitpid(process.pid, os.WNOHANG)
+        self.assertEqual(direct['identity'], receipt._identity())
+        self.assertEqual(direct['identity'], nested['identity'])
+        self.assertEqual(direct['request_header_sha256'],
+                         hashlib.sha256(headers[0]).hexdigest())
+        self.assertEqual(direct['inspection_sha256'], receipt.observation_sha256)
+        self.assertEqual(direct['nested_observation_sha256'],
+                         hashlib.sha256(canonical(nested)).hexdigest())
+        self.assertEqual(direct['observation_sha256'],
+                         hashlib.sha256(canonical({k: v for k, v in direct.items()
+                                                   if k != 'observation_sha256'})).hexdigest())
+        self.assertLessEqual(len(canonical(direct)), 2048)
+        self.assertEqual(nested['observed_spawns'], 5)
+        self.assertEqual(nested['observed_exits'], 5)
+        self.assertEqual([row['page'] for row in nested['processes']], [None, 1, 2, 3, 4])
+        self.assertLessEqual(direct['spawn_monotonic_ns'],
+                             nested['processes'][0]['observed_spawn_ns'])
+        self.assertLessEqual(nested['processes'][-1]['observed_exit_ns'],
+                             direct['exit_monotonic_ns'])
+        self.assertEqual(list(inspect.signature(operation).parameters),
+                         list(inspect.signature(self.m.inspect_observed_pdf_raster_window).parameters))
+
+    def process_wire(self):
+        """Reuse one genuine wire while injecting only deliberate parent-record faults."""
+        from reporting.page_windows import plan_pdf_page_windows
+        record, pid, identity = self.cached_wire()
+        pdf = fixture_pdf(4)
+        plan = plan_pdf_page_windows(
+            pdf_sha256=hashlib.sha256(pdf).hexdigest(), ir_sha256='b' * 64,
+            page_count=4, admitted_page_budget=4, pages_per_window=4,
+            inspector_profile_id=self.m.PROFILE_ID)
+        rows = record['process_observation']['processes']
+        header = ' '.join([str(self.m.PROTOCOL_VERSION),
+                           *(str(identity[key]) for key in self.m.IDENTITY_FIELDS)]) + '\n'
+        worker = Path(self.m.__file__).with_name('_pdf_raster_window_worker.py')
+        direct = {
+            'kind': 'raster_windows', 'worker': worker.name,
+            'worker_source_sha256': hashlib.sha256(worker.read_bytes()).hexdigest(),
+            'parent_pid': os.getpid(), 'pid': pid,
+            'spawn_monotonic_ns': rows[0]['observed_spawn_ns'] - 1,
+            'exit_monotonic_ns': rows[-1]['observed_exit_ns'] + 1,
+            'exit_code': 0, 'request_header_sha256': hashlib.sha256(header.encode('ascii')).hexdigest(),
+            'identity': dict(identity),
+        }
+        arguments = dict(pdf_bytes=pdf, plan=plan, window_index=0,
+                         expected_plan_sha256=plan.plan_sha256)
+        return arguments, canonical(record), pid, direct
+
+    def test_prelaunch_lower_bound_covers_children_before_parent_capture(self):
+        """A delayed parent sample cannot exclude children already started by its worker."""
+        arguments, raw, pid, retained = self.process_wire()
+        process = Mock(spec=subprocess.Popen)
+        process.pid = pid
+        process.returncode = None
+        state = {'launched': False, 'reaped': False}
+        events = []
+        lower = retained['spawn_monotonic_ns']
+        delayed_parent = lower + 2
+        end = retained['exit_monotonic_ns']
+
+        def clock():
+            """Model parent descheduling after launch without running another native worker."""
+            events.append('clock')
+            if not state['launched']:
+                return lower
+            return end if state['reaped'] else delayed_parent
+
+        def start(command, fds, scratch):
+            """Supply the retained genuine reply for this isolated scheduling regression."""
+            events.append('start')
+            state['launched'] = True
+            process.args = command
+            os.write(fds[1], raw)
+            return process
+
+        def wait(child):
+            """Finish the synthetic process boundary without claiming an actual native reap."""
+            self.assertIs(child, process)
+            events.append('wait')
+            state['reaped'] = True
+            process.returncode = 0
+            return 0
+
+        with patch.object(self.m, 'monotonic_ns', side_effect=clock), \
+                patch.object(self.m, '_start', side_effect=start) as started, \
+                patch.object(self.m, '_observe_owned', return_value=None), \
+                patch.object(self.m.os, 'getpgid', return_value=pid), \
+                patch.object(self.m, '_wait', side_effect=wait) as waited:
+            _, nested, direct = self.m.inspect_process_observed_pdf_raster_window(**arguments)
+            started.assert_called_once()
+            waited.assert_called_once_with(process)
+        self.assertEqual(events[:2], ['clock', 'start'])
+        self.assertEqual(direct['spawn_monotonic_ns'], lower)
+        self.assertLess(nested['processes'][0]['observed_spawn_ns'], delayed_parent)
+        self.assertLessEqual(lower, nested['processes'][0]['observed_spawn_ns'])
+        self.assertEqual(direct['exit_monotonic_ns'], end)
+
+    def test_process_observation_guards_refuse_before_launch(self):
+        """The triple preserves disable, platform, input and active-scope admission."""
+        operation = self.m.inspect_process_observed_pdf_raster_window
+        with patch.object(self.m, '_run_worker') as run:
+            with patch.dict(os.environ, {'OMNIGENIS_PDF_RASTER_WINDOWS_DISABLED': '1'}):
+                with self.assertRaises(self.m.PdfRasterWindowError):
+                    operation(**self.arguments())
+            with patch.object(self.m.sys, 'platform', 'unsupported'):
+                with self.assertRaises(self.m.PdfRasterWindowError):
+                    operation(**self.arguments())
+            for key, value in (('pdf_bytes', bytearray(self.pdf)), ('window_index', True),
+                               ('expected_plan_sha256', '0' * 64)):
+                arguments = self.arguments()
+                arguments[key] = value
+                with self.subTest(key=key), self.assertRaises(self.m.PdfRasterWindowError):
+                    operation(**arguments)
+            from reporting._pdf_native_launch_budget import NativeLaunchScope
+            from reporting.page_windows import plan_pdf_page_windows
+            text = plan_pdf_page_windows(
+                pdf_sha256=self.plan.pdf_sha256, ir_sha256='b' * 64, page_count=5,
+                admitted_page_budget=5, pages_per_window=16,
+                inspector_profile_id='generated-pdf-text-window-v1')
+            with NativeLaunchScope(text, len(self.pdf)) as scope:
+                with self.assertRaises(self.m.PdfRasterWindowError):
+                    operation(**self.arguments())
+                self.assertTrue(scope._invalid)
+            run.assert_not_called()
+
+    def test_process_capture_failure_cleans_the_original_owned_child(self):
+        """Failed observation retires the actual group once without decoding or retry."""
+        before = len(os.listdir('/proc/self/fd'))
+        processes = []
+        scratches = []
+        original = self.m._start
+
+        def capture(command, fds, scratch):
+            """Keep the created child identity and scratch path without replacing execution."""
+            process = original(command, fds, scratch)
+            processes.append(process)
+            scratches.append(scratch)
+            return process
+
+        with patch.object(self.m, '_start', side_effect=capture), \
+                patch.object(self.m, '_observe_owned', side_effect=ValueError('capture fault')), \
+                patch.object(self.m, '_wait') as wait, \
+                patch.object(self.m, '_decode_observed') as decode, \
+                patch.object(self.m, 'wait_native_process_group',
+                             wraps=self.m.wait_native_process_group) as cleanup:
+            with self.assertRaises(self.m.PdfRasterWindowError):
+                self.m.inspect_process_observed_pdf_raster_window(**self.arguments())
+            self.assertEqual(len(processes), 1)
+            cleanup.assert_called_once_with(processes[0], wall_seconds=0)
+            wait.assert_not_called()
+            decode.assert_not_called()
+        self.assertIs(type(processes[0].returncode), int)
+        with self.assertRaises(ChildProcessError):
+            os.waitpid(processes[0].pid, os.WNOHANG)
+        self.assertTrue(all(not Path(path).exists() for path in scratches))
+        self.assertEqual(len(os.listdir('/proc/self/fd')), before)
+
+    def test_lost_worker_identity_never_retries_numeric_cleanup(self):
+        """A lost waitable identity refuses before any later signal or reap attempt."""
+        process = Mock(spec=subprocess.Popen)
+        process.pid = os.getpid() + 1
+        process.returncode = None
+
+        def absent(command, fds, scratch):
+            """Supply a nonexecuting negative control whose ownership proof must fail."""
+            process.args = command
+            return process
+
+        with patch.object(self.m, '_start', side_effect=absent) as start, \
+                patch.object(self.m, '_observe_owned', side_effect=ChildProcessError('lost')), \
+                patch.object(self.m, '_wait') as wait, \
+                patch.object(self.m, 'wait_native_process_group') as cleanup, \
+                patch.object(self.m, '_decode_observed') as decode:
+            with self.assertRaises(self.m.PdfRasterWindowError):
+                self.m.inspect_process_observed_pdf_raster_window(**self.arguments())
+            start.assert_called_once()
+            wait.assert_not_called()
+            cleanup.assert_not_called()
+            decode.assert_not_called()
+
+    def test_false_direct_records_and_unenclosed_nested_intervals_refuse(self):
+        """A genuine nested wire cannot validate foreign, incomplete or unbounded direct data."""
+        cases = (
+            ('kind', 'other'), ('worker', '_other.py'), ('worker_source_sha256', '0' * 64),
+            ('request_header_sha256', '0' * 64), ('parent_pid', os.getpid() + 1),
+            ('parent_pid', True), ('pid', True), ('exit_code', True), ('exit_code', 1),
+            ('spawn_monotonic_ns', -1), ('exit_monotonic_ns', 1 << 63),
+            ('worker_source_sha256', 'x' * 2049),
+        )
+        for key, value in cases:
+            arguments, raw, pid, direct = self.process_wire()
+            direct[key] = value
+            with self.subTest(key=key, value=value), \
+                    patch.object(self.m, '_run_worker', return_value=(raw, pid, direct)), \
+                    self.assertRaises(self.m.PdfRasterWindowError):
+                self.m.inspect_process_observed_pdf_raster_window(**arguments)
+        for kind in ('missing', 'extra', 'identity', 'late_spawn', 'early_exit'):
+            arguments, raw, pid, direct = self.process_wire()
+            if kind == 'missing':
+                del direct['pid']
+            elif kind == 'extra':
+                direct['approved'] = True
+            elif kind == 'identity':
+                direct['identity']['pdf_sha256'] = '0' * 64
+            elif kind == 'late_spawn':
+                direct['spawn_monotonic_ns'] += 2
+            else:
+                direct['exit_monotonic_ns'] -= 2
+            with self.subTest(kind=kind), \
+                    patch.object(self.m, '_run_worker', return_value=(raw, pid, direct)), \
+                    self.assertRaises(self.m.PdfRasterWindowError):
+                self.m.inspect_process_observed_pdf_raster_window(**arguments)
+
+    def test_process_observation_rechecks_the_original_plan(self):
+        """A valid observed wire cannot finish after its admitted page plan is mutated."""
+        arguments, raw, pid, direct = self.process_wire()
+
+        def change(*args, **kwargs):
+            """Mutate only the caller plan after the retained native reply is returned."""
+            object.__setattr__(arguments['plan'], 'page_count', 9)
+            return raw, pid, direct
+
+        with patch.object(self.m, '_run_worker', side_effect=change):
+            with self.assertRaises(self.m.PdfRasterWindowError):
+                self.m.inspect_process_observed_pdf_raster_window(**arguments)
 
     def test_old_decoder_refuses_observed_wire(self):
         """An opt-in reply cannot silently cross the unchanged default protocol shape."""
