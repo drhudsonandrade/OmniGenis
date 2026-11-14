@@ -15,10 +15,13 @@ import os
 from pathlib import Path
 import stat
 import subprocess
+from subprocess import Popen as _Process
 import sys
 import tempfile
+from time import monotonic_ns
 
 from reporting._pdf_document_byte_budget import require_pdf_document_budget
+from reporting._pdf_process_lifecycle import _observe as _observe_owned
 from reporting._pdf_raster_child_observation import MODE as OBSERVATION_MODE, validate_observation
 from reporting._pdf_native_launch_budget import admit_launch, wait_native_process_group, require_no_active_scope
 
@@ -38,6 +41,7 @@ from reporting.pdf_text_windows import _canonical, _unique_pairs
 
 _LIMITS = {"memory_bytes": MEMORY_BYTES, "cpu_seconds": CPU_SECONDS,
            "file_bytes": FILE_BYTES, "open_files": OPEN_FILES}
+_MAX_DIRECT_OBSERVATION_BYTES = 2048
 
 
 class PdfRasterWindowError(ValueError):
@@ -164,10 +168,93 @@ def _wait(process: subprocess.Popen) -> int:
     return wait_native_process_group(process, wall_seconds=WALL_SECONDS)
 
 
-def _run_worker(pdf: bytes, identity: dict, *, observe_processes: bool = False) -> bytes | tuple[bytes, int]:
-    """Own the exact scratch inode and anonymous request/result files for one invocation."""
-    if type(observe_processes) is not bool:
+def _observe_raster_worker_spawn(process: object, command: list[str], launch_lower_bound_ns: int) -> dict:
+    """Bind the prelaunch local lower bound only after actual child ownership is proved."""
+    parent = os.getpid()
+    worker = Path(__file__).resolve().with_name('_pdf_raster_window_worker.py')
+    if (not isinstance(process, _Process) or type(process.pid) is not int
+            or not 2 <= process.pid <= 2147483647 or process.pid == parent
+            or type(parent) is not int or not 2 <= parent <= 2147483647
+            or process.returncode is not None or process.args != command
+            or type(command) is not list or len(command) != 8
+            or any(type(value) is not str for value in command)
+            or command[:3] != [sys.executable, '-I', str(worker)]
+            or command[-2:] != [str(parent), OBSERVATION_MODE]
+            or worker.is_symlink()):
+        raise ValueError('raster observed worker identity')
+    _observe_owned(process)
+    if os.getpgid(process.pid) != process.pid:
+        raise ValueError('raster observed worker group')
+    if (type(launch_lower_bound_ns) is not int
+            or not 0 <= launch_lower_bound_ns < (1 << 63)):
+        raise ValueError('raster observed worker clock')
+    return {
+        'kind': 'raster_windows', 'worker': worker.name,
+        'worker_source_sha256': hashlib.sha256(worker.read_bytes()).hexdigest(),
+        'parent_pid': parent, 'pid': process.pid,
+        'spawn_monotonic_ns': launch_lower_bound_ns,
+    }
+
+
+def _finish_raster_worker_observation(value: dict, identity: dict,
+                                      receipt: PdfRasterWindowInspection,
+                                      nested: dict) -> dict:
+    """Join the retained direct child to its decoded receipt and enclosed children."""
+    fields = {
+        'kind', 'worker', 'worker_source_sha256', 'parent_pid', 'pid',
+        'spawn_monotonic_ns', 'exit_monotonic_ns', 'exit_code',
+        'request_header_sha256', 'identity',
+    }
+    if (type(value) is not dict or set(value) != fields
+            or len(_canonical(value)) > _MAX_DIRECT_OBSERVATION_BYTES
+            or type(receipt) is not PdfRasterWindowInspection):
+        raise ValueError('raster direct observation shape')
+    _validate_identity(identity)
+    _validate_identity(value['identity'])
+    worker = Path(__file__).resolve().with_name('_pdf_raster_window_worker.py')
+    header = ' '.join([str(PROTOCOL_VERSION), *(str(identity[k]) for k in IDENTITY_FIELDS)]) + '\n'
+    if (value['kind'] != 'raster_windows' or value['worker'] != worker.name
+            or worker.is_symlink()
+            or value['worker_source_sha256'] != hashlib.sha256(worker.read_bytes()).hexdigest()
+            or value['request_header_sha256'] != hashlib.sha256(header.encode('ascii')).hexdigest()
+            or _canonical(value['identity']) != _canonical(identity)
+            or receipt._identity() != identity):
+        raise ValueError('raster direct observation binding')
+    for key in ('parent_pid', 'pid'):
+        if type(value[key]) is not int or not 2 <= value[key] <= 2147483647:
+            raise ValueError('raster direct observation pid')
+    if (value['parent_pid'] != os.getpid() or value['pid'] == value['parent_pid']
+            or value['pid'] != nested['worker_pid']
+            or type(value['exit_code']) is not int or value['exit_code'] != 0):
+        raise ValueError('raster direct observation ownership or exit')
+    begin = value['spawn_monotonic_ns']
+    end = value['exit_monotonic_ns']
+    if (type(begin) is not int or type(end) is not int
+            or not 0 <= begin <= end < (1 << 63)):
+        raise ValueError('raster direct observation interval')
+    for row in nested['processes']:
+        if (row['pid'] in (value['parent_pid'], value['pid'])
+                or not begin <= row['observed_spawn_ns'] <= row['observed_exit_ns'] <= end):
+            raise ValueError('raster nested observation outside direct worker')
+    result = {
+        **value, 'inspection_sha256': receipt.observation_sha256,
+        'nested_observation_sha256': hashlib.sha256(_canonical(nested)).hexdigest(),
+    }
+    result['observation_sha256'] = hashlib.sha256(_canonical(result)).hexdigest()
+    encoded = _canonical(result)
+    if len(encoded) > _MAX_DIRECT_OBSERVATION_BYTES:
+        raise ValueError('raster direct observation budget')
+    return json.loads(encoded)
+
+
+def _run_worker(pdf: bytes, identity: dict, *, observe_processes: bool = False,
+                observe_worker: bool = False) -> bytes | tuple[bytes, int] | tuple[bytes, int, dict]:
+    """Own one original transport, with optional direct observations outside a job scope."""
+    if (type(observe_processes) is not bool or type(observe_worker) is not bool
+            or (observe_worker and not observe_processes)):
         raise ValueError("raster observation flag")
+    if observe_worker:
+        require_no_active_scope()
     opted_in = bounded_scratch_requested()
     parent = bounded_scratch_parent()
     with tempfile.TemporaryDirectory(
@@ -199,11 +286,47 @@ def _run_worker(pdf: bytes, identity: dict, *, observe_processes: bool = False) 
                     *(str(fd) for fd in fds), str(os.getpid())]
                 if observe_processes:
                     command.append(OBSERVATION_MODE)
+                launch_lower_bound = None
+                if observe_worker:
+                    launch_lower_bound = monotonic_ns()
+                    if (type(launch_lower_bound) is not int
+                            or not 0 <= launch_lower_bound < (1 << 63)):
+                        raise ValueError('raster observed prelaunch clock')
                 process = _start(command, fds, scratch)
-                if _wait(process) != 0 or not 0 < os.fstat(result.fileno()).st_size <= RESULT_BYTES:
+                direct = None
+                if observe_worker:
+                    try:
+                        direct = _observe_raster_worker_spawn(process, command, launch_lower_bound)
+                        direct.update(
+                            request_header_sha256=hashlib.sha256(header.encode('ascii') + b'\n').hexdigest(),
+                            identity=dict(identity),
+                        )
+                    except ChildProcessError:
+                        # Lost waitable identity cannot authorize another numeric-PID lookup.
+                        raise
+                    except BaseException as failure:
+                        if isinstance(process, _Process):
+                            try:
+                                wait_native_process_group(process, wall_seconds=0)
+                            except BaseException as cleanup:
+                                raise failure from cleanup
+                        raise
+                code = _wait(process)
+                if code != 0 or not 0 < os.fstat(result.fileno()).st_size <= RESULT_BYTES:
                     raise ValueError("raster worker failed")
+                if observe_worker:
+                    current = monotonic_ns()
+                    if (type(code) is not int or type(process.returncode) is not int
+                            or process.returncode != code or process.pid != direct['pid']
+                            or direct['parent_pid'] != os.getpid()
+                            or type(current) is not int
+                            or not direct['spawn_monotonic_ns'] <= current < (1 << 63)):
+                        raise ValueError('raster observed worker exit or clock')
+                    direct.update(exit_monotonic_ns=current, exit_code=code)
                 result.seek(0)
                 data = result.read(RESULT_BYTES + 1)
+                if observe_worker:
+                    return data, process.pid, direct
                 return (data, process.pid) if observe_processes else data
         finally:
             os.close(scratch_fd)
@@ -309,3 +432,38 @@ def inspect_observed_pdf_raster_window(
         return receipt, observation
     except Exception:
         raise PdfRasterWindowError("pdf_raster_window_observed_execution_failed") from None
+
+
+
+def inspect_process_observed_pdf_raster_window(
+    *, pdf_bytes: object, plan: PageWindowPlan, window_index: int,
+    expected_plan_sha256: str,
+) -> tuple[PdfRasterWindowInspection, dict, dict]:
+    """Return the original receipt, nested records and their actual direct worker.
+
+    The fixed standalone operation observes one owned worker and its existing
+    declared probe/page children. The spawn timestamp is a local lower bound
+    sampled immediately before launch and attached only after child ownership
+    is proved; the exit timestamp follows the original cleanup and reap.
+    These observations and unsigned source hashes do not authenticate execution
+    or qualify aggregate resources.
+    The original native job scope, worker mode and all resource limits remain.
+    """
+    identity = _admit_raster_window(
+        pdf_bytes=pdf_bytes, plan=plan, window_index=window_index,
+        expected_plan_sha256=expected_plan_sha256)
+    try:
+        require_no_active_scope()
+        data, worker_pid, direct = _run_worker(
+            pdf_bytes, identity, observe_processes=True, observe_worker=True)
+        receipt, nested = _decode_observed(data, identity, worker_pid)
+        if type(direct) is not dict or direct.get('pid') != worker_pid:
+            raise ValueError('raster direct worker mismatch')
+        direct = _finish_raster_worker_observation(direct, identity, receipt, nested)
+        plan.__post_init__()
+        if plan.plan_sha256 != expected_plan_sha256:
+            raise ValueError('raster plan changed')
+        require_no_active_scope()
+        return receipt, nested, direct
+    except Exception:
+        raise PdfRasterWindowError('pdf_raster_window_process_observed_execution_failed') from None

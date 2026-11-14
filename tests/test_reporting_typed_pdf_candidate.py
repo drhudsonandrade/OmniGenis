@@ -7,6 +7,7 @@ from hashlib import sha256
 import copy
 import importlib
 import importlib.util
+import inspect
 import json
 import os
 from pathlib import Path
@@ -23,6 +24,8 @@ from test_reporting_typed_pdf_observation import large_response_fixture
 ROOT = Path(__file__).resolve().parents[1]
 STAGES = ('render_pdf_candidate', 'observe_typed_pdf', 'associate_typed_pdf',
           'inspect_pdf_raster_window')
+OBSERVED_STAGES = ('_render_pdf_candidate', 'observe_typed_pdf_with_processes',
+                   'associate_typed_pdf', 'inspect_process_observed_pdf_raster_window')
 
 
 def encoded(value):
@@ -35,6 +38,8 @@ class TypedPdfCandidateTests(unittest.TestCase):
     """Private candidates require complete real stages; unsigned evidence is narrow."""
 
     fixtures = {}
+    observed_fixtures = {}
+    observed_attempts = set()
 
     def setUp(self):
         self.assertIsNotNone(importlib.util.find_spec('reporting.typed_pdf_candidate'),
@@ -90,6 +95,422 @@ class TypedPdfCandidateTests(unittest.TestCase):
         with self.assertRaisesRegex(self.m.TypedPdfCandidateError,
                                     '^typed_pdf_candidate_refused$'):
             self.replay(**kwargs)
+
+
+    def observed_case(self, name='empty'):
+        """Capture each bounded native observed fixture once, without failure retries."""
+        self.assertIn(name, ('empty', 'row'))
+        if name not in self.observed_fixtures:
+            self.assertNotIn(name, self.observed_attempts, 'observed fixture attempt already consumed')
+            self.observed_attempts.add(name)
+            inputs = self.inputs(declarations(name))
+            calls, outputs = [], {key: [] for key in OBSERVED_STAGES}
+
+            def observed_call(key, function):
+                def call(*args, **kwargs):
+                    calls.append((key, args, kwargs))
+                    value = function(*args, **kwargs)
+                    outputs[key].append(value)
+                    return value
+                return call
+
+            with ExitStack() as stack:
+                for key in OBSERVED_STAGES:
+                    stack.enter_context(patch.object(
+                        self.m, key, side_effect=observed_call(key, getattr(self.m, key))))
+                for key in ('render_pdf_candidate', 'observe_typed_pdf',
+                            'inspect_pdf_raster_window'):
+                    stack.enter_context(patch.object(
+                        self.m, key, side_effect=AssertionError('unobserved route invoked')))
+                candidate, observation = self.m.prepare_observed_typed_pdf_candidate(**inputs)
+            self.observed_fixtures[name] = dict(
+                inputs=inputs, candidate=candidate, observation=observation,
+                calls=calls, outputs=outputs)
+        return self.observed_fixtures[name]
+
+    def replay_observed(self, *, name='empty', substitutions=None, reuse_clock=True):
+        """Use retained synthetic receipts and explicit clock doubles, never new workers."""
+        case = self.observed_case(name)
+        outputs = {key: list(value) for key, value in case['outputs'].items()}
+        outputs.update(substitutions or {})
+        with ExitStack() as stack:
+            self.last_observed_mocks = {
+                key: stack.enter_context(patch.object(self.m, key, side_effect=value))
+                for key, value in outputs.items()}
+            if reuse_clock:
+                stack.enter_context(patch.object(self.m, 'monotonic_ns', side_effect=[
+                    case['observation']['started_monotonic_ns'],
+                    case['observation']['verified_monotonic_ns']]))
+            for key in ('render_pdf_candidate', 'observe_typed_pdf',
+                        'inspect_pdf_raster_window'):
+                stack.enter_context(patch.object(
+                    self.m, key, side_effect=AssertionError('unobserved route invoked')))
+            return self.m.prepare_observed_typed_pdf_candidate(**copy.deepcopy(case['inputs']))
+
+    def refused_observed(self, **kwargs):
+        """Require a whole-operation refusal rather than a candidate prefix."""
+        with self.assertRaisesRegex(self.m.TypedPdfCandidateError,
+                                    '^typed_pdf_candidate_refused$'):
+            self.replay_observed(**kwargs)
+
+    @staticmethod
+    def reseal_process(record):
+        """Rehash a deliberate metadata mutation without claiming it was observed."""
+        value = copy.deepcopy(record)
+        value.pop('observation_sha256', None)
+        value['observation_sha256'] = sha256(encoded(value)).hexdigest()
+        return value
+
+    def rebind_child_hash(self, entry):
+        """Keep only descriptive hashes coherent in malformed nested-record controls."""
+        entry['child_observation'] = self.reseal_process(entry['child_observation'])
+        entry['direct_process']['nested_observation_sha256'] = sha256(
+            encoded(entry['child_observation'])).hexdigest()
+        entry['direct_process'] = self.reseal_process(entry['direct_process'])
+
+    def rejected_process_sidecar(self, observation, name='empty'):
+        """Exercise closed composition admission against an already accepted candidate."""
+        candidate = self.observed_case(name)['candidate']
+        with self.assertRaises(ValueError):
+            self.m._validate_process_observation(
+                observation, candidate.to_bytes(), candidate.pdf_bytes)
+
+    def test_observed_candidate_accounts_for_actual_stage_processes_once(self):
+        operation = getattr(self.m, 'prepare_observed_typed_pdf_candidate', None)
+        self.assertTrue(callable(operation), 'observed typed composition is missing')
+        case = self.observed_case()
+        candidate, observation = case['candidate'], case['observation']
+        self.assertIs(type(candidate), self.m.TypedPdfCandidate)
+        metadata = candidate.to_dict()
+        self.assertEqual(metadata['page_count'], 1)
+        self.assertEqual(metadata['raster_window_count'], 1)
+        self.assertEqual([item[0] for item in case['calls']], list(OBSERVED_STAGES))
+        self.assertTrue(all(len(case['outputs'][key]) == 1 for key in OBSERVED_STAGES))
+        self.assertIs(case['calls'][0][2]['observe_processes'], True)
+        self.assertEqual(observation['candidate_sha256'], candidate.candidate_sha256)
+        self.assertEqual(observation['pdf_sha256'], sha256(candidate.pdf_bytes).hexdigest())
+        self.assertEqual(observation['observation_sha256'], sha256(encoded({
+            key: value for key, value in observation.items()
+            if key != 'observation_sha256'})).hexdigest())
+        self.assertEqual((observation['observed_direct_spawns'],
+                          observation['observed_direct_exits'],
+                          observation['observed_nested_spawns'],
+                          observation['observed_nested_exits'],
+                          observation['observed_total_spawns'],
+                          observation['observed_total_exits']), (3, 3, 2, 2, 5, 5))
+        self.assertLessEqual(len(encoded(observation)), 160 * 1024)
+        self.assertFalse(observation['aggregate_job_resources_qualified'])
+        self.assertFalse(observation['authenticated_worker_execution'])
+        self.assertFalse(observation['release_authorized'])
+        self.assertFalse(metadata['declared_process_schedule']['execution_authenticated'])
+
+
+    def test_observed_multiwindow_reconciles_every_direct_and_nested_child(self):
+        case = self.observed_case('row')
+        candidate, observation = case['candidate'], case['observation']
+        metadata = candidate.to_dict()
+        self.assertEqual((metadata['page_count'], metadata['raster_window_count']), (5, 2))
+        self.assertEqual((observation['observed_direct_spawns'],
+                          observation['observed_nested_spawns'],
+                          observation['observed_total_spawns']), (4, 7, 11))
+        self.assertEqual([item[2]['window_index'] for item in case['calls']
+                          if item[0] == OBSERVED_STAGES[-1]], [0, 1])
+        pids = {observation['parent_pid']}
+        previous = observation['started_monotonic_ns']
+        records = [observation['render_process'], observation['typed_observation_process']]
+        records.extend(entry['direct_process'] for entry in observation['raster_windows'])
+        for record in records:
+            self.assertEqual(record['parent_pid'], os.getpid())
+            self.assertNotIn(record['pid'], pids)
+            pids.add(record['pid'])
+            self.assertLessEqual(previous, record['spawn_monotonic_ns'])
+            self.assertLessEqual(record['spawn_monotonic_ns'], record['exit_monotonic_ns'])
+            previous = record['exit_monotonic_ns']
+        for entry in observation['raster_windows']:
+            direct = entry['direct_process']
+            for child in entry['child_observation']['processes']:
+                self.assertEqual(child['parent_pid'], direct['pid'])
+                self.assertNotIn(child['pid'], pids)
+                pids.add(child['pid'])
+                self.assertLessEqual(direct['spawn_monotonic_ns'], child['observed_spawn_ns'])
+                self.assertLessEqual(child['observed_exit_ns'], direct['exit_monotonic_ns'])
+        self.assertEqual(len(pids) - 1, 11)
+        self.assertLessEqual(previous, observation['verified_monotonic_ns'])
+
+    def test_observed_and_default_results_remain_identical_and_separate(self):
+        observed = self.observed_case()['candidate']
+        ordinary = self.case()['candidate']
+        self.assertEqual(observed.pdf_bytes, ordinary.pdf_bytes)
+        self.assertEqual(observed.to_bytes(), ordinary.to_bytes())
+        with ExitStack() as stack:
+            mocks = [stack.enter_context(patch.object(self.m, key))
+                     for key in ('_render_pdf_candidate', 'observe_typed_pdf_with_processes',
+                                 'inspect_process_observed_pdf_raster_window',
+                                 '_build_process_observation')]
+            self.replay()
+        for mock in mocks:
+            mock.assert_not_called()
+
+    def test_observed_factory_accepts_no_artifact_executor_or_success_options(self):
+        operation = self.m.prepare_observed_typed_pdf_candidate
+        self.assertEqual(inspect.signature(operation).parameters,
+                         inspect.signature(self.m.prepare_typed_pdf_candidate).parameters)
+        for field, value in (('pdf_bytes', b'%PDF-1.7'), ('html', '<p>Injected</p>'),
+                             ('executor', lambda: None), ('callback', lambda: None),
+                             ('sidecar', {}), ('passed', True), ('budget', 1)):
+            with self.subTest(field=field), patch.object(self.m, '_render_pdf_candidate') as render:
+                with self.assertRaises(TypeError):
+                    operation(**self.inputs(), **{field: value})
+                render.assert_not_called()
+
+    def test_observed_admission_disables_and_active_scope_precede_render(self):
+        for field in ('expected_ir_sha256', 'expected_source_expectation_sha256',
+                      'expected_profile_sha256'):
+            inputs = self.inputs()
+            inputs[field] = '0' * 64
+            with self.subTest(field=field), patch.object(self.m, '_render_pdf_candidate') as render:
+                with self.assertRaises(self.m.TypedPdfCandidateError):
+                    self.m.prepare_observed_typed_pdf_candidate(**inputs)
+                render.assert_not_called()
+        for flag in ('OMNIGENIS_TYPED_PDF_CANDIDATE_DISABLED', 'OMNIGENIS_PDF_RENDERER_DISABLED',
+                     'OMNIGENIS_TYPED_PDF_OBSERVATION_DISABLED', 'OMNIGENIS_PDF_RASTER_WINDOWS_DISABLED'):
+            with self.subTest(flag=flag), patch.dict(os.environ, {flag: '1'}), \
+                    patch.object(self.m, '_render_pdf_candidate') as render:
+                with self.assertRaises(self.m.TypedPdfCandidateError):
+                    self.m.prepare_observed_typed_pdf_candidate(**self.inputs())
+                render.assert_not_called()
+        with patch.object(self.m, 'require_no_active_scope',
+                          side_effect=ValueError('active scope')) as guard, \
+                patch.object(self.m, '_render_pdf_candidate') as render:
+            with self.assertRaises(self.m.TypedPdfCandidateError):
+                self.m.prepare_observed_typed_pdf_candidate(**self.inputs())
+            guard.assert_called_once()
+            render.assert_not_called()
+
+    def test_observed_stage_and_final_window_failures_do_not_retry(self):
+        for index, stage in enumerate(OBSERVED_STAGES):
+            with self.subTest(stage=stage):
+                self.refused_observed(substitutions={stage: RuntimeError('PRIVATE-CONTENT')})
+                self.assertEqual(self.last_observed_mocks[stage].call_count, 1)
+                for later in OBSERVED_STAGES[index + 1:]:
+                    self.last_observed_mocks[later].assert_not_called()
+        first = self.observed_case('row')['outputs'][OBSERVED_STAGES[-1]][0]
+        self.refused_observed(name='row', substitutions={
+            OBSERVED_STAGES[-1]: [first, RuntimeError('final window failed')]})
+        self.assertEqual(self.last_observed_mocks[OBSERVED_STAGES[-1]].call_count, 2)
+
+    def test_observed_direct_headers_sources_and_result_bindings_refuse(self):
+        case = self.observed_case()
+        controls = (
+            (OBSERVED_STAGES[0], 1, ('worker_source_sha256', 'request_header_sha256',
+                                    'html_sha256', 'pdf_sha256', 'render_sha256', 'profile_sha256')),
+            (OBSERVED_STAGES[1], 1, ('worker_source_sha256', 'request_header_sha256',
+                                    'pdf_sha256', 'typed_observation_sha256', 'profile_sha256')),
+            (OBSERVED_STAGES[-1], 2, ('worker_source_sha256', 'request_header_sha256',
+                                     'inspection_sha256', 'nested_observation_sha256')),
+        )
+        for stage, position, fields in controls:
+            for field in fields:
+                values = list(case['outputs'][stage][0])
+                record = copy.deepcopy(values[position])
+                record[field] = '0' * 64
+                values[position] = self.reseal_process(record)
+                with self.subTest(stage=stage, field=field):
+                    self.refused_observed(substitutions={stage: [tuple(values)]})
+        for field in ('pdf_sha256', 'ir_sha256', 'plan_sha256'):
+            values = list(case['outputs'][OBSERVED_STAGES[-1]][0])
+            record = copy.deepcopy(values[2])
+            record['identity'][field] = '0' * 64
+            values[2] = self.reseal_process(record)
+            with self.subTest(identity=field):
+                self.refused_observed(substitutions={OBSERVED_STAGES[-1]: [tuple(values)]})
+
+    def test_observed_direct_shapes_and_integer_domains_are_closed(self):
+        case = self.observed_case()
+        observed, record = case['outputs'][OBSERVED_STAGES[1]][0]
+        controls = []
+        for field, value in (('kind', 'render'), ('worker', '_pdf_render_worker.py'),
+                             ('parent_pid', os.getpid() + 1), ('parent_pid', True),
+                             ('pid', True), ('pid', 1), ('pid', 2147483648),
+                             ('spawn_monotonic_ns', True), ('spawn_monotonic_ns', -1),
+                             ('exit_monotonic_ns', 1 << 63), ('exit_code', True),
+                             ('exit_code', 1), ('pdf_byte_count', True), ('page_count', True)):
+            changed = copy.deepcopy(record)
+            changed[field] = value
+            controls.append((field, changed))
+        controls.append(('extra', dict(record, extra='unexpected')))
+        missing = copy.deepcopy(record)
+        del missing['worker']
+        controls.append(('missing', missing))
+        for label, changed in controls:
+            with self.subTest(control=label):
+                self.refused_observed(substitutions={
+                    OBSERVED_STAGES[1]: [(observed, self.reseal_process(changed))]})
+                self.last_observed_mocks['associate_typed_pdf'].assert_not_called()
+
+    def test_observed_global_pid_collisions_and_direct_order_refuse(self):
+        case = self.observed_case()
+        original = case['observation']
+        for field, value in (('pid', original['render_process']['pid']),
+                             ('spawn_monotonic_ns', original['render_process']['exit_monotonic_ns'] - 1)):
+            observed, record = case['outputs'][OBSERVED_STAGES[1]][0]
+            changed = copy.deepcopy(record)
+            changed[field] = value
+            with self.subTest(field=field):
+                self.refused_observed(substitutions={
+                    OBSERVED_STAGES[1]: [(observed, self.reseal_process(changed))]})
+        sidecar = copy.deepcopy(original)
+        entry = sidecar['raster_windows'][0]
+        entry['child_observation']['processes'][0]['pid'] = original['typed_observation_process']['pid']
+        self.rebind_child_hash(entry)
+        self.rejected_process_sidecar(self.reseal_process(sidecar))
+
+    def test_observed_missing_duplicate_reordered_or_extra_windows_refuse(self):
+        original = self.observed_case('row')['observation']
+        first, last = original['raster_windows']
+        for windows in ([], [first], [first, first], [last, first], [first, last, last]):
+            changed = copy.deepcopy(original)
+            changed['raster_windows'] = copy.deepcopy(windows)
+            with self.subTest(windows=[entry['window_index'] for entry in windows]):
+                self.rejected_process_sidecar(self.reseal_process(changed), name='row')
+        changed = copy.deepcopy(original)
+        changed['raster_windows'][0]['extra'] = True
+        self.rejected_process_sidecar(self.reseal_process(changed), name='row')
+
+    def test_observed_nested_schedule_parent_and_lifetime_are_rechecked(self):
+        original = self.observed_case()['observation']
+        for change in ('missing', 'extra', 'reverse', 'parent', 'page', 'early', 'late'):
+            sidecar = copy.deepcopy(original)
+            entry = sidecar['raster_windows'][0]
+            children = entry['child_observation']['processes']
+            direct = entry['direct_process']
+            if change == 'missing':
+                children.pop()
+            elif change == 'extra':
+                children.append(copy.deepcopy(children[-1]))
+            elif change == 'reverse':
+                children.reverse()
+            elif change == 'parent':
+                children[0]['parent_pid'] = original['typed_observation_process']['pid']
+            elif change == 'page':
+                children[-1]['page'] = 2
+            elif change == 'early':
+                children[0]['observed_spawn_ns'] = direct['spawn_monotonic_ns'] - 1
+            else:
+                children[-1]['observed_exit_ns'] = direct['exit_monotonic_ns'] + 1
+            self.rebind_child_hash(entry)
+            with self.subTest(change=change):
+                self.rejected_process_sidecar(self.reseal_process(sidecar))
+
+    def test_observed_context_counts_clocks_and_nonclaims_cannot_be_rehashed(self):
+        original = self.observed_case()['observation']
+        controls = {
+            **{field: '0' * 64 for field in (
+                'candidate_sha256', 'candidate_profile_sha256', 'ir_sha256',
+                'source_expectation_sha256', 'typed_html_sha256', 'html_sha256',
+                'typed_observation_sha256', 'association_sha256', 'pdf_sha256',
+                'raster_window_plan_sha256', 'raster_ledger_sha256')},
+            'parent_pid': os.getpid() + 1, 'page_count': 2,
+            'observed_direct_spawns': True, 'observed_direct_exits': 4,
+            'observed_nested_spawns': 3, 'observed_nested_exits': 3,
+            'observed_total_spawns': 6, 'observed_total_exits': 6,
+            'declared_retries': 1, 'timer_helper_processes_added': 1,
+            'started_monotonic_ns': original['render_process']['spawn_monotonic_ns'] + 1,
+            'verified_monotonic_ns': original['raster_windows'][-1]['direct_process']['exit_monotonic_ns'] - 1,
+            'aggregate_job_resources_qualified': True, 'authenticated_worker_execution': True,
+            'visual_semantics_verified': True, 'accessibility_qualified': True,
+            'default_pipeline_activated': True, 'release_authorized': True,
+        }
+        for field, value in controls.items():
+            changed = copy.deepcopy(original)
+            changed[field] = value
+            with self.subTest(field=field):
+                self.rejected_process_sidecar(self.reseal_process(changed))
+        self.rejected_process_sidecar(self.reseal_process(dict(original, extra=True)))
+
+    def test_observed_prior_process_receipts_do_not_fit_a_fresh_operation(self):
+        self.observed_case()
+        self.refused_observed(reuse_clock=False)
+        self.assertEqual(self.last_observed_mocks[OBSERVED_STAGES[0]].call_count, 1)
+        for stage in OBSERVED_STAGES[1:]:
+            self.last_observed_mocks[stage].assert_not_called()
+
+    def test_observed_records_are_detached_before_following_stages(self):
+        case = self.observed_case()
+        rendered, record = case['outputs'][OBSERVED_STAGES[0]][0]
+        record = copy.deepcopy(record)
+        expected = encoded(record)
+
+        def mutate_render(*args, **kwargs):
+            record['html_sha256'] = '0' * 64
+            return case['outputs'][OBSERVED_STAGES[1]][0]
+
+        _, observation = self.replay_observed(substitutions={
+            OBSERVED_STAGES[0]: [(rendered, record)], OBSERVED_STAGES[1]: mutate_render})
+        self.assertEqual(encoded(observation['render_process']), expected)
+        row = self.observed_case('row')
+        first, last = row['outputs'][OBSERVED_STAGES[-1]]
+        mutable_first = (first[0], copy.deepcopy(first[1]), copy.deepcopy(first[2]))
+        expected_nested = encoded(mutable_first[1])
+
+        def mutate_first(*args, **kwargs):
+            if kwargs['window_index'] == 0:
+                return mutable_first
+            mutable_first[1]['processes'][0]['pid'] = 1
+            mutable_first[2]['request_header_sha256'] = '0' * 64
+            return last
+
+        _, observation = self.replay_observed(
+            name='row', substitutions={OBSERVED_STAGES[-1]: mutate_first})
+        self.assertEqual(encoded(observation['raster_windows'][0]['child_observation']),
+                         expected_nested)
+
+    def test_observed_export_drift_cap_and_interrupt_withhold_the_pair(self):
+        self.observed_case()
+        original_validate = self.m._validate_process_observation
+        original_profile = self.m._observer_profile
+        for mode in ('disabled', 'profile'):
+            changed = [False]
+
+            def export(*args, **kwargs):
+                result = original_validate(*args, **kwargs)
+                changed[0] = True
+                if mode == 'disabled':
+                    os.environ['OMNIGENIS_TYPED_PDF_CANDIDATE_DISABLED'] = '1'
+                return result
+
+            def profile():
+                return '0' * 64 if changed[0] and mode == 'profile' else original_profile()
+
+            with self.subTest(mode=mode), patch.dict(os.environ), \
+                    patch.object(self.m, '_validate_process_observation', side_effect=export), \
+                    patch.object(self.m, '_observer_profile', side_effect=profile):
+                self.refused_observed()
+        with patch.object(self.m, 'MAX_PROCESS_OBSERVATION_BYTES', 1):
+            self.refused_observed()
+        failure = KeyboardInterrupt('interrupted export')
+        with patch.object(self.m, '_validate_process_observation', side_effect=failure):
+            with self.assertRaises(KeyboardInterrupt) as raised:
+                self.replay_observed()
+        self.assertIs(raised.exception, failure)
+
+    def test_observed_sidecar_remains_detached_bounded_and_content_free(self):
+        case = self.observed_case('row')
+        candidate, observation = case['candidate'], case['observation']
+        raw = encoded(observation)
+        self.assertLessEqual(len(raw), 160 * 1024)
+        for content in (b'SYNTHETIC-CASE', b'Technical report', b'NM_000001', b'R0000', b'%PDF-1.7'):
+            self.assertNotIn(content, raw)
+        self.assertTrue(all(observation[field] is False for field in (
+            'source_authenticity_verified', 'worker_results_authenticated',
+            'whole_graph_observed', 'arbitrary_descendants_observed',
+            'external_observer_measured', 'aggregate_job_resources_qualified',
+            'authenticated_worker_execution', 'default_pipeline_activated', 'release_authorized')))
+        original_candidate = candidate.to_bytes()
+        detached = copy.deepcopy(observation)
+        detached['render_process']['pdf_sha256'] = '0' * 64
+        self.assertEqual(encoded(observation), raw)
+        self.assertEqual(candidate.to_bytes(), original_candidate)
 
     def test_native_empty_table_completes_the_same_pdf(self):
         case = self.case()

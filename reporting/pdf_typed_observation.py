@@ -13,11 +13,16 @@ import os
 from pathlib import Path
 import re
 import stat
+from subprocess import Popen as _Process
 import sys
 import tempfile
+from time import monotonic_ns
 
 from reporting._pdf_document_byte_budget import require_pdf_document_budget
-from reporting._pdf_native_launch_budget import require_no_active_scope
+from reporting._pdf_native_launch_budget import (
+    require_no_active_scope, wait_native_process_group as _cleanup_owned,
+)
+from reporting._pdf_process_lifecycle import _observe as _observe_owned
 from reporting.pdf_object_graph import _start, _wait
 
 PROFILE_ID = "typed-pdf-physical-observation-v1"
@@ -480,29 +485,82 @@ def _decode(data: bytes, expected_pdf_sha256: str, expected_pdf_byte_count: int)
         raise TypedPdfObservationError("typed_pdf_observation_protocol_invalid") from None
 
 
-def _run_worker(pdf: bytes, digest: str) -> bytes:
-    """Use separate owned anonymous regular files and the existing bounded lifecycle."""
+def _observe_typed_spawn(process: object, command: list[str]) -> dict:
+    """Record a held direct child before wait; clocks and hashes are unsigned observations."""
+    _require(type(process) is _Process)
+    if process.returncode is not None:
+        raise ChildProcessError("typed observation child ownership lost")
+    parent = os.getpid()
+    _require(type(parent) is int and 2 <= parent <= 2147483647
+             and type(process.pid) is int and 2 <= process.pid <= 2147483647
+             and process.pid != parent and process.args == command
+             and command[-1] == str(parent))
+    _observe_owned(process)
+    _require(os.getpgid(process.pid) == process.pid)
+    current = monotonic_ns()
+    _require(type(current) is int and 0 <= current <= 9223372036854775807)
+    worker = Path(__file__).with_name("_pdf_typed_observation_worker.py")
+    return {"kind": "typed_observation", "worker": worker.name,
+            "worker_source_sha256": sha256(worker.read_bytes()).hexdigest(),
+            "parent_pid": parent, "pid": process.pid, "spawn_monotonic_ns": current}
+
+
+def _run_worker(pdf: bytes, digest: str, *, observe_processes: bool = False) -> bytes | tuple[bytes, dict]:
+    """Use the original bounded wire and lifecycle, with optional parent observations."""
+    _require(type(observe_processes) is bool)
     with tempfile.TemporaryFile() as source, tempfile.TemporaryFile() as output:
         fds = (source.fileno(), output.fileno())
         infos = [os.fstat(fd) for fd in fds]
         _require(all(stat.S_ISREG(v.st_mode) and v.st_nlink == 0
                      and v.st_uid == os.geteuid() for v in infos)
                  and (infos[0].st_dev, infos[0].st_ino) != (infos[1].st_dev, infos[1].st_ino))
-        source.write(b"1 " + digest.encode("ascii") + b"\n" + pdf)
+        header = b"1 " + digest.encode("ascii") + b"\n"
+        source.write(header + pdf)
         source.flush()
-        process = _start([
+        command = [
             sys.executable, "-I", "-B", str(Path(__file__).with_name("_pdf_typed_observation_worker.py")),
             str(fds[0]), str(fds[1]), str(os.getpid()),
-        ], fds)
-        _require(_wait(process) == 0 and 0 < os.fstat(fds[1]).st_size <= RESULT_BYTES)
+        ]
+        process = _start(command, fds)
+        observation = None
+        if observe_processes:
+            try:
+                observation = _observe_typed_spawn(process, command)
+                actual_header = os.pread(fds[0], HEADER_BYTES, 0)
+                _require(actual_header == header)
+                observation["request_header_sha256"] = sha256(actual_header).hexdigest()
+            except ChildProcessError:
+                # Lost waitable identity is terminal; never look up that PID again.
+                raise
+            except BaseException as failure:
+                if type(process) is _Process:
+                    try:
+                        _cleanup_owned(process, wall_seconds=0)
+                    except BaseException as cleanup:
+                        raise failure from cleanup
+                raise
+        code = _wait(process)
+        if observe_processes:
+            current = monotonic_ns()
+            _require(type(code) is int and code == 0
+                     and type(process.returncode) is int and process.returncode == code
+                     and process.pid == observation["pid"] and process.args == command
+                     and os.getpid() == observation["parent_pid"]
+                     and type(current) is int
+                     and observation["spawn_monotonic_ns"] <= current <= 9223372036854775807)
+            observation.update(exit_monotonic_ns=current, exit_code=code)
+        _require(code == 0 and 0 < os.fstat(fds[1]).st_size <= RESULT_BYTES)
         output.seek(0)
-        return output.read(RESULT_BYTES + 1)
+        response = output.read(RESULT_BYTES + 1)
+        return (response, observation) if observe_processes else response
 
 
-def observe_typed_pdf(*, pdf_bytes: object, expected_pdf_sha256: object) -> TypedPdfObservation:
-    """Observe declared physical text only; no source plan or source identifiers are accepted."""
+def _observe_typed_pdf(*, pdf_bytes: object, expected_pdf_sha256: object,
+                       observe_processes: bool) -> tuple[TypedPdfObservation, dict | None]:
+    """Share fixed admission, one worker and the unchanged physical decoder."""
     try:
         require_no_active_scope()
+        _require(type(observe_processes) is bool)
         profile_sha = _profile()
         _require(type(pdf_bytes) is bytes and pdf_bytes.startswith(b"%PDF-1.7")
                  and 0 < len(pdf_bytes) <= MAX_PDF_BYTES
@@ -511,10 +569,41 @@ def observe_typed_pdf(*, pdf_bytes: object, expected_pdf_sha256: object) -> Type
     except Exception:
         raise TypedPdfObservationError("typed_pdf_observation_input_invalid") from None
     try:
-        result = _decode(_run_worker(pdf_bytes, expected_pdf_sha256),
-                         expected_pdf_sha256, len(pdf_bytes))
+        if observe_processes:
+            response, observation = _run_worker(pdf_bytes, expected_pdf_sha256, observe_processes=True)
+        else:
+            response, observation = _run_worker(pdf_bytes, expected_pdf_sha256), None
+        result = _decode(response, expected_pdf_sha256, len(pdf_bytes))
+        if observe_processes:
+            metadata = result.to_dict()
+            observation.update(pdf_sha256=expected_pdf_sha256, pdf_byte_count=len(pdf_bytes),
+                               page_count=metadata["page_count"],
+                               typed_observation_sha256=result.observation_sha256,
+                               profile_sha256=profile_sha)
+            observation["observation_sha256"] = sha256(_canonical(observation)).hexdigest()
+            _require(len(_canonical(observation)) <= 2048)
         _require(_profile() == profile_sha)
         require_no_active_scope()
-        return result
+        return result, observation
     except Exception:
         raise TypedPdfObservationError("typed_pdf_observation_execution_failed") from None
+
+
+def observe_typed_pdf(*, pdf_bytes: object, expected_pdf_sha256: object) -> TypedPdfObservation:
+    """Observe declared physical text only; no source plan or source identifiers are accepted."""
+    result, _ = _observe_typed_pdf(pdf_bytes=pdf_bytes, expected_pdf_sha256=expected_pdf_sha256,
+                                  observe_processes=False)
+    return result
+
+
+def observe_typed_pdf_with_processes(
+    *, pdf_bytes: object, expected_pdf_sha256: object,
+) -> tuple[TypedPdfObservation, dict]:
+    """Observe one fixed worker and its physical result without authenticating execution.
+
+    The direct record is a bounded unsigned parent observation. Its digest is a
+    checksum, and its local timestamps are not authenticated kernel event times.
+    It establishes no aggregate-resource, native-profile or release qualification.
+    """
+    return _observe_typed_pdf(pdf_bytes=pdf_bytes, expected_pdf_sha256=expected_pdf_sha256,
+                              observe_processes=True)

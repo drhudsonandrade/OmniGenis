@@ -12,10 +12,17 @@ from hashlib import sha256
 import json
 import os
 from pathlib import Path
+from time import monotonic_ns
 
 from jsonschema import Draft202012Validator
 
 from reporting._pdf_native_launch_budget import require_no_active_scope
+from reporting._pdf_final_document_observation import (
+    MAX_OBSERVATION_BYTES as MAX_PROCESS_OBSERVATION_BYTES,
+)
+from reporting._pdf_raster_child_observation import (
+    validate_observation as _validate_raster_children,
+)
 from reporting.adapters import (
     FIXED_FONT_STYLE_ID, GENERATED_PDF_AUTHOR, GENERATED_PDF_PRODUCT,
     _FIXED_SEMANTIC_CSS,
@@ -25,15 +32,17 @@ from reporting.page_windows import (
 )
 from reporting.pdf_generated_source_job import (
     PdfRenderedCandidate, RENDER_PROFILE_SHA256, _render_profile,
-    render_pdf_candidate,
+    _render_pdf_candidate, render_pdf_candidate,
 )
 from reporting.pdf_raster_windows import (
+    IDENTITY_FIELDS as _RASTER_IDENTITY_FIELDS, PROTOCOL_VERSION as _RASTER_PROTOCOL,
     PdfRasterWindowInspection, inspect_pdf_raster_window,
+    inspect_process_observed_pdf_raster_window,
 )
 from reporting.pdf_typed_observation import (
     RESULT_BYTES as MAX_OBSERVATION_BYTES, TypedPdfObservation,
     _DIGEST, _loads, _profile as _observer_profile,
-    observe_typed_pdf,
+    observe_typed_pdf, observe_typed_pdf_with_processes,
 )
 from reporting.typed_html import (
     TypedHtmlValidation, capture_typed_document, prepare_typed_html,
@@ -48,7 +57,7 @@ MAX_PAGES = 64
 MAX_EVIDENCE_BYTES = 65536
 RASTER_WIDTH = 4
 RASTER_PROFILE_ID = 'generated-pdf-raster-window-v1'
-OBSERVER_PROFILE_SHA256 = 'ee3515c48bd0a65f960e22ca3f8d3cbff66677e98abb76b975eb4e767019176a'
+OBSERVER_PROFILE_SHA256 = 'bb3993a3eaaca7cacf291d62c9068fa68b96cb4c0b637cdc6041f7d34018c92e'
 PASSIVE_POLICY = 'EFFECTIVE_GRAPH_DENIALS_WITH_VERIFIED_TABLE_ATTRIBUTES_ONLY'
 ROOT = Path(__file__).resolve().parents[1]
 _PROFILE_FILE = ROOT / 'reporting/pdf-typed-candidate.v1.json'
@@ -80,6 +89,38 @@ _NONCLAIMS = (
     'worker_results_authenticated', 'default_pipeline_activated',
     'release_authorized',
 )
+
+_PROCESS_BASE_FIELDS = {
+    'kind', 'worker', 'worker_source_sha256', 'parent_pid', 'pid',
+    'spawn_monotonic_ns', 'exit_monotonic_ns', 'exit_code',
+}
+_PROCESS_WORKERS = {
+    'render': '_pdf_render_worker.py',
+    'typed_observation': '_pdf_typed_observation_worker.py',
+    'raster_windows': '_pdf_raster_window_worker.py',
+}
+_PROCESS_BINDING_FIELDS = (
+    'ir_sha256', 'request_sha256', 'source_binding_sha256', 'plan_sha256',
+    'ledger_sha256', 'content_sha256', 'section_states_sha256',
+    'source_expectation_sha256', 'typed_html_sha256', 'html_sha256',
+    'render_result_sha256', 'observer_profile_sha256', 'association_sha256',
+    'pdf_sha256', 'pdf_byte_count', 'page_count', 'raster_window_plan_sha256',
+    'raster_ledger_sha256', 'raster_window_count', 'raster_inspected_pages',
+)
+_PROCESS_NONCLAIMS = (
+    *_NONCLAIMS, 'authenticated_worker_execution', 'arbitrary_descendants_observed',
+    'whole_graph_observed', 'native_profile_qualified', 'external_observer_measured',
+    'supported_execution', 'hard_job_deadline_enforced', 'durable_observation_storage',
+)
+_PROCESS_ENVELOPE_FIELDS = {
+    'schema', 'state', 'parent_pid', 'started_monotonic_ns', 'verified_monotonic_ns',
+    'render_process', 'typed_observation_process', 'raster_windows',
+    'observed_direct_spawns', 'observed_direct_exits', 'observed_nested_spawns',
+    'observed_nested_exits', 'observed_total_spawns', 'observed_total_exits',
+    'declared_retries', 'timer_helper_processes_added', 'timing_scope',
+    'observation_sha256',
+}
+_PROCESS_TIMING = 'Parent launch observations, including raster launch lower bounds, and post-reap observations; not kernel event timestamps.'
 
 
 class TypedPdfCandidateError(ValueError):
@@ -231,9 +272,189 @@ def _validate_evidence(payload: bytes, pdf: bytes) -> dict:
     return value
 
 
+
+def _process_integer(value, minimum=0, maximum=(1 << 63) - 1) -> int:
+    """Refuse coerced, boolean or unbounded process counters and local clocks."""
+    _require(type(value) is int and minimum <= value <= maximum)
+    return value
+
+
+def _process_metadata(value, limit: int) -> dict:
+    """Detach bounded canonical process metadata without retaining producer aliases."""
+    _require(type(value) is dict)
+    raw = _canonical(value)
+    _require(0 < len(raw) <= limit)
+    return json.loads(raw)
+
+
+def _checked_process(record, kind: str, expected: dict) -> dict:
+    """Recheck a closed unsigned row whose ownership was observed before reap."""
+    _require(type(record) is dict and kind in _PROCESS_WORKERS
+             and set(record) == _PROCESS_BASE_FIELDS | set(expected) | {'observation_sha256'})
+    value = _process_metadata(record, 2048)
+    worker = Path(__file__).with_name(_PROCESS_WORKERS[kind])
+    fixed = {
+        'kind': kind, 'worker': worker.name,
+        'worker_source_sha256': sha256(worker.read_bytes()).hexdigest(),
+        'parent_pid': os.getpid(), 'exit_code': 0, **expected,
+    }
+    _require(_canonical({key: value[key] for key in fixed}) == _canonical(fixed))
+    _process_integer(value['parent_pid'], 2, 2147483647)
+    _require(_process_integer(value['pid'], 2, 2147483647) != value['parent_pid'])
+    _require(_process_integer(value['spawn_monotonic_ns'])
+             <= _process_integer(value['exit_monotonic_ns']))
+    _digest(value['observation_sha256'])
+    _require(value['observation_sha256'] == sha256(_canonical({
+        key: item for key, item in value.items() if key != 'observation_sha256'
+    })).hexdigest())
+    return value
+
+
+def _checked_render_process(record, metadata: dict) -> dict:
+    """Join the existing observed renderer record to its exact source and PDF."""
+    expected = {
+        'request_header_sha256': sha256(
+            f"2 {metadata['html_sha256']}\n".encode('ascii')).hexdigest(),
+        'html_sha256': metadata['html_sha256'], 'pdf_sha256': metadata['pdf_sha256'],
+        'page_count': metadata['page_count'], 'render_sha256': metadata['render_result_sha256'],
+        'profile_sha256': RENDER_PROFILE_SHA256,
+    }
+    return _checked_process(record, 'render', expected)
+
+
+def _checked_typed_process(record, metadata: dict) -> dict:
+    """Bind the physical observation to the sole owned typed-worker request."""
+    expected = {
+        'request_header_sha256': sha256(
+            f"1 {metadata['pdf_sha256']}\n".encode('ascii')).hexdigest(),
+        'pdf_sha256': metadata['pdf_sha256'], 'pdf_byte_count': metadata['pdf_byte_count'],
+        'page_count': metadata['page_count'],
+        'typed_observation_sha256': metadata['observation_sha256'],
+        'profile_sha256': metadata['observer_profile_sha256'],
+    }
+    return _checked_process(record, 'typed_observation', expected)
+
+
+def _checked_raster_processes(direct, children, receipt: dict) -> dict:
+    """Rejoin a complete nested record to the same geometry and direct worker."""
+    _require(type(direct) is dict and 'pid' in direct)
+    pid = _process_integer(direct['pid'], 2, 2147483647)
+    identity = {key: receipt[key] for key in _RASTER_IDENTITY_FIELDS}
+    inspection = {key: receipt[key] for key in (
+        'status', 'raster_sha256', 'total_pixels', 'min_edge_margin_px', 'inspected_pages')}
+    nested = _validate_raster_children(children, identity, inspection, pid)
+    header = ' '.join([str(_RASTER_PROTOCOL),
+                       *(str(identity[key]) for key in _RASTER_IDENTITY_FIELDS)]) + '\n'
+    expected = {
+        'request_header_sha256': sha256(header.encode('ascii')).hexdigest(),
+        'identity': identity, 'inspection_sha256': sha256(_canonical(receipt)).hexdigest(),
+        'nested_observation_sha256': sha256(_canonical(nested)).hexdigest(),
+    }
+    worker = _checked_process(direct, 'raster_windows', expected)
+    return {'window_index': identity['window_index'],
+            'direct_process': worker, 'child_observation': nested}
+
+
+def _process_order(record: dict, previous: int, pids: set, children=()) -> int:
+    """Require sequential direct lifetimes and unique contained nested children."""
+    _require(record['pid'] not in pids
+             and previous <= record['spawn_monotonic_ns'] <= record['exit_monotonic_ns'])
+    pids.add(record['pid'])
+    for child in children:
+        _require(child['pid'] not in pids
+                 and child['parent_pid'] == record['pid']
+                 and record['spawn_monotonic_ns'] <= child['observed_spawn_ns']
+                 <= child['observed_exit_ns'] <= record['exit_monotonic_ns'])
+        pids.add(child['pid'])
+    return record['exit_monotonic_ns']
+
+
+def _process_context(metadata: dict, candidate_sha256: str) -> dict:
+    """Bind content-free source and result identities without changing the candidate."""
+    _digest(candidate_sha256)
+    return {
+        'candidate_sha256': candidate_sha256,
+        'candidate_profile_sha256': metadata['profile_sha256'],
+        'typed_observation_sha256': metadata['observation_sha256'],
+        **{key: metadata[key] for key in _PROCESS_BINDING_FIELDS},
+    }
+
+
+def _build_process_observation(metadata: dict, candidate_sha256: str, render,
+                               typed, windows, started_ns, verified_ns) -> dict:
+    """Reconcile every fixed stage and child with one complete same-PDF result."""
+    started = _process_integer(started_ns)
+    verified = _process_integer(verified_ns)
+    _require(started <= verified and type(windows) is list
+             and len(windows) == metadata['raster_window_count']
+             and 1 <= len(windows) <= 16)
+    render = _checked_render_process(render, metadata)
+    typed = _checked_typed_process(typed, metadata)
+    pids = {os.getpid()}
+    previous = _process_order(render, started, pids)
+    previous = _process_order(typed, previous, pids)
+    checked_windows = []
+    nested_count = 0
+    for index, (entry, receipt) in enumerate(zip(
+            windows, metadata['raster_windows'], strict=True)):
+        _require(type(entry) is dict and set(entry) == {
+            'window_index', 'direct_process', 'child_observation'}
+            and _process_integer(entry['window_index']) == index)
+        checked = _checked_raster_processes(
+            entry['direct_process'], entry['child_observation'], receipt)
+        children = checked['child_observation']['processes']
+        previous = _process_order(checked['direct_process'], previous, pids, children)
+        nested_count += len(children)
+        checked_windows.append(checked)
+    direct_count = 2 + len(checked_windows)
+    total_count = len(pids) - 1
+    _require(previous <= verified and nested_count == len(windows) + metadata['page_count']
+             and total_count == direct_count + nested_count
+             and total_count == 2 + 2 * len(windows) + metadata['page_count'])
+    result = {
+        'schema': 'typed-pdf-candidate-process-observation/v1',
+        'state': 'COMPLETE_FIXED_TYPED_CANDIDATE_PROCESSES_OBSERVED',
+        **_process_context(metadata, candidate_sha256),
+        'parent_pid': os.getpid(), 'started_monotonic_ns': started,
+        'verified_monotonic_ns': verified,
+        'render_process': render, 'typed_observation_process': typed,
+        'raster_windows': checked_windows,
+        'observed_direct_spawns': direct_count, 'observed_direct_exits': direct_count,
+        'observed_nested_spawns': nested_count, 'observed_nested_exits': nested_count,
+        'observed_total_spawns': total_count, 'observed_total_exits': total_count,
+        'declared_retries': 0, 'timer_helper_processes_added': 0,
+        'timing_scope': _PROCESS_TIMING,
+        **{key: False for key in _PROCESS_NONCLAIMS},
+    }
+    result['observation_sha256'] = sha256(_canonical(result)).hexdigest()
+    return _process_metadata(result, MAX_PROCESS_OBSERVATION_BYTES)
+
+
+def _validate_process_observation(value, payload: bytes, pdf: bytes) -> dict:
+    """Refuse rehashed changes, extra fields or expanded claims in the optional sidecar."""
+    metadata = _validate_evidence(payload, pdf)
+    candidate_sha = sha256(payload).hexdigest()
+    keys = (set(_process_context(metadata, candidate_sha))
+            | _PROCESS_ENVELOPE_FIELDS | set(_PROCESS_NONCLAIMS))
+    _require(type(value) is dict and set(value) == keys)
+    snapshot = _process_metadata(value, MAX_PROCESS_OBSERVATION_BYTES)
+    rebuilt = _build_process_observation(
+        metadata, candidate_sha, snapshot['render_process'],
+        snapshot['typed_observation_process'], snapshot['raster_windows'],
+        snapshot['started_monotonic_ns'], snapshot['verified_monotonic_ns'])
+    _require(_canonical(snapshot) == _canonical(rebuilt))
+    return rebuilt
+
+
 def _execute(presentation_ir, expected_ir_sha256,
-             expected_source_expectation_sha256, expected_profile_sha256) -> tuple[bytes, bytes]:
-    """Capture once and own every complete fixed stage of the same private PDF."""
+             expected_source_expectation_sha256, expected_profile_sha256, *,
+             observe_processes: bool = False) -> tuple:
+    """Capture once and own every fixed stage, with optional private process evidence."""
+    _require(type(observe_processes) is bool)
+    started_ns = monotonic_ns() if observe_processes else None
+    process_pids = {os.getpid()} if observe_processes else None
+    previous_exit = started_ns
+    raster_processes = []
     require_no_active_scope()
     profile_sha = _profile(expected_profile_sha256)
     _digest(expected_ir_sha256)
@@ -255,7 +476,11 @@ def _execute(presentation_ir, expected_ir_sha256,
     html_sha = sha256(html.encode('utf-8')).hexdigest()
 
     require_no_active_scope()
-    rendered = render_pdf_candidate(html, html_sha)
+    if observe_processes:
+        rendered, render_process = _render_pdf_candidate(
+            html, html_sha, observe_processes=True)
+    else:
+        rendered = render_pdf_candidate(html, html_sha)
     _require(type(rendered) is PdfRenderedCandidate)
     pdf = object.__getattribute__(rendered, '_pdf_bytes')
     _require(type(pdf) is bytes and 0 < len(pdf) <= MAX_PDF_BYTES
@@ -268,9 +493,17 @@ def _execute(presentation_ir, expected_ir_sha256,
              and render_data['profile_sha256'] == RENDER_PROFILE_SHA256)
     pages = render_data['page_count']
     render_sha = sha256(_canonical(render_data)).hexdigest()
+    if observe_processes:
+        render_process = _checked_render_process(
+            render_process, {**render_data, 'render_result_sha256': render_sha})
+        previous_exit = _process_order(render_process, started_ns, process_pids)
 
     require_no_active_scope()
-    observed = observe_typed_pdf(pdf_bytes=pdf, expected_pdf_sha256=pdf_sha)
+    if observe_processes:
+        observed, typed_process = observe_typed_pdf_with_processes(
+            pdf_bytes=pdf, expected_pdf_sha256=pdf_sha)
+    else:
+        observed = observe_typed_pdf(pdf_bytes=pdf, expected_pdf_sha256=pdf_sha)
     _require(type(observed) is TypedPdfObservation)
     payload = object.__getattribute__(observed, '_payload')
     _require(type(payload) is bytes and 0 < len(payload) <= MAX_OBSERVATION_BYTES)
@@ -285,6 +518,12 @@ def _execute(presentation_ir, expected_ir_sha256,
              and physical['page_count'] == pages
              and type(pages) is int and 1 <= pages <= MAX_PAGES
              and physical['profile_sha256'] == OBSERVER_PROFILE_SHA256)
+    if observe_processes:
+        typed_process = _checked_typed_process(typed_process, {
+            'pdf_sha256': pdf_sha, 'pdf_byte_count': len(pdf), 'page_count': pages,
+            'observation_sha256': observation_sha,
+            'observer_profile_sha256': OBSERVER_PROFILE_SHA256})
+        previous_exit = _process_order(typed_process, previous_exit, process_pids)
 
     associated = associate_typed_pdf(
         presentation_ir=doc, expected_ir_sha256=expected_ir_sha256,
@@ -323,9 +562,14 @@ def _execute(presentation_ir, expected_ir_sha256,
         plan.__post_init__()
         _require(plan.plan_sha256 == plan_sha)
         require_no_active_scope()
-        receipt = inspect_pdf_raster_window(
-            pdf_bytes=pdf, plan=plan, window_index=window.index,
-            expected_plan_sha256=plan_sha)
+        if observe_processes:
+            receipt, child_processes, raster_process = inspect_process_observed_pdf_raster_window(
+                pdf_bytes=pdf, plan=plan, window_index=window.index,
+                expected_plan_sha256=plan_sha)
+        else:
+            receipt = inspect_pdf_raster_window(
+                pdf_bytes=pdf, plan=plan, window_index=window.index,
+                expected_plan_sha256=plan_sha)
         _require(type(receipt) is PdfRasterWindowInspection)
         row = receipt.to_dict()
         expected = {
@@ -338,6 +582,11 @@ def _execute(presentation_ir, expected_ir_sha256,
         # Compare the complete native receipt before that narrower projection.
         _require(all(row[key] == value for key, value in expected.items()))
         inspections.append(_raster_snapshot(row))
+        if observe_processes:
+            entry = _checked_raster_processes(raster_process, child_processes, row)
+            previous_exit = _process_order(entry['direct_process'], previous_exit,
+                process_pids, entry['child_observation']['processes'])
+            raster_processes.append(entry)
     ledger = bind_pdf_page_window_evidence(
         plan=plan, observations=tuple(item.to_observation() for item in inspections))
     _require(type(ledger) is BoundPageWindowLedger and ledger.plan is plan)
@@ -379,6 +628,11 @@ def _execute(presentation_ir, expected_ir_sha256,
     _require(len(serialized) <= MAX_EVIDENCE_BYTES)
     require_no_active_scope()
     _require(_validate_evidence(serialized, pdf)['profile_sha256'] == profile_sha)
+    if observe_processes:
+        process_observation = _build_process_observation(
+            result, sha256(serialized).hexdigest(), render_process, typed_process,
+            raster_processes, started_ns, monotonic_ns())
+        return pdf, serialized, process_observation
     return pdf, serialized
 
 
@@ -453,3 +707,33 @@ def prepare_typed_pdf_candidate(
     """Run the fixed complete composition without caller artifacts or PASS flags."""
     return TypedPdfCandidate(presentation_ir, expected_ir_sha256,
                              expected_source_expectation_sha256, expected_profile_sha256)
+
+
+def prepare_observed_typed_pdf_candidate(
+    *, presentation_ir: object, expected_ir_sha256: object,
+    expected_source_expectation_sha256: object, expected_profile_sha256: object,
+) -> tuple[TypedPdfCandidate, dict]:
+    """Return the unchanged candidate and bounded actual fixed-process observations.
+
+    The private composition executes once. It observes the controlled renderer,
+    typed inspector and each raster worker with its probe/page children. The
+    unsigned sidecar does not authenticate execution, measure aggregate resources,
+    observe arbitrary descendants or grant visual, accessibility or release claims.
+    No caller process, executor, callback, success record or budget is accepted.
+    """
+    try:
+        pdf, payload, observation = _execute(
+            presentation_ir, expected_ir_sha256, expected_source_expectation_sha256,
+            expected_profile_sha256, observe_processes=True)
+        candidate = object.__new__(TypedPdfCandidate)
+        object.__setattr__(candidate, '_pdf_bytes', pdf)
+        object.__setattr__(candidate, '_payload', payload)
+        object.__setattr__(candidate, '_sealed_sha256', sha256(payload).hexdigest())
+        checked = candidate.to_bytes()
+        observation = _validate_process_observation(observation, checked, pdf)
+        require_no_active_scope()
+        _require(candidate.to_bytes() == checked
+                 and observation['candidate_sha256'] == sha256(checked).hexdigest())
+        return candidate, observation
+    except Exception:
+        raise TypedPdfCandidateError('typed_pdf_candidate_refused') from None
