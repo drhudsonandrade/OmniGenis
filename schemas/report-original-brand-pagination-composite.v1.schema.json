@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:omnigenis:schema:report-original-brand-pagination-composite:v1",
+  "title": "OmniGenis original-brand pagination synthetic qualification receipt",
+  "type": "object",
+  "oneOf": [
+    {
+      "required": ["status", "profile_id", "profile_sha256", "pdf_sha256", "pdf_bytes", "page_count", "html_sha256", "resources_sha256", "ir_sha256", "expected_text_sha256", "brand_bundle_sha256", "original_logo_sha256", "original_dna_sha256", "default_pipeline_activated", "source_asset_bytes_authenticated_from_pdf", "human_assistive_accessibility_verified", "aggregate_job_resources_qualified", "release_authorized"],
+      "properties": {
+        "status": {"const": "OPT_IN_BRAND_PAGINATION_CANDIDATE"},
+        "profile_id": {"const": "original-brand-pagination-composite-v1"},
+        "profile_sha256": {"$ref": "#/$defs/digest"},
+        "pdf_sha256": {"$ref": "#/$defs/digest"},
+        "pdf_bytes": {"type": "integer", "minimum": 1, "maximum": 16777216},
+        "page_count": {"type": "integer", "minimum": 1, "maximum": 64},
+        "html_sha256": {"$ref": "#/$defs/digest"},
+        "resources_sha256": {"$ref": "#/$defs/digest"},
+        "ir_sha256": {"$ref": "#/$defs/digest"},
+        "expected_text_sha256": {"$ref": "#/$defs/digest"},
+        "brand_bundle_sha256": {"$ref": "#/$defs/digest"},
+        "original_logo_sha256": {"$ref": "#/$defs/digest"},
+        "original_dna_sha256": {"$ref": "#/$defs/digest"},
+        "default_pipeline_activated": {"const": false},
+        "source_asset_bytes_authenticated_from_pdf": {"const": false},
+        "human_assistive_accessibility_verified": {"const": false},
+        "aggregate_job_resources_qualified": {"const": false},
+        "release_authorized": {"const": false}
+      },
+      "additionalProperties": false
+    },
+    {
+      "required": ["status", "profile_id", "pdf_sha256", "page_count", "figure_layout_count", "literal_artifact_numbers", "annotation_count", "decorative_artifact_count", "extracted_text_sha256", "text_characters", "source_text_equivalence_verified", "all_page_visual_raster_verified", "release_authorized", "source_asset_bytes_authenticated_from_pdf", "human_assistive_accessibility_verified"],
+      "properties": {
+        "status": {"const": "OBSERVED_BRAND_PAGINATION_COMPOSITE"},
+        "profile_id": {"const": "original-brand-pagination-observer-v1"},
+        "pdf_sha256": {"$ref": "#/$defs/digest"},
+        "page_count": {"type": "integer", "minimum": 1, "maximum": 64},
+        "figure_layout_count": {"const": 1},
+        "literal_artifact_numbers": {"type": "array", "minItems": 1, "maxItems": 64, "items": {"type": "string", "pattern": "^[1-9][0-9]?$"}},
+        "annotation_count": {"const": 0},
+        "decorative_artifact_count": {"const": 1},
+        "extracted_text_sha256": {"$ref": "#/$defs/digest"},
+        "text_characters": {"type": "integer", "minimum": 1, "maximum": 1048576},
+        "source_text_equivalence_verified": {"const": true},
+        "all_page_visual_raster_verified": {"const": false},
+        "release_authorized": {"const": false},
+        "source_asset_bytes_authenticated_from_pdf": {"const": false},
+        "human_assistive_accessibility_verified": {"const": false}
+      },
+      "additionalProperties": false
+    },
+    {
+      "required": ["status", "pdf_sha256", "source_ir_sha256", "plan_sha256", "page_count", "window_count", "inspected_pages", "windows", "all_page_raster_geometry_covered", "semantic_visual_equivalence_verified", "human_assistive_accessibility_verified", "aggregate_job_resources_qualified", "release_authorized"],
+      "properties": {
+        "status": {"const": "ALL_PAGE_RASTER_GEOMETRY_OBSERVED_ONLY"},
+        "pdf_sha256": {"$ref": "#/$defs/digest"},
+        "source_ir_sha256": {"$ref": "#/$defs/digest"},
+        "plan_sha256": {"$ref": "#/$defs/digest"},
+        "page_count": {"type": "integer", "minimum": 1, "maximum": 64},
+        "window_count": {"type": "integer", "minimum": 1, "maximum": 16},
+        "inspected_pages": {"type": "integer", "minimum": 1, "maximum": 64},
+        "windows": {
+          "type": "array", "minItems": 1, "maxItems": 16,
+          "items": {
+            "type": "object",
+            "required": ["first_page", "last_page", "raster_sha256", "min_edge_margin_px"],
+            "properties": {
+              "first_page": {"type": "integer", "minimum": 1, "maximum": 64},
+              "last_page": {"type": "integer", "minimum": 1, "maximum": 64},
+              "raster_sha256": {"$ref": "#/$defs/digest"},
+              "min_edge_margin_px": {"type": "integer", "minimum": 2, "maximum": 1000}
+            },
+            "additionalProperties": false
+          }
+        },
+        "all_page_raster_geometry_covered": {"const": true},
+        "semantic_visual_equivalence_verified": {"const": false},
+        "human_assistive_accessibility_verified": {"const": false},
+        "aggregate_job_resources_qualified": {"const": false},
+        "release_authorized": {"const": false}
+      },
+      "additionalProperties": false
+    }
+  ],
+  "$defs": {"digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}
+}
