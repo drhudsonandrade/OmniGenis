@@ -80,7 +80,17 @@ class RasterAsset:
         _require(type(self.png_bytes) is bytes and 8 <= len(self.png_bytes) <= MAX_ENCODED_BYTES)
         _require(sha256(self.png_bytes).hexdigest() == self.expected_sha256)
         try:
-            _inspect_png_container(self.png_bytes, self.width_px, self.height_px)
+            if self.expected_sha256 == (
+                    '596ca17e055b473c5d265ab1865a9adb7e453bf20a001aab79a1a255b36b6437'):
+                # One exact reviewed original with its original pHYs pixels/m
+                # chunk; do not weaken the generic strict PNG grammar.
+                _require(self.asset_id == 'dna-illustration')
+                from reporting._pdf_original_dna_png_admission import inspect_exact_original_dna_png
+                inspect_exact_original_dna_png(
+                    self.png_bytes, self.expected_sha256, self.source_sha256,
+                    self.rights_sha256, self.width_px, self.height_px)
+            else:
+                _inspect_png_container(self.png_bytes, self.width_px, self.height_px)
         except Exception:
             raise RasterResourceError('preloaded_raster_resource_invalid') from None
         return {'asset_id': self.asset_id, 'sha256': self.expected_sha256,
