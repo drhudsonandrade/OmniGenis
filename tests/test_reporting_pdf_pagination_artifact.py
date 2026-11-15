@@ -107,6 +107,18 @@ class PaginationArtifactTests(TestCase):
         with self.assertRaises(PaginationArtifactError):
             observe_paginated_candidate(tampered)
 
+    def test_invalid_html_sha256_refuses_candidate_summary(self):
+        for invalid_digest in ("not-a-digest", "G" * 64, None, 123):
+            with self.subTest(invalid_digest=invalid_digest):
+                candidate = PaginationCandidate(
+                    self.candidate.pdf_bytes, self.candidate.pdf_sha256,
+                    invalid_digest, self.candidate.page_count,
+                    self.candidate.profile_sha256)
+                with self.assertRaises(PaginationArtifactError):
+                    candidate.summary()
+                with self.assertRaises(PaginationArtifactError):
+                    observe_paginated_candidate(candidate)
+
     def test_separate_closed_profile_and_css_contract(self):
         profile = renderer_profile()
         self.assertFalse(profile["default_pipeline_activated"])

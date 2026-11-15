@@ -48,6 +48,8 @@ class PaginationCandidate:
                 or not self.pdf_bytes.startswith(b"%PDF-1.7")
                 or not 0 < len(self.pdf_bytes) <= 16777216
                 or sha256(self.pdf_bytes).hexdigest() != self.pdf_sha256
+                or type(self.html_sha256) is not str or len(self.html_sha256) != 64
+                or any(char not in "0123456789abcdef" for char in self.html_sha256)
                 or type(self.page_count) is not int or not 1 <= self.page_count <= 64
                 or self.profile_sha256 != core.renderer_profile_sha256()):
             raise PaginationArtifactError(_ERROR)

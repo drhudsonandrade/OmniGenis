@@ -6,6 +6,6 @@
     "reporting/_pdf_pagination_core.py": "d3168b496e4433489fa15a88ea2bd1efa21cd7615a1bdcb9700e59ceb7e5f249",
     "reporting/_pdf_pagination_render_worker.py": "505746f2518f2998103b0330963069fc2a05f89b9f778ff33d6bb02e00930dab",
     "reporting/_pdf_pagination_observer_worker.py": "f0bcad0f4e0078193bac6ae405984d3df18e081f4b71a0bfa003a289fd6bee3f",
-    "reporting/pdf_pagination_artifact.py": "1ecd500b04b98d212c2cc54f871df197c934e9b55a015280f3f30b8fb94bb3bb"
+    "reporting/pdf_pagination_artifact.py": "25fa3313526762973226c91874edb61266871a7615fd75195ddfc8fe2ab3fe65"
   }
 }
