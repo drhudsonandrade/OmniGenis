@@ -65,7 +65,7 @@
     "_pdf_render_worker.py": "30b6454c7cd9b1b83d5713c406e135de91ccf127116a8bd42a13d17036cbd5ce",
     "adapters.py": "a9cb893ae64200adbe211802fafa97ed2b08575f0195ab8e8f3303f8b3cba76f",
     "pdf_raster_render.py": "48883e3d12402cdfb9fdfd086c806b89ca3c331e961698a29ef8916975a1873b",
-    "pdf_raster_resources.py": "8356b76112ddbe49ab4f61884b1dcd779157cb527ecf528106999dcc65381caf",
+    "pdf_raster_resources.py": "00b6f0c7ee15b0b069863511a1e02418b666aa644b63163c3119e7a3bbf7fb10",
     "png_inspection.py": "189e1e1d77eabaaf829915cd6fcb21611831bb7c3af577e00e423a1b40f5bcec"
   },
   "supported_execution": false,
