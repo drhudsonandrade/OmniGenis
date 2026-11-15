@@ -7,7 +7,9 @@ import os
 import unittest
 
 from pypdf import PdfReader, PdfWriter
-from pypdf.generic import ArrayObject, DictionaryObject, NameObject, NumberObject
+from pypdf.generic import (
+    ArrayObject, DictionaryObject, NameObject, NumberObject, TextStringObject,
+)
 
 from reporting.brand_assets import BoundBrandAssets
 from reporting.pdf_original_dna_inclusion import prepare_original_dna_pdf_candidate
@@ -119,6 +121,11 @@ class OriginalSvgLayoutSafetyTests(unittest.TestCase):
         def wrong_owner(writer):
             self.figure(writer).raw_get("/A")[NameObject("/O")] = NameObject("/URI")
         candidate = self.rewrite(wrong_owner)
+        self.assertIn("pdf_svg_layout_invalid", self.check(candidate).errors)
+
+        def text_owner(writer):
+            self.figure(writer).raw_get("/A")[NameObject("/O")] = TextStringObject("/Layout")
+        candidate = self.rewrite(text_owner)
         self.assertIn("pdf_svg_layout_invalid", self.check(candidate).errors)
 
         def wrong_bbox(writer):

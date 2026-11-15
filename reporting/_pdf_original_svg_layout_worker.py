@@ -73,7 +73,7 @@ def _inspect_figure(obj: object, page_refs: set[tuple[int, int]]) -> None:
     attr = obj.raw_get("/A")
     if not isinstance(attr, DictionaryObject) or set(attr) != {
         NameObject("/O"), NameObject("/BBox"),
-    } or attr.get("/O") != "/Layout":
+    } or type(attr.raw_get("/O")) is not NameObject or attr.raw_get("/O") != NameObject("/Layout"):
         raise _Refusal("pdf_svg_layout_invalid")
     bbox = attr.raw_get("/BBox")
     box = page_obj.get("/MediaBox")
