@@ -122,6 +122,8 @@ def _native_vector_records(operations, group_matrices):
     matrices = []
     for op, args in operations:
         assert op in admitted, "unmodelled native vector operator"
+        assert not drawing or op in (b"m", b"l", b"h", b"f", b"f*"), (
+            "graphics-state operator inside path object")
         if op == b"q":
             stack.append((color, group_index))
         elif op == b"Q":
@@ -208,6 +210,14 @@ class OriginalLogoNativeVectorGeometryTests(unittest.TestCase):
                               + figure[first_fill:])
         with self.assertRaises(AssertionError):
             _assert_source_native_match(self.assets.logo_svg, grayscale_override)
+
+        last_line = next(i for i, (op, _) in enumerate(figure)
+                         if op == b"l")
+        in_path_transform = (figure[:last_line + 1] +
+                             [(b"cm", [1, 0, 0, 1, 0, 0])] +
+                             figure[last_line + 1:])
+        with self.assertRaisesRegex(AssertionError, "graphics-state operator inside path"):
+            _assert_source_native_match(self.assets.logo_svg, in_path_transform)
 
     def test_long_source_preserves_exact_native_logo_geometry(self):
         request, _ = long_bound_request()
