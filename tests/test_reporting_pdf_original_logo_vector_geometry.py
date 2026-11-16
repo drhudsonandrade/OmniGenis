@@ -40,15 +40,21 @@ def _source_geometry(svg: bytes):
     assert root.tag == SVG + "svg" and root.attrib["viewBox"] == "0 0 1054 340"
     parents = {child: parent for parent in root.iter() for child in parent}
     paths = [item for item in root.iter() if item.tag == SVG + "path"]
-    assert len(paths) == 6
-    drawing = []
-    paints = []
-    fills = []
+    groups = [item for item in root.iter() if item.tag == SVG + "g"]
+    assert len(paths) == 6 and len(groups) == 2
+    matrices = []
+    for group in groups:
+        transform = TRANSFORM.fullmatch(group.attrib["transform"])
+        assert transform is not None
+        x, y, scale = map(Decimal, transform.groups())
+        matrices.append((scale, ZERO, ZERO, scale, x, y))
+
+    expected_paths = []
     for path in paths:
         commands = path.attrib["d"]
         tokens = TOKEN.findall(commands)
         assert "".join(tokens) == re.sub(r"[\s,]", "", commands)
-        drawing.append((b"m", (ZERO, ZERO)))  # WeasyPrint path start.
+        drawing = [(b"m", (ZERO, ZERO))]  # WeasyPrint native SVG path start.
         cursor = 0
         while cursor < len(tokens):
             action = tokens[cursor]
@@ -63,21 +69,17 @@ def _source_geometry(svg: bytes):
             cursor += 3
         hex_color = path.attrib["fill"]
         assert re.fullmatch(r"#[0-9A-Fa-f]{6}", hex_color)
-        paints.append(tuple((Decimal(int(hex_color[start:start + 2], 16)) / 255).quantize(
-            Decimal("0.000001")) for start in (1, 3, 5)))
-        rule = path.attrib.get("fill-rule", parents[path].attrib.get("fill-rule", "nonzero"))
+        paint = tuple((Decimal(int(hex_color[start:start + 2], 16)) / 255).quantize(
+            Decimal("0.000001")) for start in (1, 3, 5))
+        group = parents[path]
+        assert group in groups
+        group_index = groups.index(group)
+        rule = path.attrib.get("fill-rule", group.attrib.get("fill-rule", "nonzero"))
         assert rule in ("evenodd", "nonzero")
-        fills.append(b"f*" if rule == "evenodd" else b"f")
-    groups = [item for item in root.iter() if item.tag == SVG + "g"]
-    assert len(groups) == 2
-    matrices = []
-    for group in groups:
-        transform = TRANSFORM.fullmatch(group.attrib["transform"])
-        assert transform is not None
-        x, y, scale = map(Decimal, transform.groups())
-        matrices.append((scale, ZERO, ZERO, scale, x, y))
-    assert len(drawing) == 506 and len(paints) == len(fills) == 6
-    return drawing, paints, fills, matrices
+        fill = b"f*" if rule == "evenodd" else b"f"
+        expected_paths.append((tuple(drawing), paint, fill, group_index))
+    assert sum(len(path[0]) for path in expected_paths) == 506
+    return expected_paths, matrices
 
 
 def _native_figure(reader: PdfReader):
@@ -102,25 +104,60 @@ def _native_figure(reader: PdfReader):
     return located[0]
 
 
-def _vector_parts(operations):
-    geometry = [(op, tuple(Decimal(str(n)) for n in args))
-                for op, args in operations if op in (b"m", b"l", b"h")]
-    colors = [tuple(Decimal(str(n)) for n in args)
-              for op, args in operations if op == b"rg"]
-    fills = [op for op, _ in operations if op in (b"f", b"f*")]
-    matrices = [tuple(Decimal(str(n)) for n in args)
-                for op, args in operations if op == b"cm"]
-    forbidden = {b"c", b"v", b"y", b"re", b"S", b"s", b"B", b"B*", b"b", b"b*", b"W", b"W*"}
-    assert not any(op in forbidden for op, _ in operations)
-    return geometry, colors, fills, matrices
+def _native_vector_records(operations, group_matrices):
+    """Bind each rendered path to its current paint, fill and SVG group.
+
+    A PDF graphics-state stack is essential: an earlier color may be restored
+    after Q, and color-setting operators are meaningful in their actual order.
+    No alternate paint/colorspace or unmodelled path operation is admitted.
+    """
+    admitted = {b"q", b"Q", b"gs", b"cm", b"rg", b"d", b"J", b"j", b"M",
+                b"m", b"l", b"h", b"f", b"f*"}
+    stack = []
+    color = None
+    group_index = None
+    color_updates = 0
+    drawing = []
+    paths = []
+    matrices = []
+    for op, args in operations:
+        assert op in admitted, "unmodelled native vector operator"
+        if op == b"q":
+            stack.append((color, group_index))
+        elif op == b"Q":
+            assert stack
+            color, group_index = stack.pop()
+        elif op == b"rg":
+            assert len(args) == 3
+            color = tuple(Decimal(str(number)) for number in args)
+            color_updates += 1
+        elif op == b"cm":
+            assert len(args) == 6
+            matrix = tuple(Decimal(str(number)) for number in args)
+            matrices.append(matrix)
+            if matrix in group_matrices:
+                group_index = group_matrices.index(matrix)
+        elif op in (b"m", b"l", b"h"):
+            drawing.append((op, tuple(Decimal(str(number)) for number in args)))
+        elif op in (b"f", b"f*"):
+            assert color_updates == 1 and color is not None, "native SVG paint assignment invalid"
+            assert group_index is not None, "native SVG transform not active at fill"
+            paths.append((tuple(drawing), color, op, group_index))
+            color_updates = 0
+            drawing = []
+    assert not stack and not drawing and color_updates == 0
+    return paths, matrices
 
 
 def _assert_source_native_match(svg, native_operations):
-    expected_geometry, expected_paints, expected_fills, group_matrices = _source_geometry(svg)
-    geometry, colors, fills, matrices = _vector_parts(native_operations)
-    assert geometry == expected_geometry, "original SVG paths do not match native PDF paths"
-    assert colors == expected_paints, "original SVG fills do not match native PDF paints"
-    assert fills == expected_fills, "original SVG fill rules do not match PDF operators"
+    expected_paths, group_matrices = _source_geometry(svg)
+    native_paths, matrices = _native_vector_records(native_operations, group_matrices)
+    assert len(native_paths) == len(expected_paths), "native SVG path count changed"
+    for native, expected in zip(native_paths, expected_paths):
+        assert native[0] == expected[0], "original SVG paths do not match native PDF paths"
+        assert native[1] == expected[1], "original SVG fills do not match native PDF paints"
+        assert native[2] == expected[2], "original SVG fill rules do not match PDF operators"
+        assert native[3] == expected[3], "original SVG transforms changed at native path"
     assert len(matrices) == 5 and matrices[-2:] == group_matrices, "original SVG transforms changed"
 
 
@@ -154,6 +191,23 @@ class OriginalLogoNativeVectorGeometryTests(unittest.TestCase):
             self.fail("expected original vector line segments")
         with self.assertRaisesRegex(AssertionError, "paths do not match"):
             _assert_source_native_match(self.assets.logo_svg, changed)
+
+        all_colors = [item for item in figure if item[0] == b"rg"]
+        self.assertEqual(len(all_colors), 6)
+        without_colors = [item for item in figure if item[0] != b"rg"]
+        first_fill = next(i for i, (op, _) in enumerate(without_colors)
+                          if op in (b"f", b"f*"))
+        colors_reordered = (without_colors[:first_fill] + all_colors
+                            + without_colors[first_fill:])
+        with self.assertRaises(AssertionError):
+            _assert_source_native_match(self.assets.logo_svg, colors_reordered)
+
+        first_fill = next(i for i, (op, _) in enumerate(figure)
+                          if op in (b"f", b"f*"))
+        grayscale_override = (figure[:first_fill] + [(b"g", [ZERO])]
+                              + figure[first_fill:])
+        with self.assertRaises(AssertionError):
+            _assert_source_native_match(self.assets.logo_svg, grayscale_override)
 
     def test_long_source_preserves_exact_native_logo_geometry(self):
         request, _ = long_bound_request()
