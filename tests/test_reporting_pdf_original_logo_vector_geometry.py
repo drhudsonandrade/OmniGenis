@@ -33,6 +33,22 @@ TRANSFORM = re.compile(
     r"scale\(([+-]?\d+(?:\.\d+)?)\)\Z", re.ASCII,
 )
 ZERO = Decimal(0)
+ONE = Decimal(1)
+IDENTITY = (ONE, ZERO, ZERO, ONE, ZERO, ZERO)
+
+
+def _pdf_ctm_premultiply(new, current):
+    """PDF affine row-vector convention: new cm premultiplies the CTM.
+
+    [ a b 0 ]
+    [ c d 0 ]
+    [ e f 1 ]
+    """
+    a, b, c, d, e, f = new
+    A, B, C, D, E, F = current
+    return (a * A + b * C, a * B + b * D,
+            c * A + d * C, c * B + d * D,
+            e * A + f * C + E, e * B + f * D + F)
 
 
 def _source_geometry(svg: bytes):
@@ -116,6 +132,7 @@ def _native_vector_records(operations, group_matrices):
     stack = []
     color = None
     group_index = None
+    ctm = IDENTITY
     color_updates = 0
     drawing = []
     paths = []
@@ -125,10 +142,10 @@ def _native_vector_records(operations, group_matrices):
         assert not drawing or op in (b"m", b"l", b"h", b"f", b"f*"), (
             "graphics-state operator inside path object")
         if op == b"q":
-            stack.append((color, group_index))
+            stack.append((color, group_index, ctm))
         elif op == b"Q":
             assert stack
-            color, group_index = stack.pop()
+            color, group_index, ctm = stack.pop()
         elif op == b"rg":
             assert len(args) == 3
             color = tuple(Decimal(str(number)) for number in args)
@@ -137,6 +154,7 @@ def _native_vector_records(operations, group_matrices):
             assert len(args) == 6
             matrix = tuple(Decimal(str(number)) for number in args)
             matrices.append(matrix)
+            ctm = _pdf_ctm_premultiply(matrix, ctm)
             if matrix in group_matrices:
                 group_index = group_matrices.index(matrix)
         elif op in (b"m", b"l", b"h"):
@@ -144,7 +162,7 @@ def _native_vector_records(operations, group_matrices):
         elif op in (b"f", b"f*"):
             assert color_updates == 1 and color is not None, "native SVG paint assignment invalid"
             assert group_index is not None, "native SVG transform not active at fill"
-            paths.append((tuple(drawing), color, op, group_index))
+            paths.append((tuple(drawing), color, op, group_index, ctm))
             color_updates = 0
             drawing = []
     assert not stack and not drawing and color_updates == 0
@@ -154,16 +172,31 @@ def _native_vector_records(operations, group_matrices):
 def _assert_source_native_match(svg, native_operations):
     expected_paths, group_matrices = _source_geometry(svg)
     native_paths, matrices = _native_vector_records(native_operations, group_matrices)
+    assert len(matrices) == 5 and matrices[-2:] == group_matrices, "original SVG transforms changed"
+    # Figure's first three matrices are the renderer's admitted outer placement;
+    # source groups must each start from that same placement, not inherit each other.
+    wrapper_ctm = IDENTITY
+    for matrix in matrices[:3]:
+        wrapper_ctm = _pdf_ctm_premultiply(matrix, wrapper_ctm)
     assert len(native_paths) == len(expected_paths), "native SVG path count changed"
     for native, expected in zip(native_paths, expected_paths):
         assert native[0] == expected[0], "original SVG paths do not match native PDF paths"
         assert native[1] == expected[1], "original SVG fills do not match native PDF paints"
         assert native[2] == expected[2], "original SVG fill rules do not match PDF operators"
         assert native[3] == expected[3], "original SVG transforms changed at native path"
-    assert len(matrices) == 5 and matrices[-2:] == group_matrices, "original SVG transforms changed"
+        expected_ctm = _pdf_ctm_premultiply(group_matrices[expected[3]], wrapper_ctm)
+        assert native[4] == expected_ctm, "effective SVG transform changed at native fill"
 
 
 class OriginalLogoNativeVectorGeometryTests(unittest.TestCase):
+    def test_ctm_premultiplication_is_order_sensitive(self):
+        outer = tuple(Decimal(n) for n in (2, 0, 0, 2, 5, 7))
+        inner = tuple(Decimal(n) for n in (3, 0, 0, 3, 11, 13))
+        self.assertEqual(_pdf_ctm_premultiply(inner, outer),
+                         tuple(Decimal(n) for n in (6, 0, 0, 6, 27, 33)))
+        self.assertNotEqual(_pdf_ctm_premultiply(inner, outer),
+                            _pdf_ctm_premultiply(outer, inner))
+
     @classmethod
     def setUpClass(cls):
         cls.assets = BoundBrandAssets(
@@ -218,6 +251,31 @@ class OriginalLogoNativeVectorGeometryTests(unittest.TestCase):
                              figure[last_line + 1:])
         with self.assertRaisesRegex(AssertionError, "graphics-state operator inside path"):
             _assert_source_native_match(self.assets.logo_svg, in_path_transform)
+
+        # Removing the outer first-group q/Q keeps raw cm values and counts
+        # unchanged, but wrongly compounds its CTM into the second group.
+        _, groups = _source_geometry(self.assets.logo_svg)
+        first_group_cm = next(i for i, (op, args) in enumerate(figure)
+                              if op == b"cm" and
+                              tuple(Decimal(str(value)) for value in args) == groups[0])
+        group_save = first_group_cm - 1
+        self.assertEqual(figure[group_save][0], b"q")
+        depth = 0
+        group_restore = None
+        for i in range(group_save, len(figure)):
+            if figure[i][0] == b"q":
+                depth += 1
+            elif figure[i][0] == b"Q":
+                depth -= 1
+                if depth == 0:
+                    group_restore = i
+                    break
+        self.assertIsNotNone(group_restore)
+        self.assertEqual(figure[group_restore + 1][0], b"q")
+        altered = [entry for index, entry in enumerate(figure)
+                   if index not in (group_save, group_restore)]
+        with self.assertRaisesRegex(AssertionError, "effective SVG transform"):
+            _assert_source_native_match(self.assets.logo_svg, altered)
 
     def test_long_source_preserves_exact_native_logo_geometry(self):
         request, _ = long_bound_request()
