@@ -16,7 +16,8 @@ import unittest
 import xml.etree.ElementTree as ET
 
 from pypdf import PdfReader
-from pypdf.generic import ContentStream
+from pypdf.generic import (ContentStream, DictionaryObject, FloatObject,
+                           NameObject, NumberObject)
 
 from reporting.brand_assets import BoundBrandAssets
 from reporting.pdf_original_brand_pagination_composite import (
@@ -110,7 +111,7 @@ def _native_figure(reader: PdfReader):
                 continue
             if figure is not None:
                 if op == b"EMC":
-                    located.append((page_index, figure))
+                    located.append((page_index, figure, page["/Resources"]))
                     figure = None
                 else:
                     assert op not in (b"BDC", b"BMC")
@@ -169,7 +170,31 @@ def _native_vector_records(operations, group_matrices):
     return paths, matrices
 
 
-def _assert_source_native_match(svg, native_operations):
+def _assert_source_native_match(svg, native_operations, page_resources):
+    # The pinned PDF figure admits exactly two referenced, opaque graphic
+    # states, each affecting only nonstroking alpha and leaving it fully opaque.
+    assert type(page_resources) is DictionaryObject, "PDF graphics state resources invalid"
+    states = page_resources.get("/ExtGState")
+    assert type(states) is DictionaryObject, "PDF graphics state resources invalid"
+    expected_names = {NameObject("/a1"), NameObject("/a1.0")}
+    assert set(states) == expected_names, "PDF graphics state resource set changed"
+    used_states = []
+    for op, args in native_operations:
+        if op != b"gs":
+            continue
+        assert len(args) == 1 and type(args[0]) is NameObject, (
+            "PDF graphics state selection invalid")
+        name = args[0]
+        assert name in states, "PDF graphics state not in figure resources"
+        entry = states.raw_get(name).get_object()
+        assert type(entry) is DictionaryObject and set(entry) == {NameObject("/ca")}, (
+            "PDF graphics state effect not admitted")
+        alpha = entry.raw_get("/ca")
+        assert type(alpha) in (NumberObject, FloatObject) and Decimal(str(alpha)) == ONE, (
+            "PDF graphics state must preserve opaque fill")
+        used_states.append(name)
+    assert len(used_states) == 7 and set(used_states) == expected_names, (
+        "PDF graphics state coverage differs from pinned figure")
     expected_paths, group_matrices = _source_geometry(svg)
     native_paths, matrices = _native_vector_records(native_operations, group_matrices)
     assert len(matrices) == 5 and matrices[-2:] == group_matrices, "original SVG transforms changed"
@@ -211,9 +236,9 @@ class OriginalLogoNativeVectorGeometryTests(unittest.TestCase):
                 bound_request=bound_request(), assets=self.assets,
                 expected_brand_bundle_sha256=self.bundle_sha)
         reader = PdfReader(BytesIO(candidate.pdf_bytes), strict=True)
-        page_index, figure = _native_figure(reader)
+        page_index, figure, page_resources = _native_figure(reader)
         self.assertGreater(page_index, 0)
-        _assert_source_native_match(self.assets.logo_svg, figure)
+        _assert_source_native_match(self.assets.logo_svg, figure, page_resources)
         self.assertIs(candidate.summary()["release_authorized"], False)
         changed = list(figure)
         for index, (op, args) in enumerate(changed):
@@ -225,7 +250,7 @@ class OriginalLogoNativeVectorGeometryTests(unittest.TestCase):
         else:
             self.fail("expected original vector line segments")
         with self.assertRaisesRegex(AssertionError, "paths do not match"):
-            _assert_source_native_match(self.assets.logo_svg, changed)
+            _assert_source_native_match(self.assets.logo_svg, changed, page_resources)
 
         all_colors = [item for item in figure if item[0] == b"rg"]
         self.assertEqual(len(all_colors), 6)
@@ -235,14 +260,14 @@ class OriginalLogoNativeVectorGeometryTests(unittest.TestCase):
         colors_reordered = (without_colors[:first_fill] + all_colors
                             + without_colors[first_fill:])
         with self.assertRaises(AssertionError):
-            _assert_source_native_match(self.assets.logo_svg, colors_reordered)
+            _assert_source_native_match(self.assets.logo_svg, colors_reordered, page_resources)
 
         first_fill = next(i for i, (op, _) in enumerate(figure)
                           if op in (b"f", b"f*"))
         grayscale_override = (figure[:first_fill] + [(b"g", [ZERO])]
                               + figure[first_fill:])
         with self.assertRaises(AssertionError):
-            _assert_source_native_match(self.assets.logo_svg, grayscale_override)
+            _assert_source_native_match(self.assets.logo_svg, grayscale_override, page_resources)
 
         last_line = next(i for i, (op, _) in enumerate(figure)
                          if op == b"l")
@@ -250,7 +275,20 @@ class OriginalLogoNativeVectorGeometryTests(unittest.TestCase):
                              [(b"cm", [1, 0, 0, 1, 0, 0])] +
                              figure[last_line + 1:])
         with self.assertRaisesRegex(AssertionError, "graphics-state operator inside path"):
-            _assert_source_native_match(self.assets.logo_svg, in_path_transform)
+            _assert_source_native_match(self.assets.logo_svg, in_path_transform, page_resources)
+
+        # A referenced nonstroking alpha of 0 makes the exact vector
+        # invisible without altering the path, cm, fill, or rg operators.
+        states = page_resources["/ExtGState"]
+        self.assertGreaterEqual(len(states), 2)
+        overridden = DictionaryObject()
+        for key, value in states.items():
+            overridden[NameObject(str(key))] = DictionaryObject(value.get_object())
+        first_key = next(iter(overridden))
+        overridden[first_key][NameObject("/ca")] = FloatObject(0)
+        unsafe_resources = DictionaryObject({NameObject("/ExtGState"): overridden})
+        with self.assertRaisesRegex(AssertionError, "PDF graphics state"):
+            _assert_source_native_match(self.assets.logo_svg, figure, unsafe_resources)
 
         # Removing the outer first-group q/Q keeps raw cm values and counts
         # unchanged, but wrongly compounds its CTM into the second group.
@@ -275,7 +313,7 @@ class OriginalLogoNativeVectorGeometryTests(unittest.TestCase):
         altered = [entry for index, entry in enumerate(figure)
                    if index not in (group_save, group_restore)]
         with self.assertRaisesRegex(AssertionError, "effective SVG transform"):
-            _assert_source_native_match(self.assets.logo_svg, altered)
+            _assert_source_native_match(self.assets.logo_svg, altered, page_resources)
 
     def test_long_source_preserves_exact_native_logo_geometry(self):
         request, _ = long_bound_request()
@@ -285,8 +323,8 @@ class OriginalLogoNativeVectorGeometryTests(unittest.TestCase):
                 expected_brand_bundle_sha256=self.bundle_sha)
         self.assertGreater(candidate.page_count, 32)
         reader = PdfReader(BytesIO(candidate.pdf_bytes), strict=True)
-        _, figure = _native_figure(reader)
-        _assert_source_native_match(self.assets.logo_svg, figure)
+        _, figure, page_resources = _native_figure(reader)
+        _assert_source_native_match(self.assets.logo_svg, figure, page_resources)
         self.assertIs(candidate.summary()["human_assistive_accessibility_verified"], False)
 
 
