@@ -139,6 +139,52 @@ class Rpt09WorkflowTests(unittest.TestCase):
         self.assertEqual(first.to_dict(), second.to_dict())
         self.assertEqual(first.to_dict()["roadmap_id"], "RPT-09")
 
+    def test_stringifiable_objects_cannot_supply_authorization_or_identity(self):
+        """An object string representation is not an asserted workflow field."""
+        class ClaimedText:
+            def __init__(self, text):
+                self.text = text
+
+            def __str__(self):
+                return self.text
+
+        allowed = {
+            "case_id": "CASE-001",
+            "sample_id": "SAMPLE-001",
+            "consent_status": ConsentStatus.VERIFIED,
+            "consent_record_id": "CONSENT-001",
+            "consent_record_sha256": "a" * 64,
+            "review_state": ReviewState.APPROVED,
+        }
+        for field, value in (
+            ("case_id", "CASE-001"),
+            ("sample_id", "SAMPLE-001"),
+            ("consent_status", "VERIFIED"),
+            ("consent_record_id", "CONSENT-001"),
+            ("consent_record_sha256", "a" * 64),
+            ("review_state", "APPROVED"),
+        ):
+            with self.subTest(field=field):
+                proposed = {**allowed, field: ClaimedText(value)}
+                with self.assertRaisesRegex(WorkflowError, field):
+                    build_reporting_workflow(**proposed)
+
+    def test_numeric_and_boolean_workflow_identifiers_fail_closed(self):
+        """Numeric and boolean values never become case or sample identities."""
+        for field, value in (("case_id", 123), ("sample_id", True)):
+            with self.subTest(field=field):
+                arguments = {
+                    "case_id": "CASE-001",
+                    "sample_id": "SAMPLE-001",
+                    "consent_status": ConsentStatus.VERIFIED,
+                    "consent_record_id": "CONSENT-001",
+                    "consent_record_sha256": "b" * 64,
+                    "review_state": ReviewState.APPROVED,
+                    field: value,
+                }
+                with self.assertRaisesRegex(WorkflowError, field):
+                    build_reporting_workflow(**arguments)
+
     def test_unknown_states_fail_closed(self):
         """Unknown consent or review states are rejected fail-closed."""
         with self.assertRaisesRegex(WorkflowError, "consent_status"):
