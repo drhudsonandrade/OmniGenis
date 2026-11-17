@@ -26,7 +26,7 @@ ASSETS = Path(__file__).resolve().parents[1] / "reporting" / "assets"
 MODE = "OMNIGENIS_PDF_QUALIFICATION_RECEIPT_MODE"
 ORIGINAL_LOGO_SHA = "29983790bef75837d683a392515ed35d0410d919d49b6c52a7121f7659770c51"
 ORIGINAL_DNA_SHA = "596ca17e055b473c5d265ab1865a9adb7e453bf20a001aab79a1a255b36b6437"
-ORIGINAL_PDF_SHA = "4844a35b6a8ce6000038c44dd66929cef862e4e584873d2a2df0617f077398c4"
+ORIGINAL_PDF_SHA = "f6c5626aa5cb3ac9e92b62b4d1d88d5e122d72360eb0d92a02b2b27ad5b51e53"
 EXPECTED_STAGES = (
     "identity_preflight", "svg_figure_layout", "controlled_metadata",
     "accessibility_prerequisites", "text_content", "visual_geometry",
