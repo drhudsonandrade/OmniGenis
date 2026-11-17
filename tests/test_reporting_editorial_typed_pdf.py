@@ -76,6 +76,24 @@ class EditorialTypedPdfTests(unittest.TestCase):
         self.assertGreaterEqual(text.count("Variant"), candidate.page_count)
         self.assertFalse(record["release_authorized"])
 
+    def test_oversized_table_row_repeats_header_on_every_page(self):
+        """One admitted multiline row may split without abandoning table headings."""
+        source = document(1, cells=("ROW-BEGIN\n" + "line\n" * 60 + "ROW-END", "0.1"))
+        candidate, record = self.m.render_editorial_typed_pdf(
+            presentation_ir=source, expected_ir_sha256=digest(source))
+        self.assertGreater(candidate.page_count, 1)
+        reader = PdfReader(BytesIO(candidate.pdf_bytes), strict=True)
+        pages = [page.extract_text() or "" for page in reader.pages]
+        self.assertIn("ROW-BEGIN", pages[0])
+        self.assertIn("ROW-END", "\n".join(pages))
+        self.assertEqual(sum(page.count("ROW-BEGIN") for page in pages), 1)
+        self.assertEqual(sum(page.count("ROW-END") for page in pages), 1)
+        for index, page in enumerate(pages, 1):
+            with self.subTest(page=index):
+                self.assertIn("Variant", page)
+                self.assertIn("Value", page)
+        self.assertFalse(record["release_authorized"])
+
     def test_wrong_digest_and_noncanonical_inputs_refuse_without_render(self):
         with patch.object(self.m, "render_pdf_candidate",
                           side_effect=AssertionError("render reached")) as render:
