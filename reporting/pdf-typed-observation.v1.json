@@ -115,7 +115,7 @@
     "reporting/localization.py": "808d48d73ee5bbddb1dab4b5fc8d8fc012c0b008a7d097c6c65ea4abd56b8522",
     "reporting/page_checkpoints.py": "4aebcc9b2ae76d734189d286b4fcc17366ab21b2ce85d5210c094dd32995a51f",
     "reporting/page_windows.py": "c8d6cb86f7876f7c02f878ecead5b93b09ee1024d68f7e68d020bdc62c843833",
-    "reporting/pdf_accessibility.py": "7881e15720b406d60a59dce799d8907b0de1b166d721d5ce638c6e9bd74c40af",
+    "reporting/pdf_accessibility.py": "3725c8d542479aa17f3ffdbb783fe741f8278d56c3cb7e8b59c8ebd4498363fc",
     "reporting/pdf_bound_candidate.py": "84d62e14703c5743066b00b6e1814df7a91975b50ae701fb8a341ac963436381",
     "reporting/pdf_bound_raster_candidate.py": "6977c315c0ddbbc478cdac9c13a430eb74d979c63121a240b448d702f6db33e1",
     "reporting/pdf_candidate_qa.py": "40a27ecc9a1f406182fa7b6403abf3d56e8b666dfb8a334846ef5e56f157cb61",
@@ -167,7 +167,7 @@
     "reporting/requests.py": "fb02deca6ace8041af3ecb4bb8241ef51b0c6b6bae52d4eee9a5f857061a9db5",
     "reporting/typed_html.py": "9b0dcd5dd6220302eaf1dcb101fedbed767b80b29fcc33c7fc19fc46a6e6f9fb",
     "reporting/viewmodel.py": "f019d116291beb4fad588a5b9639d1d49da0679a63cfc3ba922a2532380d800e",
-    "reporting/workflow.py": "039e7b9f5d6781262ff512b01371091b537d21abd8885cb59372d6e305b70e41",
+    "reporting/workflow.py": "260db22ded50421b3562fd83fd53c92499ef75acb7468f18eb575ed2122a4264",
     "schemas/report-typed-pdf-observation.v1.schema.json": "886c60a0e05d6df4374fbf94d658e09ca321461817a45be5eb0673851d60c549"
   },
   "structure_policy": "ORDERED_NATIVE_K_AND_REVERSE_PARENT_TREE",

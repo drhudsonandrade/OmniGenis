@@ -870,6 +870,15 @@ class TypedPdfCandidateTests(unittest.TestCase):
         with self.assertRaises(self.m.TypedPdfCandidateError):
             self.forged(data).to_dict()
 
+    def test_exact_updated_observer_profile_remains_admitted_without_render(self):
+        """An approved observer manifest revision must keep its caller pin exact."""
+        from reporting.pdf_typed_observation import _profile as observer_profile
+        declared = json.loads((ROOT / 'reporting/pdf-typed-candidate.v1.json').read_bytes())
+        expected = sha256(encoded(declared)).hexdigest()
+        self.assertEqual(declared['observer_profile_sha256'], observer_profile())
+        self.assertEqual(self.m.OBSERVER_PROFILE_SHA256, observer_profile())
+        self.assertEqual(self.m._profile(expected), expected)
+
     def test_profile_manifest_drift_refuses_before_render(self):
         from tempfile import TemporaryDirectory
         profile = json.loads((ROOT / 'reporting/pdf-typed-candidate.v1.json').read_bytes())
