@@ -94,7 +94,9 @@ class ReportingWorkflow:
 
 def _required_identity(value: object, field: str) -> str:
     """Normalize a required identity field or fail closed when it is empty."""
-    text = str(value or "").strip()
+    if type(value) is not str:
+        raise WorkflowError(f"{field} must be non-empty text")
+    text = value.strip()
     if not text:
         raise WorkflowError(f"{field} must be non-empty")
     return text
@@ -102,16 +104,20 @@ def _required_identity(value: object, field: str) -> str:
 
 def _enum_value(enum_type: type[StrEnum], value: object, field: str) -> StrEnum:
     """Normalize a controlled workflow state or reject unsupported values."""
+    allowed = [item.value for item in enum_type]
+    if type(value) not in (str, enum_type):
+        raise WorkflowError(f"{field} must be one of {allowed}")
     try:
-        return enum_type(str(value))
+        return enum_type(value)
     except ValueError as exc:
-        allowed = [item.value for item in enum_type]
         raise WorkflowError(f"{field} must be one of {allowed}") from exc
 
 
 def _sha256(value: object, field: str) -> str:
     """Normalize and validate a hexadecimal SHA-256 identity."""
-    text = str(value or "").strip().lower()
+    if type(value) is not str:
+        raise WorkflowError(f"{field} must be a 64-character hexadecimal SHA-256")
+    text = value.strip().lower()
     if len(text) != 64 or any(character not in "0123456789abcdef" for character in text):
         raise WorkflowError(f"{field} must be a 64-character hexadecimal SHA-256")
     return text
