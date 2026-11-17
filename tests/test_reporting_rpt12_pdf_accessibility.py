@@ -140,6 +140,25 @@ class Rpt12PdfAccessibilityTests(unittest.TestCase):
                 self.assertTrue(result.passed,result.errors)
                 self.assertTrue(result.struct_tree_root)
 
+    def test_zero_page_pdf_with_tagged_catalog_markers_fails_closed(self):
+        """Catalog markers alone cannot qualify an empty PDF page tree."""
+        writer = PdfWriter()
+        writer.root_object[NameObject("/Lang")] = TextStringObject("en-US")
+        writer.root_object[NameObject("/MarkInfo")] = DictionaryObject({
+            NameObject("/Marked"): BooleanObject(True),
+        })
+        writer.root_object[NameObject("/StructTreeRoot")] = DictionaryObject({
+            NameObject("/Type"): NameObject("/StructTreeRoot"),
+        })
+        out = BytesIO()
+        writer.write(out)
+        self.assertEqual(len(PdfReader(BytesIO(out.getvalue()), strict=True).pages), 0)
+        result = validate_pdf_accessibility_structure(
+            pdf_bytes=out.getvalue(), expected_language="en-US",
+        )
+        self.assertFalse(result.passed)
+        self.assertIn("pdf_accessibility_structure_invalid", result.errors)
+
     def test_missing_struct_tree_root_fails_closed(self):
         """A tagged claim requires a document structure tree."""
         result=validate_pdf_accessibility_structure(

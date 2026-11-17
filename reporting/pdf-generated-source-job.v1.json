@@ -108,7 +108,7 @@
     "reporting/page_checkpoints.py": "4aebcc9b2ae76d734189d286b4fcc17366ab21b2ce85d5210c094dd32995a51f",
     "reporting/page_windows.py": "c8d6cb86f7876f7c02f878ecead5b93b09ee1024d68f7e68d020bdc62c843833",
     "reporting/pdf-font-style.v1.json": "e0a844bf84569c8a27bf4ec0414aae0b92ad2f59f064c6ee87c85172ad1c7083",
-    "reporting/pdf-native-source-job.v1.json": "7ed828d0ef101a8fa2c7b6b753904c66bdd7d9a0bf7ecb3693457995b8624015",
+    "reporting/pdf-native-source-job.v1.json": "13d3dabd38b02d44625100e6703b6e050bf496eb2315a3f07561f12c4ec6c0f8",
     "reporting/pdf_candidate_qa.py": "40a27ecc9a1f406182fa7b6403abf3d56e8b666dfb8a334846ef5e56f157cb61",
     "reporting/pdf_content.py": "694040deb3dfe24b9c56d93b0161dd4366e3a0e33d4ca5f2eb50c228db4e5b1b",
     "reporting/pdf_font_selection.py": "5c5771d1d6b86aa1695e5d6f3abc42f8d7599deb5dd9f65215488e1e705be034",
