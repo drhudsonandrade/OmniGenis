@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from interoperability._profile_activation import profile_is_active
+
 from copy import deepcopy
 from dataclasses import dataclass
 import hashlib
@@ -101,6 +103,8 @@ def project_vrs_allele(
     bound_contig_accession: object,
 ) -> VrsProjectionResult:
     """Project one canonical E1A variant into a bounded VRS 2.0 Allele."""
+    if not profile_is_active(PROFILE_ID):
+        return _failure("adapter_profile_not_active")
     if not isinstance(contig_accession,str) or not contig_accession.strip():
         return _failure("unsupported_canonical_variant")
     if not isinstance(position_1_based,int) or isinstance(position_1_based,bool) or position_1_based < 1:

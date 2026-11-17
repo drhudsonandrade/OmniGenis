@@ -1,6 +1,8 @@
 """Bounded HL7 Genomics Reporting 3.0.0 GenomicReport projection."""
 
 from __future__ import annotations
+
+from interoperability._profile_activation import profile_is_active
 from collections.abc import Mapping
 from copy import deepcopy
 from dataclasses import dataclass
@@ -78,6 +80,8 @@ def _failure(error: str) -> FhirGenomicReportResult:
 
 def project_genomic_report(*,report_id: object,subject_reference: object | None) -> FhirGenomicReportResult:
     """Project a bounded FHIR R4 GenomicReport resource."""
+    if not profile_is_active(PROFILE_ID):
+        return _failure("adapter_profile_not_active")
     if not isinstance(report_id,str) or _FHIR_ID.fullmatch(report_id) is None:
         return _failure("report_id_invalid")
 
