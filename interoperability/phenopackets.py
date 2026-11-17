@@ -1,6 +1,8 @@
 """Minimal GA4GH Phenopackets 2.0 projection for explicit E1A subject context."""
 
 from __future__ import annotations
+
+from interoperability._profile_activation import profile_is_active
 from collections.abc import Mapping
 from copy import deepcopy
 from dataclasses import dataclass
@@ -91,6 +93,8 @@ def project_phenopacket(
     created: object = None,
 ) -> PhenopacketProjectionResult:
     """Project explicit subject and genomic-file context into Phenopackets 2.0."""
+    if not profile_is_active(PROFILE_ID):
+        return _failure("adapter_profile_not_active")
     packet_id=_nonblank(phenopacket_id)
     if packet_id is None:
         return _failure("phenopacket_id_required")
