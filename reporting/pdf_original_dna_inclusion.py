@@ -148,10 +148,18 @@ def _prepare(*, bound_request: BoundReportRequest, assets: BoundBrandAssets,
     _require(ids[-2:] == [DNA_SECTION_ID, CREDIT_SECTION_ID])
     marker = '<section data-component="' + DNA_SECTION_ID + '">'
     _require(html.count(marker) == 1)
-    style = ('break-before:page;min-height:790px;background-repeat:no-repeat;'
-             'background-position:center bottom;background-size:auto 710px;'
+    style = ('break-before:page;min-height:790px;padding-right:240px;'
+             'background-repeat:no-repeat;background-position:right bottom;'
+             'background-size:auto 710px;'
              "background-image:url('" + resource.uri + "')")
     html = html.replace(marker, marker[:-1] + ' style="' + style + '">')
+    # The exact source heading must remain one physical text run; otherwise
+    # a narrower caption column drops its source space during PDF extraction.
+    # Only this fixed and admitted synthetic DNA section is affected.
+    heading = '<h2>OmniGenis original DNA illustration</h2>'
+    _require(html.count(heading) == 1)
+    html = html.replace(heading,
+        '<h2 style="white-space:nowrap">OmniGenis original DNA illustration</h2>', 1)
     encoded = html.encode("utf-8")
     _require(0 < len(encoded) <= raster.worker.HTML_BYTES)
     ir_sha, text_sha = generated._expected_content(ir)

@@ -58,6 +58,39 @@ class OriginalDnaInclusionTests(unittest.TestCase):
         self.assertIs(metadata["logo_svg_included"], False)
         self.assertIs(metadata["release_authorized"], False)
 
+    def test_original_dna_background_has_disjoint_source_text_column(self):
+        """The original DNA artwork may not be painted behind source text.
+
+        The CSS box reserves a right-side gutter wider than the proportional
+        324x1154 PNG scaled to 710 CSS px, plus a finite 24 CSS px gap.
+        Actual PDF raster inspection remains required for visual acceptance.
+        """
+        import re
+
+        prepared=self.prepare()
+        section=re.search(
+            r'<section data-component="original-dna-illustration" style="([^"]+)">',
+            prepared.html,
+        )
+        self.assertIsNotNone(section)
+        style=dict(rule.split(':',1) for rule in section.group(1).split(';') if rule)
+        self.assertEqual(style['break-before'],'page')
+        self.assertEqual(style['background-repeat'],'no-repeat')
+        self.assertEqual(style['background-position'],'right bottom')
+        self.assertEqual(style['background-size'],'auto 710px')
+        self.assertEqual(style['min-height'],'790px')
+        self.assertTrue(style['background-image'].startswith("url('omnigenis-raster:"))
+        self.assertTrue(style['background-image'].endswith("')"))
+        self.assertTrue(style['padding-right'].endswith('px'))
+        reserved=float(style['padding-right'][:-2])
+        painted_width=710.0*self.assets.to_dict()['assets'][1]['width_px']/self.assets.to_dict()['assets'][1]['height_px']
+        self.assertGreaterEqual(reserved-painted_width,24.0)
+        self.assertLess(reserved,300.0)
+        self.assertIn(
+            '<h2 style="white-space:nowrap">OmniGenis original DNA illustration</h2>',
+            prepared.html,
+        )
+
     def test_exact_special_case_pHys_does_not_widen_generic_png_parser(self):
         from reporting.png_inspection import _inspect_png_container, PngInspectionError
         from reporting.pdf_raster_resources import RasterAsset, RasterResourceError
