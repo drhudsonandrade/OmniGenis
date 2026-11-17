@@ -1,0 +1,153 @@
+"""Opt-in original logo/DNA resource binding for a typed editorial PDF candidate.
+
+Composes only the exact source-approved original assets and mandatory owner credit
+over the already validated en-US typed editorial HTML. The existing confined
+preloaded-raster worker performs the only rendering. No default delivery,
+clinical/scientific claims, new executor, PDF/UA or visual parity is established.
+"""
+from __future__ import annotations
+
+from hashlib import sha256
+from html import escape
+import os
+
+from reporting._pdf_render_worker import HTML_BYTES
+from reporting.brand_assets import (
+    BoundBrandAssets, REQUIRED_CREDIT_EN, _LOGO_SHA256, _DNA_SHA256,
+    _PERMISSION_SHA256,
+)
+from reporting.editorial_typed_pdf import prepare_editorial_typed_html
+from reporting.pdf_original_brand_inclusion import _logo_markup
+from reporting.pdf_raster_render import (
+    RasterPdfCandidate, render_preloaded_raster_pdf,
+)
+from reporting.pdf_raster_resources import RasterAsset, RasterBundle
+
+PROFILE_ID = "typed-original-logo-dna-candidate-v1"
+_BUNDLE_SHA256 = "c4332907b19ae45524534ad352c1b521db08ec9fc8fd88ae73fa2ec4ba8c0eeb"
+_DISABLE = "OMNIGENIS_TYPED_ORIGINAL_BRAND_PDF_DISABLED"
+_QUALIFICATION = "OMNIGENIS_PDF_QUALIFICATION_RECEIPT_MODE"
+_END = "</body></html>"
+
+
+class TypedOriginalBrandError(ValueError):
+    """Content-free failure, with no fallback to arbitrary unbound assets."""
+
+
+def _require(ok: bool) -> None:
+    if not ok:
+        raise TypedOriginalBrandError("typed_original_brand_pdf_unavailable")
+
+
+def _ready(assets: BoundBrandAssets, expected_brand_bundle_sha256: object) -> dict:
+    """Admit only the original author's exact licensed source bundle."""
+    _require(os.environ.get(_DISABLE) != "1"
+             and os.environ.get(_QUALIFICATION) == "qualification-only")
+    _require(type(assets) is BoundBrandAssets)
+    _require(type(expected_brand_bundle_sha256) is str
+             and expected_brand_bundle_sha256 == _BUNDLE_SHA256)
+    manifest = assets.to_dict()
+    _require(manifest["bundle_sha256"] == _BUNDLE_SHA256
+             and manifest["permission_reference"]["sha256"] == _PERMISSION_SHA256
+             and manifest["required_credit_en"] == REQUIRED_CREDIT_EN
+             and manifest["assets"][0]["sha256"] == _LOGO_SHA256
+             and manifest["assets"][1]["sha256"] == _DNA_SHA256)
+    return manifest
+
+
+def prepare_typed_original_brand_pdf(
+    *, presentation_ir: object, expected_ir_sha256: object,
+    assets: BoundBrandAssets, expected_brand_bundle_sha256: object,
+) -> tuple[str, RasterBundle, dict]:
+    """Combine source-bound typed HTML and reviewed originals without reinterpreting either."""
+    try:
+        _ready(assets, expected_brand_bundle_sha256)
+        source, source_record = prepare_editorial_typed_html(
+            presentation_ir=presentation_ir, expected_ir_sha256=expected_ir_sha256)
+        _require(source.count("<body>") == 1 and source.endswith(_END)
+                 and REQUIRED_CREDIT_EN not in source
+                 and 'data-brand="original-logo"' not in source
+                 and 'data-brand="original-dna"' not in source)
+        logo = _logo_markup(assets)
+        _require(logo.count(assets.resolve("brand-logo").decode("utf-8")) == 1)
+        dna = RasterAsset("dna-illustration", assets.resolve("dna-illustration"),
+                          _DNA_SHA256, 324, 1154, _DNA_SHA256, _PERMISSION_SHA256)
+        resources = RasterBundle((dna,))
+        resource_uri = dna.uri
+        _require(resource_uri.startswith("omnigenis-raster:"))
+        original_body = source.split("<body>", 1)[1]
+        _require(original_body.endswith(_END))
+        figure = (
+            '<section data-brand="original-dna" '
+            'style="break-before:page;min-height:560px">'
+            '<h2>Original DNA illustration</h2>'
+            '<div role="img" aria-label="Original decorative OmniGenis DNA illustration" '
+            'style="width:160px;height:530px;background-repeat:no-repeat;'
+            'background-position:left top;background-size:contain;'
+            "background-image:url('" + resource_uri + "')"
+            '"></div></section>'
+        )
+        credit = '<p data-brand-credit="original" role="note">' + escape(
+            REQUIRED_CREDIT_EN, quote=True) + '</p>'
+        html = source.replace("<body>", "<body>" + logo, 1)
+        html = html[:-len(_END)] + figure + credit + _END
+        raw = html.encode("utf-8")
+        _require(0 < len(raw) <= HTML_BYTES
+                 and html.count(logo) == 1
+                 and html.count(resource_uri) == 1
+                 and html.replace("\n", "").count(REQUIRED_CREDIT_EN) == 1
+                 and html.count('data-brand="original-logo"') == 1
+                 and html.count('data-brand="original-dna"') == 1)
+        record = {
+            "schema_version": "1.0.0",
+            "profile_id": PROFILE_ID,
+            "status": "STAGED_TYPED_ORIGINAL_BRAND_CANDIDATE",
+            "source_ir_sha256": expected_ir_sha256,
+            "typed_editorial_html_sha256": source_record["html_sha256"],
+            "html_sha256": sha256(raw).hexdigest(),
+            "resources_sha256": resources.bundle_sha256,
+            "brand_bundle_sha256": _BUNDLE_SHA256,
+            "logo_original_sha256": _LOGO_SHA256,
+            "dna_original_sha256": _DNA_SHA256,
+            "permission_sha256": _PERMISSION_SHA256,
+            "original_credit_count": 1,
+            "original_source_bytes_preserved": True,
+            "clinical_authorization": "NOT_ESTABLISHED",
+            "source_semantics_verified": False,
+            "visual_equivalence_verified": False,
+            "human_accessibility_verified": False,
+            "whole_job_resources_qualified": False,
+            "pdf_ua_certified": False,
+            "default_pipeline_activated": False,
+            "release_authorized": False,
+        }
+        return html, resources, record
+    except Exception:
+        raise TypedOriginalBrandError("typed_original_brand_pdf_unavailable") from None
+
+
+def render_typed_original_brand_pdf(
+    *, presentation_ir: object, expected_ir_sha256: object,
+    assets: BoundBrandAssets, expected_brand_bundle_sha256: object,
+) -> tuple[RasterPdfCandidate, dict]:
+    """Render exact preloaded originals once and withhold all unqualified release claims."""
+    html, resources, record = prepare_typed_original_brand_pdf(
+        presentation_ir=presentation_ir, expected_ir_sha256=expected_ir_sha256,
+        assets=assets, expected_brand_bundle_sha256=expected_brand_bundle_sha256)
+    try:
+        _ready(assets, expected_brand_bundle_sha256)
+        pdf = render_preloaded_raster_pdf(
+            html=html, expected_html_sha256=record["html_sha256"],
+            resources=resources, expected_resources_sha256=record["resources_sha256"])
+        _require(type(pdf) is RasterPdfCandidate
+                 and 1 <= pdf.page_count <= 64
+                 and sha256(pdf.pdf_bytes).hexdigest() == pdf.pdf_sha256)
+        again_html, again_resources, again_record = prepare_typed_original_brand_pdf(
+            presentation_ir=presentation_ir, expected_ir_sha256=expected_ir_sha256,
+            assets=assets, expected_brand_bundle_sha256=expected_brand_bundle_sha256)
+        _require(again_record == record and again_html == html
+                 and again_resources.to_bytes() == resources.to_bytes())
+        return pdf, {**record, "pdf_sha256": pdf.pdf_sha256,
+                     "page_count": pdf.page_count}
+    except Exception:
+        raise TypedOriginalBrandError("typed_original_brand_pdf_unavailable") from None
