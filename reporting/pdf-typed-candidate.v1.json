@@ -9,7 +9,7 @@
     "OMNIGENIS_PDF_RASTER_WINDOWS_DISABLED"
   ],
   "font_style_id": "fixed-lato-2.015-v1",
-  "html_wrapper_id": "fixed-lato-typed-prewrap-v1",
+  "html_wrapper_id": "fixed-lato-typed-prewrap-keep-multirow-v1",
   "input_profile_id": "typed-report-projection-v1",
   "limits": {
     "evidence_bytes": 65536,
@@ -35,7 +35,7 @@
   "source_sha256": {
     "reporting/pdf-typed-observation.v1.json": "4d5821c4066913c2c014631f7877a99b757901e8822a4a441bf583d49eb3c2de",
     "reporting/typed_pdf_association.py": "0b6f4be7d81dc5624aaa3b7e11ed3cfbca0d7d9222272f6c24ba07ee617b3a63",
-    "reporting/typed_pdf_candidate.py": "48e0b8c59a1b80ee7e8224fe52a6e08f13ed2e57aef74744343b7e94d6eeb1b3",
+    "reporting/typed_pdf_candidate.py": "67a8e7b58a3b60d571c9cc3a3c2d5ea4a0e1bc8960b6938642bc76d43bfeca92",
     "reporting/typed_pdf_source.py": "ace530cd727eaf513bffb9070c1b412db166ca4b966d390e710b853ec8676c59",
     "schemas/report-typed-pdf-association.v1.schema.json": "143de03db31e6192a2b16b498aac01f97148efbb99f66b7580967cd290c2491b",
     "schemas/report-typed-pdf-candidate.v1.schema.json": "947d72af6bd3538af541aecca187774b87abf90a25e5fe203dc31bb7563f6c90",
