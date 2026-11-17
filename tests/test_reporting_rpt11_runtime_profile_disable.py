@@ -123,6 +123,43 @@ class Rpt11RuntimeProfileDisableTests(unittest.TestCase):
                 self.assertEqual(result.errors,('adapter_profile_not_active',))
                 self.assertIsNone(result.payload)
 
+    def test_unreviewed_declared_profile_boundary_fails_closed(self):
+        """A profile's scope, identity policy and provenance cannot drift silently."""
+        mutations=(
+            ('subject_identity_policy','NOT_APPLICABLE'),
+            ('source_url','https://example.invalid/unreviewed-profile'),
+            ('scope',['Expanded findings and clinical interpretations']),
+            ('conformance_test_module','tests.test_unreviewed_projection'),
+            ('disable_path','manual approval removed'),
+            ('limitations',['No remaining limitations','All consumers supported']),
+            ('standard_name','Changed unpublished standard name'),
+            ('known_issues',['No known issues']),
+            ('unapproved_runtime_capability',True),
+        )
+        project,kwargs=PROFILE_FUNCS['fhir-genomics-reporting-r4']
+        for key,value in mutations:
+            changed=deepcopy(self.registry)
+            changed['profiles'][0][key]=value
+            raw=json.dumps(changed,sort_keys=True,separators=(',',':')).encode()
+            with self.subTest(field=key),mock_registry_bytes(raw):
+                result=project(**kwargs)
+                self.assertFalse(result.passed)
+                self.assertEqual(result.errors,('adapter_profile_not_active',))
+                self.assertIsNone(result.payload)
+                self.assertIsNone(result.payload_sha256)
+
+    def test_other_profile_metadata_drift_blocks_targeted_runtime(self):
+        """All profiles in a reviewed bundle must retain original boundaries."""
+        changed=deepcopy(self.registry)
+        changed['profiles'][1]['subject_identity_policy']='OPTIONAL_EXPLICIT_ONLY'
+        raw=json.dumps(changed,sort_keys=True,separators=(',',':')).encode()
+        project,kwargs=PROFILE_FUNCS['ga4gh-vrs-v2']
+        with mock_registry_bytes(raw):
+            result=project(**kwargs)
+        self.assertFalse(result.passed)
+        self.assertEqual(result.errors,('adapter_profile_not_active',))
+        self.assertIsNone(result.payload)
+
     def test_unknown_profile_does_not_activate_by_injecting_unapproved_entry(self):
         manifest=deepcopy(self.registry)
         extra=deepcopy(manifest['profiles'][0])

@@ -6,6 +6,7 @@ activated by this guard. Missing or contradictory registry state blocks output.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -18,6 +19,20 @@ _EXPECTED = {
     "ga4gh-vrs-v2": (
         "interoperability.vrs", "2.0", None, "Apache-2.0"),
 }
+# Source-reviewed SHA-256 of each profile's entire declared contract, except
+# the two explicit runtime disable controls. Editing the external-standard
+# identity, subject policy, scope, rights, limitations or even extra keys
+# requires a separately reviewed pin update, not silent runtime promotion.
+# Digests use the exact target registry (PR #184 merge-tree provenance).
+_PINNED_PROFILE_CONTRACT_SHA256 = {
+    "fhir-genomics-reporting-r4":
+        "937eaea2c7b376f757fbb01f70f5bb81883b579f1a7ee81ef9e2bf1c6ccaf207",
+    "ga4gh-phenopackets-v2":
+        "ccceaca9aea89d83d4161620b3f558ecd8d55023ae205b7d0d135ed2fcdf46b7",
+    "ga4gh-vrs-v2":
+        "4f3a6185edd9a1834ca0831bfbae1d5dcfdb3bb56ab42ff6f75107ed5d99e58e",
+}
+
 _REGISTRY = Path(__file__).with_name("profiles.v1.json")
 _MAX_REGISTRY_BYTES = 8192
 
@@ -67,6 +82,12 @@ def profile_is_active(profile_id: str) -> bool:
             if type(name) is not str or name not in _EXPECTED or name in seen:
                 return False
             seen.add(name)
+            approved_contract = {key: value for key, value in profile.items()
+                                 if key not in ("activation_state", "adapter_enabled")}
+            approved_bytes = json.dumps(approved_contract, sort_keys=True,
+                separators=(",", ":"), ensure_ascii=False, allow_nan=False).encode("utf-8")
+            if hashlib.sha256(approved_bytes).hexdigest() != _PINNED_PROFILE_CONTRACT_SHA256[name]:
+                return False
             expected_module, expected_version, expected_base, expected_license = _EXPECTED[name]
             if (profile.get("schema_version") != "1.0.0" or
                     profile.get("adapter_module") != expected_module or
