@@ -90,6 +90,49 @@ class Rpt11PhenopacketsAdapterTests(unittest.TestCase):
         self.assertFalse(result.passed)
         self.assertIn("metadata_created_required",result.errors)
 
+    def test_created_timestamp_rejects_non_utc_or_impossible_calendar_values(self):
+        """Phenopackets 2.0 MetaData.created is a valid ISO-8601 UTC timestamp."""
+        invalid=(
+            'tomorrow', '2026-10-02', '2026-10-02T12:00:00',
+            '2026-10-02T12:00:00+00:00', '2026-10-02T12:00:00z',
+            '2026-02-29T12:00:00Z', '2026-13-02T12:00:00Z',
+            '2026-10-32T12:00:00Z', '2026-10-02T25:00:00Z',
+            '2026-10-02T12:61:00Z', '2026-10-02T12:00:61Z',
+            '2026-10-02T12:00:00.1234567890Z',
+            '2026-10-02T12:00:00Zjunk', '0000-10-02T12:00:00Z',
+            ' 2026-10-02T12:00:00Z ',
+        )
+        for value in invalid:
+            with self.subTest(timestamp=value):
+                result=project_phenopacket(
+                    phenopacket_id='SYNTHETIC-PP-001',
+                    subject_id='SYNTHETIC-SUBJECT-001',
+                    genomic_file_uri='urn:omnigenis:artifact:sha256:abc123',
+                    genomic_file_format='vcf',genome_assembly='GRCh38',
+                    canonical_sample_id='SYNTHETIC-SAMPLE-001',created=value)
+                self.assertFalse(result.passed)
+                self.assertEqual(result.errors,('metadata_created_invalid',))
+                self.assertIsNone(result.payload)
+                self.assertIsNone(result.payload_sha256)
+
+    def test_created_timestamp_accepts_utc_second_and_nanos_preserving_source(self):
+        """Accepted timestamps retain the exact explicit source representation."""
+        for value in ('2026-10-02T12:00:00Z',
+                      '2024-02-29T23:59:59Z',
+                      '2026-10-02T12:00:00.1Z',
+                      '2026-10-02T12:00:00.123456Z',
+                      '2026-10-02T12:00:00.123456789Z'):
+            with self.subTest(timestamp=value):
+                result=project_phenopacket(
+                    phenopacket_id='SYNTHETIC-PP-001',
+                    subject_id='SYNTHETIC-SUBJECT-001',
+                    genomic_file_uri='urn:omnigenis:artifact:sha256:abc123',
+                    genomic_file_format='vcf',genome_assembly='GRCh38',
+                    canonical_sample_id='SYNTHETIC-SAMPLE-001',created=value)
+                self.assertTrue(result.passed,result.errors)
+                self.assertEqual(result.to_dict()['payload']['metaData']['created'],value)
+                self.assertEqual(result.to_dict()['profile_version'],'2.0')
+
     def test_projection_is_deterministic_and_snapshot_isolated(self):
         """Equivalent inputs yield identical detached payloads."""
         kwargs=dict(
