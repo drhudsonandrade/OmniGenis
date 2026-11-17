@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import stat
 from pathlib import Path
 
 _EXPECTED = {
@@ -37,6 +39,30 @@ _REGISTRY = Path(__file__).with_name("profiles.v1.json")
 _MAX_REGISTRY_BYTES = 8192
 
 
+def _read_registry_bytes() -> bytes:
+    """Read one regular registry file without following its final symlink.
+
+    The opened descriptor, rather than a second pathname lookup, supplies the
+    reviewed bytes. The enclosing installed package remains a trusted boundary.
+    """
+    required = ('O_NOFOLLOW', 'O_CLOEXEC', 'O_NONBLOCK')
+    if not all(hasattr(os, name) for name in required):
+        raise ValueError('profile registry safe open unavailable')
+    flags = os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC | os.O_NONBLOCK
+    fd = os.open(_REGISTRY, flags)
+    try:
+        info = os.fstat(fd)
+        if (not stat.S_ISREG(info.st_mode) or
+                not 0 < info.st_size <= _MAX_REGISTRY_BYTES):
+            raise ValueError('profile registry file invalid')
+        raw = os.read(fd, _MAX_REGISTRY_BYTES + 1)
+        if len(raw) != info.st_size:
+            raise ValueError('profile registry incomplete read')
+        return raw
+    finally:
+        os.close(fd)
+
+
 def _unique_pairs(pairs):
     """Reject even nested duplicate JSON keys rather than last-wins aliases."""
     result = {}
@@ -60,7 +86,7 @@ def profile_is_active(profile_id: str) -> bool:
     if type(profile_id) is not str or profile_id not in _EXPECTED:
         return False
     try:
-        raw = _REGISTRY.read_bytes()
+        raw = _read_registry_bytes()
         if not 0 < len(raw) <= _MAX_REGISTRY_BYTES:
             return False
         registry = json.loads(raw, object_pairs_hook=_unique_pairs,

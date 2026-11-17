@@ -7,10 +7,12 @@ from __future__ import annotations
 from contextlib import contextmanager
 from copy import deepcopy
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from unittest.mock import patch
 import json
 import unittest
 
+from interoperability import _profile_activation as activation
 from interoperability.fhir import project_genomic_report
 from interoperability.phenopackets import project_phenopacket
 from interoperability.vrs import project_vrs_allele
@@ -32,14 +34,11 @@ PROFILE_FUNCS={
 
 @contextmanager
 def mock_registry_bytes(raw: bytes | None):
-    original=Path.read_bytes
-    def read(path):
-        if path==REGISTRY:
-            if raw is None:
-                raise FileNotFoundError('isolated synthetic registry-unavailable test')
-            return raw
-        return original(path)
-    with patch.object(Path,'read_bytes',read):
+    def read():
+        if raw is None:
+            raise FileNotFoundError('isolated synthetic registry-unavailable test')
+        return raw
+    with patch.object(activation, '_read_registry_bytes', side_effect=read):
         yield
 
 class Rpt11RuntimeProfileDisableTests(unittest.TestCase):
@@ -56,6 +55,38 @@ class Rpt11RuntimeProfileDisableTests(unittest.TestCase):
                     result=project(**kwargs)
                     self.assertTrue(result.passed,result.errors)
                     self.assertIsNotNone(result.payload)
+
+    def test_checked_in_regular_registry_remains_active(self):
+        """The actual reviewed disk registry admits only the declared profiles."""
+        self.assertFalse(REGISTRY.is_symlink())
+        for profile_id, (project, kwargs) in PROFILE_FUNCS.items():
+            with self.subTest(profile=profile_id):
+                result = project(**kwargs)
+                self.assertTrue(result.passed, result.errors)
+
+    def test_symlinked_registry_with_reviewed_bytes_fails_closed(self):
+        """A symlink outside the checked-in registry cannot activate a profile."""
+        with TemporaryDirectory() as root:
+            reviewed_copy = Path(root) / 'reviewed-copy.json'
+            reviewed_copy.write_bytes(self.raw)
+            alias = Path(root) / 'profiles.v1.json'
+            alias.symlink_to(reviewed_copy)
+            with patch.object(activation, '_REGISTRY', alias):
+                for profile_id, (project, kwargs) in PROFILE_FUNCS.items():
+                    with self.subTest(profile=profile_id):
+                        result = project(**kwargs)
+                        self.assertFalse(result.passed)
+                        self.assertEqual(result.errors, ('adapter_profile_not_active',))
+                        self.assertIsNone(result.payload)
+
+    def test_directory_in_place_of_registry_fails_closed(self):
+        """A nonregular registry path cannot produce an active projection."""
+        with TemporaryDirectory() as root:
+            with patch.object(activation, '_REGISTRY', Path(root)):
+                result = project_genomic_report(
+                    report_id='SYNTHETIC-REPORT-01', subject_reference=None)
+                self.assertEqual(result.errors, ('adapter_profile_not_active',))
+                self.assertIsNone(result.payload)
 
     def test_disabled_registry_profile_prevents_runtime_projection_without_partial_payload(self):
         for profile_id,(project,kwargs) in PROFILE_FUNCS.items():
