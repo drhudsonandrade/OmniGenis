@@ -16,10 +16,11 @@ from unittest.mock import patch
 
 from jsonschema import Draft202012Validator
 from reporting.typed_pdf_source import prepare_typed_pdf_source
-from reporting.pdf_typed_observation import TypedPdfObservation
-from test_reporting_typed_pdf_source import digest
+from reporting.pdf_typed_observation import TypedPdfObservation, observe_typed_pdf
+from reporting.pdf_generated_source_job import render_pdf_candidate
+from reporting.typed_html import prepare_typed_html
+from test_reporting_typed_pdf_source import digest, document
 from test_reporting_typed_pdf_association import declarations
-from test_reporting_typed_pdf_observation import large_response_fixture
 
 ROOT = Path(__file__).resolve().parents[1]
 STAGES = ('render_pdf_candidate', 'observe_typed_pdf', 'associate_typed_pdf',
@@ -639,7 +640,18 @@ class TypedPdfCandidateTests(unittest.TestCase):
         self.last_mocks['associate_typed_pdf'].assert_not_called()
 
     def test_large_observation_is_readmitted_before_association(self):
-        source, rendered, observed = large_response_fixture()
+        # Rebuild the full native fixture with the exact current HTML wrapper.
+        # Reusing an artifact from the retired wrapper must remain forbidden.
+        cell=' '.join(f'C{i:03d}' for i in range(100))
+        source=document(96,paragraph='Synthetic dense table response regression.',
+                        labels=('Column','Column'),cells=(cell,cell))
+        source_sha=digest(source)
+        typed,_=prepare_typed_html(presentation_ir=source,
+                                   expected_ir_sha256=source_sha)
+        html=self.m._render_html(typed)
+        rendered=render_pdf_candidate(html,sha256(html.encode('utf-8')).hexdigest())
+        observed=observe_typed_pdf(pdf_bytes=rendered.pdf_bytes,
+                                   expected_pdf_sha256=rendered.pdf_sha256)
         self.assertGreater(len(observed.to_bytes()), 4 * 1024 * 1024)
         self.assertLessEqual(len(observed.to_bytes()), 11 * 1024 * 1024)
         with patch.object(self.m, 'render_pdf_candidate', return_value=rendered) as render, \

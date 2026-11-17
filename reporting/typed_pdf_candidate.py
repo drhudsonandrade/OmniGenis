@@ -155,7 +155,7 @@ def _profile_contract() -> dict:
         'render_profile_sha256': RENDER_PROFILE_SHA256,
         'raster_profile_id': RASTER_PROFILE_ID,
         'font_style_id': FIXED_FONT_STYLE_ID,
-        'html_wrapper_id': 'fixed-lato-typed-prewrap-v1',
+        'html_wrapper_id': 'fixed-lato-typed-prewrap-keep-multirow-v1',
         'literal_text_policy': 'SOURCE_LITERAL_UTF8_NO_NORMALIZATION',
         'passive_policy': PASSIVE_POLICY,
         'raster_scope': 'ALL_PHYSICAL_PAGES_NONBLANK_GEOMETRY_AND_EDGE_MARGIN_ONLY',
@@ -212,7 +212,11 @@ def _render_html(typed: str) -> str:
             f'<meta name="generator" content="{GENERATED_PDF_PRODUCT}">'
             f'<meta name="omnigenis-font-style" content="{FIXED_FONT_STYLE_ID}">'
             f'<style>{_FIXED_SEMANTIC_CSS}'
-            'h1,h2,p,caption,th,td{white-space:pre-wrap}</style></head><body>'
+            'h1,h2,p,caption,th,td{white-space:pre-wrap}'
+            'thead{display:table-header-group}'
+            'tbody tr:not(:only-child){break-inside:avoid;page-break-inside:avoid}'
+            'h2,caption{break-after:avoid;page-break-after:avoid}'
+            '</style></head><body>'
             + body + suffix)
     _require(len(html) <= 67108864 and len(html.encode('utf-8')) <= 67108864)
     return html
