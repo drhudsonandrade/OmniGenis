@@ -36,6 +36,8 @@ TABLE_IDENTIFIER_POLICY = "PYPDF_TEXTSTRINGOBJECT_ONLY_ORIGINAL_BYTES_1_TO_128"
 # Figure: 506 drawing + 6 color + 6 paint + 7 gs + 5 cm + 2 q/Q + 2 marks.
 # The two nonidentity source group transforms require the q/Q pair.
 # Add the 6-operation DNA Artifact and 3-operation Form.
+MIN_FIGURE_OPERATIONS = 534
+DNA_ARTIFACT_OPERATIONS = 6
 MIN_FIXED_BRAND_OPERATIONS = 543
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA = ROOT / "schemas/report-typed-original-brand-qa.v1.schema.json"
@@ -300,13 +302,17 @@ def _validate_native(record: dict, pdf: bytes, profile: str) -> tuple[dict, dict
                 in_span = False
         classified = set(mapped)
         for block in original["graphic_blocks"]:
+            block_operations = block["last_operator"] - block["first_operator"] + 1
             if block["kind"] == "figure":
-                require(block["dna_paints"] == 0 and type(block["mcid"]) is int
+                require(block_operations >= MIN_FIGURE_OPERATIONS
+                        and block["dna_paints"] == 0 and type(block["mcid"]) is int
                         and (prior._reference(original["reference"]), block["mcid"])
                         == figure_slot)
             else:
                 require(block["kind"] == "artifact" and block["mcid"] is None
-                        and (block["dna_paints"] == 0 or original["reference"] == dna_page))
+                        and (block["dna_paints"] == 0
+                             or (original["reference"] == dna_page
+                                 and block_operations == DNA_ARTIFACT_OPERATIONS)))
             span = set(range(block["first_operator"], block["last_operator"] + 1))
             require(block["first_operator"] < block["last_operator"]
                     and not span.intersection(classified))
@@ -385,6 +391,8 @@ def _validate_receipt(data: dict) -> None:
     _schema(data)
     windows = (data["page_count"] + RASTER_PAGES_PER_WINDOW - 1) // RASTER_PAGES_PER_WINDOW
     coverage = data["coverage"]
+    # The connected native tree charges N visits, N-1 node edges and M MCID edges.
+    require(2 * coverage["native_nodes"] - 1 + coverage["native_mcids"] <= prior.MAX_VISITS)
     require(data["raster_inspected_pages"] == data["page_count"]
             and data["raster_window_count"] == windows
             and coverage["native_nodes"] == (coverage["projected_nodes"]

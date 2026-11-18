@@ -327,9 +327,10 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             elif mode == "matching-utf16":
                 for node in nodes:
                     if node["/S"] == "/TH":
-                        node[NameObject("/ID")] = encoded(node["/ID"])
+                        node[NameObject("/ID")] = encoded(str(node["/ID"]) + "\u0100")
                     elif node["/S"] == "/TD":
-                        node["/A"]["/Headers"][0] = encoded(node["/A"]["/Headers"][0])
+                        node["/A"]["/Headers"][0] = encoded(
+                            str(node["/A"]["/Headers"][0]) + "\u0100")
             elif mode == "matching-nontext-outside-profile":
                 header = next(n for n in nodes if n["/S"] == "/TH")
                 original_id = str(header["/ID"])
@@ -362,6 +363,10 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                     self.assertIs(type(reference), TextStringObject)
                     self.assertIs(type(header), TextStringObject)
                     self.assertEqual(str(reference), str(header))
+                    if mode == "matching-utf16":
+                        self.assertIn("\u0100", str(reference))
+                        self.assertTrue(reference.original_bytes.startswith(b"\xfe\xff"))
+                        self.assertTrue(reference.original_bytes.endswith(b"\x01\x00"))
                     mismatches.append(reference.original_bytes != header.original_bytes)
             with self.subTest(mode=mode):
                 if mode in {"ascii", "matching-utf16"}:
@@ -374,6 +379,29 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 else:
                     self.assertTrue(any(mismatches))
                     self.refuse(args)
+
+        from jsonschema.exceptions import ValidationError
+        args = self.arguments()
+        native = self.native_record()
+        header = next(n for n in native["trace"]["nodes"] if n["role"] == "/TH")
+        previous = header["native_id"]
+        header["native_id"] = "\u0100"
+        matched = 0
+        for node in native["trace"]["nodes"]:
+            for index, identifier in enumerate(node["headers"]):
+                if identifier == previous:
+                    node["headers"][index] = "\u0100"
+                    matched += 1
+        self.assertGreater(matched, 0)
+        self.m.project_text_trace(native["trace"])
+        for boundary in ("schema", "parent"):
+            with self.subTest(forged_native_identifier=boundary):
+                with self.assertRaises(ValidationError):
+                    if boundary == "schema":
+                        self.m._schema(native, "native")
+                    else:
+                        self.m._validate_native(
+                            native, args["pdf_bytes"], args["expected_profile_sha256"])
 
     def test_native_table_owner_and_figure_attribute_surface_refuse(self):
         def wrong_header(writer):
@@ -486,6 +514,72 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             with self.subTest(case=case):
                 self.refuse(self.rewritten(lambda writer: paint(writer, case)))
 
+    def test_inherited_cropbox_uses_nearest_explicit_page_tree_value(self):
+        from reporting import _pdf_typed_original_brand_qa_worker as worker
+        def change(writer, case):
+            leaves = list(writer.pages)
+            root_ref = writer._root_object.raw_get("/Pages")
+            root = root_ref.get_object()
+            for page in leaves:
+                page[NameObject("/CropBox")] = deepcopy(page.raw_get("/MediaBox"))
+            first = leaves[0]
+            full = deepcopy(first.raw_get("/MediaBox"))
+            tiny = ArrayObject([NumberObject(v) for v in (0, 0, 1, 1)])
+            del first["/CropBox"]
+            root[NameObject("/CropBox")] = deepcopy(
+                tiny if case in {"root-excludes", "leaf-overrides-root",
+                                 "nearest-overrides-root"} else full)
+            if case == "leaf-overrides-root":
+                first[NameObject("/CropBox")] = full
+            elif case in {"nearest-overrides-root", "nearest-excludes"}:
+                self.assertEqual(first.raw_get("/Parent"), root_ref)
+                first_ref = first.indirect_reference
+                nearest = DictionaryObject({
+                    NameObject("/Type"): NameObject("/Pages"),
+                    NameObject("/Parent"): root_ref,
+                    NameObject("/Kids"): ArrayObject([first_ref]),
+                    NameObject("/Count"): NumberObject(1),
+                    NameObject("/CropBox"): deepcopy(
+                        full if case == "nearest-overrides-root" else tiny),
+                })
+                nearest_ref = writer._add_object(nearest)
+                kids = root.raw_get("/Kids")
+                position = next(i for i, child in enumerate(kids) if child == first_ref)
+                kids[position] = nearest_ref
+                first[NameObject("/Parent")] = nearest_ref
+        for case in ("root-contains", "leaf-overrides-root", "nearest-overrides-root",
+                     "root-excludes", "nearest-excludes"):
+            args = self.rewritten(lambda writer: change(writer, case))
+            reader = PdfReader(BytesIO(args["pdf_bytes"]), strict=True)
+            pages = worker.native._page_tree(reader)
+            leaf = pages[0][1]
+            self.assertIn("/MediaBox", leaf)
+            self.assertEqual("/CropBox" in leaf, case == "leaf-overrides-root")
+            parent = leaf.raw_get("/Parent").get_object()
+            self.assertIn("/CropBox", parent)
+            full = list(leaf.raw_get("/MediaBox"))
+            effective = leaf.raw_get("/CropBox") if "/CropBox" in leaf else parent.raw_get("/CropBox")
+            self.assertEqual(list(effective),
+                             [0, 0, 1, 1] if case in {"root-excludes", "nearest-excludes"} else full)
+            if case == "leaf-overrides-root":
+                self.assertEqual(list(parent.raw_get("/CropBox")), [0, 0, 1, 1])
+            if case.startswith("nearest-"):
+                self.assertEqual(parent["/Count"], 1)
+                self.assertEqual(len(parent["/Kids"]), 1)
+                ancestor = parent.raw_get("/Parent").get_object()
+                self.assertEqual(list(ancestor.raw_get("/CropBox")),
+                                 [0, 0, 1, 1] if case == "nearest-overrides-root" else full)
+            with self.subTest(case=case):
+                if case in {"root-excludes", "nearest-excludes"}:
+                    with self.assertRaises(ValueError):
+                        self.m._run_worker(args["pdf_bytes"], args["expected_pdf_sha256"])
+                else:
+                    raw = self.m._run_worker(args["pdf_bytes"], args["expected_pdf_sha256"])
+                    native = self.m.prior._loads(raw.decode("ascii"))
+                    self.assertEqual(native["page_count"], len(pages))
+                    self.m._validate_native(
+                        native, args["pdf_bytes"], args["expected_profile_sha256"])
+
     def test_singular_logo_wrapper_and_outer_transforms_refuse(self):
         for context in ("wrapper-0", "wrapper-1", "wrapper-2", "outer"):
             def collapse(writer):
@@ -585,7 +679,30 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 self.assertEqual(ops[-1][1], b"Q")
                 ops[-1:-1] = [([], b"q"), *moved, ([], b"Q")]
             self.edit_page(writer, 0, insert)
-        self.refuse(self.rewritten(relocate, count=96))
+        args = self.rewritten(relocate, count=96)
+        from reporting import _pdf_typed_original_brand_qa_worker as worker
+        reader = PdfReader(BytesIO(args["pdf_bytes"]), strict=True)
+        pages = worker.native._page_tree(reader)
+        trace, attributes, figures = worker._structure(reader, pages)
+        worker._passive(reader, attributes, figures)
+        nodes = {tuple(node["reference"]): node for node in trace["nodes"]}
+        roles = {key: node["role"] for key, node in nodes.items()}
+        document_node = nodes[tuple(trace["root_children"][0])]
+        dna_page = nodes[tuple(document_node["children"][-2]["reference"])]["page_reference"]
+        fonts, forms, decoded = {}, {}, 0
+        for page, (_, obj, resources) in zip(trace["pages"], pages, strict=True):
+            worker._page(page, obj, resources, reader, fonts, forms, roles,
+                         worker.contract.MAX_STREAM_BYTES - decoded)
+            decoded += page["decoded_stream_bytes"]
+        paints = [(page["reference"], block["dna_paints"])
+                  for page in trace["pages"] for block in page["graphic_blocks"]
+                  if block["dna_paints"]]
+        self.assertEqual(len(trace["pages"]), len(pages))
+        self.assertEqual(sum(count for _, count in paints), 1)
+        self.assertEqual(paints[0][0], trace["pages"][0]["reference"])
+        self.assertEqual(dna_page, trace["pages"][-1]["reference"])
+        self.assertTrue(all(reference != dna_page for reference, _ in paints))
+        self.refuse(args)
 
     def test_changed_dna_pixel_and_missing_or_duplicate_paint_refuse(self):
         def pixel(writer):
@@ -790,6 +907,63 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                     self.m._validate_native(
                         native, args["pdf_bytes"], args["expected_profile_sha256"])
 
+    def test_native_graphic_intervals_match_the_admitted_grammar(self):
+        args = self.arguments(96)
+        original = self.native_record(96)
+        self.m._validate_native(original, args["pdf_bytes"], args["expected_profile_sha256"])
+        for case in ("dna-five", "dna-seven", "figure-533"):
+            native = deepcopy(original)
+            page = native["trace"]["pages"][0 if case == "figure-533" else -1]
+            block = next(b for b in page["graphic_blocks"]
+                         if (b["kind"] == "figure" if case == "figure-533"
+                             else b["dna_paints"] == 1))
+            outside = page["outside_operator_ordinals"]
+            length = block["last_operator"] - block["first_operator"] + 1
+            if case == "figure-533":
+                self.assertGreaterEqual(length, 534)
+                last = block["first_operator"] + 532
+                outside.extend(range(last + 1, block["last_operator"] + 1))
+                block["last_operator"] = last
+            else:
+                self.assertEqual(length, 6)
+                if case == "dna-five":
+                    outside.append(block["first_operator"])
+                    block["first_operator"] += 1
+                else:
+                    adjacent = [ordinal for ordinal in
+                                (block["first_operator"] - 1, block["last_operator"] + 1)
+                                if ordinal in outside]
+                    self.assertTrue(adjacent)
+                    ordinal = adjacent[0]
+                    outside.remove(ordinal)
+                    if ordinal < block["first_operator"]:
+                        block["first_operator"] = ordinal
+                    else:
+                        block["last_operator"] = ordinal
+            outside.sort()
+            self.assertEqual(block["last_operator"] - block["first_operator"] + 1,
+                             {"dna-five": 5, "dna-seven": 7, "figure-533": 533}[case])
+            for current in native["trace"]["pages"]:
+                covered = set(current["projected_operator_ordinals"])
+                for graphic in current["graphic_blocks"]:
+                    interval = set(range(graphic["first_operator"],
+                                         graphic["last_operator"] + 1))
+                    self.assertFalse(covered.intersection(interval))
+                    covered.update(interval)
+                remaining = current["outside_operator_ordinals"]
+                self.assertEqual(remaining, sorted(set(remaining)))
+                self.assertFalse(covered.intersection(remaining))
+                covered.update(remaining)
+                self.assertEqual(covered, set(range(current["original_operator_count"])))
+            self.assertEqual(native["graphics"], original["graphics"])
+            self.assertEqual(native["trace"]["nodes"], original["trace"]["nodes"])
+            self.m._schema(native, "native")
+            self.m.project_text_trace(native["trace"])
+            with self.subTest(case=case):
+                with self.assertRaises(ValueError):
+                    self.m._validate_native(
+                        native, args["pdf_bytes"], args["expected_profile_sha256"])
+
     def test_native_dna_paint_requires_its_artifact_page(self):
         args = self.arguments(96)
         original = self.native_record(96)
@@ -874,6 +1048,51 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 object.__setattr__(receipt, "_sealed_sha256", sha256(payload).hexdigest())
                 with self.assertRaises(ValueError):
                     receipt.to_dict()
+
+        boundary = deepcopy(source)
+        coverage = boundary["coverage"]
+        limit = self.m.prior.MAX_VISITS
+        coverage["native_nodes"] = (limit + 1 - coverage["native_mcids"]) // 2
+        coverage["projected_nodes"] = (coverage["native_nodes"]
+                                       - coverage["accounted_brand_wrapper_nodes"])
+        charge = 2 * coverage["native_nodes"] - 1 + coverage["native_mcids"]
+        adjustment = limit - charge
+        self.assertIn(adjustment, (0, 1))
+        coverage["native_mcids"] += adjustment
+        coverage["text_mcids"] += adjustment
+        self.assertEqual(2 * coverage["native_nodes"] - 1 + coverage["native_mcids"], limit)
+        self.m._schema(boundary)
+        self.assertEqual(self.m.TypedOriginalBrandQA(
+            self.m.canonical(boundary)).to_dict(), boundary)
+        bad = deepcopy(boundary)
+        coverage = bad["coverage"]
+        coverage["native_mcids"] += 1
+        coverage["text_mcids"] += 1
+        self.assertEqual(2 * coverage["native_nodes"] - 1 + coverage["native_mcids"], limit + 1)
+        self.assertEqual(coverage["native_nodes"], coverage["projected_nodes"]
+                         + coverage["accounted_brand_wrapper_nodes"])
+        self.assertEqual(coverage["native_mcids"], coverage["text_mcids"]
+                         + coverage["figure_count"])
+        text_units = bad["source_units"] + bad["brand_text_units"]
+        self.assertGreaterEqual(bad["source_units"],
+                                bad["represented_findings"] + 3 if bad["represented_findings"] else 1)
+        self.assertGreaterEqual(bad["pdf_byte_count"], 8)
+        self.assertGreaterEqual(coverage["text_mcids"], text_units)
+        self.assertGreaterEqual(coverage["projected_nodes"],
+                                coverage["text_mcids"] + text_units + 1)
+        self.assertGreaterEqual(coverage["text_mcids"], bad["page_count"])
+        self.assertGreaterEqual(coverage["operations"], 7 * coverage["text_mcids"] + 543)
+        self.m._schema(bad)
+        payload = self.m.canonical(bad)
+        with self.subTest(graph_visit_budget="constructor"):
+            with self.assertRaises(ValueError):
+                self.m.TypedOriginalBrandQA(payload)
+        with self.subTest(graph_visit_budget="resealed-to-dict"):
+            receipt = self.m.TypedOriginalBrandQA(self.m.canonical(boundary))
+            object.__setattr__(receipt, "_payload", payload)
+            object.__setattr__(receipt, "_sealed_sha256", sha256(payload).hexdigest())
+            with self.assertRaises(ValueError):
+                receipt.to_dict()
 
     def test_receipt_window_count_matches_four_page_boundaries(self):
         source = self.run_qa().to_dict()

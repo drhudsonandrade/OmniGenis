@@ -337,7 +337,8 @@
     "native_id": {
       "type": "string",
       "minLength": 1,
-      "maxLength": 128
+      "maxLength": 128,
+      "pattern": "^[\\u0000-\\u00ff]+(?![\\s\\S])"
     },
     "part": {
       "oneOf": [

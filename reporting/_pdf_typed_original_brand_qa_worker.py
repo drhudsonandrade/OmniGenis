@@ -408,16 +408,34 @@ def _contains(outer, inner):
         for point in inner for i in range(4))
 
 
+def _effective_crop_box(page, reader):
+    """Resolve CropBox only on the already validated raw page-tree path."""
+    root = native._dictionary(reader.root_object.raw_get("/Pages"), reader)
+    node, seen = page, set()
+    for _ in range(contract.MAX_DEPTH):
+        if "/CropBox" in node:
+            return node.raw_get("/CropBox")
+        if node is root:
+            return None
+        parent = node.raw_get("/Parent")
+        key = tuple(native._ref(parent, reader))
+        require(key not in seen)
+        seen.add(key)
+        node = native._dictionary(parent, reader)
+    require(False)
+
+
 def _paint_geometry(operations, page, reader, forms, xobjects, figure_points):
     """Require original brand paints inside the existing known rectangle clips."""
     from pypdf.generic import ArrayObject
     ctm, stack, clip = IDENTITY, [], ()
     path, pending_clip = None, False
     require("/MediaBox" in page)
-    for name in ("/MediaBox", "/CropBox"):
-        if name not in page:
-            continue
-        box = page.raw_get(name)
+    boxes = [page.raw_get("/MediaBox")]
+    crop_box = _effective_crop_box(page, reader)
+    if crop_box is not None:
+        boxes.append(crop_box)
+    for box in boxes:
         require(type(box) is ArrayObject and len(box) == 4)
         x0, y0, x1, y1 = (Decimal(native._number(v)) for v in box)
         require(x0 < x1 and y0 < y1)
