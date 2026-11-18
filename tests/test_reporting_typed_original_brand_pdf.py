@@ -158,6 +158,18 @@ class TypedOriginalBrandPdfTests(unittest.TestCase):
                                            "expected_ir_sha256": digest(source)}))
             render.assert_not_called()
 
+    def test_carriage_return_encoded_duplicate_credit_is_refused(self):
+        """An HTML-encoded carriage return cannot hide a second notice."""
+        wrapped = REQUIRED_CREDIT_EN.replace(". Used", ".\rUsed")
+        source = document(1, paragraph=wrapped)
+        with patch.object(self.m, "render_preloaded_raster_pdf",
+                          side_effect=AssertionError("unexpected render")) as render:
+            with self.assertRaises(self.m.TypedOriginalBrandError):
+                self.m.render_typed_original_brand_pdf(
+                    **(self.arguments() | {"presentation_ir": source,
+                                           "expected_ir_sha256": digest(source)}))
+            render.assert_not_called()
+
     def test_positive_fixture_is_independent_of_inherited_disable_flags(self):
         """setUp explicitly supplies the opt-in test environment."""
         flags = (

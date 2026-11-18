@@ -8,7 +8,7 @@ clinical/scientific claims, new executor, PDF/UA or visual parity is established
 from __future__ import annotations
 
 from hashlib import sha256
-from html import escape
+from html import escape, unescape
 import os
 
 from reporting._pdf_render_worker import HTML_BYTES
@@ -65,7 +65,7 @@ def prepare_typed_original_brand_pdf(
         source, source_record = prepare_editorial_typed_html(
             presentation_ir=presentation_ir, expected_ir_sha256=expected_ir_sha256)
         _require(source.count("<body>") == 1 and source.endswith(_END)
-                 and " ".join(source.split()).count(REQUIRED_CREDIT_EN) == 0
+                 and " ".join(unescape(source).split()).count(REQUIRED_CREDIT_EN) == 0
                  and 'data-brand="original-logo"' not in source
                  and 'data-brand="original-dna"' not in source)
         logo = _logo_markup(assets)
@@ -98,7 +98,7 @@ def prepare_typed_original_brand_pdf(
         _require(0 < len(raw) <= HTML_BYTES
                  and html.count(logo) == 1
                  and figure.count("background-image:url(\'" + resource_uri + "\')") == 1
-                 and " ".join(html.split()).count(REQUIRED_CREDIT_EN) == 1
+                 and " ".join(unescape(html).split()).count(REQUIRED_CREDIT_EN) == 1
                  and html.count('data-brand="original-logo"') == 1
                  and html.count('data-brand="original-dna"') == 1)
         record = {
