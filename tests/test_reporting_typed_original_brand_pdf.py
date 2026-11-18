@@ -191,6 +191,22 @@ class TypedOriginalBrandPdfTests(unittest.TestCase):
                 self.m.render_typed_original_brand_pdf(**kwargs)
             renderer.assert_not_called()
 
+    def test_soft_hyphen_hidden_duplicate_credit_refuses_before_render(self):
+        """An invisible U+00AD cannot conceal a duplicate owner's notice."""
+        paragraph = REQUIRED_CREDIT_EN.replace("Logo", "Lo\u00adgo", 1)
+        source = document(1, paragraph=paragraph)
+        kwargs = self.arguments() | {
+            "presentation_ir": source,
+            "expected_ir_sha256": digest(source),
+        }
+        with patch.object(self.m, "render_preloaded_raster_pdf",
+                          side_effect=AssertionError("unexpected render")) as render:
+            with self.assertRaises(self.m.TypedOriginalBrandError):
+                self.m.prepare_typed_original_brand_pdf(**kwargs)
+            with self.assertRaises(self.m.TypedOriginalBrandError):
+                self.m.render_typed_original_brand_pdf(**kwargs)
+            render.assert_not_called()
+
     def test_carriage_return_encoded_duplicate_credit_is_refused(self):
         """An HTML-encoded carriage return cannot hide a second notice."""
         wrapped = REQUIRED_CREDIT_EN.replace(". Used", ".\rUsed")

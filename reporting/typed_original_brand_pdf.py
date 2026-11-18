@@ -59,7 +59,8 @@ def _credit_count(html: str) -> int:
     parser = _VisibleBodyText()
     parser.feed(body)
     parser.close()
-    return ' '.join(' '.join(parser.parts).split()).count(REQUIRED_CREDIT_EN)
+    visible_text = ' '.join(parser.parts).replace('\u00ad', '')
+    return ' '.join(visible_text.split()).count(REQUIRED_CREDIT_EN)
 
 
 def _ready(assets: BoundBrandAssets, expected_brand_bundle_sha256: object) -> dict:
