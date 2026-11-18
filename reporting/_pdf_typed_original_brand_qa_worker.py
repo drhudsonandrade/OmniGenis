@@ -286,7 +286,7 @@ def _form(ref, reader, fonts, forms):
     require(obj.raw_get("/Type") == "/XObject" and obj.raw_get("/Subtype") == "/Form")
     box = obj.raw_get("/BBox")
     require(type(box) is ArrayObject and len(box) == 4)
-    coordinates = [float(native._number(v)) for v in box]
+    coordinates = [Decimal(native._number(v)) for v in box]
     require(coordinates[0:2] == [0, 0] and 0 < coordinates[2] <= 1200 and 0 < coordinates[3] <= 1600)
     group = obj.raw_get("/Group")
     require(type(group) is DictionaryObject and set(group) == {"/Type", "/S", "/I", "/CS"}
@@ -312,15 +312,22 @@ def _form(ref, reader, fonts, forms):
     data = _inflate(obj, 4096)
     ops = _operations(data, reader)
     require([op for _, op in ops] == [b"cm", b"cm", b"Do"])
-    first = list(map(float, _numbers(ops[0][0], 6)))
-    second = list(map(float, _numbers(ops[1][0], 6)))
-    require(first[:4] == [1, 0, 0, 1] and all(abs(x) <= 1600 for x in first[4:])
-            and second[1:3] == [0, 0] and second[4] == 0
+    first = tuple(map(Decimal, _numbers(ops[0][0], 6)))
+    second = tuple(map(Decimal, _numbers(ops[1][0], 6)))
+    require(first[:4] == (1, 0, 0, 1) and all(abs(x) <= 1600 for x in first[4:])
+            and second[1:3] == (0, 0) and second[4] == 0
             and second[3] == -530 and second[5] == 530
-            and abs(second[0] - 530 * 324 / 1154) <= 0.000001
+            and abs(second[0] - Decimal(530 * 324) / Decimal(1154)) <= Decimal("0.000001")
             and len(ops[2][0]) == 1 and type(ops[2][0][0]) is NameObject
             and ops[2][0][0] == image_name)
-    forms[key] = {"image": native._ref(image_ref, reader), "sha256": sha256(data).hexdigest()}
+    image_bounds = _rectangle((Decimal(0), Decimal(0), Decimal(1), Decimal(1)),
+                              _ctm(second, _ctm(first, IDENTITY)))
+    form_bounds = _rectangle((coordinates[0], coordinates[1],
+                              coordinates[2] - coordinates[0],
+                              coordinates[3] - coordinates[1]), IDENTITY)
+    require(_contains(form_bounds, image_bounds))
+    forms[key] = {"image": native._ref(image_ref, reader), "sha256": sha256(data).hexdigest(),
+                  "image_bounds": image_bounds}
 
 
 def _resources(resources, reader, fonts, forms, page):
@@ -362,6 +369,82 @@ def _ctm(new, current):
     a, b, c, d, e, f = new
     A, B, C, D, E, F = current
     return (a*A+b*C, a*B+b*D, c*A+d*C, c*B+d*D, e*A+f*C+E, e*B+f*D+F)
+
+
+def _determinant(matrix):
+    return matrix[0] * matrix[3] - matrix[1] * matrix[2]
+
+
+def _point(point, matrix):
+    x, y = point
+    a, b, c, d, e, f = matrix
+    return a * x + c * y + e, b * x + d * y + f
+
+
+def _rectangle(values, matrix):
+    x, y, width, height = values
+    return tuple(_point(point, matrix) for point in (
+        (x, y), (x + width, y), (x + width, y + height), (x, y + height)))
+
+
+def _contains(outer, inner):
+    """Containment only for the admitted affine rectangle; no general path clipping."""
+    def side(first, second, point):
+        return ((second[0] - first[0]) * (point[1] - first[1])
+                - (second[1] - first[1]) * (point[0] - first[0]))
+    direction = side(outer[0], outer[1], outer[2])
+    return direction != 0 and all(
+        side(outer[i], outer[(i + 1) % 4], point) * direction >= 0
+        for point in inner for i in range(4))
+
+
+def _paint_geometry(operations, page, reader, forms, xobjects):
+    """Track existing graphics state; only known rectangle clips can admit DNA."""
+    from pypdf.generic import ArrayObject
+    ctm, stack, clip = IDENTITY, [], ()
+    path, pending_clip = None, False
+    require("/MediaBox" in page)
+    for name in ("/MediaBox", "/CropBox"):
+        if name not in page:
+            continue
+        box = page.raw_get(name)
+        require(type(box) is ArrayObject and len(box) == 4)
+        x0, y0, x1, y1 = (Decimal(native._number(v)) for v in box)
+        require(x0 < x1 and y0 < y1)
+        clip = (_rectangle((x0, y0, x1 - x0, y1 - y0), IDENTITY), clip)
+    for args, op in operations:
+        if op == b"q":
+            require(len(stack) < contract.MAX_DEPTH)
+            stack.append((ctm, clip))
+        elif op == b"Q":
+            require(bool(stack))
+            ctm, clip = stack.pop()
+        elif op == b"cm":
+            ctm = _ctm(tuple(map(Decimal, _numbers(args, 6))), ctm)
+        elif op == b"re":
+            rectangle = _rectangle(tuple(map(Decimal, _numbers(args, 4))), ctm)
+            path = rectangle if path is None else False
+        elif op in {b"m", b"l", b"h"}:
+            path = False
+        elif op in {b"W", b"W*"}:
+            pending_clip = True
+        elif op in {b"n", b"S", b"f", b"f*"}:
+            if pending_clip:
+                require(path is not None)
+                clip = None if clip is None or path is False else (path, clip)
+            path, pending_clip = None, False
+        elif op == b"BDC" and args[0] == "/Figure":
+            require(_determinant(ctm) != 0)
+        elif op == b"Do":
+            require(_determinant(ctm) != 0 and clip is not None
+                    and path is None and not pending_clip)
+            form = forms[tuple(native._ref(xobjects.raw_get(args[0]), reader))]
+            image = tuple(_point(point, ctm) for point in form["image_bounds"])
+            inherited = clip
+            while inherited:
+                bounds, inherited = inherited
+                require(_contains(bounds, image))
+    require(not stack and path is None and not pending_clip)
 
 
 def _logo_source():
@@ -462,6 +545,7 @@ def _figure(operations, states):
     wrapper = IDENTITY
     for matrix in matrices[:3]:
         wrapper = _ctm(matrix, wrapper)
+    require(_determinant(wrapper) != 0)
     for observed, source in zip(paths, expected, strict=True):
         require(observed[:4] == source and observed[4] == _ctm(groups[source[3]], wrapper))
 
@@ -623,6 +707,7 @@ def _page(page, obj, resources, reader, fonts, forms, roles, remaining):
         index += 1
     require(outside_depth == 0 and not outside_path and not outside_clip
             and used == set(owners))
+    _paint_geometry(ops, obj, reader, forms, xobjects)
     text_page = dict(page)
     text_page["mcid_owners"] = [v for v in page["mcid_owners"] if roles[tuple(v["structure_reference"])] == "/Span"]
     page["runs"] = contract._replay(text_page, fonts)
@@ -646,10 +731,15 @@ def inspect(pdf, digest, limits):
         trace, attributes, figures = _structure(reader, pages)
         _passive(reader, attributes, figures)
         fonts, forms, decoded = {}, {}, 0
-        roles = {tuple(n["reference"]): n["role"] for n in trace["nodes"]}
+        nodes = {tuple(n["reference"]): n for n in trace["nodes"]}
+        roles = {key: node["role"] for key, node in nodes.items()}
+        document = nodes[tuple(trace["root_children"][0])]
+        dna_page = nodes[tuple(document["children"][-2]["reference"])]["page_reference"]
         for page, (_, obj, resources) in zip(trace["pages"], pages, strict=True):
             _page(page, obj, resources, reader, fonts, forms, roles,
                   contract.MAX_STREAM_BYTES - decoded)
+            require(all(not block["dna_paints"] or page["reference"] == dna_page
+                        for block in page["graphic_blocks"]))
             decoded += page["decoded_stream_bytes"]
         trace["fonts"] = list(fonts.values())
         require(len(forms) == 1)

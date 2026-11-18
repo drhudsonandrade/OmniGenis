@@ -36,6 +36,7 @@ FLAGS = {
     "OMNIGENIS_PDF_RENDERER_DISABLED": "",
     "OMNIGENIS_TYPED_PDF_OBSERVATION_DISABLED": "",
     "OMNIGENIS_PDF_RASTER_WINDOWS_DISABLED": "",
+    "OMNIGENIS_PDF_DOCUMENT_METADATA_DISABLED": "",
 }
 
 
@@ -112,8 +113,8 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                                     "^typed_original_brand_qa_refused$"):
             self.run_qa(args)
 
-    def rewritten(self, mutate=lambda writer: None):
-        args = self.arguments()
+    def rewritten(self, mutate=lambda writer: None, count=2):
+        args = self.arguments(count)
         writer = PdfWriter(clone_from=PdfReader(BytesIO(args["pdf_bytes"]), strict=True))
         writer.pdf_header = b"%PDF-1.7"
         mutate(writer)
@@ -148,12 +149,14 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         replacement.set_data(content.get_data())
         page[NameObject("/Contents")] = writer._add_object(replacement)
 
-    def native_record(self):
-        if not hasattr(self, "_native_record"):
-            args = self.arguments()
+    def native_record(self, count=2):
+        if not hasattr(self, "_native_records"):
+            self._native_records = {}
+        if count not in self._native_records:
+            args = self.arguments(count)
             raw = self.m._run_worker(args["pdf_bytes"], args["expected_pdf_sha256"])
-            self._native_record = self.m.prior._loads(raw.decode("ascii"))
-        return deepcopy(self._native_record)
+            self._native_records[count] = self.m.prior._loads(raw.decode("ascii"))
+        return deepcopy(self._native_records[count])
 
     def test_valid_rewritten_control_and_receipt_remain_immutable_and_scoped(self):
         args = self.rewritten()
@@ -241,6 +244,107 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             with self.subTest(mutation=mutate.__name__):
                 self.refuse(self.rewritten(mutate))
 
+    def test_singular_logo_wrapper_and_outer_transforms_refuse(self):
+        for context in ("wrapper-0", "wrapper-1", "wrapper-2", "outer"):
+            def collapse(writer):
+                def alter(ops):
+                    start = next(i for i, (args, op) in enumerate(ops)
+                                 if op == b"BDC" and args[0] == "/Figure")
+                    end = next(i for i in range(start + 1, len(ops)) if ops[i][1] == b"EMC")
+                    if context == "outer":
+                        ops.insert(end + 1, ([], b"Q"))
+                        ops[start:start] = [
+                            ([], b"q"),
+                            ([NumberObject(v) for v in (0, 0, 0, 1, 0, 0)], b"cm")]
+                    else:
+                        matrices = [args for args, op in ops[start + 1:end] if op == b"cm"]
+                        self.assertEqual(len(matrices), 5)
+                        matrix = matrices[int(context[-1])]
+                        matrix[0] = NumberObject(0)
+                        matrix[1] = NumberObject(0)
+                self.edit_page(writer, 0, alter)
+            with self.subTest(context=context):
+                self.refuse(self.rewritten(collapse))
+
+    @staticmethod
+    def dna_block_range(ops):
+        paint = next(i for i, (_, op) in enumerate(ops) if op == b"Do")
+        start = max(i for i in range(paint) if ops[i][1] == b"BMC"
+                    and ops[i][0] == ["/Artifact"])
+        end = next(i for i in range(paint + 1, len(ops)) if ops[i][1] == b"EMC")
+        return start, end
+
+    def test_dna_paint_requires_containing_local_inherited_and_form_clips(self):
+        def inherited(writer, rectangle, restored=False):
+            def alter(ops):
+                start, end = self.dna_block_range(ops)
+                payload = [
+                    ([], b"q"), ([NumberObject(v) for v in rectangle], b"re"),
+                    ([], b"W"), ([], b"n")]
+                if restored:
+                    payload.append(([], b"Q"))
+                else:
+                    ops.insert(end + 1, ([], b"Q"))
+                ops[start:start] = payload
+            self.edit_page(writer, -1, alter)
+
+        for restored in (False, True):
+            rectangle = (0, 0, 1, 1) if restored else (0, 0, 1200, 1600)
+            with self.subTest(control_restored=restored):
+                control = self.rewritten(lambda writer: inherited(writer, rectangle, restored))
+                self.assertEqual(self.run_qa(control).to_dict()["dna_image_count"], 1)
+        for case in ("empty-local", "excluding-local", "excluding-inherited",
+                     "unknown-inherited", "clipping-form-bbox", "shifted-form-image"):
+            def clip(writer):
+                if case == "excluding-inherited":
+                    inherited(writer, (0, 0, 1, 1))
+                elif case == "unknown-inherited":
+                    def alter(ops):
+                        start, end = self.dna_block_range(ops)
+                        ops.insert(end + 1, ([], b"Q"))
+                        ops[start:start] = [
+                            ([], b"q"), ([NameObject("/Artifact")], b"BMC"),
+                            ([NumberObject(0), NumberObject(0)], b"m"),
+                            ([NumberObject(1), NumberObject(0)], b"l"),
+                            ([NumberObject(0), NumberObject(1)], b"l"),
+                            ([], b"W"), ([], b"n"), ([], b"EMC")]
+                    self.edit_page(writer, -1, alter)
+                elif case in {"clipping-form-bbox", "shifted-form-image"}:
+                    form = next(iter(writer.pages[-1]["/Resources"]["/XObject"].values())).get_object()
+                    if case == "clipping-form-bbox":
+                        form[NameObject("/BBox")] = ArrayObject(
+                            [NumberObject(v) for v in (0, 0, 1, 1)])
+                    else:
+                        content = ContentStream(form, writer, forced_encoding="bytes")
+                        self.assertEqual([op for _, op in content.operations], [b"cm", b"cm", b"Do"])
+                        content.operations[0][0][4] = NumberObject(1000)
+                        form._data = zlib.compress(content.get_data())
+                else:
+                    def alter(ops):
+                        start, end = self.dna_block_range(ops)
+                        index = next(i for i in range(start + 1, end) if ops[i][1] == b"re")
+                        rectangle = (0, 0, 0, 0) if case == "empty-local" else (0, 0, 1, 1)
+                        ops[index] = ([NumberObject(v) for v in rectangle], b"re")
+                    self.edit_page(writer, -1, alter)
+            with self.subTest(case=case):
+                self.refuse(self.rewritten(clip))
+
+    def test_dna_paint_must_remain_on_its_structural_page(self):
+        def relocate(writer):
+            self.assertGreater(len(writer.pages), 1)
+            moved = []
+            def remove(ops):
+                start, end = self.dna_block_range(ops)
+                moved.extend(deepcopy(ops[start:end + 1]))
+                del ops[start:end + 1]
+            self.edit_page(writer, -1, remove)
+            self.assertTrue(moved)
+            def insert(ops):
+                self.assertEqual(ops[-1][1], b"Q")
+                ops[-1:-1] = [([], b"q"), *moved, ([], b"Q")]
+            self.edit_page(writer, 0, insert)
+        self.refuse(self.rewritten(relocate, count=96))
+
     def test_changed_dna_pixel_and_missing_or_duplicate_paint_refuse(self):
         def pixel(writer):
             form = next(iter(writer.pages[0]["/Resources"]["/XObject"].values())).get_object()
@@ -302,6 +406,54 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                     self.m, "_run_worker", return_value=self.m.canonical(native)):
                 self.refuse(self.arguments())
 
+    def test_graphic_blocks_must_match_figure_page_mcid_and_unowned_artifacts(self):
+        args = self.arguments(96)
+        original = self.native_record(96)
+        _, counts = self.m._validate_native(
+            original, args["pdf_bytes"], args["expected_profile_sha256"])
+        self.assertEqual(counts["figure_count"], 1)
+        self.assertGreater(len(original["trace"]["pages"]), 1)
+        for case in ("figure-null", "figure-text-owner", "figure-wrong-page", "artifact-owned"):
+            native = deepcopy(original)
+            pages = native["trace"]["pages"]
+            figure = next(b for b in pages[0]["graphic_blocks"] if b["kind"] == "figure")
+            figure_mcid = figure["mcid"]
+            if case == "figure-null":
+                figure["mcid"] = None
+            elif case == "figure-text-owner":
+                figure["mcid"] = next(
+                    owner["mcid"] for owner in pages[0]["mcid_owners"]
+                    if owner["mcid"] != figure_mcid)
+            elif case == "figure-wrong-page":
+                other = next(b for b in pages[1]["graphic_blocks"]
+                             if b["kind"] == "artifact" and b["dna_paints"] == 0)
+                figure["kind"], figure["mcid"] = "artifact", None
+                other["kind"], other["mcid"] = "figure", figure_mcid
+            else:
+                artifact = next(b for b in pages[0]["graphic_blocks"] if b["kind"] == "artifact")
+                artifact["mcid"] = figure_mcid
+            with self.subTest(case=case):
+                self.m._schema(native, "native")
+                self.m.project_text_trace(native["trace"])
+                with self.assertRaises(ValueError):
+                    self.m._validate_native(
+                        native, args["pdf_bytes"], args["expected_profile_sha256"])
+
+    def test_receipt_requires_every_page_rasterized_even_after_resealing(self):
+        receipt = self.run_qa()
+        bad = receipt.to_dict()
+        bad["page_count"] = 2
+        bad["raster_inspected_pages"] = 1
+        self.assertEqual(set(bad["stages"].values()), {"PASS"})
+        self.m._schema(bad)
+        payload = self.m.canonical(bad)
+        with self.assertRaises(ValueError):
+            self.m.TypedOriginalBrandQA(payload)
+        object.__setattr__(receipt, "_payload", payload)
+        object.__setattr__(receipt, "_sealed_sha256", sha256(payload).hexdigest())
+        with self.assertRaises(ValueError):
+            receipt.to_dict()
+
     def test_wrong_language_and_cross_plan_metadata_refuse(self):
         def wrong_language(writer):
             writer._root_object[NameObject("/Lang")] = TextStringObject("pt-BR")
@@ -347,13 +499,25 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                     patch.object(worker, "enforce_pdf_network_filter") as network, \
                     patch.object(worker.native, "_read_request") as read, \
                     patch.object(worker, "_write_bytes") as write:
-                (landlock if guard == "enforce_pdf_landlock" else network).side_effect = ValueError("guard refused")
+                order = []
+                landlock.side_effect = lambda *_args, **_kwargs: order.append("landlock")
+                network.side_effect = lambda *_args, **_kwargs: order.append("network")
+                selected = landlock if guard == "enforce_pdf_landlock" else network
+                def refused(*_args, **_kwargs):
+                    order.append("landlock" if guard == "enforce_pdf_landlock" else "network")
+                    raise ValueError("guard refused")
+                selected.side_effect = refused
                 code = worker.main(["worker", str(source.fileno()), str(output.fileno()), str(os.getpid())])
                 self.assertEqual(code, 70)
+                selected.assert_called_once()
                 read.assert_not_called()
                 write.assert_not_called()
                 if guard == "enforce_pdf_landlock":
                     network.assert_not_called()
+                    self.assertEqual(order, ["landlock"])
+                else:
+                    landlock.assert_called_once()
+                    self.assertEqual(order, ["landlock", "network"])
 
     def test_changed_postflight_brand_contract_refuses(self):
         original = self.m.prepare_typed_original_brand_pdf

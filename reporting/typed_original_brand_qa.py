@@ -270,6 +270,9 @@ def _validate_native(record: dict, pdf: bytes, profile: str) -> tuple[dict, dict
             and record["pdf_byte_count"] == len(pdf)
             and record["page_count"] == len(record["trace"]["pages"]))
     trace, counts = project_text_trace(record["trace"])
+    figure = next(n for n in record["trace"]["nodes"] if n["role"] == "/Figure")
+    figure_slot = (prior._reference(figure["page_reference"]),
+                   figure["children"][0]["value"])
     fonts = {prior._reference(f["reference"]): f for f in trace["fonts"]}
     require(len(fonts) == len(trace["fonts"]))
     operations = text_bytes = figures = artifacts = dna_paints = 0
@@ -278,6 +281,12 @@ def _validate_native(record: dict, pdf: bytes, profile: str) -> tuple[dict, dict
         require(len(mapped) == len(page["events"]) and mapped == sorted(set(mapped)))
         classified = set(mapped)
         for block in original["graphic_blocks"]:
+            if block["kind"] == "figure":
+                require(type(block["mcid"]) is int
+                        and (prior._reference(original["reference"]), block["mcid"])
+                        == figure_slot)
+            else:
+                require(block["kind"] == "artifact" and block["mcid"] is None)
             span = set(range(block["first_operator"], block["last_operator"] + 1))
             require(block["first_operator"] < block["last_operator"]
                     and not span.intersection(classified))
@@ -352,6 +361,11 @@ def _associate(manifest: dict, physical: dict) -> dict:
     return result
 
 
+def _validate_receipt(data: dict) -> None:
+    _schema(data)
+    require(data["raster_inspected_pages"] == data["page_count"])
+
+
 @dataclass(frozen=True, slots=True, repr=False)
 class TypedOriginalBrandQA:
     """Immutable checksum-bound result; never a worker signature or release token."""
@@ -361,14 +375,14 @@ class TypedOriginalBrandQA:
     def __post_init__(self):
         require(type(self._payload) is bytes and 0 < len(self._payload) <= 65536)
         data = prior._loads(self._payload.decode("ascii"))
-        _schema(data)
+        _validate_receipt(data)
         object.__setattr__(self, "_sealed_sha256", sha256(self._payload).hexdigest())
 
     def to_dict(self) -> dict:
         require(type(self._payload) is bytes and 0 < len(self._payload) <= 65536
                 and sha256(self._payload).hexdigest() == self._sealed_sha256)
         data = prior._loads(self._payload.decode("ascii"))
-        _schema(data)
+        _validate_receipt(data)
         return data
 
     def __repr__(self):

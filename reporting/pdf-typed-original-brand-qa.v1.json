@@ -2,10 +2,10 @@
   "schema_version": "1.0.0",
   "profile_id": "typed-original-brand-qa-v1",
   "sources": {
-    "reporting/typed_original_brand_qa.py": "3dcd87ad33b2b95757acc22f56fa9f7be4548112bd9772289fa344091d3fb9f0",
-    "reporting/_pdf_typed_original_brand_qa_worker.py": "271624964c06bd039b061d8559fb6cad2094ed5c7b21cb47ab3baac398168424",
+    "reporting/typed_original_brand_qa.py": "466181cfa891ab02facf4e46a53b902cb8a86df593a1fe40124a3210d3cebbac",
+    "reporting/_pdf_typed_original_brand_qa_worker.py": "bf10a2a0ed2e1fe9df43b021a2d8061fcab2aa7f1aff7ea36cf4e35ba913b2f4",
     "schemas/report-typed-original-brand-qa.v1.schema.json": "2999265ec4698db4973a094b4848bae56e57f1528bff911d21414559924015de",
-    "tests/test_reporting_typed_original_brand_qa.py": "5d5dde14d1fdeb8d9d3eb290b979a07bd69f8a8c319858f72cce33cfc139489b",
+    "tests/test_reporting_typed_original_brand_qa.py": "dc67a1f59f0cc25caaf01a9bae84a59d5272cf1f18fb581486cab6f5a570124e",
     "reporting/typed_original_brand_pdf.py": "6562af3558cddbbaadb8b3e442cd9cb5072f7d99f64e5b764d2a4bda99cdc985",
     "reporting/pdf-typed-observation.v1.json": "2d344aa71738213c2980b5dbbf019b2240d8c092034185fb0e9eee0b4c51d292",
     "reporting/brand_assets.py": "400045ee7f8eca94a938608566695d03b276e322f8aa3bcd78485b7abb1b4649",
