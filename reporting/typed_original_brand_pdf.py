@@ -65,7 +65,7 @@ def prepare_typed_original_brand_pdf(
         source, source_record = prepare_editorial_typed_html(
             presentation_ir=presentation_ir, expected_ir_sha256=expected_ir_sha256)
         _require(source.count("<body>") == 1 and source.endswith(_END)
-                 and REQUIRED_CREDIT_EN not in source
+                 and " ".join(source.split()).count(REQUIRED_CREDIT_EN) == 0
                  and 'data-brand="original-logo"' not in source
                  and 'data-brand="original-dna"' not in source)
         logo = _logo_markup(assets)
@@ -87,15 +87,18 @@ def prepare_typed_original_brand_pdf(
             "background-image:url('" + resource_uri + "')"
             '"></div></section>'
         )
-        credit = '<p data-brand-credit="original" role="note">' + escape(
-            REQUIRED_CREDIT_EN, quote=True) + '</p>'
+        credit = ('<section data-brand-credit-section="original" '
+                  'style="break-inside:avoid">'
+                  '<h2>Visual asset credits</h2>'
+                  '<p data-brand-credit="original" role="note">' + escape(
+                      REQUIRED_CREDIT_EN, quote=True) + '</p></section>')
         html = source.replace("<body>", "<body>" + logo, 1)
         html = html[:-len(_END)] + figure + credit + _END
         raw = html.encode("utf-8")
         _require(0 < len(raw) <= HTML_BYTES
                  and html.count(logo) == 1
-                 and html.count(resource_uri) == 1
-                 and html.replace("\n", "").count(REQUIRED_CREDIT_EN) == 1
+                 and figure.count("background-image:url(\'" + resource_uri + "\')") == 1
+                 and " ".join(html.split()).count(REQUIRED_CREDIT_EN) == 1
                  and html.count('data-brand="original-logo"') == 1
                  and html.count('data-brand="original-dna"') == 1)
         record = {

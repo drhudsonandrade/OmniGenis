@@ -38,6 +38,11 @@ class TypedOriginalBrandPdfTests(unittest.TestCase):
         self.expected_ir_sha = digest(self.source)
         self.mode = patch.dict(os.environ, {
             "OMNIGENIS_PDF_QUALIFICATION_RECEIPT_MODE": "qualification-only",
+            "OMNIGENIS_TYPED_ORIGINAL_BRAND_PDF_DISABLED": "",
+            "OMNIGENIS_TYPED_EDITORIAL_PDF_DISABLED": "",
+            "OMNIGENIS_PDF_PRELOADED_RASTER_DISABLED": "",
+            "OMNIGENIS_PDF_QUALIFICATION_RECEIPT_DISABLED": "",
+            "OMNIGENIS_PDF_RENDERER_DISABLED": "",
         })
         self.mode.start()
         self.addCleanup(self.mode.stop)
@@ -116,6 +121,63 @@ class TypedOriginalBrandPdfTests(unittest.TestCase):
         self.assertGreater(pdf.page_count, 2)
         self.assertFalse(record["release_authorized"])
 
+    def test_required_credit_is_in_a_labeled_section_on_the_same_page(self):
+        """The source permission requires a credits/information section."""
+        html, _, _ = self.m.prepare_typed_original_brand_pdf(**self.arguments())
+        label = '<section data-brand-credit-section="original"'
+        self.assertEqual(html.count(label), 1)
+        credit_section = html.split(label, 1)[1].split("</section>", 1)[0]
+        self.assertIn("Visual asset credits", credit_section)
+        self.assertEqual(credit_section.count(REQUIRED_CREDIT_EN), 1)
+        pdf, _ = self.m.render_typed_original_brand_pdf(**self.arguments())
+        pages = [page.extract_text() or ""
+                 for page in PdfReader(BytesIO(pdf.pdf_bytes), strict=True).pages]
+        self.assertTrue(any("Visual asset credits" in page and
+                            REQUIRED_CREDIT_EN in page for page in pages))
+
+    def test_raster_uri_in_admitted_plain_text_does_not_become_a_resource(self):
+        """A declared literal URI in a paragraph is not a second CSS fetch."""
+        dna_sha = sha256(self.sources["dna_png"]).hexdigest()
+        source = document(1, paragraph="Synthetic literal: omnigenis-raster:" + dna_sha)
+        html, resources, _ = self.m.prepare_typed_original_brand_pdf(
+            **(self.arguments() | {"presentation_ir": source,
+                                   "expected_ir_sha256": digest(source)}))
+        uri = resources.assets[0].uri
+        self.assertIn("Synthetic literal: " + uri, html)
+        self.assertEqual(html.count("background-image:url('" + uri + "')"), 1)
+
+    def test_wrapped_duplicate_credit_is_refused_before_render(self):
+        """Whitespace cannot disguise an existing required legal notice."""
+        wrapped = REQUIRED_CREDIT_EN.replace(". Used", ".\nUsed")
+        source = document(1, paragraph=wrapped)
+        with patch.object(self.m, "render_preloaded_raster_pdf",
+                          side_effect=AssertionError("unexpected render")) as render:
+            with self.assertRaises(self.m.TypedOriginalBrandError):
+                self.m.render_typed_original_brand_pdf(
+                    **(self.arguments() | {"presentation_ir": source,
+                                           "expected_ir_sha256": digest(source)}))
+            render.assert_not_called()
+
+    def test_positive_fixture_is_independent_of_inherited_disable_flags(self):
+        """setUp explicitly supplies the opt-in test environment."""
+        flags = (
+            "OMNIGENIS_TYPED_ORIGINAL_BRAND_PDF_DISABLED",
+            "OMNIGENIS_TYPED_EDITORIAL_PDF_DISABLED",
+            "OMNIGENIS_PDF_PRELOADED_RASTER_DISABLED",
+            "OMNIGENIS_PDF_QUALIFICATION_RECEIPT_DISABLED",
+            "OMNIGENIS_PDF_RENDERER_DISABLED",
+        )
+        with patch.dict(os.environ, dict.fromkeys(flags, "1")):
+            case = type(self)("test_exact_original_asset_bytes_and_one_credit_are_in_prepared_markup")
+            case.setUp()
+            try:
+                html, _, record = case.m.prepare_typed_original_brand_pdf(
+                    **case.arguments())
+                self.assertIn("Technical report", html)
+                self.assertFalse(record["release_authorized"])
+            finally:
+                case.doCleanups()
+
     def test_invalid_identity_or_disabled_profile_refuses_before_render(self):
         with patch.object(self.m, "render_preloaded_raster_pdf",
                           side_effect=AssertionError("unexpected rendering")) as render:
@@ -131,6 +193,10 @@ class TypedOriginalBrandPdfTests(unittest.TestCase):
                 self.m.render_typed_original_brand_pdf(**kwargs)
             with patch.dict(os.environ, {
                     "OMNIGENIS_PDF_QUALIFICATION_RECEIPT_MODE": ""}):
+                with self.assertRaises(self.m.TypedOriginalBrandError):
+                    self.m.render_typed_original_brand_pdf(**self.arguments())
+            with patch.dict(os.environ, {
+                    "OMNIGENIS_TYPED_ORIGINAL_BRAND_PDF_DISABLED": "1"}):
                 with self.assertRaises(self.m.TypedOriginalBrandError):
                     self.m.render_typed_original_brand_pdf(**self.arguments())
             render.assert_not_called()
