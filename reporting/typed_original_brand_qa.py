@@ -31,6 +31,7 @@ from reporting.typed_pdf_association import _Matcher, _canonical as association_
 
 PROFILE_ID = "typed-original-brand-qa-v1"
 STATUS = "TYPED_ORIGINAL_BRAND_CANDIDATE_INSPECTED"
+RASTER_PAGES_PER_WINDOW = 4
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA = ROOT / "schemas/report-typed-original-brand-qa.v1.schema.json"
 MANIFEST = ROOT / "reporting/pdf-typed-original-brand-qa.v1.json"
@@ -273,6 +274,8 @@ def _validate_native(record: dict, pdf: bytes, profile: str) -> tuple[dict, dict
     figure = next(n for n in record["trace"]["nodes"] if n["role"] == "/Figure")
     figure_slot = (prior._reference(figure["page_reference"]),
                    figure["children"][0]["value"])
+    # The validated graph binds the DNA section to the final page.
+    dna_page = record["trace"]["pages"][-1]["reference"]
     fonts = {prior._reference(f["reference"]): f for f in trace["fonts"]}
     require(len(fonts) == len(trace["fonts"]))
     operations = text_bytes = figures = artifacts = dna_paints = 0
@@ -282,11 +285,12 @@ def _validate_native(record: dict, pdf: bytes, profile: str) -> tuple[dict, dict
         classified = set(mapped)
         for block in original["graphic_blocks"]:
             if block["kind"] == "figure":
-                require(type(block["mcid"]) is int
+                require(block["dna_paints"] == 0 and type(block["mcid"]) is int
                         and (prior._reference(original["reference"]), block["mcid"])
                         == figure_slot)
             else:
-                require(block["kind"] == "artifact" and block["mcid"] is None)
+                require(block["kind"] == "artifact" and block["mcid"] is None
+                        and (block["dna_paints"] == 0 or original["reference"] == dna_page))
             span = set(range(block["first_operator"], block["last_operator"] + 1))
             require(block["first_operator"] < block["last_operator"]
                     and not span.intersection(classified))
@@ -363,7 +367,13 @@ def _associate(manifest: dict, physical: dict) -> dict:
 
 def _validate_receipt(data: dict) -> None:
     _schema(data)
-    require(data["raster_inspected_pages"] == data["page_count"])
+    windows = (data["page_count"] + RASTER_PAGES_PER_WINDOW - 1) // RASTER_PAGES_PER_WINDOW
+    coverage = data["coverage"]
+    require(data["raster_inspected_pages"] == data["page_count"]
+            and data["raster_window_count"] == windows
+            and coverage["native_nodes"] == (coverage["projected_nodes"]
+                                              + coverage["accounted_brand_wrapper_nodes"])
+            and coverage["native_mcids"] == coverage["text_mcids"] + coverage["figure_count"])
 
 
 @dataclass(frozen=True, slots=True, repr=False)
@@ -398,6 +408,8 @@ def validate_typed_original_brand_candidate(
     """Inspect the exact caller candidate; never rerender or accept caller PASS flags."""
     try:
         profile = _admit(expected_profile_sha256)
+        require(type(expected_source_expectation_sha256) is str
+                and prior._DIGEST.fullmatch(expected_source_expectation_sha256) is not None)
         require(type(pdf_bytes) is bytes and pdf_bytes.startswith(b"%PDF-1.7")
                 and 0 < len(pdf_bytes) <= prior.MAX_PDF_BYTES
                 and type(expected_pdf_sha256) is str
@@ -418,7 +430,8 @@ def validate_typed_original_brand_candidate(
         plan = plan_pdf_page_windows(
             pdf_sha256=expected_pdf_sha256, ir_sha256=expected_ir_sha256,
             page_count=native["page_count"], admitted_page_budget=64,
-            pages_per_window=4, inspector_profile_id="generated-pdf-raster-window-v1")
+            pages_per_window=RASTER_PAGES_PER_WINDOW,
+            inspector_profile_id="generated-pdf-raster-window-v1")
         metadata = inspect_pdf_document_metadata(
             pdf_bytes=pdf_bytes, plan=plan, expected_plan_sha256=plan.plan_sha256,
             expected_language="en-US")

@@ -179,6 +179,30 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         with self.assertRaises(Exception):
             self.m.TypedOriginalBrandQA(self.m.canonical(bad))
 
+    def test_source_expectation_digest_requires_exact_string_and_value(self):
+        args = self.arguments()
+        expected = args["expected_source_expectation_sha256"]
+        self.assertIs(type(expected), str)
+        self.assertEqual(self.run_qa(args).to_dict()["source_expectation_sha256"], expected)
+        comparisons = []
+        class EqualToAnyDigest:
+            def __eq__(self, other):
+                comparisons.append(other)
+                return True
+        class DigestString(str):
+            pass
+        wrong = ("0" if expected[0] != "0" else "1") + expected[1:]
+        for case, value in (
+                ("equality-spoof", EqualToAnyDigest()), ("str-subclass", DigestString(expected)),
+                ("malformed", "not-a-digest"), ("wrong-value", wrong)):
+            candidate = dict(args, expected_source_expectation_sha256=value)
+            with self.subTest(case=case), patch.object(
+                    self.m, "_run_worker", wraps=self.m._run_worker) as launch:
+                self.refuse(candidate)
+                launch.assert_not_called()
+                if case == "equality-spoof":
+                    self.assertEqual(comparisons, [])
+
     def test_wrong_identity_and_disabled_mode_refuse_before_native_launch(self):
         for name in ("expected_ir_sha256", "expected_source_expectation_sha256",
                      "expected_brand_bundle_sha256", "expected_pdf_sha256",
@@ -205,6 +229,19 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 presentation_ir=source, expected_ir_sha256=digest(source)).expectation_sha256
             with self.subTest(source_sha256=args["expected_ir_sha256"]):
                 self.refuse(args)
+
+    def test_native_parent_tree_requires_ascending_key_pairs(self):
+        control = self.rewritten(count=96)
+        self.assertEqual(self.run_qa(control).to_dict()["represented_findings"], 96)
+        def reorder(writer):
+            nums = writer._root_object["/StructTreeRoot"]["/ParentTree"]["/Nums"]
+            self.assertGreaterEqual(len(nums), 4)
+            keys = [int(nums[i]) for i in range(0, len(nums), 2)]
+            self.assertEqual(keys, sorted(keys))
+            first = list(nums[0:4])
+            nums[0:4] = [first[2], first[3], first[0], first[1]]
+            self.assertEqual([int(nums[0]), int(nums[2])], [keys[1], keys[0]])
+        self.refuse(self.rewritten(reorder, count=96))
 
     def test_native_table_owner_and_figure_attribute_surface_refuse(self):
         def wrong_header(writer):
@@ -243,6 +280,42 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         for mutate in (wrong_alt, wrong_path):
             with self.subTest(mutation=mutate.__name__):
                 self.refuse(self.rewritten(mutate))
+
+    def test_logo_paint_requires_containment_in_active_clips_and_page(self):
+        def paint(writer, case):
+            def alter(ops):
+                start = next(i for i, (args, op) in enumerate(ops)
+                             if op == b"BDC" and args[0] == "/Figure")
+                end = next(i for i in range(start + 1, len(ops)) if ops[i][1] == b"EMC")
+                if case == "translated-outside-page":
+                    matrix = next(args for args, op in ops[start + 1:end] if op == b"cm")
+                    matrix[4] = NumberObject(1000)
+                    return
+                payload = [([], b"q")]
+                if case == "unknown-active-clip":
+                    payload.extend([
+                        ([NameObject("/Artifact")], b"BMC"),
+                        ([NumberObject(0), NumberObject(0)], b"m"),
+                        ([NumberObject(1), NumberObject(0)], b"l"),
+                        ([NumberObject(0), NumberObject(1)], b"l"),
+                        ([], b"W"), ([], b"n"), ([], b"EMC")])
+                else:
+                    rectangle = (0, 0, 1200, 1600) if case == "containing" else (0, 0, 1, 1)
+                    payload.extend([
+                        ([NumberObject(v) for v in rectangle], b"re"), ([], b"W"), ([], b"n")])
+                if case == "restored":
+                    payload.append(([], b"Q"))
+                else:
+                    ops.insert(end + 1, ([], b"Q"))
+                ops[start:start] = payload
+            self.edit_page(writer, 0, alter)
+        for case in ("containing", "restored"):
+            with self.subTest(control=case):
+                args = self.rewritten(lambda writer: paint(writer, case))
+                self.assertEqual(self.run_qa(args).to_dict()["figure_count"], 1)
+        for case in ("excluding-active-clip", "unknown-active-clip", "translated-outside-page"):
+            with self.subTest(case=case):
+                self.refuse(self.rewritten(lambda writer: paint(writer, case)))
 
     def test_singular_logo_wrapper_and_outer_transforms_refuse(self):
         for context in ("wrapper-0", "wrapper-1", "wrapper-2", "outer"):
@@ -439,6 +512,28 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                     self.m._validate_native(
                         native, args["pdf_bytes"], args["expected_profile_sha256"])
 
+    def test_native_dna_paint_requires_its_artifact_page(self):
+        args = self.arguments(96)
+        original = self.native_record(96)
+        self.m._validate_native(original, args["pdf_bytes"], args["expected_profile_sha256"])
+        self.assertGreater(len(original["trace"]["pages"]), 1)
+        for case in ("figure", "earlier-page-artifact"):
+            native = deepcopy(original)
+            pages = native["trace"]["pages"]
+            donor = next(b for b in pages[-1]["graphic_blocks"] if b["dna_paints"] == 1)
+            target_kind = "figure" if case == "figure" else "artifact"
+            receiver = next(b for b in pages[0]["graphic_blocks"]
+                            if b["kind"] == target_kind and b["dna_paints"] == 0)
+            donor["dna_paints"], receiver["dna_paints"] = 0, 1
+            with self.subTest(receiver=case):
+                self.assertEqual(sum(b["dna_paints"] for p in pages for b in p["graphic_blocks"]),
+                                 native["graphics"]["dna_paints"])
+                self.m._schema(native, "native")
+                self.m.project_text_trace(native["trace"])
+                with self.assertRaises(ValueError):
+                    self.m._validate_native(
+                        native, args["pdf_bytes"], args["expected_profile_sha256"])
+
     def test_receipt_requires_every_page_rasterized_even_after_resealing(self):
         receipt = self.run_qa()
         bad = receipt.to_dict()
@@ -453,6 +548,43 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         object.__setattr__(receipt, "_sealed_sha256", sha256(payload).hexdigest())
         with self.assertRaises(ValueError):
             receipt.to_dict()
+
+    def test_receipt_window_count_matches_four_page_boundaries(self):
+        source = self.run_qa().to_dict()
+        for pages, windows, wrong_windows in ((4, 1, 2), (5, 2, 1)):
+            valid = dict(source, page_count=pages, raster_inspected_pages=pages,
+                         raster_window_count=windows)
+            with self.subTest(page_count=pages, operation="valid"):
+                self.assertEqual(self.m.TypedOriginalBrandQA(
+                    self.m.canonical(valid)).to_dict()["raster_window_count"], windows)
+            bad = dict(valid, raster_window_count=wrong_windows)
+            self.m._schema(bad)
+            self.assertEqual(bad["raster_inspected_pages"], bad["page_count"])
+            self.assertEqual(bad["stages"]["all_page_raster"], "PASS")
+            payload = self.m.canonical(bad)
+            with self.subTest(page_count=pages, operation="constructor"):
+                with self.assertRaises(ValueError):
+                    self.m.TypedOriginalBrandQA(payload)
+            with self.subTest(page_count=pages, operation="resealed-to-dict"):
+                receipt = self.m.TypedOriginalBrandQA(self.m.canonical(valid))
+                object.__setattr__(receipt, "_payload", payload)
+                object.__setattr__(receipt, "_sealed_sha256", sha256(payload).hexdigest())
+                with self.assertRaises(ValueError):
+                    receipt.to_dict()
+        for counter in ("native_nodes", "native_mcids"):
+            bad = deepcopy(source)
+            bad["coverage"][counter] += 1
+            self.m._schema(bad)
+            payload = self.m.canonical(bad)
+            with self.subTest(coverage=counter, operation="constructor"):
+                with self.assertRaises(ValueError):
+                    self.m.TypedOriginalBrandQA(payload)
+            with self.subTest(coverage=counter, operation="resealed-to-dict"):
+                receipt = self.m.TypedOriginalBrandQA(self.m.canonical(source))
+                object.__setattr__(receipt, "_payload", payload)
+                object.__setattr__(receipt, "_sealed_sha256", sha256(payload).hexdigest())
+                with self.assertRaises(ValueError):
+                    receipt.to_dict()
 
     def test_wrong_language_and_cross_plan_metadata_refuse(self):
         def wrong_language(writer):
@@ -482,9 +614,27 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         for response in (b'{"status":"PASS"}', b'{"private":"SYNTHETIC-SENTINEL-REJECT"'):
             with self.subTest(response=response), patch.object(self.m, "_run_worker", return_value=response):
                 self.refuse(self.arguments())
-        with patch.object(self.m, "wait_owned_process_group", return_value=70), \
-                patch.object(self.m.subprocess, "Popen"):
-            self.refuse(self.arguments())
+        args = self.arguments()
+        response = self.m.canonical(self.native_record())
+        self.m._schema(self.m.prior._loads(response.decode("ascii")), "native")
+        process = object()
+        def complete_output(command, **kwargs):
+            output_fd = kwargs["pass_fds"][1]
+            self.assertEqual(command[-2], str(output_fd))
+            self.assertEqual(os.write(output_fd, response), len(response))
+            return process
+        for code in (0, 70):
+            with self.subTest(exit_code=code), \
+                    patch.object(self.m.subprocess, "Popen", side_effect=complete_output) as launch, \
+                    patch.object(self.m, "wait_owned_process_group", return_value=code) as wait:
+                if code == 0:
+                    self.assertEqual(self.m._run_worker(args["pdf_bytes"], args["expected_pdf_sha256"]),
+                                     response)
+                else:
+                    with self.assertRaises(ValueError):
+                        self.m._run_worker(args["pdf_bytes"], args["expected_pdf_sha256"])
+                launch.assert_called_once()
+                wait.assert_called_once_with(process, wall_seconds=10, cleanup_seconds=2)
 
     def test_guard_failure_precedes_request_read_and_output(self):
         from reporting import _pdf_typed_original_brand_qa_worker as worker

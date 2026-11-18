@@ -58,12 +58,13 @@ def _structure(reader, pages):
     require(set(parent) == {"/Nums"})
     nums = parent.raw_get("/Nums")
     require(type(nums) is ArrayObject and len(nums) == 2 * len(pages))
-    reverse, owner_total = {}, 0
+    reverse, owner_total, previous = {}, 0, -1
     for i in range(0, len(nums), 2):
         number, owners = nums[i:i + 2]
         require(type(number) is NumberObject and int(number) in page_keys
-                and int(number) not in reverse and type(owners) is ArrayObject
-                and 0 < len(owners) <= contract.MAX_VISITS)
+                and int(number) > previous and int(number) not in reverse
+                and type(owners) is ArrayObject and 0 < len(owners) <= contract.MAX_VISITS)
+        previous = int(number)
         owner_total += len(owners)
         require(owner_total <= contract.MAX_VISITS)
         reverse[int(number)] = [
@@ -398,8 +399,8 @@ def _contains(outer, inner):
         for point in inner for i in range(4))
 
 
-def _paint_geometry(operations, page, reader, forms, xobjects):
-    """Track existing graphics state; only known rectangle clips can admit DNA."""
+def _paint_geometry(operations, page, reader, forms, xobjects, figure_points):
+    """Require original brand paints inside the existing known rectangle clips."""
     from pypdf.generic import ArrayObject
     ctm, stack, clip = IDENTITY, [], ()
     path, pending_clip = None, False
@@ -434,7 +435,13 @@ def _paint_geometry(operations, page, reader, forms, xobjects):
                 clip = None if clip is None or path is False else (path, clip)
             path, pending_clip = None, False
         elif op == b"BDC" and args[0] == "/Figure":
-            require(_determinant(ctm) != 0)
+            require(_determinant(ctm) != 0 and clip is not None)
+            points = figure_points[int(args[1].raw_get("/MCID"))]
+            logo = tuple(_point(point, ctm) for point in points)
+            inherited = clip
+            while inherited:
+                bounds, inherited = inherited
+                require(_contains(bounds, logo))
         elif op == b"Do":
             require(_determinant(ctm) != 0 and clip is not None
                     and path is None and not pending_clip)
@@ -546,8 +553,14 @@ def _figure(operations, states):
     for matrix in matrices[:3]:
         wrapper = _ctm(matrix, wrapper)
     require(_determinant(wrapper) != 0)
+    painted = []
     for observed, source in zip(paths, expected, strict=True):
         require(observed[:4] == source and observed[4] == _ctm(groups[source[3]], wrapper))
+        # The pinned renderer's leading move starts an empty, unpainted subpath.
+        painted.extend(_point(values, observed[4]) for op, values in observed[0][1:]
+                       if op in {b"m", b"l"})
+    require(bool(painted))
+    return tuple(painted)
 
 
 def _artifact(operations, states, xobjects):
@@ -645,6 +658,7 @@ def _page(page, obj, resources, reader, fonts, forms, roles, remaining):
     page["outside_operator_ordinals"] = []
     owners = {m["mcid"]: tuple(m["structure_reference"]) for m in page["mcid_owners"]}
     used, index, outside_depth = set(), 0, 0
+    figure_points = {}
     outside_path = outside_clip = False
     while index < len(ops):
         args, op = ops[index]
@@ -678,7 +692,7 @@ def _page(page, obj, resources, reader, fonts, forms, roles, remaining):
                     page["projected_operator_ordinals"].append(original_ordinal)
             else:
                 if kind == "figure":
-                    _figure(block, states)
+                    figure_points[mcid] = _figure(block, states)
                     paints = 0
                 else:
                     paints = _artifact(block, states, xobjects)
@@ -707,7 +721,7 @@ def _page(page, obj, resources, reader, fonts, forms, roles, remaining):
         index += 1
     require(outside_depth == 0 and not outside_path and not outside_clip
             and used == set(owners))
-    _paint_geometry(ops, obj, reader, forms, xobjects)
+    _paint_geometry(ops, obj, reader, forms, xobjects, figure_points)
     text_page = dict(page)
     text_page["mcid_owners"] = [v for v in page["mcid_owners"] if roles[tuple(v["structure_reference"])] == "/Span"]
     page["runs"] = contract._replay(text_page, fonts)
