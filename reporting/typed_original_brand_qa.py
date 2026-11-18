@@ -32,6 +32,11 @@ from reporting.typed_pdf_association import _Matcher, _canonical as association_
 PROFILE_ID = "typed-original-brand-qa-v1"
 STATUS = "TYPED_ORIGINAL_BRAND_CANDIDATE_INSPECTED"
 RASTER_PAGES_PER_WINDOW = 4
+TABLE_IDENTIFIER_POLICY = "PYPDF_TEXTSTRINGOBJECT_ONLY_ORIGINAL_BYTES_1_TO_128"
+# Figure: 506 drawing + 6 color + 6 paint + 7 gs + 5 cm + 2 q/Q + 2 marks.
+# The two nonidentity source group transforms require the q/Q pair.
+# Add the 6-operation DNA Artifact and 3-operation Form.
+MIN_FIXED_BRAND_OPERATIONS = 543
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA = ROOT / "schemas/report-typed-original-brand-qa.v1.schema.json"
 MANIFEST = ROOT / "reporting/pdf-typed-original-brand-qa.v1.json"
@@ -92,13 +97,15 @@ def profile_sha256() -> str:
     data = prior._loads(raw.decode("ascii"))
     require(type(data) is dict and set(data) == {
         "schema_version", "profile_id", "sources", "max_pages", "max_pdf_bytes",
-        "default_pipeline_activated", "release_authorized"})
+        "default_pipeline_activated", "release_authorized", "table_identifier_policy"})
     require(data["schema_version"] == "1.0.0" and data["profile_id"] == PROFILE_ID
             and type(data["max_pages"]) is int and data["max_pages"] == 64
             and type(data["max_pdf_bytes"]) is int
             and data["max_pdf_bytes"] == prior.MAX_PDF_BYTES
             and data["default_pipeline_activated"] is False
             and data["release_authorized"] is False
+            and type(data["table_identifier_policy"]) is str
+            and data["table_identifier_policy"] == TABLE_IDENTIFIER_POLICY
             and type(data["sources"]) is dict and set(data["sources"]) == set(SOURCE_FILES))
     for name, expected in data["sources"].items():
         require(type(expected) is str and prior._DIGEST.fullmatch(expected) is not None)
@@ -270,6 +277,7 @@ def _validate_native(record: dict, pdf: bytes, profile: str) -> tuple[dict, dict
             and record["pdf_sha256"] == sha256(pdf).hexdigest()
             and record["pdf_byte_count"] == len(pdf)
             and record["page_count"] == len(record["trace"]["pages"]))
+    prior._reference_consistency(record["trace"])
     trace, counts = project_text_trace(record["trace"])
     figure = next(n for n in record["trace"]["nodes"] if n["role"] == "/Figure")
     figure_slot = (prior._reference(figure["page_reference"]),
@@ -282,6 +290,14 @@ def _validate_native(record: dict, pdf: bytes, profile: str) -> tuple[dict, dict
     for original, page in zip(record["trace"]["pages"], trace["pages"], strict=True):
         mapped = original["projected_operator_ordinals"]
         require(len(mapped) == len(page["events"]) and mapped == sorted(set(mapped)))
+        in_span = False
+        for index, event in enumerate(page["events"]):
+            if in_span:
+                require(mapped[index] == mapped[index - 1] + 1)
+            if event["operator"] == "BDC":
+                in_span = True
+            elif event["operator"] == "EMC":
+                in_span = False
         classified = set(mapped)
         for block in original["graphic_blocks"]:
             if block["kind"] == "figure":
@@ -381,7 +397,7 @@ def _validate_receipt(data: dict) -> None:
             and coverage["text_mcids"] >= text_units
             and coverage["projected_nodes"] >= coverage["text_mcids"] + text_units + 1
             and coverage["text_mcids"] >= data["page_count"]
-            and coverage["operations"] >= 2 * coverage["native_mcids"] + 3)
+            and coverage["operations"] >= 7 * coverage["text_mcids"] + MIN_FIXED_BRAND_OPERATIONS)
 
 
 @dataclass(frozen=True, slots=True, repr=False)

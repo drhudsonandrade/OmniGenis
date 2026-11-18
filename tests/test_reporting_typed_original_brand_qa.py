@@ -313,6 +313,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         self.refuse(self.rewritten(reorder, count=96))
 
     def test_table_header_identifiers_match_original_bytes(self):
+        raw_identifier = b"\x00raw-header"
         def encoded(value):
             return ByteStringObject(b"\xfe\xff" + str(value).encode("utf-16-be"))
         def change(writer, mode):
@@ -329,23 +330,47 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                         node[NameObject("/ID")] = encoded(node["/ID"])
                     elif node["/S"] == "/TD":
                         node["/A"]["/Headers"][0] = encoded(node["/A"]["/Headers"][0])
-        for mode in ("ascii", "matching-utf16", "headers-only", "ids-only"):
+            elif mode == "matching-nontext-outside-profile":
+                header = next(n for n in nodes if n["/S"] == "/TH")
+                original_id = str(header["/ID"])
+                header[NameObject("/ID")] = ByteStringObject(raw_identifier)
+                for node in nodes:
+                    if node["/S"] == "/TD":
+                        references = node["/A"]["/Headers"]
+                        for index, reference in enumerate(references):
+                            if str(reference) == original_id:
+                                references[index] = ByteStringObject(raw_identifier)
+        for mode in ("ascii", "matching-utf16", "headers-only", "ids-only",
+                     "matching-nontext-outside-profile"):
             args = self.rewritten(lambda writer: change(writer, mode))
             reader = PdfReader(BytesIO(args["pdf_bytes"]), strict=True)
             nodes = self.nodes(SimpleNamespace(_root_object=reader.root_object))
             headers = {str(n["/ID"]): n["/ID"] for n in nodes if n["/S"] == "/TH"}
             mismatches = []
+            nontext_pairs = 0
             for cell in (n for n in nodes if n["/S"] == "/TD"):
                 reference = cell["/A"]["/Headers"][0]
                 header = headers[str(reference)]
-                self.assertIs(type(reference), TextStringObject)
-                self.assertIs(type(header), TextStringObject)
-                self.assertEqual(str(reference), str(header))
-                mismatches.append(reference.original_bytes != header.original_bytes)
+                if type(reference) is ByteStringObject:
+                    self.assertEqual(mode, "matching-nontext-outside-profile")
+                    self.assertIs(type(header), ByteStringObject)
+                    self.assertEqual(bytes(reference), raw_identifier)
+                    self.assertEqual(bytes(header), raw_identifier)
+                    nontext_pairs += 1
+                    mismatches.append(False)
+                else:
+                    self.assertIs(type(reference), TextStringObject)
+                    self.assertIs(type(header), TextStringObject)
+                    self.assertEqual(str(reference), str(header))
+                    mismatches.append(reference.original_bytes != header.original_bytes)
             with self.subTest(mode=mode):
                 if mode in {"ascii", "matching-utf16"}:
                     self.assertFalse(any(mismatches))
                     self.assertEqual(self.run_qa(args).to_dict()["represented_findings"], 2)
+                elif mode == "matching-nontext-outside-profile":
+                    self.assertGreater(nontext_pairs, 0)
+                    self.assertFalse(any(mismatches))
+                    self.refuse(args)
                 else:
                     self.assertTrue(any(mismatches))
                     self.refuse(args)
@@ -649,6 +674,89 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                     self.m, "_run_worker", return_value=self.m.canonical(native)):
                 self.refuse(args)
 
+    def test_native_reference_categories_remain_disjoint_with_valid_sharing(self):
+        def shared_font(writer):
+            fonts = writer.pages[0]["/Resources"]["/Font"]
+            original_font = next(iter(fonts.values())).get_object()
+            duplicate = DictionaryObject(dict(original_font))
+            fonts[NameObject("/SharedFontControl")] = writer._add_object(duplicate)
+        args = self.rewritten(shared_font)
+        raw = self.m._run_worker(args["pdf_bytes"], args["expected_pdf_sha256"])
+        original = self.m.prior._loads(raw.decode("ascii"))
+        fonts = original["trace"]["fonts"]
+        self.assertLess(len({tuple(f["cid_reference"]) for f in fonts}), len(fonts))
+        self.assertLess(len({tuple(f["cmap_reference"]) for f in fonts}), len(fonts))
+        self.m._validate_native(original, args["pdf_bytes"], args["expected_profile_sha256"])
+        trace = original["trace"]
+        figure = next(n for n in trace["nodes"] if n["role"] == "/Figure")
+        aliases = {
+            "root": trace["root_reference"],
+            "removed-figure-node": figure["reference"],
+            "page": trace["pages"][0]["reference"],
+            "contents": trace["pages"][0]["contents_reference"],
+            "type0-font": fonts[0]["reference"],
+            "cmap": fonts[0]["cmap_reference"],
+        }
+        for category, reference in aliases.items():
+            native = deepcopy(original)
+            native["trace"]["fonts"][0]["cid_reference"] = list(reference)
+            with self.subTest(category=category):
+                self.m._schema(native, "native")
+                self.m.project_text_trace(native["trace"])
+                with self.assertRaises(ValueError):
+                    self.m._validate_native(
+                        native, args["pdf_bytes"], args["expected_profile_sha256"])
+
+    def test_projected_span_ordinals_are_contiguous_only_within_spans(self):
+        def with_gap(writer):
+            def alter(ops):
+                starts = [i for i, (args, op) in enumerate(ops)
+                          if op == b"BDC" and args[0] == "/Span"]
+                self.assertGreaterEqual(len(starts), 2)
+                ops[starts[1]:starts[1]] = [([], b"q"), ([], b"Q")]
+            self.edit_page(writer, 0, alter)
+        args = self.rewritten(with_gap)
+        raw = self.m._run_worker(args["pdf_bytes"], args["expected_pdf_sha256"])
+        original = self.m.prior._loads(raw.decode("ascii"))
+        self.m._validate_native(original, args["pdf_bytes"], args["expected_profile_sha256"])
+        native = deepcopy(original)
+        page = native["trace"]["pages"][0]
+        mapped = page["projected_operator_ordinals"]
+        starts = [i for i, event in enumerate(page["events"]) if event["operator"] == "BDC"]
+        ends = [i for i, event in enumerate(page["events"]) if event["operator"] == "EMC"]
+        self.assertEqual(len(starts), len(ends))
+        self.assertGreaterEqual(len(starts), 2)
+        self.assertGreater(mapped[starts[1]], mapped[ends[0]] + 1)
+        start = starts[1]
+        lower = mapped[start - 1]
+        earlier = [ordinal for ordinal in page["outside_operator_ordinals"]
+                   if lower < ordinal < mapped[start]]
+        self.assertTrue(earlier)
+        outside = max(earlier)
+        previous = mapped[start]
+        mapped[start] = outside
+        page["outside_operator_ordinals"].remove(outside)
+        page["outside_operator_ordinals"].append(previous)
+        page["outside_operator_ordinals"].sort()
+        self.assertEqual(mapped, sorted(set(mapped)))
+        self.assertEqual(page["outside_operator_ordinals"],
+                         sorted(set(page["outside_operator_ordinals"])))
+        self.assertGreater(mapped[start + 1], mapped[start] + 1)
+        covered = set(mapped)
+        self.assertFalse(covered.intersection(page["outside_operator_ordinals"]))
+        covered.update(page["outside_operator_ordinals"])
+        for block in page["graphic_blocks"]:
+            span = set(range(block["first_operator"], block["last_operator"] + 1))
+            self.assertFalse(covered.intersection(span))
+            covered.update(span)
+        self.assertEqual(covered, set(range(page["original_operator_count"])))
+        self.assertEqual(page["events"], original["trace"]["pages"][0]["events"])
+        self.assertEqual(page["runs"], original["trace"]["pages"][0]["runs"])
+        self.m._schema(native, "native")
+        self.m.project_text_trace(native["trace"])
+        with self.assertRaises(ValueError):
+            self.m._validate_native(native, args["pdf_bytes"], args["expected_profile_sha256"])
+
     def test_graphic_blocks_must_match_figure_page_mcid_and_unowned_artifacts(self):
         args = self.arguments(96)
         original = self.native_record(96)
@@ -754,7 +862,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 window = self.m.RASTER_PAGES_PER_WINDOW
                 bad["raster_window_count"] = (bad["page_count"] + window - 1) // window
             else:
-                coverage["operations"] = 2 * coverage["native_mcids"] + 2
+                coverage["operations"] = 7 * coverage["text_mcids"] + 543 - 1
             self.m._schema(bad)
             payload = self.m.canonical(bad)
             with self.subTest(case=case, operation="constructor"):
@@ -957,6 +1065,21 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 data = read_bytes(path)
                 return data + b"\n" if path == target else data
             with self.subTest(source=name), patch.object(Path, "read_bytes", changed):
+                with self.assertRaises(ValueError):
+                    self.m.profile_sha256()
+        target = ROOT / "reporting/pdf-typed-original-brand-qa.v1.json"
+        manifest = json.loads(read_bytes(target).decode("ascii"))
+        for case in ("missing", "wrong"):
+            invalid = deepcopy(manifest)
+            if case == "missing":
+                invalid.pop("table_identifier_policy", None)
+            else:
+                invalid["table_identifier_policy"] = "UNSUPPORTED_IDENTIFIER_POLICY"
+            replacement = json.dumps(invalid, sort_keys=True).encode("ascii")
+            def changed_manifest(path):
+                return replacement if path == target else read_bytes(path)
+            with self.subTest(identifier_policy=case), patch.object(
+                    Path, "read_bytes", changed_manifest):
                 with self.assertRaises(ValueError):
                     self.m.profile_sha256()
 
