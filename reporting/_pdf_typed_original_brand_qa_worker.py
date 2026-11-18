@@ -1,0 +1,708 @@
+"""Confined complete native accounting for the separate typed/original-brand QA."""
+from __future__ import annotations
+
+from decimal import Decimal
+from hashlib import sha256
+from importlib.metadata import version
+from io import BytesIO
+import logging
+import os
+from pathlib import Path
+import re
+import stat
+import sys
+import xml.etree.ElementTree as ET
+import zlib
+
+if __name__ == "__main__":
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from reporting import typed_original_brand_qa as qa
+from reporting import pdf_typed_observation as contract
+from reporting import _pdf_typed_observation_worker as native
+from reporting import _pdf_safety_worker as passive
+from reporting._pdf_original_svg_layout_worker import _inspect_figure
+from reporting._pdf_resource_leaves_worker import _lab_presets
+from reporting._pdf_object_graph_worker import _lifetime
+from reporting._pdf_process_sandbox import enforce_pdf_landlock, enforce_pdf_network_filter
+from reporting._pdf_render_worker import _write_bytes
+
+require = qa.require
+IDENTITY = tuple(map(Decimal, ("1", "0", "0", "1", "0", "0")))
+
+
+def _structure(reader, pages):
+    from pypdf.generic import (
+        ArrayObject, DictionaryObject, IndirectObject, NameObject,
+        NumberObject, TextStringObject,
+    )
+    root_ref = reader.root_object.raw_get("/StructTreeRoot")
+    root = native._dictionary(root_ref, reader)
+    require(set(root) == {"/Type", "/K", "/ParentTree"}
+            and root.raw_get("/Type") == "/StructTreeRoot")
+    trace = {"root_reference": native._ref(root_ref, reader), "root_children_form": "",
+             "root_children": [], "nodes": [], "pages": [], "fonts": []}
+    page_keys = {}
+    page_refs = {tuple(native._ref(ref, reader)) for ref, _, _ in pages}
+    for index, (ref, page, _) in enumerate(pages):
+        require("/Annots" not in page)
+        number = page.raw_get("/StructParents")
+        require(type(number) is NumberObject and 0 <= number < contract.MAX_VISITS
+                and int(number) not in page_keys)
+        page_keys[int(number)] = ref
+        trace["pages"].append({
+            "index": index, "reference": native._ref(ref, reader),
+            "struct_parents": int(number), "mcid_owners": [],
+            "font_resources": [], "graphics_states": [], "events": [], "runs": []})
+    parent = native._dictionary(root.raw_get("/ParentTree"), reader)
+    require(set(parent) == {"/Nums"})
+    nums = parent.raw_get("/Nums")
+    require(type(nums) is ArrayObject and len(nums) == 2 * len(pages))
+    reverse, owner_total = {}, 0
+    for i in range(0, len(nums), 2):
+        number, owners = nums[i:i + 2]
+        require(type(number) is NumberObject and int(number) in page_keys
+                and int(number) not in reverse and type(owners) is ArrayObject
+                and 0 < len(owners) <= contract.MAX_VISITS)
+        owner_total += len(owners)
+        require(owner_total <= contract.MAX_VISITS)
+        reverse[int(number)] = [
+            {"mcid": j, "structure_reference": native._ref(owner, reader)}
+            for j, owner in enumerate(owners)]
+    for page in trace["pages"]:
+        page["mcid_owners"] = reverse[page["struct_parents"]]
+    seen, attributes, figures = set(), set(), set()
+    visits = 0
+
+    def kids(raw):
+        if type(raw) is ArrayObject:
+            require(len(raw) <= contract.MAX_VISITS)
+            return "array", list(raw)
+        if type(raw) is IndirectObject:
+            return "reference", [raw]
+        require(type(raw) is NumberObject)
+        return "mcid", [raw]
+
+    def walk(ref, parent_ref, depth):
+        nonlocal visits
+        key = tuple(native._ref(ref, reader))
+        require(key not in seen and depth <= contract.MAX_DEPTH)
+        seen.add(key)
+        obj = native._dictionary(ref, reader)
+        require({"/Type", "/S", "/P", "/K"} <= set(obj)
+                and set(obj) <= {"/Type", "/S", "/P", "/K", "/Pg", "/A", "/ID", "/Alt"}
+                and type(obj.raw_get("/Type")) is NameObject
+                and obj.raw_get("/Type") == "/StructElem"
+                and type(obj.raw_get("/S")) is NameObject
+                and native._ref(obj.raw_get("/P"), reader) == native._ref(parent_ref, reader))
+        role = str(obj.raw_get("/S"))
+        require(role in set(contract.ROLES) | {"/Div", "/Sect", "/Figure"})
+        form, children = kids(obj.raw_get("/K"))
+        visits += 1 + len(children)
+        require(visits <= contract.MAX_VISITS)
+        row = {
+            "reference": list(key), "parent": native._ref(parent_ref, reader), "role": role,
+            "page_reference": native._ref(obj.raw_get("/Pg"), reader) if "/Pg" in obj else None,
+            "children_form": form, "children": [], "table_attribute": False,
+            "native_id": None, "headers": [], "alternate_text": None, "figure_bbox": None}
+        if role in {"/TH", "/TD"}:
+            attribute = obj.raw_get("/A")
+            require(type(attribute) is DictionaryObject
+                    and set(attribute) == ({"/O"} if role == "/TH" else {"/O", "/Headers"})
+                    and type(attribute.raw_get("/O")) is NameObject
+                    and attribute.raw_get("/O") == "/Table" and "/Alt" not in obj)
+            row["table_attribute"] = True
+            attributes.add(id(obj))
+            if role == "/TH":
+                value = obj.raw_get("/ID")
+                require(type(value) is TextStringObject and 0 < len(value) <= 128)
+                row["native_id"] = str(value)
+            else:
+                values = attribute.raw_get("/Headers")
+                require("/ID" not in obj and type(values) is ArrayObject and len(values) == 1
+                        and type(values[0]) is TextStringObject and 0 < len(values[0]) <= 128)
+                row["headers"] = [str(values[0])]
+        elif role == "/Figure":
+            require("/ID" not in obj and type(obj.raw_get("/Alt")) is TextStringObject
+                    and str(obj.raw_get("/Alt")) == qa.LOGO_ALT)
+            _inspect_figure(obj, page_refs)
+            row["alternate_text"] = str(obj.raw_get("/Alt"))
+            row["figure_bbox"] = [native._number(v) for v in obj.raw_get("/A").raw_get("/BBox")]
+            attributes.add(id(obj))
+            figures.add(id(obj))
+        else:
+            require(not {"/A", "/ID", "/Alt"}.intersection(obj))
+        trace["nodes"].append(row)
+        for ordinal, child in enumerate(children):
+            if type(child) is IndirectObject:
+                row["children"].append(
+                    {"ordinal": ordinal, "kind": "node", "reference": native._ref(child, reader)})
+                walk(child, ref, depth + 1)
+            else:
+                require(type(child) is NumberObject and 0 <= child < contract.MAX_VISITS)
+                row["children"].append({"ordinal": ordinal, "kind": "mcid", "value": int(child)})
+
+    form, roots = kids(root.raw_get("/K"))
+    require(form != "mcid" and len(roots) == 1)
+    trace["root_children_form"] = form
+    trace["root_children"] = [native._ref(ref, reader) for ref in roots]
+    walk(roots[0], root_ref, 1)
+    require(len(figures) == 1)
+    qa.project_text_trace(trace)
+    return trace, attributes, figures
+
+
+def _passive(reader, attributes, figures):
+    """Permit attributes only on the exact validated Table/Figure objects."""
+    from pypdf.generic import ArrayObject, DictionaryObject, IndirectObject, NameObject, PdfObject, StreamObject
+    pending, references, containers = [(reader.trailer, 0)], set(), set()
+    visits = 0
+    while pending:
+        value, depth = pending.pop()
+        require(depth <= contract.MAX_DEPTH)
+        if type(value) is IndirectObject:
+            key = tuple(native._ref(value, reader))
+            if key in references:
+                continue
+            references.add(key)
+            value = value.get_object()
+        require(isinstance(value, PdfObject) and not isinstance(value, IndirectObject))
+        if isinstance(value, (DictionaryObject, ArrayObject)):
+            if id(value) in containers:
+                continue
+            containers.add(id(value))
+        visits += 1
+        require(visits <= contract.MAX_VISITS)
+        children = ()
+        if isinstance(value, DictionaryObject):
+            require(all(type(k) is NameObject for k in value))
+            names = {}
+            for name in ("/Type", "/Subtype", "/S"):
+                if name in value:
+                    require(type(value.raw_get(name)) is NameObject)
+                    names[name] = str(value.raw_get(name))
+            forbidden = passive._ACTION_KEYS.intersection(value)
+            if "/A" in forbidden and id(value) in attributes:
+                forbidden -= {"/A"}
+            require(not forbidden and names.get("/Type") != "/Action"
+                    and names.get("/S") not in passive._ACTION_TYPES
+                    and not passive._ATTACHMENT_KEYS.intersection(value)
+                    and names.get("/Type") not in {"/Filespec", "/EmbeddedFile"}
+                    and names.get("/Subtype") != "/FileAttachment"
+                    and not passive._FORM_KEYS.intersection(value)
+                    and names.get("/Subtype") != "/Widget"
+                    and not passive._MEDIA_KEYS.intersection(value)
+                    and names.get("/Subtype") not in passive._MEDIA_SUBTYPES
+                    and not {"/ActualText", "/E", "/RoleMap", "/ClassMap", "/Annots"}.intersection(value)
+                    and ("/Alt" not in value or id(value) in figures))
+            require(not isinstance(value, StreamObject)
+                    or not {"/F", "/FFilter", "/FDecodeParms"}.intersection(value))
+            children = value.values()
+        elif isinstance(value, ArrayObject):
+            children = value
+        for child in children:
+            require(len(pending) < contract.MAX_VISITS)
+            pending.append((child, depth + 1))
+
+
+def _inflate(stream, maximum):
+    from pypdf.generic import NameObject, StreamObject
+    require(isinstance(stream, StreamObject) and type(stream._data) is bytes
+            and 0 < len(stream._data) <= contract.MAX_PDF_BYTES
+            and type(stream.raw_get("/Filter")) is NameObject
+            and stream.raw_get("/Filter") == "/FlateDecode")
+    inflater = zlib.decompressobj()
+    data = inflater.decompress(stream._data, maximum + 1)
+    require(0 < len(data) <= maximum and inflater.eof
+            and not inflater.unused_data and not inflater.unconsumed_tail)
+    return data
+
+
+def _dna_image(image):
+    from pypdf.generic import BooleanObject, DictionaryObject, NameObject, NumberObject
+    require(set(image) == {"/Type", "/Subtype", "/Width", "/Height", "/ColorSpace",
+                           "/BitsPerComponent", "/Interpolate", "/Filter", "/DecodeParms"})
+    for key, value in (("/Type", "/XObject"), ("/Subtype", "/Image"), ("/ColorSpace", "/DeviceRGB")):
+        require(type(image.raw_get(key)) is NameObject and image.raw_get(key) == value)
+    for key, value in (("/Width", 324), ("/Height", 1154), ("/BitsPerComponent", 8)):
+        require(type(image.raw_get(key)) is NumberObject and int(image.raw_get(key)) == value)
+    require(type(image.raw_get("/Interpolate")) is BooleanObject and image.raw_get("/Interpolate").value is True)
+    params = image.raw_get("/DecodeParms")
+    require(type(params) is DictionaryObject and set(params) == {"/Predictor", "/Columns", "/Colors"})
+    require(all(type(params.raw_get(k)) is NumberObject and int(params.raw_get(k)) == v
+                for k, v in (("/Predictor", 15), ("/Columns", 324), ("/Colors", 3))))
+    stride, height = 972, 1154
+    filtered = _inflate(image, height * (stride + 1))
+    require(len(filtered) == height * (stride + 1))
+    previous, pixels = bytearray(stride), bytearray()
+    for y in range(height):
+        start = y * (stride + 1)
+        kind = filtered[start]
+        require(kind in range(5))
+        row = bytearray(filtered[start + 1:start + 1 + stride])
+        for x in range(stride):
+            left, above = row[x - 3] if x >= 3 else 0, previous[x]
+            upper_left = previous[x - 3] if x >= 3 else 0
+            predictor = 0
+            if kind == 1:
+                predictor = left
+            elif kind == 2:
+                predictor = above
+            elif kind == 3:
+                predictor = (left + above) // 2
+            elif kind == 4:
+                p = left + above - upper_left
+                distances = (abs(p - left), abs(p - above), abs(p - upper_left))
+                predictor = (left, above, upper_left)[distances.index(min(distances))]
+            row[x] = (row[x] + predictor) & 255
+        pixels.extend(row)
+        previous = row
+    require(len(pixels) == 1121688 and sha256(pixels).hexdigest() == qa.DNA_RGB_SHA256)
+
+
+def _operations(data, reader):
+    from pypdf.generic import ContentStream, DecodedStreamObject
+    decoded = DecodedStreamObject()
+    decoded.set_data(data)
+    stream = ContentStream(decoded, reader, forced_encoding="bytes")
+    require(0 < len(stream.operations) <= contract.MAX_OPERATIONS)
+    return stream.operations
+
+
+def _numbers(args, count):
+    require(type(args) is list and len(args) == count)
+    return [native._number(v) for v in args]
+
+
+def _form(ref, reader, fonts, forms):
+    from pypdf.generic import ArrayObject, BooleanObject, DictionaryObject, NameObject, StreamObject
+    key = tuple(native._ref(ref, reader))
+    if key in forms:
+        return
+    require(not forms)
+    obj = ref.get_object()
+    require(isinstance(obj, StreamObject) and set(obj) == {
+        "/Type", "/Subtype", "/BBox", "/Resources", "/Group", "/Filter"})
+    require(obj.raw_get("/Type") == "/XObject" and obj.raw_get("/Subtype") == "/Form")
+    box = obj.raw_get("/BBox")
+    require(type(box) is ArrayObject and len(box) == 4)
+    coordinates = [float(native._number(v)) for v in box]
+    require(coordinates[0:2] == [0, 0] and 0 < coordinates[2] <= 1200 and 0 < coordinates[3] <= 1600)
+    group = obj.raw_get("/Group")
+    require(type(group) is DictionaryObject and set(group) == {"/Type", "/S", "/I", "/CS"}
+            and group.raw_get("/Type") == "/Group" and group.raw_get("/S") == "/Transparency"
+            and type(group.raw_get("/I")) is BooleanObject and group.raw_get("/I").value is True
+            and type(group.raw_get("/CS")) is NameObject
+            and group.raw_get("/CS") == "/DeviceRGB")
+    resources = native._dictionary(obj.raw_get("/Resources"), reader)
+    require(set(resources) == {"/Font", "/ExtGState", "/XObject", "/Pattern", "/Shading", "/ColorSpace"})
+    for empty in ("/ExtGState", "/Pattern", "/Shading"):
+        require(not native._dictionary(resources.raw_get(empty), reader))
+    _lab_presets(native._dictionary(resources.raw_get("/ColorSpace"), reader))
+    declared_fonts = native._dictionary(resources.raw_get("/Font"), reader)
+    require(1 <= len(declared_fonts) <= contract.MAX_FONTS)
+    for name, font_ref in declared_fonts.items():
+        require(type(name) is NameObject and tuple(native._ref(font_ref, reader)) in fonts)
+    images = native._dictionary(resources.raw_get("/XObject"), reader)
+    require(len(images) == 1)
+    image_name, image_ref = next(iter(images.items()))
+    require(type(image_name) is NameObject)
+    native._ref(image_ref, reader)
+    _dna_image(image_ref.get_object())
+    data = _inflate(obj, 4096)
+    ops = _operations(data, reader)
+    require([op for _, op in ops] == [b"cm", b"cm", b"Do"])
+    first = list(map(float, _numbers(ops[0][0], 6)))
+    second = list(map(float, _numbers(ops[1][0], 6)))
+    require(first[:4] == [1, 0, 0, 1] and all(abs(x) <= 1600 for x in first[4:])
+            and second[1:3] == [0, 0] and second[4] == 0
+            and second[3] == -530 and second[5] == 530
+            and abs(second[0] - 530 * 324 / 1154) <= 0.000001
+            and len(ops[2][0]) == 1 and type(ops[2][0][0]) is NameObject
+            and ops[2][0][0] == image_name)
+    forms[key] = {"image": native._ref(image_ref, reader), "sha256": sha256(data).hexdigest()}
+
+
+def _resources(resources, reader, fonts, forms, page):
+    from pypdf.generic import NameObject
+    require(set(resources) == {"/Font", "/ExtGState", "/XObject", "/Pattern", "/Shading", "/ColorSpace"})
+    _lab_presets(native._dictionary(resources.raw_get("/ColorSpace"), reader))
+    for empty in ("/Pattern", "/Shading"):
+        require(not native._dictionary(resources.raw_get(empty), reader))
+    font_resources = native._dictionary(resources.raw_get("/Font"), reader)
+    require(1 <= len(font_resources) <= contract.MAX_FONTS)
+    for name, ref in font_resources.items():
+        require(type(name) is NameObject and 1 <= len(name) <= 128)
+        key = tuple(native._ref(ref, reader))
+        if key not in fonts:
+            require(len(fonts) < contract.MAX_FONTS)
+            fonts[key] = native._font(ref, reader)
+        page["font_resources"].append({"name": str(name), "reference": list(key)})
+    require(sum(f["cmap_decoded_bytes"] for f in fonts.values()) <= contract.MAX_CMAP_TOTAL
+            and sum(len(f["mapping"]) for f in fonts.values()) <= contract.MAX_CMAP_RECORDS)
+    states = native._dictionary(resources.raw_get("/ExtGState"), reader)
+    require(1 <= len(states) <= 3)
+    for name, ref in states.items():
+        require(type(name) is NameObject and 1 <= len(name) <= 128)
+        state = native._dictionary(ref, reader)
+        require(set(state) in ({"/ca"}, {"/CA"}))
+        require(all(float(native._number(state.raw_get(k))) == 1 for k in state))
+        page["graphics_states"].append({
+            "name": str(name), "fill_alpha": native._number(state.raw_get("/ca")) if "/ca" in state else None,
+            "stroke_alpha": native._number(state.raw_get("/CA")) if "/CA" in state else None})
+    xobjects = native._dictionary(resources.raw_get("/XObject"), reader)
+    require(len(xobjects) == 1)
+    for name, ref in xobjects.items():
+        require(type(name) is NameObject and 1 <= len(name) <= 128)
+        _form(ref, reader, fonts, forms)
+    return states, xobjects
+
+
+def _ctm(new, current):
+    a, b, c, d, e, f = new
+    A, B, C, D, E, F = current
+    return (a*A+b*C, a*B+b*D, c*A+d*C, c*B+d*D, e*A+f*C+E, e*B+f*D+F)
+
+
+def _logo_source():
+    """Derive the six admitted path/paint/group records from the pinned SVG."""
+    svg = (qa.ROOT / "reporting/assets/omnigenis_logo.svg").read_bytes()
+    require(sha256(svg).hexdigest() == "29983790bef75837d683a392515ed35d0410d919d49b6c52a7121f7659770c51")
+    root = ET.fromstring(svg)
+    ns = "{http://www.w3.org/2000/svg}"
+    require(root.tag == ns + "svg" and root.attrib["viewBox"] == "0 0 1054 340")
+    parents = {child: parent for parent in root.iter() for child in parent}
+    paths = [e for e in root.iter() if e.tag == ns + "path"]
+    groups = [e for e in root.iter() if e.tag == ns + "g"]
+    require(len(paths) == 6 and len(groups) == 2)
+    matrices = []
+    for group in groups:
+        match = re.fullmatch(r"translate\(([+-]?\d+(?:\.\d+)?) ([+-]?\d+(?:\.\d+)?)\) scale\(([+-]?\d+(?:\.\d+)?)\)", group.attrib["transform"])
+        require(match is not None)
+        x, y, scale = map(Decimal, match.groups())
+        matrices.append((scale, Decimal(0), Decimal(0), scale, x, y))
+    expected = []
+    for path in paths:
+        commands = path.attrib["d"]
+        tokens = re.findall(r"[MLZ]|[+-]?(?:\d+(?:\.\d+)?|\.\d+)", commands, re.ASCII)
+        require("".join(tokens) == re.sub(r"[\s,]", "", commands))
+        drawing, cursor = [(b"m", (Decimal(0), Decimal(0)))], 0
+        while cursor < len(tokens):
+            action = tokens[cursor]
+            require(action in {"M", "L", "Z"})
+            if action == "Z":
+                drawing.append((b"h", ()))
+                cursor += 1
+            else:
+                require(cursor + 2 < len(tokens))
+                drawing.append((b"m" if action == "M" else b"l",
+                                (Decimal(tokens[cursor+1]), Decimal(tokens[cursor+2]))))
+                cursor += 3
+        color = path.attrib["fill"]
+        require(re.fullmatch(r"#[0-9A-Fa-f]{6}", color) is not None)
+        paint = tuple((Decimal(int(color[i:i+2], 16)) / 255).quantize(Decimal("0.000001"))
+                      for i in (1, 3, 5))
+        group = parents[path]
+        require(group in groups)
+        rule = path.attrib.get("fill-rule", group.attrib.get("fill-rule", "nonzero"))
+        require(rule in {"nonzero", "evenodd"})
+        expected.append((tuple(drawing), paint, b"f*" if rule == "evenodd" else b"f", groups.index(group)))
+    require(sum(len(v[0]) for v in expected) == 506)
+    return expected, matrices
+
+
+def _figure(operations, states):
+    from pypdf.generic import ArrayObject, NameObject, NumberObject
+    expected, groups = _logo_source()
+    allowed = {b"q", b"Q", b"gs", b"cm", b"rg", b"d", b"J", b"j", b"M", b"m", b"l", b"h", b"f", b"f*"}
+    stack, drawing, paths, matrices = [], [], [], []
+    color = group = None
+    ctm, updates, selected_states = IDENTITY, 0, []
+    for args, op in operations:
+        require(op in allowed and type(args) is list)
+        require(not drawing or op in {b"m", b"l", b"h", b"f", b"f*"})
+        if op == b"q":
+            require(not args and len(stack) < contract.MAX_DEPTH)
+            stack.append((color, group, ctm))
+        elif op == b"Q":
+            require(not args and bool(stack))
+            color, group, ctm = stack.pop()
+        elif op == b"gs":
+            require(len(args) == 1 and type(args[0]) is NameObject and args[0] in states)
+            state = states.raw_get(args[0]).get_object()
+            require(set(state) == {"/ca"} and float(native._number(state.raw_get("/ca"))) == 1)
+            selected_states.append(str(args[0]))
+        elif op == b"rg":
+            color = tuple(Decimal(v) for v in _numbers(args, 3))
+            require(all(0 <= v <= 1 for v in color))
+            updates += 1
+        elif op == b"cm":
+            matrix = tuple(Decimal(v) for v in _numbers(args, 6))
+            matrices.append(matrix)
+            ctm = _ctm(matrix, ctm)
+            if matrix in groups:
+                group = groups.index(matrix)
+        elif op == b"d":
+            require(len(args) == 2 and type(args[0]) is ArrayObject and not args[0]
+                    and type(args[1]) is NumberObject and int(args[1]) == 0)
+        elif op in {b"J", b"j", b"M"}:
+            require(len(args) == 1 and type(args[0]) is NumberObject
+                    and int(args[0]) == (4 if op == b"M" else 0))
+        elif op in {b"m", b"l", b"h"}:
+            values = _numbers(args, 0 if op == b"h" else 2)
+            drawing.append((op, tuple(Decimal(v) for v in values)))
+        else:
+            require(not args and updates == 1 and color is not None and group is not None)
+            paths.append((tuple(drawing), color, op, group, ctm))
+            drawing, updates = [], 0
+    require(not stack and not drawing and updates == 0
+            and len(matrices) == 5 and matrices[-2:] == groups
+            and len(paths) == len(expected) and len(selected_states) == 7
+            and set(selected_states) == {"/a1", "/a1.0"})
+    wrapper = IDENTITY
+    for matrix in matrices[:3]:
+        wrapper = _ctm(matrix, wrapper)
+    for observed, source in zip(paths, expected, strict=True):
+        require(observed[:4] == source and observed[4] == _ctm(groups[source[3]], wrapper))
+
+
+def _artifact(operations, states, xobjects):
+    from pypdf.generic import NameObject
+    allowed = {b"q", b"Q", b"m", b"l", b"W*", b"n", b"gs", b"rg",
+               b"re", b"f*", b"W", b"f", b"RG", b"w", b"S", b"Do"}
+    depth, paints, path, clip = 0, 0, False, False
+    for args, op in operations:
+        require(op in allowed and type(args) is list)
+        require(not clip or op in {b"n", b"S", b"f", b"f*"})
+        if op in {b"q", b"Q"}:
+            require(not args)
+            depth += 1 if op == b"q" else -1
+            require(0 <= depth <= contract.MAX_DEPTH)
+        elif op in {b"m", b"l", b"re", b"rg", b"RG", b"w"}:
+            values = list(map(float, _numbers(args, {b"m": 2, b"l": 2, b"re": 4, b"rg": 3, b"RG": 3, b"w": 1}[op])))
+            if op in {b"m", b"re"}:
+                path = True
+            elif op == b"l":
+                require(path)
+            if op in {b"rg", b"RG"}:
+                require(all(0 <= v <= 1 for v in values))
+            if op == b"w":
+                require(values[0] > 0)
+        elif op in {b"gs", b"Do"}:
+            require(len(args) == 1 and type(args[0]) is NameObject)
+            require(args[0] in (states if op == b"gs" else xobjects))
+            if op == b"Do":
+                require(not path)
+            paints += op == b"Do"
+        else:
+            require(not args and path)
+            if op in {b"W", b"W*"}:
+                clip = True
+            else:
+                path, clip = False, False
+    require(depth == 0 and not path and not clip)
+    if paints:
+        require(paints == 1 and [op for _, op in operations] == [b"re", b"W", b"n", b"Do"])
+    return paints
+
+
+def _text_event(args, op, ordinal):
+    from pypdf.generic import ArrayObject, ByteStringObject, DictionaryObject, NameObject, NumberObject
+    name = op.decode("ascii")
+    require(name in contract.OPERATORS and type(args) is list)
+    if name in {"q", "Q", "BT", "ET", "EMC"}:
+        require(not args)
+        operands = []
+    elif name == "BDC":
+        require(len(args) == 2 and type(args[0]) is NameObject and args[0] == "/Span"
+                and type(args[1]) is DictionaryObject and set(args[1]) == {"/MCID"}
+                and type(args[1].raw_get("/MCID")) is NumberObject)
+        operands = [int(args[1].raw_get("/MCID"))]
+    elif name in {"cm", "Tm", "rg"}:
+        operands = _numbers(args, 3 if name == "rg" else 6)
+    elif name == "gs":
+        require(len(args) == 1 and type(args[0]) is NameObject)
+        operands = [str(args[0])]
+    elif name == "Tf":
+        require(len(args) == 2 and type(args[0]) is NameObject)
+        operands = [str(args[0]), native._number(args[1])]
+    else:
+        require(name == "TJ" and len(args) == 1 and type(args[0]) is ArrayObject
+                and 1 <= len(args[0]) <= contract.MAX_OPERATIONS)
+        operands = [["codes", bytes(v).hex()] if type(v) is ByteStringObject
+                    else ["adjust", native._number(v)] for v in args[0]]
+    return {"ordinal": ordinal, "operator": name, "operands": operands}
+
+
+def _op_digest(operations):
+    from pypdf.generic import ArrayObject, NameObject
+    def value(v):
+        if type(v) is NameObject:
+            return ["name", str(v)]
+        if type(v) is ArrayObject:
+            return ["array", [value(x) for x in v]]
+        return ["number", native._number(v)]
+    return sha256(qa.canonical([[op.decode("ascii"), [value(v) for v in args]]
+                               for args, op in operations])).hexdigest()
+
+
+def _page(page, obj, resources, reader, fonts, forms, roles, remaining):
+    from pypdf.generic import DictionaryObject, NameObject, NumberObject
+    states, xobjects = _resources(resources, reader, fonts, forms, page)
+    content_ref = obj.raw_get("/Contents")
+    page["contents_reference"] = native._ref(content_ref, reader)
+    data = native._stream_bytes(content_ref.get_object(), remaining)
+    page["content_sha256"] = sha256(data).hexdigest()
+    page["decoded_stream_bytes"] = len(data)
+    ops = _operations(data, reader)
+    page["original_operator_count"] = len(ops)
+    page["projected_operator_ordinals"] = []
+    page["graphic_blocks"] = []
+    page["outside_operator_ordinals"] = []
+    owners = {m["mcid"]: tuple(m["structure_reference"]) for m in page["mcid_owners"]}
+    used, index, outside_depth = set(), 0, 0
+    outside_path = outside_clip = False
+    while index < len(ops):
+        args, op = ops[index]
+        require(type(args) is list)
+        if op in {b"BDC", b"BMC"}:
+            require(not outside_path and not outside_clip)
+            start = index
+            kind, mcid = None, None
+            if op == b"BDC":
+                require(len(args) == 2 and type(args[0]) is NameObject
+                        and args[0] in {"/Span", "/Figure"}
+                        and type(args[1]) is DictionaryObject and set(args[1]) == {"/MCID"}
+                        and type(args[1].raw_get("/MCID")) is NumberObject)
+                mcid = int(args[1].raw_get("/MCID"))
+                require(mcid in owners and mcid not in used and roles[owners[mcid]] == str(args[0]))
+                used.add(mcid)
+                kind = "text" if args[0] == "/Span" else "figure"
+            else:
+                require(len(args) == 1 and type(args[0]) is NameObject and args[0] == "/Artifact")
+                kind = "artifact"
+            index += 1
+            while index < len(ops) and ops[index][1] != b"EMC":
+                require(ops[index][1] not in {b"BMC", b"BDC"})
+                index += 1
+            require(index < len(ops) and not ops[index][0])
+            block = ops[start + 1:index]
+            if kind == "text":
+                for original_ordinal in range(start, index + 1):
+                    a, o = ops[original_ordinal]
+                    page["events"].append(_text_event(a, o, len(page["events"])))
+                    page["projected_operator_ordinals"].append(original_ordinal)
+            else:
+                if kind == "figure":
+                    _figure(block, states)
+                    paints = 0
+                else:
+                    paints = _artifact(block, states, xobjects)
+                page["graphic_blocks"].append({
+                    "kind": kind, "first_operator": start, "last_operator": index,
+                    "mcid": mcid, "dna_paints": paints, "sha256": _op_digest(block)})
+            index += 1
+            continue
+        require(op in {b"q", b"Q", b"cm", b"re", b"W", b"n"})
+        require(not outside_clip or op == b"n")
+        if op in {b"q", b"Q"}:
+            require(not args)
+            outside_depth += 1 if op == b"q" else -1
+            require(0 <= outside_depth <= contract.MAX_DEPTH)
+        elif op in {b"cm", b"re"}:
+            _numbers(args, 6 if op == b"cm" else 4)
+            if op == b"re":
+                outside_path = True
+        else:
+            require(not args and outside_path)
+            if op == b"W":
+                outside_clip = True
+            else:
+                outside_path = outside_clip = False
+        page["outside_operator_ordinals"].append(index)
+        index += 1
+    require(outside_depth == 0 and not outside_path and not outside_clip
+            and used == set(owners))
+    text_page = dict(page)
+    text_page["mcid_owners"] = [v for v in page["mcid_owners"] if roles[tuple(v["structure_reference"])] == "/Span"]
+    page["runs"] = contract._replay(text_page, fonts)
+
+
+def inspect(pdf, digest, limits):
+    from pypdf import PdfReader
+    require(version("pypdf") == contract.PARSER_VERSION)
+    profile = qa.profile_sha256()
+    class RefuseWarning(logging.Handler):
+        def emit(self, _record):
+            raise ValueError("combined PDF parser warning")
+    guard = RefuseWarning(level=logging.WARNING)
+    logger = logging.getLogger("pypdf")
+    logger.addHandler(guard)
+    try:
+        reader = PdfReader(BytesIO(pdf), strict=True)
+        require(not reader.is_encrypted)
+        pages = native._page_tree(reader)
+        contract.require_pdf_document_budget(len(pdf), len(pages))
+        trace, attributes, figures = _structure(reader, pages)
+        _passive(reader, attributes, figures)
+        fonts, forms, decoded = {}, {}, 0
+        roles = {tuple(n["reference"]): n["role"] for n in trace["nodes"]}
+        for page, (_, obj, resources) in zip(trace["pages"], pages, strict=True):
+            _page(page, obj, resources, reader, fonts, forms, roles,
+                  contract.MAX_STREAM_BYTES - decoded)
+            decoded += page["decoded_stream_bytes"]
+        trace["fonts"] = list(fonts.values())
+        require(len(forms) == 1)
+        graphics = {
+            "figure_count": sum(b["kind"] == "figure" for p in trace["pages"] for b in p["graphic_blocks"]),
+            "artifact_count": sum(b["kind"] == "artifact" for p in trace["pages"] for b in p["graphic_blocks"]),
+            "dna_paints": sum(b["dna_paints"] for p in trace["pages"] for b in p["graphic_blocks"]),
+            "dna_rgb_sha256": qa.DNA_RGB_SHA256,
+            "operations": sum(p["original_operator_count"] for p in trace["pages"]) + 3,
+            "form_operations": 3,
+        }
+        result = {
+            "schema_version": "1.0.0", "profile_id": qa.PROFILE_ID,
+            "profile_sha256": profile, "status": "NATIVE_TYPED_BRAND_ACCOUNTED",
+            "pdf_sha256": digest, "pdf_byte_count": len(pdf), "page_count": len(pages),
+            "limits": limits, "trace": trace, "graphics": graphics,
+        }
+        qa._validate_native(result, pdf, profile)
+        require(qa.profile_sha256() == profile)
+        return result
+    finally:
+        logger.removeHandler(guard)
+
+
+def main(argv=None):
+    argv = sys.argv if argv is None else argv
+    if (sys.platform != "linux" or not sys.flags.isolated or not sys.dont_write_bytecode
+            or os.environ.get("OMNIGENIS_PDF_QUALIFICATION_RECEIPT_MODE") != "qualification-only"
+            or any(os.environ.get(key) == "1" for key in qa.DISABLE_FLAGS)
+            or type(argv) is not list or len(argv) != 4
+            or any(type(v) is not str or not v.isascii() or not v.isdecimal() or len(v) > 10 for v in argv[1:])):
+        return 64
+    try:
+        source, output, parent = map(int, argv[1:])
+        require(all(str(n) == s for n, s in zip((source, output, parent), argv[1:], strict=True))
+                and min(source, output) >= 3 and source != output and 2 <= parent <= 2147483647)
+        infos = [os.fstat(fd) for fd in (source, output)]
+        require(all(stat.S_ISREG(v.st_mode) and v.st_nlink == 0 and v.st_uid == os.geteuid() for v in infos)
+                and (infos[0].st_dev, infos[0].st_ino) != (infos[1].st_dev, infos[1].st_ino)
+                and infos[1].st_size == 0)
+        limits = native._limits()
+        _lifetime(parent)
+        enforce_pdf_landlock(Path(__file__))
+        enforce_pdf_network_filter()
+        digest, pdf = native._read_request(source)
+        result = inspect(pdf, digest, limits)
+        data = qa.canonical(result)
+        require(0 < len(data) <= contract.RESULT_BYTES)
+        _write_bytes(output, data)
+        return 0
+    except Exception:
+        return 70
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
