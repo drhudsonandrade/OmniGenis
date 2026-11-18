@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from contextlib import ExitStack
+from decimal import Decimal
 from hashlib import sha256
 from io import BytesIO
 import importlib
@@ -18,8 +19,8 @@ import zlib
 from unittest.mock import patch
 
 from pypdf import PdfReader, PdfWriter
-from pypdf.generic import (ArrayObject, ContentStream, DecodedStreamObject, DictionaryObject,
-                           FloatObject, NameObject, NumberObject, TextStringObject)
+from pypdf.generic import (ArrayObject, ByteStringObject, ContentStream, DecodedStreamObject,
+                           DictionaryObject, FloatObject, NameObject, NumberObject, TextStringObject)
 from reporting.brand_assets import BoundBrandAssets
 from reporting.typed_original_brand_pdf import render_typed_original_brand_pdf
 from reporting.typed_pdf_source import prepare_typed_pdf_source
@@ -40,6 +41,63 @@ FLAGS = {
 }
 
 
+def corrected_bbox_control(pdf_bytes: bytes) -> bytes:
+    """Create a separate synthetic validator control; never repair a producer or validator."""
+    def require_fixture(condition):
+        if not condition:
+            raise ValueError("synthetic_bbox_control_refused")
+    def number(value):
+        require_fixture(type(value) in {NumberObject, FloatObject})
+        result = Decimal(int(value)) if type(value) is NumberObject else Decimal(repr(float(value)))
+        require_fixture(result.is_finite())
+        return result
+    require_fixture(type(pdf_bytes) is bytes and pdf_bytes.startswith(b"%PDF-1.7"))
+    reader = PdfReader(BytesIO(pdf_bytes), strict=True)
+    page_content = tuple(page["/Contents"].get_data() for page in reader.pages)
+    writer = PdfWriter(clone_from=reader)
+    writer.pdf_header = b"%PDF-1.7"
+    figures = []
+    def visit(value):
+        value = value.get_object()
+        if isinstance(value, DictionaryObject):
+            if value.get("/S") == "/Figure":
+                figures.append(value)
+            if "/K" in value:
+                visit(value.raw_get("/K"))
+        elif isinstance(value, ArrayObject):
+            for child in value:
+                visit(child)
+    visit(writer._root_object.raw_get("/StructTreeRoot"))
+    require_fixture(len(figures) == 1)
+    figure = figures[0]
+    pages = [page for page in writer.pages
+             if page.indirect_reference == figure.raw_get("/Pg")]
+    require_fixture(len(pages) == 1 and pages[0] is writer.pages[0])
+    page = pages[0]
+    operations = ContentStream(
+        page.raw_get("/Contents"), writer, forced_encoding="bytes").operations
+    require_fixture([op for _, op in operations[:3]] == [b"cm", b"q", b"cm"]
+                    and not operations[1][0])
+    first = tuple(number(v) for v in operations[0][0])
+    second = tuple(number(v) for v in operations[2][0])
+    require_fixture(len(first) == 6 and first[:5] == (1, 0, 0, -1, 0) and first[5] > 0
+                    and second == (Decimal("0.75"), 0, 0, Decimal("0.75"), 0, 0))
+    box = figure["/A"]["/BBox"]
+    require_fixture(type(box) is ArrayObject and len(box) == 4)
+    x0, y0, x1, y1 = (number(v) for v in box)
+    require_fixture(x0 < x1 and y0 < y1)
+    scale, page_y = second[0], first[5]
+    corrected = (scale * x0, page_y - scale * y1, scale * x1, page_y - scale * y0)
+    figure["/A"][NameObject("/BBox")] = ArrayObject([FloatObject(str(v)) for v in corrected])
+    output = BytesIO()
+    writer.write(output)
+    candidate = output.getvalue()
+    reparsed = PdfReader(BytesIO(candidate), strict=True)
+    require_fixture(candidate != pdf_bytes and
+                    tuple(page["/Contents"].get_data() for page in reparsed.pages) == page_content)
+    return candidate
+
+
 class TypedOriginalBrandQATests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -50,6 +108,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             permission_notice=(asset / "brand-permission.md").read_bytes())
         cls.bundle = cls.assets.to_dict()["bundle_sha256"]
         cls.fixtures = {}
+        cls.pristine_fixtures = {}
 
     def setUp(self):
         self.assertIsNotNone(importlib.util.find_spec("reporting.typed_original_brand_qa"),
@@ -65,7 +124,9 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             rendered, _ = render_typed_original_brand_pdf(
                 presentation_ir=source, expected_ir_sha256=digest(source),
                 assets=self.assets, expected_brand_bundle_sha256=self.bundle)
-            self.fixtures[count] = source, rendered.pdf_bytes
+            pristine = rendered.pdf_bytes
+            self.pristine_fixtures[count] = source, pristine
+            self.fixtures[count] = source, corrected_bbox_control(pristine)
         source, pdf = self.fixtures[count]
         return deepcopy(source), pdf
 
@@ -80,13 +141,21 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             pdf_bytes=pdf, expected_pdf_sha256=sha256(pdf).hexdigest(),
             expected_profile_sha256=self.m.profile_sha256())
 
+    def pristine_arguments(self, count=2):
+        args = self.arguments(count)
+        _, pristine = self.pristine_fixtures[count]
+        args["pdf_bytes"] = pristine
+        args["expected_pdf_sha256"] = sha256(pristine).hexdigest()
+        return args
+
     def run_qa(self, args=None):
         return self.m.validate_typed_original_brand_candidate(
             **(self.arguments() if args is None else args))
 
-    def test_full_multipage_source_brand_and_every_page_bind_to_exact_original_bytes(self):
+    def test_full_multipage_source_brand_and_every_page_bind_to_exact_caller_bytes(self):
         args = self.arguments(96)
         before = bytes(args["pdf_bytes"])
+        self.assertNotEqual(before, self.pristine_fixtures[96][1])
         result = self.run_qa(args).to_dict()
         self.assertEqual(result["status"], "TYPED_ORIGINAL_BRAND_CANDIDATE_INSPECTED")
         self.assertEqual(result["pdf_sha256"], sha256(before).hexdigest())
@@ -243,6 +312,44 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             self.assertEqual([int(nums[0]), int(nums[2])], [keys[1], keys[0]])
         self.refuse(self.rewritten(reorder, count=96))
 
+    def test_table_header_identifiers_match_original_bytes(self):
+        def encoded(value):
+            return ByteStringObject(b"\xfe\xff" + str(value).encode("utf-16-be"))
+        def change(writer, mode):
+            nodes = self.nodes(writer)
+            if mode == "headers-only":
+                cell = next(n for n in nodes if n["/S"] == "/TD")
+                cell["/A"]["/Headers"][0] = encoded(cell["/A"]["/Headers"][0])
+            elif mode == "ids-only":
+                header = next(n for n in nodes if n["/S"] == "/TH")
+                header[NameObject("/ID")] = encoded(header["/ID"])
+            elif mode == "matching-utf16":
+                for node in nodes:
+                    if node["/S"] == "/TH":
+                        node[NameObject("/ID")] = encoded(node["/ID"])
+                    elif node["/S"] == "/TD":
+                        node["/A"]["/Headers"][0] = encoded(node["/A"]["/Headers"][0])
+        for mode in ("ascii", "matching-utf16", "headers-only", "ids-only"):
+            args = self.rewritten(lambda writer: change(writer, mode))
+            reader = PdfReader(BytesIO(args["pdf_bytes"]), strict=True)
+            nodes = self.nodes(SimpleNamespace(_root_object=reader.root_object))
+            headers = {str(n["/ID"]): n["/ID"] for n in nodes if n["/S"] == "/TH"}
+            mismatches = []
+            for cell in (n for n in nodes if n["/S"] == "/TD"):
+                reference = cell["/A"]["/Headers"][0]
+                header = headers[str(reference)]
+                self.assertIs(type(reference), TextStringObject)
+                self.assertIs(type(header), TextStringObject)
+                self.assertEqual(str(reference), str(header))
+                mismatches.append(reference.original_bytes != header.original_bytes)
+            with self.subTest(mode=mode):
+                if mode in {"ascii", "matching-utf16"}:
+                    self.assertFalse(any(mismatches))
+                    self.assertEqual(self.run_qa(args).to_dict()["represented_findings"], 2)
+                else:
+                    self.assertTrue(any(mismatches))
+                    self.refuse(args)
+
     def test_native_table_owner_and_figure_attribute_surface_refuse(self):
         def wrong_header(writer):
             cell = next(n for n in self.nodes(writer) if n["/S"] == "/TD")
@@ -280,6 +387,43 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         for mutate in (wrong_alt, wrong_path):
             with self.subTest(mutation=mutate.__name__):
                 self.refuse(self.rewritten(mutate))
+
+    def test_figure_bbox_contains_the_actual_logo_geometry(self):
+        pristine = self.pristine_arguments()
+        original_bytes = pristine["pdf_bytes"]
+        reader = PdfReader(BytesIO(original_bytes), strict=True)
+        original_figure = next(n for n in self.nodes(
+            SimpleNamespace(_root_object=reader.root_object)) if n["/S"] == "/Figure")
+        producer_box = [float(v) for v in original_figure["/A"]["/BBox"]]
+        with self.subTest(candidate="pristine-producer"):
+            self.refuse(pristine)
+        self.assertEqual(pristine["pdf_bytes"], original_bytes)
+        self.assertEqual(self.pristine_fixtures[2][1], original_bytes)
+        self.assertNotEqual(self.arguments()["pdf_bytes"], original_bytes)
+        def box(writer, mode):
+            figure = next(n for n in self.nodes(writer) if n["/S"] == "/Figure")
+            corrected = [float(v) for v in figure["/A"]["/BBox"]]
+            if mode == "full-page":
+                values = [float(v) for v in writer.pages[0].mediabox]
+            elif mode == "reintroduced-producer":
+                values = producer_box
+            elif mode == "disjoint":
+                values = [0, 0, 1, 1]
+            elif mode == "partial":
+                values = list(corrected)
+                values[2] = (values[0] + values[2]) / 2
+            else:
+                return
+            self.assertLess(values[0], values[2])
+            self.assertLess(values[1], values[3])
+            figure["/A"][NameObject("/BBox")] = ArrayObject([FloatObject(v) for v in values])
+        for mode in ("corrected-synthetic", "full-page"):
+            with self.subTest(control=mode):
+                args = self.rewritten(lambda writer: box(writer, mode))
+                self.assertEqual(self.run_qa(args).to_dict()["figure_count"], 1)
+        for mode in ("reintroduced-producer", "disjoint", "partial"):
+            with self.subTest(mode=mode):
+                self.refuse(self.rewritten(lambda writer: box(writer, mode)))
 
     def test_logo_paint_requires_containment_in_active_clips_and_page(self):
         def paint(writer, case):
@@ -468,16 +612,42 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 self.refuse(self.rewritten(unsupported))
 
     def test_native_operator_accounting_holes_and_overlaps_refuse(self):
+        args = self.arguments()
+        original = self.native_record()
+        self.m._validate_native(original, args["pdf_bytes"], args["expected_profile_sha256"])
         for overlap in (False, True):
-            native = self.native_record()
+            native = deepcopy(original)
             page = native["trace"]["pages"][0]
             if overlap:
-                page["graphic_blocks"][0]["first_operator"] = page["projected_operator_ordinals"][0]
+                mapped = set(page["projected_operator_ordinals"])
+                _, ordinal, index = min(
+                    (max(block["first_operator"] - ordinal, ordinal - block["last_operator"], 0),
+                     ordinal, index)
+                    for index, block in enumerate(page["graphic_blocks"]) for ordinal in mapped)
+                block = page["graphic_blocks"][index]
+                block["first_operator"] = min(block["first_operator"], ordinal)
+                block["last_operator"] = max(block["last_operator"], ordinal)
+                span = set(range(block["first_operator"], block["last_operator"] + 1))
+                self.assertLess(block["first_operator"], block["last_operator"])
+                self.assertEqual(span.intersection(mapped), {ordinal})
+                self.assertTrue(all(
+                    not span.intersection(range(other["first_operator"], other["last_operator"] + 1))
+                    for other_index, other in enumerate(page["graphic_blocks"]) if other_index != index))
+                page["outside_operator_ordinals"] = [
+                    value for value in page["outside_operator_ordinals"] if value not in span]
+                covered = mapped | set(page["outside_operator_ordinals"])
+                for graphic in page["graphic_blocks"]:
+                    covered.update(range(graphic["first_operator"], graphic["last_operator"] + 1))
+                self.assertEqual(covered, set(range(page["original_operator_count"])))
             else:
                 del page["outside_operator_ordinals"][0]
+            self.assertEqual(native["trace"]["nodes"], original["trace"]["nodes"])
+            self.assertEqual(page["mcid_owners"], original["trace"]["pages"][0]["mcid_owners"])
+            self.m._schema(native, "native")
+            self.m.project_text_trace(native["trace"])
             with self.subTest(overlap=overlap), patch.object(
                     self.m, "_run_worker", return_value=self.m.canonical(native)):
-                self.refuse(self.arguments())
+                self.refuse(args)
 
     def test_graphic_blocks_must_match_figure_page_mcid_and_unowned_artifacts(self):
         args = self.arguments(96)
@@ -548,6 +718,54 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         object.__setattr__(receipt, "_sealed_sha256", sha256(payload).hexdigest())
         with self.assertRaises(ValueError):
             receipt.to_dict()
+
+    def test_receipt_source_units_cover_title_and_represented_findings(self):
+        source = self.run_qa().to_dict()
+        for findings, actual_units in ((0, 6), (1, 8), (96, 198)):
+            presentation = document(findings)
+            produced = prepare_typed_pdf_source(
+                presentation_ir=presentation, expected_ir_sha256=digest(presentation)).to_dict()
+            with self.subTest(producer_findings=findings):
+                self.assertEqual(produced["counts"]["represented_findings"], findings)
+                self.assertEqual(len(produced["units"]), actual_units)
+                self.assertGreaterEqual(actual_units, 1 if findings == 0 else findings + 3)
+        for case in ("missing-title-or-findings", "missing-table-units", "short-pdf",
+                     "too-few-text-mcids", "too-few-projected-nodes", "too-many-pages",
+                     "too-few-operations"):
+            bad = deepcopy(source)
+            coverage = bad["coverage"]
+            if case == "missing-title-or-findings":
+                bad["source_units"] = 1
+            elif case == "missing-table-units":
+                bad["source_units"] = bad["represented_findings"] + 1
+            elif case == "short-pdf":
+                bad["pdf_byte_count"] = 7
+            elif case == "too-few-text-mcids":
+                coverage["text_mcids"] = bad["source_units"] + bad["brand_text_units"] - 1
+                coverage["native_mcids"] = coverage["text_mcids"] + coverage["figure_count"]
+            elif case == "too-few-projected-nodes":
+                coverage["projected_nodes"] = (coverage["text_mcids"]
+                                               + bad["source_units"] + bad["brand_text_units"])
+                coverage["native_nodes"] = (coverage["projected_nodes"]
+                                            + coverage["accounted_brand_wrapper_nodes"])
+            elif case == "too-many-pages":
+                bad["page_count"] = coverage["text_mcids"] + 1
+                bad["raster_inspected_pages"] = bad["page_count"]
+                window = self.m.RASTER_PAGES_PER_WINDOW
+                bad["raster_window_count"] = (bad["page_count"] + window - 1) // window
+            else:
+                coverage["operations"] = 2 * coverage["native_mcids"] + 2
+            self.m._schema(bad)
+            payload = self.m.canonical(bad)
+            with self.subTest(case=case, operation="constructor"):
+                with self.assertRaises(ValueError):
+                    self.m.TypedOriginalBrandQA(payload)
+            with self.subTest(case=case, operation="resealed-to-dict"):
+                receipt = self.m.TypedOriginalBrandQA(self.m.canonical(source))
+                object.__setattr__(receipt, "_payload", payload)
+                object.__setattr__(receipt, "_sealed_sha256", sha256(payload).hexdigest())
+                with self.assertRaises(ValueError):
+                    receipt.to_dict()
 
     def test_receipt_window_count_matches_four_page_boundaries(self):
         source = self.run_qa().to_dict()
@@ -681,6 +899,29 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         with patch.object(self.m, "prepare_typed_original_brand_pdf", side_effect=changed):
             self.refuse(self.arguments())
         self.assertEqual(len(calls), 2)
+
+    def test_graphics_state_changes_precede_open_paths(self):
+        def change(writer, context, after_path):
+            def alter(ops):
+                self.assertEqual(ops[-1][1], b"Q")
+                rectangle = ([NumberObject(v) for v in (100, 200, 10, 10)], b"re")
+                state = (([NumberObject(1)], b"w") if context == "artifact" else
+                         ([NumberObject(v) for v in (1, 0, 0, 1, 0, 0)], b"cm"))
+                body = [rectangle, state] if after_path else [state, rectangle]
+                if context == "artifact":
+                    payload = [
+                        ([NameObject("/Artifact")], b"BMC"), ([], b"q"),
+                        *body, ([], b"S"), ([], b"Q"), ([], b"EMC")]
+                else:
+                    payload = [([], b"q"), *body, ([], b"n"), ([], b"Q")]
+                ops[-1:-1] = payload
+            self.edit_page(writer, 0, alter)
+        for context in ("artifact", "outside"):
+            with self.subTest(context=context, position="before-path"):
+                control = self.rewritten(lambda writer: change(writer, context, False))
+                self.assertEqual(self.run_qa(control).to_dict()["figure_count"], 1)
+            with self.subTest(context=context, position="after-path"):
+                self.refuse(self.rewritten(lambda writer: change(writer, context, True)))
 
     def test_unfinished_graphic_paths_cannot_enter_the_logo_figure(self):
         for context in ("artifact-path", "artifact-clip", "outside"):

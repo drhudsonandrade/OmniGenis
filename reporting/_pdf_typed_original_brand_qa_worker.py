@@ -31,6 +31,15 @@ require = qa.require
 IDENTITY = tuple(map(Decimal, ("1", "0", "0", "1", "0", "0")))
 
 
+def _identifier(value):
+    """Keep byte-string identity in the existing bounded opaque string field."""
+    from pypdf.generic import TextStringObject
+    require(type(value) is TextStringObject)
+    data = value.original_bytes
+    require(type(data) is bytes and 0 < len(data) <= 128)
+    return data.decode("latin-1")
+
+
 def _structure(reader, pages):
     from pypdf.generic import (
         ArrayObject, DictionaryObject, IndirectObject, NameObject,
@@ -117,12 +126,12 @@ def _structure(reader, pages):
             if role == "/TH":
                 value = obj.raw_get("/ID")
                 require(type(value) is TextStringObject and 0 < len(value) <= 128)
-                row["native_id"] = str(value)
+                row["native_id"] = _identifier(value)
             else:
                 values = attribute.raw_get("/Headers")
                 require("/ID" not in obj and type(values) is ArrayObject and len(values) == 1
                         and type(values[0]) is TextStringObject and 0 < len(values[0]) <= 128)
-                row["headers"] = [str(values[0])]
+                row["headers"] = [_identifier(values[0])]
         elif role == "/Figure":
             require("/ID" not in obj and type(obj.raw_get("/Alt")) is TextStringObject
                     and str(obj.raw_get("/Alt")) == qa.LOGO_ALT)
@@ -436,8 +445,10 @@ def _paint_geometry(operations, page, reader, forms, xobjects, figure_points):
             path, pending_clip = None, False
         elif op == b"BDC" and args[0] == "/Figure":
             require(_determinant(ctm) != 0 and clip is not None)
-            points = figure_points[int(args[1].raw_get("/MCID"))]
+            points, declared_box = figure_points[int(args[1].raw_get("/MCID"))]
             logo = tuple(_point(point, ctm) for point in points)
+            x0, y0, x1, y1 = declared_box
+            require(_contains(_rectangle((x0, y0, x1 - x0, y1 - y0), IDENTITY), logo))
             inherited = clip
             while inherited:
                 bounds, inherited = inherited
@@ -570,6 +581,7 @@ def _artifact(operations, states, xobjects):
     depth, paints, path, clip = 0, 0, False, False
     for args, op in operations:
         require(op in allowed and type(args) is list)
+        require(not path or op in {b"m", b"l", b"re", b"W", b"W*", b"n", b"S", b"f", b"f*"})
         require(not clip or op in {b"n", b"S", b"f", b"f*"})
         if op in {b"q", b"Q"}:
             require(not args)
@@ -644,7 +656,7 @@ def _op_digest(operations):
 
 
 def _page(page, obj, resources, reader, fonts, forms, roles, remaining):
-    from pypdf.generic import DictionaryObject, NameObject, NumberObject
+    from pypdf.generic import DictionaryObject, IndirectObject, NameObject, NumberObject
     states, xobjects = _resources(resources, reader, fonts, forms, page)
     content_ref = obj.raw_get("/Contents")
     page["contents_reference"] = native._ref(content_ref, reader)
@@ -692,7 +704,10 @@ def _page(page, obj, resources, reader, fonts, forms, roles, remaining):
                     page["projected_operator_ordinals"].append(original_ordinal)
             else:
                 if kind == "figure":
-                    figure_points[mcid] = _figure(block, states)
+                    figure = native._dictionary(IndirectObject(*owners[mcid], reader), reader)
+                    box = tuple(Decimal(native._number(v))
+                                for v in figure.raw_get("/A").raw_get("/BBox"))
+                    figure_points[mcid] = (_figure(block, states), box)
                     paints = 0
                 else:
                     paints = _artifact(block, states, xobjects)
@@ -702,6 +717,7 @@ def _page(page, obj, resources, reader, fonts, forms, roles, remaining):
             index += 1
             continue
         require(op in {b"q", b"Q", b"cm", b"re", b"W", b"n"})
+        require(not outside_path or op in {b"re", b"W", b"n"})
         require(not outside_clip or op == b"n")
         if op in {b"q", b"Q"}:
             require(not args)
