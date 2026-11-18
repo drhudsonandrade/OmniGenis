@@ -12,6 +12,10 @@ from unittest.mock import patch
 from pypdf import PdfReader
 
 from reporting.brand_assets import BoundBrandAssets, REQUIRED_CREDIT_EN
+from reporting.components import (TextComponent, FindingsTable, FindingRow,
+                                  TableColumn, build_typed_report_projection,
+                                  component_content_sha256)
+from test_reporting_typed_projection import context
 from reporting.editorial_typed_pdf import prepare_editorial_typed_html
 from reporting.pdf_raster_resources import RasterAsset
 from test_reporting_typed_pdf_source import document, digest
@@ -157,6 +161,35 @@ class TypedOriginalBrandPdfTests(unittest.TestCase):
                     **(self.arguments() | {"presentation_ir": source,
                                            "expected_ir_sha256": digest(source)}))
             render.assert_not_called()
+
+    def test_credit_split_across_adjacent_paragraphs_refuses_pre_render(self):
+        """Two adjacent typed paragraphs cannot hide a duplicate legal notice."""
+        request, ledger = context(1, 'SYNTHETIC-CASE')
+        first, second = REQUIRED_CREDIT_EN.split('. Used ', 1)
+        row_id = request.plan.expected_finding_ids[0]
+        parts = (
+            TextComponent('title', 'identity', 'document_title', 'Technical report'),
+            TextComponent('heading', 'findings', 'section_heading', 'Declared findings'),
+            TextComponent('credit-first-half', 'findings', 'paragraph', first + '.'),
+            TextComponent('credit-second-half', 'findings', 'paragraph', 'Used ' + second),
+            FindingsTable('table', 'findings', 'Synthetic findings',
+                (TableColumn('variant', 'Variant'), TableColumn('value', 'Value')),
+                (FindingRow(row_id, ('NM_000001.1:c.1A>G', '0.1')),)),
+        )
+        source = build_typed_report_projection(
+            request=request, ledger=ledger,
+            projection_request_sha256=request.request.request_sha256,
+            expected_content_sha256=component_content_sha256(parts),
+            components=parts).to_dict()
+        kwargs = self.arguments() | {'presentation_ir': source,
+                                     'expected_ir_sha256': digest(source)}
+        with patch.object(self.m, 'render_preloaded_raster_pdf',
+                          side_effect=AssertionError('unexpected render')) as renderer:
+            with self.assertRaises(self.m.TypedOriginalBrandError):
+                self.m.prepare_typed_original_brand_pdf(**kwargs)
+            with self.assertRaises(self.m.TypedOriginalBrandError):
+                self.m.render_typed_original_brand_pdf(**kwargs)
+            renderer.assert_not_called()
 
     def test_carriage_return_encoded_duplicate_credit_is_refused(self):
         """An HTML-encoded carriage return cannot hide a second notice."""

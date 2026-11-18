@@ -8,7 +8,8 @@ clinical/scientific claims, new executor, PDF/UA or visual parity is established
 from __future__ import annotations
 
 from hashlib import sha256
-from html import escape, unescape
+from html import escape
+from html.parser import HTMLParser
 import os
 
 from reporting._pdf_render_worker import HTML_BYTES
@@ -39,6 +40,28 @@ def _require(ok: bool) -> None:
         raise TypedOriginalBrandError("typed_original_brand_pdf_unavailable")
 
 
+class _VisibleBodyText(HTMLParser):
+    """Collect decoded text without interpreting markup-like source values."""
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.parts: list[str] = []
+
+    def handle_data(self, value: str) -> None:
+        self.parts.append(value)
+
+
+def _credit_count(html: str) -> int:
+    """Detect credit across typed paragraphs and encoded whitespace boundaries."""
+    _require(type(html) is str and html.count('<body>') == 1
+             and html.endswith(_END))
+    body = html.split('<body>', 1)[1][:-len(_END)]
+    parser = _VisibleBodyText()
+    parser.feed(body)
+    parser.close()
+    return ' '.join(' '.join(parser.parts).split()).count(REQUIRED_CREDIT_EN)
+
+
 def _ready(assets: BoundBrandAssets, expected_brand_bundle_sha256: object) -> dict:
     """Admit only the original author's exact licensed source bundle."""
     _require(os.environ.get(_DISABLE) != "1"
@@ -65,7 +88,7 @@ def prepare_typed_original_brand_pdf(
         source, source_record = prepare_editorial_typed_html(
             presentation_ir=presentation_ir, expected_ir_sha256=expected_ir_sha256)
         _require(source.count("<body>") == 1 and source.endswith(_END)
-                 and " ".join(unescape(source).split()).count(REQUIRED_CREDIT_EN) == 0
+                 and _credit_count(source) == 0
                  and 'data-brand="original-logo"' not in source
                  and 'data-brand="original-dna"' not in source)
         logo = _logo_markup(assets)
@@ -98,7 +121,7 @@ def prepare_typed_original_brand_pdf(
         _require(0 < len(raw) <= HTML_BYTES
                  and html.count(logo) == 1
                  and figure.count("background-image:url(\'" + resource_uri + "\')") == 1
-                 and " ".join(unescape(html).split()).count(REQUIRED_CREDIT_EN) == 1
+                 and _credit_count(html) == 1
                  and html.count('data-brand="original-logo"') == 1
                  and html.count('data-brand="original-dna"') == 1)
         record = {
