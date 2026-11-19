@@ -162,17 +162,15 @@ class TypedBrandEmissionTests(unittest.TestCase):
 
     def test_invalid_graphs_refuse_before_mutating_structure(self):
         from reporting._pdf_typed_brand_emission import emit_structure
-        for case in ("cycle", "shared", "foreign", "duplicate", "missing-id", "unicode",
+        for case in ("cycle", "foreign", "duplicate", "missing-id", "unicode",
                      "index", "zero-figures", "wrong-page", "rotation", "bleed",
                      "reversed", "nonfinite", "traversal", "depth", "two-figures",
                      "long-id", "bad-mcid", "missing-headers", "foreign-header", "transform",
-                     "owned-attribute", "shared-attribute", "wide-reference-traversal-budget"):
+                     "owned-attribute", "shared-attribute"):
             with self.subTest(case=case):
                 document, pdf, root, figure, headers = fixture()
                 if case == "cycle":
                     figure["K"].append(figure.reference)
-                elif case == "shared":
-                    root["K"].append(root["K"][0])
                 elif case == "foreign":
                     figure["K"].append(b"9999999 0 R")
                 elif case == "duplicate":
@@ -200,16 +198,6 @@ class TypedBrandEmissionTests(unittest.TestCase):
                 elif case == "shared-attribute":
                     doc = pdf.objects[int(figure["P"].split()[0])]
                     doc["A"] = figure["A"]
-                elif case == "wide-reference-traversal-budget":
-                    row = pdf.objects[int(headers[0]["P"].split()[0])]
-                    table_num = row["P"].split()[0].decode()
-                    for i in range(10001):
-                        item = pydyf.Dictionary({"Type": "/StructElem", "S": "/TH",
-                            "P": row.reference, "Pg": figure["Pg"], "K": pydyf.Array(),
-                            "A": pydyf.Dictionary({"O": "/Table"}),
-                            "ID": pydyf.String(f"{table_num}-1-{i}")})
-                        pdf.add_object(item)
-                        row["K"].append(item.reference)
                 elif case == "depth":
                     parent = figure
                     for _ in range(64):
@@ -239,10 +227,59 @@ class TypedBrandEmissionTests(unittest.TestCase):
                 count = len(pdf.objects)
                 with self.assertRaises(ValueError):
                     emit_structure(document, pdf)
-                if case == "wide-reference-traversal-budget":
-                    self.assertNotIn("IDTree", root)
                 self.assertIs(figure["A"]["BBox"], box)
                 self.assertEqual(len(pdf.objects), count)
+
+    def test_shared_nonfigure_reference_refuses_before_mutation(self):
+        from reporting._pdf_typed_brand_emission import emit_structure
+        document, pdf, root, figure, headers = fixture()
+        parent = pdf.objects[int(root["K"][0].split()[0])]
+        shared = pydyf.Dictionary({"Type": "/StructElem", "S": "/Div",
+            "P": parent.reference, "Pg": figure["Pg"], "K": pydyf.Array()})
+        pdf.add_object(shared)
+        parent["K"].extend([shared.reference, shared.reference])
+        self.assertEqual(len(root["K"]), 1)
+        self.assertEqual(parent["S"], "/Document")
+        self.assertEqual(len(headers), 2)
+        objects = tuple(pdf.objects)
+        snapshots = [(obj, obj.data) for obj in objects
+                     if isinstance(obj, (pydyf.Dictionary, pydyf.Stream))]
+        layout, box, parent_tree = figure["A"], figure["A"]["BBox"], root["ParentTree"]
+        with self.assertRaises(ValueError):
+            emit_structure(document, pdf)
+        self.assertEqual(len(pdf.objects), len(objects))
+        self.assertTrue(all(before is after for before, after in zip(objects, pdf.objects)))
+        self.assertEqual([obj.data for obj, _ in snapshots], [data for _, data in snapshots])
+        self.assertIs(figure["A"], layout)
+        self.assertIs(figure["A"]["BBox"], box)
+        self.assertEqual(root["ParentTree"], parent_tree)
+        self.assertNotIn("IDTree", root)
+
+    def test_wide_distinct_non_id_references_enforce_traversal_budget(self):
+        from reporting._pdf_typed_brand_emission import emit_structure
+        document, pdf, root, figure, headers = fixture()
+        parent = pdf.objects[int(root["K"][0].split()[0])]
+        for _ in range(10001):
+            item = pydyf.Dictionary({"Type": "/StructElem", "S": "/Div",
+                "P": parent.reference, "Pg": figure["Pg"], "K": pydyf.Array()})
+            pdf.add_object(item)
+            parent["K"].append(item.reference)
+        self.assertEqual(len(root["K"]), 1)
+        self.assertEqual(parent["S"], "/Document")
+        self.assertEqual(len(headers), 2)
+        objects = tuple(pdf.objects)
+        snapshots = [(obj, obj.data) for obj in objects
+                     if isinstance(obj, (pydyf.Dictionary, pydyf.Stream))]
+        layout, box, parent_tree = figure["A"], figure["A"]["BBox"], root["ParentTree"]
+        with self.assertRaises(ValueError):
+            emit_structure(document, pdf)
+        self.assertEqual(len(pdf.objects), len(objects))
+        self.assertTrue(all(before is after for before, after in zip(objects, pdf.objects)))
+        self.assertEqual([obj.data for obj, _ in snapshots], [data for _, data in snapshots])
+        self.assertIs(figure["A"], layout)
+        self.assertIs(figure["A"]["BBox"], box)
+        self.assertEqual(root["ParentTree"], parent_tree)
+        self.assertNotIn("IDTree", root)
 
 
     def test_composed_finisher_validates_fonts_once_before_emission(self):

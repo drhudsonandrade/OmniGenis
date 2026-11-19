@@ -21,11 +21,11 @@
     "reporting/pdf_original_brand_inclusion.py": "8e3e00eed71d7b51e247bae8a6e952248ecf8a9119d03ef7fa4113d7e12b3660",
     "reporting/pdf_typed_brand_render.py": "5a3bd705e2eac6ea60e6d8c13dee72955f309f9776b42f36db22d37afdecda45",
     "reporting/typed_original_brand_pdf.py": "a5ec0009c716c47897c51941b100a5c51498373e5ae69fe25ffbccdbd1b03ff5",
-    "reporting/typed_original_brand_qa.py": "e7eecf7f60cf462aa7a2e8ff23f25744f400ea7459f85fd72726d93f00fb8137",
+    "reporting/typed_original_brand_qa.py": "7a38ab27ee012444eb7ca375764e42bd9f263716ea0e6227c95fb5c8ad04310f",
     "reporting/typed_pdf_association.py": "0b6f4be7d81dc5624aaa3b7e11ed3cfbca0d7d9222272f6c24ba07ee617b3a63",
     "reporting/typed_pdf_source.py": "ace530cd727eaf513bffb9070c1b412db166ca4b966d390e710b853ec8676c59",
     "schemas/report-typed-original-brand-qa.v1.schema.json": "744ddd3269c2fd2f1da44cf2466bb44212c958d62f31af5256c1d05544802b75",
-    "tests/test_reporting_typed_original_brand_qa.py": "a844fce6e8755e381d2fd94c55d1d5f55dd7e03325733f5bd92214752cae88c6"
+    "tests/test_reporting_typed_original_brand_qa.py": "2e6f0805cc4848ecc33bb1fb7d7ac1a8fedd106707c9068928a306fcc0f25bcd"
   },
   "structure_id_tree_policy": "FLAT_NAMES_EXACT_ORIGINAL_BYTE_ID_MAP",
   "table_identifier_policy": "PYPDF_TEXTSTRINGOBJECT_ONLY_ORIGINAL_BYTES_1_TO_128"

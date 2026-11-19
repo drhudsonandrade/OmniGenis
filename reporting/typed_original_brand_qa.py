@@ -96,11 +96,39 @@ def canonical(value: object) -> bytes:
     return prior._canonical(value)
 
 
+def _bounded_profile_file(path, limit, *, retain=False):
+    """Hash one bounded regular descriptor and reject changes across the read."""
+    flags = os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC
+    fd = os.open(path, flags)
+    try:
+        first = os.fstat(fd)
+        require(stat.S_ISREG(first.st_mode) and 0 < first.st_size <= limit)
+        digest = sha256()
+        content = bytearray()
+        consumed = 0
+        while consumed < first.st_size:
+            chunk = os.read(fd, min(8192, first.st_size - consumed))
+            require(bool(chunk))
+            consumed += len(chunk)
+            digest.update(chunk)
+            if retain:
+                content.extend(chunk)
+        last = os.fstat(fd)
+        named = os.stat(path, follow_symlinks=False)
+        def identity(info):
+            return (info.st_dev, info.st_ino, info.st_mode, info.st_size,
+                    info.st_mtime_ns, info.st_ctime_ns)
+        require(identity(first) == identity(last) == identity(named))
+        return bytes(content), digest.hexdigest()
+    finally:
+        os.close(fd)
+
+
 def profile_sha256() -> str:
     """Bind the separate contract and its inherited unchanged source closure."""
     prior._profile()
-    require(not MANIFEST.is_symlink() and MANIFEST.stat().st_size <= 16384)
-    raw = MANIFEST.read_bytes()
+    require(not MANIFEST.is_symlink())
+    raw, manifest_digest = _bounded_profile_file(MANIFEST, 16384, retain=True)
     data = prior._loads(raw.decode("ascii"))
     require(type(data) is dict and set(data) == {
         "schema_version", "profile_id", "sources", "max_pages", "max_pdf_bytes",
@@ -121,8 +149,8 @@ def profile_sha256() -> str:
         require(type(expected) is str and prior._DIGEST.fullmatch(expected) is not None)
         path = ROOT / name
         require(not path.is_symlink() and path.resolve().is_relative_to(ROOT)
-                and sha256(path.read_bytes()).hexdigest() == expected)
-    return sha256(raw).hexdigest()
+                and _bounded_profile_file(path, 262144)[1] == expected)
+    return manifest_digest
 
 
 def _admit(expected: object) -> str:

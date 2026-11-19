@@ -2,13 +2,14 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from contextlib import ExitStack
+from contextlib import ExitStack, contextmanager
 from decimal import Decimal
 from hashlib import sha256
 from io import BytesIO
 import importlib
 import importlib.util
 import json
+import multiprocessing
 import os
 import re
 from pathlib import Path
@@ -71,6 +72,88 @@ def _install_flat_id_tree(writer):
                          for value in (identifier, reference)])
     root[NameObject("/IDTree")] = writer._add_object(
         DictionaryObject({NameObject("/Names"): names}))
+
+
+@contextmanager
+def _temporary_profile_tree(module, *, inherited=False):
+    """Use real private copies while the original observer audit stays active."""
+    source_root = module.ROOT
+    manifest_name = module.MANIFEST.relative_to(source_root)
+    names = set(module.SOURCE_FILES) | {str(manifest_name)}
+    if inherited:
+        prior_name = module.prior._PROFILE_FILE.relative_to(source_root)
+        prior_manifest = json.loads(module.prior._PROFILE_FILE.read_bytes())
+        names.update(prior_manifest["source_sha256"])
+        names.add(str(prior_name))
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        for name in sorted(names):
+            target = root / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes((source_root / name).read_bytes())
+        with ExitStack() as stack:
+            stack.enter_context(patch.object(module, "ROOT", root))
+            stack.enter_context(patch.object(module, "MANIFEST", root / manifest_name))
+            if inherited:
+                stack.enter_context(patch.object(module.prior, "ROOT", root))
+                stack.enter_context(patch.object(module.prior, "_PROFILE_FILE", root / prior_name))
+            yield root
+
+
+@contextmanager
+def _observe_profile_file_reads(paths, *, after_read=None):
+    """Observe real entrypoint I/O and clean up any descriptor a regression leaks."""
+    paths = set(paths)
+    records, opened = [], {}
+    real_open, real_read, real_close = os.open, os.read, os.close
+    real_read_bytes = Path.read_bytes
+
+    def opened_file(path, flags, *args, **kwargs):
+        descriptor = real_open(path, flags, *args, **kwargs)
+        path = Path(os.fsdecode(path))
+        if path in paths:
+            record = dict(path=path, flags=flags, requests=[], returned=[],
+                          legacy=False, closed=False)
+            records.append(record)
+            opened[descriptor] = record
+        return descriptor
+
+    def read_file(descriptor, count):
+        data = real_read(descriptor, count)
+        record = opened.get(descriptor)
+        if record is not None:
+            record["requests"].append(count)
+            if after_read is not None:
+                data = after_read(record["path"], data)
+            record["returned"].append(len(data))
+        return data
+
+    def closed_file(descriptor):
+        result = real_close(descriptor)
+        record = opened.pop(descriptor, None)
+        if record is not None:
+            record["closed"] = True
+        return result
+
+    def read_path(path):
+        data = real_read_bytes(path)
+        if path in paths:
+            record = dict(path=path, flags=None, requests=[-1], returned=[],
+                          legacy=True, closed=True)
+            records.append(record)
+            if after_read is not None:
+                data = after_read(path, data)
+            record["returned"].append(len(data))
+        return data
+
+    with patch.object(os, "open", opened_file), patch.object(os, "read", read_file), \
+            patch.object(os, "close", closed_file), patch.object(Path, "read_bytes", read_path):
+        try:
+            yield records
+        finally:
+            # Keep closed=False as evidence even after restoring test isolation.
+            for descriptor in tuple(opened):
+                real_close(descriptor)
 
 
 class TypedOriginalBrandQATests(unittest.TestCase):
@@ -1676,50 +1759,169 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             form["/Group"][NameObject("/CS")] = TextStringObject("/DeviceRGB")
         self.refuse(self.rewritten(malformed))
 
+    def test_profile_special_files_refuse_without_blocking(self):
+        context = multiprocessing.get_context("fork")
+        for kind in ("FIFO-with-no-writer", "symlink", "directory"):
+            for role in ("manifest", "source"):
+                with self.subTest(target=role, kind=kind), _temporary_profile_tree(self.m) as root:
+                    target = self.m.MANIFEST if role == "manifest" else (
+                        root / "reporting/pdf_typed_brand_render.py")
+                    if kind == "symlink":
+                        original = target.with_name(target.name + ".original")
+                        target.rename(original)
+                        target.symlink_to(original.name)
+                    else:
+                        target.unlink()
+                        if kind == "directory":
+                            target.mkdir()
+                        else:
+                            os.mkfifo(target, 0o600)
+                    reader, writer = context.Pipe(duplex=False)
+
+                    def audit():
+                        reader.close()
+                        try:
+                            value = self.m.profile_sha256()
+                        except (ValueError, OSError) as error:
+                            writer.send(("refused", type(error).__name__))
+                        except BaseException as error:
+                            writer.send(("unexpected", type(error).__name__))
+                        else:
+                            writer.send(("returned", value))
+                        finally:
+                            writer.close()
+
+                    process = context.Process(target=audit)
+                    started = False
+                    try:
+                        process.start()
+                        started = True
+                        writer.close()
+                        process.join(5)
+                        if process.is_alive():
+                            process.kill()
+                            process.join(5)
+                            self.assertFalse(process.is_alive(), "profile probe was not reaped")
+                            self.fail("profile audit blocked on a special file")
+                        self.assertEqual(process.exitcode, 0)
+                        self.assertTrue(reader.poll(), "profile probe returned no outcome")
+                        self.assertEqual(reader.recv()[0], "refused")
+                    finally:
+                        if started and process.is_alive():
+                            process.kill()
+                            process.join(5)
+                        reader.close()
+                        writer.close()
+                        if not started or not process.is_alive():
+                            process.close()
+
+    def test_profile_manifest_and_source_size_caps_precede_reads(self):
+        for role, size in (("manifest", 16385), ("source", 262145)):
+            with self.subTest(target=role), _temporary_profile_tree(self.m) as root:
+                target = self.m.MANIFEST if role == "manifest" else (
+                    root / "reporting/pdf_typed_brand_render.py")
+                target.write_bytes(b"x" * size)
+                with _observe_profile_file_reads({target}) as records:
+                    with self.assertRaises(ValueError):
+                        self.m.profile_sha256()
+                self.assertTrue(all(not item["requests"] for item in records),
+                                "oversized body was read before refusal")
+                self.assertTrue(all(item["closed"] for item in records))
+
+    def test_profile_bounded_reads_preserve_exact_digests(self):
+        for exact_cap in (False, True):
+            with self.subTest(source_at_cap=exact_cap), _temporary_profile_tree(self.m) as root:
+                if exact_cap:
+                    name = "tests/test_reporting_typed_original_brand_qa.py"
+                    target = root / name
+                    original = target.read_bytes()
+                    self.assertLess(len(original), 262144)
+                    payload = original + b"\n" * (262144 - len(original))
+                    target.write_bytes(payload)
+                    manifest = json.loads(self.m.MANIFEST.read_bytes())
+                    manifest["sources"][name] = sha256(payload).hexdigest()
+                    self.m.MANIFEST.write_bytes(json.dumps(manifest, sort_keys=True).encode("ascii"))
+                raw = self.m.MANIFEST.read_bytes()
+                paths = {root / name for name in self.m.SOURCE_FILES} | {self.m.MANIFEST}
+                sizes = {path: path.stat().st_size for path in paths}
+                self.assertEqual(sizes[root / "reporting/assets/dna_column.png"], 164799)
+                with _observe_profile_file_reads(paths) as records:
+                    actual = self.m.profile_sha256()
+                self.assertEqual(actual, sha256(raw).hexdigest())
+                self.assertEqual({item["path"] for item in records}, paths)
+                for item in records:
+                    self.assertFalse(item["legacy"], "unbounded Path.read_bytes reached QA input")
+                    self.assertTrue(item["closed"])
+                    self.assertEqual(item["flags"] & os.O_ACCMODE, os.O_RDONLY)
+                    for flag in (os.O_NOFOLLOW, os.O_NONBLOCK, os.O_CLOEXEC):
+                        self.assertTrue(item["flags"] & flag)
+                    self.assertTrue(item["requests"])
+                    self.assertTrue(all(0 < count <= 8192 for count in item["requests"]))
+                    self.assertEqual(sum(item["returned"]), sizes[item["path"]])
+
+    def test_profile_source_read_changes_refuse_and_close_descriptor(self):
+        for case in ("short-read-before-declared-EOF", "growth-during-read",
+                     "same-size-rewrite-during-read", "named-file-replacement-during-read"):
+            with self.subTest(case=case), _temporary_profile_tree(self.m) as root:
+                target = root / "reporting/pdf_typed_brand_render.py"
+                original, before = target.read_bytes(), target.stat()
+                changed = []
+
+                def change(path, data):
+                    if path != target or changed:
+                        return data
+                    changed.append(True)
+                    if case == "short-read-before-declared-EOF":
+                        return b""
+                    if case == "growth-during-read":
+                        with target.open("ab") as output:
+                            output.write(b"\n")
+                    elif case == "same-size-rewrite-during-read":
+                        target.write_bytes(bytes([original[0] ^ 1]) + original[1:])
+                        os.utime(target, ns=(before.st_atime_ns, before.st_mtime_ns + 1000000000))
+                    else:
+                        replacement = target.with_name(target.name + ".replacement")
+                        replacement.write_bytes(original)
+                        os.replace(replacement, target)
+                    return data
+
+                with _observe_profile_file_reads({target}, after_read=change) as records:
+                    with self.assertRaises(ValueError):
+                        self.m.profile_sha256()
+                self.assertEqual(changed, [True])
+                self.assertTrue(records)
+                self.assertTrue(all(item["closed"] for item in records))
+
     def test_new_profile_pins_the_executed_original_brand_dependencies(self):
-        read_bytes = Path.read_bytes
         for name in ("reporting/brand_assets.py", "reporting/pdf_original_brand_inclusion.py",
                      "reporting/_pdf_original_dna_png_admission.py"):
-            target = ROOT / name
-            def changed(path):
-                data = read_bytes(path)
-                return data + b"\n" if path == target else data
-            with self.subTest(source=name), patch.object(Path, "read_bytes", changed):
+            with self.subTest(source=name), _temporary_profile_tree(self.m) as root:
+                target = root / name
+                target.write_bytes(target.read_bytes() + b"\n")
                 with self.assertRaises(ValueError):
                     self.m.profile_sha256()
-        target = ROOT / "reporting/pdf-typed-original-brand-qa.v1.json"
-        manifest = json.loads(read_bytes(target).decode("ascii"))
         for case in ("missing", "wrong"):
-            invalid = deepcopy(manifest)
-            if case == "missing":
-                invalid.pop("table_identifier_policy", None)
-            else:
-                invalid["table_identifier_policy"] = "UNSUPPORTED_IDENTIFIER_POLICY"
-            replacement = json.dumps(invalid, sort_keys=True).encode("ascii")
-            def changed_manifest(path):
-                return replacement if path == target else read_bytes(path)
-            with self.subTest(identifier_policy=case), patch.object(
-                    Path, "read_bytes", changed_manifest):
+            with self.subTest(identifier_policy=case), _temporary_profile_tree(self.m):
+                invalid = json.loads(self.m.MANIFEST.read_bytes())
+                if case == "missing":
+                    invalid.pop("table_identifier_policy", None)
+                else:
+                    invalid["table_identifier_policy"] = "UNSUPPORTED_IDENTIFIER_POLICY"
+                self.m.MANIFEST.write_bytes(json.dumps(invalid, sort_keys=True).encode("ascii"))
                 with self.assertRaises(ValueError):
                     self.m.profile_sha256()
 
     def test_validly_resealed_inherited_profile_cannot_keep_the_combined_identity(self):
         before = self.m.profile_sha256()
         inherited = self.m.prior._profile()
-        profile = self.m.prior._PROFILE_FILE
-        source = ROOT / "reporting/pdf_document_metadata.py"
-        changed = source.read_bytes() + b"\n# virtual dependency change\n"
-        manifest = json.loads(profile.read_bytes())
-        manifest["source_sha256"]["reporting/pdf_document_metadata.py"] = sha256(changed).hexdigest()
-        replacement = json.dumps(manifest).encode("ascii")
-        read_bytes = Path.read_bytes
-        def virtual(path):
-            if path == source:
-                return changed
-            if path == profile:
-                return replacement
-            return read_bytes(path)
-        with patch.object(Path, "read_bytes", virtual):
+        with _temporary_profile_tree(self.m, inherited=True) as root:
+            profile = self.m.prior._PROFILE_FILE
+            source = root / "reporting/pdf_document_metadata.py"
+            changed = source.read_bytes() + b"\n# temporary dependency change\n"
+            source.write_bytes(changed)
+            manifest = json.loads(profile.read_bytes())
+            manifest["source_sha256"]["reporting/pdf_document_metadata.py"] = sha256(changed).hexdigest()
+            profile.write_bytes(json.dumps(manifest).encode("ascii"))
             self.assertNotEqual(self.m.prior._profile(), inherited)
             with self.assertRaises(ValueError):
                 self.m._admit(before)
