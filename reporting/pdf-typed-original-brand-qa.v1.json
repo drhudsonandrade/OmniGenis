@@ -8,7 +8,7 @@
   "sources": {
     "reporting/_pdf_original_dna_png_admission.py": "3f1a849a98b32cecaf73c09b5f289b5ab7bcb04cc50f01400bfb0fa81adc4a4a",
     "reporting/_pdf_original_svg_layout_worker.py": "bdfd7b79d7445d3d68351cde7e0cd63777a8339f903a4ac3ae72f421ec211f76",
-    "reporting/_pdf_typed_original_brand_qa_worker.py": "d1d3355365fc38abae8e076d1d44a35d26a22c7d90cd1602919dd9f1cb4abb07",
+    "reporting/_pdf_typed_original_brand_qa_worker.py": "cc4f1877b530bc254986f0a2bc12503837eefc19aaa438e16c562cc726b6b259",
     "reporting/assets/brand-permission.md": "14a5170bec0e347ec274312f1b915aa9a9d94de61ad32260fc8305f1eb9ddeab",
     "reporting/assets/dna_column.png": "596ca17e055b473c5d265ab1865a9adb7e453bf20a001aab79a1a255b36b6437",
     "reporting/assets/omnigenis_logo.svg": "29983790bef75837d683a392515ed35d0410d919d49b6c52a7121f7659770c51",
@@ -17,11 +17,12 @@
     "reporting/pdf-typed-observation.v1.json": "2d344aa71738213c2980b5dbbf019b2240d8c092034185fb0e9eee0b4c51d292",
     "reporting/pdf_original_brand_inclusion.py": "8e3e00eed71d7b51e247bae8a6e952248ecf8a9119d03ef7fa4113d7e12b3660",
     "reporting/typed_original_brand_pdf.py": "6562af3558cddbbaadb8b3e442cd9cb5072f7d99f64e5b764d2a4bda99cdc985",
-    "reporting/typed_original_brand_qa.py": "04ad87c33f0416c67f2bd9cd8ed135a7ef1b1be7e16d6047b40f7112215ed268",
+    "reporting/typed_original_brand_qa.py": "5221ea6307ddf7a511c277ac45f75ddf5d45f6aeb063881e4e7ca77214b050d9",
     "reporting/typed_pdf_association.py": "0b6f4be7d81dc5624aaa3b7e11ed3cfbca0d7d9222272f6c24ba07ee617b3a63",
     "reporting/typed_pdf_source.py": "ace530cd727eaf513bffb9070c1b412db166ca4b966d390e710b853ec8676c59",
     "schemas/report-typed-original-brand-qa.v1.schema.json": "c78e658f41db628c3a6126b4a51da2cc49e41fdccdec465fe78316fa94f2c256",
-    "tests/test_reporting_typed_original_brand_qa.py": "84130c62a1bcadde7f8d81cdbe7ea828b7c0719ee22fcff5a7e93c09766bdf08"
+    "tests/test_reporting_typed_original_brand_qa.py": "3b799ed9008da5009dc3b533a8b156aec0e4ac829f35f677248265570c9de512"
   },
+  "structure_id_tree_policy": "FLAT_NAMES_EXACT_ORIGINAL_BYTE_ID_MAP",
   "table_identifier_policy": "PYPDF_TEXTSTRINGOBJECT_ONLY_ORIGINAL_BYTES_1_TO_128"
 }

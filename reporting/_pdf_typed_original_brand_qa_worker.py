@@ -40,6 +40,25 @@ def _identifier(value):
     return data.decode("latin-1")
 
 
+def _structure_id_tree(reader, value, expected):
+    """Reconcile the flat name index with the admitted original-byte ID map."""
+    from pypdf.generic import ArrayObject
+    index = native._dictionary(value, reader)
+    require(set(index) == {"/Names"})
+    names = index.raw_get("/Names")
+    require(type(names) is ArrayObject and len(names) == 2 * len(expected)
+            and len(names) <= contract.MAX_VISITS)
+    observed, previous = {}, None
+    for offset in range(0, len(names), 2):
+        identifier = _identifier(names[offset]).encode("latin-1")
+        reference = tuple(native._ref(names[offset + 1], reader))
+        require((previous is None or previous < identifier)
+                and identifier in expected and reference == expected[identifier])
+        observed[identifier] = reference
+        previous = identifier
+    require(observed == expected)
+
+
 def _structure(reader, pages):
     from pypdf.generic import (
         ArrayObject, DictionaryObject, IndirectObject, NameObject,
@@ -47,7 +66,8 @@ def _structure(reader, pages):
     )
     root_ref = reader.root_object.raw_get("/StructTreeRoot")
     root = native._dictionary(root_ref, reader)
-    require(set(root) == {"/Type", "/K", "/ParentTree"}
+    require({"/Type", "/K", "/ParentTree"} <= set(root)
+            <= {"/Type", "/K", "/ParentTree", "/IDTree"}
             and root.raw_get("/Type") == "/StructTreeRoot")
     trace = {"root_reference": native._ref(root_ref, reader), "root_children_form": "",
              "root_children": [], "nodes": [], "pages": [], "fonts": []}
@@ -159,6 +179,15 @@ def _structure(reader, pages):
     walk(roots[0], root_ref, 1)
     require(len(figures) == 1)
     qa.project_text_trace(trace)
+    expected = {}
+    for node in trace["nodes"]:
+        if node["native_id"] is not None:
+            identifier = node["native_id"].encode("latin-1")
+            require(identifier not in expected)
+            expected[identifier] = tuple(node["reference"])
+    require(not expected or "/IDTree" in root)
+    if "/IDTree" in root:
+        _structure_id_tree(reader, root.raw_get("/IDTree"), expected)
     return trace, attributes, figures
 
 

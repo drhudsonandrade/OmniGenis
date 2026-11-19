@@ -33,6 +33,7 @@ PROFILE_ID = "typed-original-brand-qa-v1"
 STATUS = "TYPED_ORIGINAL_BRAND_CANDIDATE_INSPECTED"
 RASTER_PAGES_PER_WINDOW = 4
 TABLE_IDENTIFIER_POLICY = "PYPDF_TEXTSTRINGOBJECT_ONLY_ORIGINAL_BYTES_1_TO_128"
+ID_TREE_POLICY = "FLAT_NAMES_EXACT_ORIGINAL_BYTE_ID_MAP"
 # Figure: 506 drawing + 6 color + 6 paint + 7 gs + 5 cm + 2 q/Q + 2 marks.
 # The two nonidentity source group transforms require the q/Q pair.
 # Add the 6-operation DNA Artifact and 3-operation Form.
@@ -99,7 +100,8 @@ def profile_sha256() -> str:
     data = prior._loads(raw.decode("ascii"))
     require(type(data) is dict and set(data) == {
         "schema_version", "profile_id", "sources", "max_pages", "max_pdf_bytes",
-        "default_pipeline_activated", "release_authorized", "table_identifier_policy"})
+        "default_pipeline_activated", "release_authorized", "table_identifier_policy",
+        "structure_id_tree_policy"})
     require(data["schema_version"] == "1.0.0" and data["profile_id"] == PROFILE_ID
             and type(data["max_pages"]) is int and data["max_pages"] == 64
             and type(data["max_pdf_bytes"]) is int
@@ -108,6 +110,8 @@ def profile_sha256() -> str:
             and data["release_authorized"] is False
             and type(data["table_identifier_policy"]) is str
             and data["table_identifier_policy"] == TABLE_IDENTIFIER_POLICY
+            and type(data["structure_id_tree_policy"]) is str
+            and data["structure_id_tree_policy"] == ID_TREE_POLICY
             and type(data["sources"]) is dict and set(data["sources"]) == set(SOURCE_FILES))
     for name, expected in data["sources"].items():
         require(type(expected) is str and prior._DIGEST.fullmatch(expected) is not None)

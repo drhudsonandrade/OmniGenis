@@ -98,6 +98,72 @@ def corrected_bbox_control(pdf_bytes: bytes) -> bytes:
     return candidate
 
 
+def _install_flat_id_tree(writer):
+    """Index only an explicitly prepared fixture, preserving each key's original bytes."""
+    pairs = []
+    def visit(value):
+        value = value.get_object()
+        if isinstance(value, DictionaryObject):
+            if value.get("/Type") == "/StructElem" and "/ID" in value:
+                identifier = value.raw_get("/ID")
+                if type(identifier) is TextStringObject:
+                    original = identifier.original_bytes
+                elif type(identifier) is ByteStringObject:
+                    original = bytes(identifier)
+                else:
+                    raise ValueError("synthetic_id_tree_control_refused")
+                pairs.append((original, identifier, value.indirect_reference))
+            if "/K" in value:
+                visit(value.raw_get("/K"))
+        elif isinstance(value, ArrayObject):
+            for child in value:
+                visit(child)
+    root = writer._root_object["/StructTreeRoot"]
+    visit(root)
+    pairs.sort(key=lambda row: row[0])
+    if len({original for original, _, _ in pairs}) != len(pairs):
+        raise ValueError("synthetic_id_tree_control_refused")
+    names = ArrayObject([value for _, identifier, reference in pairs
+                         for value in (identifier, reference)])
+    root[NameObject("/IDTree")] = writer._add_object(
+        DictionaryObject({NameObject("/Names"): names}))
+
+
+def corrected_id_tree_control(pdf_bytes: bytes) -> bytes:
+    """Create a separate index-only control; never repair the producer or caller bytes."""
+    def snapshot(reader):
+        boxes = []
+        def visit(value):
+            value = value.get_object()
+            if isinstance(value, DictionaryObject):
+                if value.get("/S") == "/Figure":
+                    boxes.append(tuple(float(v) for v in value["/A"]["/BBox"]))
+                if "/K" in value:
+                    visit(value.raw_get("/K"))
+            elif isinstance(value, ArrayObject):
+                for child in value:
+                    visit(child)
+        visit(reader.root_object.raw_get("/StructTreeRoot"))
+        information = tuple(sorted((str(key), value.original_bytes)
+                                   for key, value in reader.trailer["/Info"].items()))
+        metadata = reader.root_object["/Metadata"].get_data()
+        return (tuple(page["/Contents"].get_data() for page in reader.pages),
+                information, metadata, tuple(boxes))
+    if type(pdf_bytes) is not bytes or not pdf_bytes.startswith(b"%PDF-1.7"):
+        raise ValueError("synthetic_id_tree_control_refused")
+    reader = PdfReader(BytesIO(pdf_bytes), strict=True)
+    original = snapshot(reader)
+    writer = PdfWriter(clone_from=reader)
+    writer.pdf_header = b"%PDF-1.7"
+    _install_flat_id_tree(writer)
+    output = BytesIO()
+    writer.write(output)
+    candidate = output.getvalue()
+    if candidate == pdf_bytes or snapshot(PdfReader(BytesIO(candidate), strict=True)) != original:
+        raise ValueError("synthetic_id_tree_control_refused")
+    return candidate
+
+
 class TypedOriginalBrandQATests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -126,7 +192,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 assets=self.assets, expected_brand_bundle_sha256=self.bundle)
             pristine = rendered.pdf_bytes
             self.pristine_fixtures[count] = source, pristine
-            self.fixtures[count] = source, corrected_bbox_control(pristine)
+            self.fixtures[count] = source, corrected_id_tree_control(corrected_bbox_control(pristine))
         source, pdf = self.fixtures[count]
         return deepcopy(source), pdf
 
@@ -312,6 +378,122 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             self.assertEqual([int(nums[0]), int(nums[2])], [keys[1], keys[0]])
         self.refuse(self.rewritten(reorder, count=96))
 
+    def test_native_id_tree_matches_declared_table_identifiers(self):
+        from pypdf.generic import IndirectObject
+        from reporting import _pdf_typed_original_brand_qa_worker as worker
+        def declared(reader):
+            nodes = self.nodes(SimpleNamespace(_root_object=reader.root_object))
+            return {node["/ID"].original_bytes:
+                    (node.indirect_reference.idnum, node.indirect_reference.generation)
+                    for node in nodes if "/ID" in node}
+        def parse_structure(args):
+            reader = PdfReader(BytesIO(args["pdf_bytes"]), strict=True)
+            trace, _, _ = worker._structure(reader, worker.native._page_tree(reader))
+            self.assertEqual({node["native_id"].encode("latin-1"): tuple(node["reference"])
+                              for node in trace["nodes"] if node["native_id"] is not None},
+                             declared(reader))
+            return reader
+        for indirect in (False, True):
+            def container(writer):
+                root = writer._root_object["/StructTreeRoot"]
+                index = root["/IDTree"]
+                root[NameObject("/IDTree")] = writer._add_object(index) if indirect else index
+            with self.subTest(valid_index_indirect=indirect):
+                args = self.rewritten(container)
+                reader = parse_structure(args)
+                self.assertIs(type(reader.root_object["/StructTreeRoot"].raw_get("/IDTree")),
+                              IndirectObject if indirect else DictionaryObject)
+                self.assertEqual(self.run_qa(args).to_dict()["represented_findings"], 2)
+
+        baseline = PdfReader(BytesIO(self.arguments()["pdf_bytes"]), strict=True)
+        expected = declared(baseline)
+        self.assertEqual(len(expected), 2)
+        content = tuple(page["/Contents"].get_data() for page in baseline.pages)
+        index = baseline.root_object["/StructTreeRoot"].raw_get("/IDTree")
+        worker._structure_id_tree(baseline, DictionaryObject({NameObject("/Names"): ArrayObject()}), {})
+        with patch.object(worker.contract, "MAX_VISITS", 2 * len(expected) - 1):
+            with patch.object(worker, "_identifier", side_effect=AssertionError("length guard must precede keys")):
+                with self.assertRaisesRegex(ValueError, "^typed original-brand QA refused$"):
+                    worker._structure_id_tree(baseline, index, expected)
+        foreign = PdfReader(BytesIO(self.arguments()["pdf_bytes"]), strict=True)
+        with self.assertRaises(ValueError):
+            worker._structure_id_tree(
+                baseline, foreign.root_object["/StructTreeRoot"].raw_get("/IDTree"), expected)
+
+        def corrupt(writer, mode):
+            root = writer._root_object["/StructTreeRoot"]
+            index = root["/IDTree"]
+            names = index["/Names"]
+            if mode == "missing":
+                del root["/IDTree"]
+            elif mode == "empty":
+                names.clear()
+            elif mode == "short":
+                del names[-2:]
+            elif mode == "extra":
+                names.extend([TextStringObject("unknown-index-id"), names[1]])
+            elif mode == "duplicate":
+                names[2:4] = names[0:2]
+            elif mode == "unsorted":
+                names[0:4] = names[2:4] + names[0:2]
+            elif mode == "wrong-target":
+                names[1], names[3] = names[3], names[1]
+            elif mode == "page-target":
+                names[1] = writer.pages[0].indirect_reference
+            elif mode == "direct-target":
+                names[1] = names[1].get_object()
+            elif mode == "raw-byte-mismatch":
+                names[0] = ByteStringObject(b"\xfe\xff" + str(names[0]).encode("utf-16-be"))
+                pairs = sorted(zip(names[::2], names[1::2]),
+                               key=lambda pair: bytes(pair[0]) if type(pair[0]) is ByteStringObject
+                               else pair[0].original_bytes)
+                names[:] = [value for pair in pairs for value in pair]
+            elif mode == "names-type":
+                index[NameObject("/Names")] = DictionaryObject()
+            elif mode == "indirect-names":
+                index[NameObject("/Names")] = writer._add_object(names)
+            elif mode == "kids-outside-profile":
+                index[NameObject("/Limits")] = ArrayObject([names[0], names[-2]])
+                root[NameObject("/IDTree")] = DictionaryObject({
+                    NameObject("/Kids"): ArrayObject([root.raw_get("/IDTree")])})
+            elif mode == "limits-outside-profile":
+                index[NameObject("/Limits")] = ArrayObject([names[0], names[-2]])
+            else:
+                self.fail("unknown fixture index mutation")
+        for mode in ("missing", "empty", "short", "extra", "duplicate", "unsorted",
+                     "wrong-target", "page-target", "direct-target", "raw-byte-mismatch",
+                     "names-type", "indirect-names", "kids-outside-profile", "limits-outside-profile"):
+            with self.subTest(invalid_index=mode):
+                args = self.rewritten(lambda writer: corrupt(writer, mode))
+                reader = PdfReader(BytesIO(args["pdf_bytes"]), strict=True)
+                self.assertEqual(declared(reader), expected)
+                self.assertEqual(tuple(page["/Contents"].get_data() for page in reader.pages), content)
+                with self.assertRaises(ValueError):
+                    worker._structure(reader, worker.native._page_tree(reader))
+                if mode in {"missing", "wrong-target"}:
+                    self.refuse(args)
+
+        def mixed_encodings(writer):
+            nodes = self.nodes(writer)
+            headers = [node for node in nodes if node["/S"] == "/TH"]
+            self.assertEqual(len(headers), 2)
+            replacements = {str(header["/ID"]): identifier for header, identifier in zip(
+                headers, (ByteStringObject(b"z"), ByteStringObject(b"\xfe\xff\x00a")), strict=True)}
+            for node in nodes:
+                if node["/S"] == "/TH":
+                    node[NameObject("/ID")] = replacements[str(node["/ID"])]
+                elif node["/S"] == "/TD":
+                    references = node["/A"]["/Headers"]
+                    references[0] = replacements[str(references[0])]
+            _install_flat_id_tree(writer)
+        mixed = self.rewritten(mixed_encodings)
+        reader = parse_structure(mixed)
+        keys = reader.root_object["/StructTreeRoot"]["/IDTree"]["/Names"][::2]
+        self.assertEqual([key.original_bytes for key in keys], [b"z", b"\xfe\xff\x00a"])
+        self.assertEqual([str(key) for key in keys], ["z", "a"])
+        self.assertNotEqual([str(key) for key in keys], sorted(str(key) for key in keys))
+        self.assertEqual(self.run_qa(mixed).to_dict()["represented_findings"], 2)
+
     def test_table_header_identifiers_match_original_bytes(self):
         raw_identifier = b"\x00raw-header"
         def encoded(value):
@@ -341,6 +523,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                         for index, reference in enumerate(references):
                             if str(reference) == original_id:
                                 references[index] = ByteStringObject(raw_identifier)
+            _install_flat_id_tree(writer)
         for mode in ("ascii", "matching-utf16", "headers-only", "ids-only",
                      "matching-nontext-outside-profile"):
             args = self.rewritten(lambda writer: change(writer, mode))
@@ -453,6 +636,29 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         self.assertEqual(pristine["pdf_bytes"], original_bytes)
         self.assertEqual(self.pristine_fixtures[2][1], original_bytes)
         self.assertNotEqual(self.arguments()["pdf_bytes"], original_bytes)
+        from reporting import _pdf_typed_original_brand_qa_worker as worker
+        index_only = dict(pristine)
+        index_only["pdf_bytes"] = corrected_id_tree_control(original_bytes)
+        index_only["expected_pdf_sha256"] = sha256(index_only["pdf_bytes"]).hexdigest()
+        reader = PdfReader(BytesIO(index_only["pdf_bytes"]), strict=True)
+        pages = worker.native._page_tree(reader)
+        trace, attributes, figures = worker._structure(reader, pages)
+        worker._passive(reader, attributes, figures)
+        roles = {tuple(node["reference"]): node["role"] for node in trace["nodes"]}
+        figure = next(node for node in trace["nodes"] if node["role"] == "/Figure")
+        self.assertEqual([float(v) for v in figure["figure_bbox"]], producer_box)
+        x0, y0, x1, y1 = map(Decimal, figure["figure_bbox"])
+        declared_box = worker._rectangle((x0, y0, x1 - x0, y1 - y0), worker.IDENTITY)
+        with patch.object(worker, "_contains", wraps=worker._contains) as contains:
+            with self.assertRaisesRegex(ValueError, "^typed original-brand QA refused$"):
+                worker._page(trace["pages"][0], pages[0][1], pages[0][2], reader,
+                             {}, {}, roles, worker.contract.MAX_STREAM_BYTES)
+            self.assertGreaterEqual(contains.call_count, 1)
+            self.assertEqual(contains.call_args.args[0], declared_box)
+        self.assertTrue(all(worker._contains(*call.args) for call in contains.call_args_list[:-1]))
+        self.assertFalse(worker._contains(*contains.call_args.args))
+        with self.subTest(candidate="id-tree-only-original-bbox"):
+            self.refuse(index_only)
         def box(writer, mode):
             figure = next(n for n in self.nodes(writer) if n["/S"] == "/Figure")
             corrected = [float(v) for v in figure["/A"]["/BBox"]]
