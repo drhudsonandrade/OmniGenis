@@ -1325,6 +1325,10 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         boundary = deepcopy(source)
         coverage = boundary["coverage"]
         limit = self.m.prior.MAX_VISITS
+        # Keep the projected-node and operation bounds feasible while isolating
+        # the independent traversal charge at its exact limit and one above it.
+        coverage["text_mcids"] = limit // 10
+        coverage["native_mcids"] = coverage["text_mcids"] + coverage["figure_count"]
         coverage["native_nodes"] = (limit + 1 - coverage["native_mcids"]) // 2
         coverage["projected_nodes"] = (coverage["native_nodes"]
                                        - coverage["accounted_brand_wrapper_nodes"])
@@ -1333,7 +1337,11 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         self.assertIn(adjustment, (0, 1))
         coverage["native_mcids"] += adjustment
         coverage["text_mcids"] += adjustment
+        coverage["operations"] = (7 * (coverage["text_mcids"] + 1)
+                                   + self.m.MIN_FIXED_BRAND_OPERATIONS)
         self.assertEqual(2 * coverage["native_nodes"] - 1 + coverage["native_mcids"], limit)
+        self.assertLessEqual(coverage["projected_nodes"], 1 + 6 * coverage["text_mcids"])
+        self.assertLessEqual(coverage["operations"], self.m.prior.MAX_OPERATIONS)
         self.m._schema(boundary)
         self.assertEqual(self.m.TypedOriginalBrandQA(
             self.m.canonical(boundary)).to_dict(), boundary)
@@ -1353,6 +1361,8 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         self.assertGreaterEqual(coverage["text_mcids"], text_units)
         self.assertGreaterEqual(coverage["projected_nodes"],
                                 coverage["text_mcids"] + text_units + 1)
+        self.assertLessEqual(coverage["projected_nodes"], 1 + 6 * coverage["text_mcids"])
+        self.assertLessEqual(coverage["operations"], self.m.prior.MAX_OPERATIONS)
         self.assertGreaterEqual(coverage["text_mcids"], bad["page_count"])
         self.assertGreaterEqual(coverage["operations"], 7 * coverage["text_mcids"] + 543)
         self.m._schema(bad)
@@ -1417,6 +1427,155 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                     object.__setattr__(receipt, "_sealed_sha256", sha256(payload).hexdigest())
                     with self.assertRaises(ValueError):
                         receipt.to_dict()
+
+    def test_shared_content_requires_identical_native_operator_accounting(self):
+        def shared_middle_pages(writer):
+            pages = list(writer.pages)
+            self.assertEqual(len(pages), 6)
+            kept = [pages[0], pages[1], pages[2], pages[-1]]
+            references = {page.indirect_reference for page in kept}
+            page_tree = writer._root_object["/Pages"]
+            self.assertEqual(list(page_tree["/Kids"]),
+                             [page.indirect_reference for page in pages])
+            self.edit_page(writer, 1, lambda ops: ops.extend([([], b"q"), ([], b"Q")]))
+            pages[2][NameObject("/Contents")] = pages[1].raw_get("/Contents")
+            document_node = next(node for node in self.nodes(writer) if node["/S"] == "/Document")
+            document_node[NameObject("/K")] = ArrayObject([
+                child for child in document_node["/K"]
+                if child.get_object().raw_get("/Pg") in references])
+            root = writer._root_object["/StructTreeRoot"]
+            nums = root["/ParentTree"]["/Nums"]
+            parents = {int(page["/StructParents"]) for page in kept}
+            root["/ParentTree"][NameObject("/Nums")] = ArrayObject([
+                value for offset in range(0, len(nums), 2)
+                if int(nums[offset]) in parents for value in nums[offset:offset + 2]])
+            page_tree[NameObject("/Kids")] = ArrayObject([page.indirect_reference for page in kept])
+            page_tree[NameObject("/Count")] = NumberObject(len(kept))
+            _install_flat_id_tree(writer)
+
+        # This is a native structural control, not source association or producer qualification.
+        args = self.rewritten(shared_middle_pages, count=96)
+        self.assertEqual(len(PdfReader(BytesIO(args["pdf_bytes"]), strict=True).pages), 4)
+        raw = self.m._run_worker(args["pdf_bytes"], args["expected_pdf_sha256"])
+        original = self.m.prior._loads(raw.decode("ascii"))
+        self.assertEqual(original["page_count"], 4)
+        self.m._validate_native(original, args["pdf_bytes"], args["expected_profile_sha256"])
+        first, second = original["trace"]["pages"][1:3]
+        self.assertNotEqual(first["reference"], second["reference"])
+        self.assertEqual(first["contents_reference"], second["contents_reference"])
+        self.assertNotEqual(first["mcid_owners"], second["mcid_owners"])
+        for name in ("content_sha256", "decoded_stream_bytes", "events",
+                     "original_operator_count", "projected_operator_ordinals",
+                     "outside_operator_ordinals", "graphic_blocks"):
+            self.assertEqual(first[name], second[name])
+        count = second["original_operator_count"]
+        self.assertEqual(second["outside_operator_ordinals"][-2:], [count - 2, count - 1])
+
+        for case in ("extra-outside-pair", "relocated-outside-pair", "graphic-block-digest"):
+            native = deepcopy(original)
+            page = native["trace"]["pages"][2]
+            if case == "extra-outside-pair":
+                page["outside_operator_ordinals"].extend([count, count + 1])
+                page["original_operator_count"] += 2
+                native["graphics"]["operations"] += 2
+            elif case == "relocated-outside-pair":
+                page["projected_operator_ordinals"] = [
+                    ordinal + 2 for ordinal in page["projected_operator_ordinals"]]
+                page["outside_operator_ordinals"] = [0, 1] + [
+                    ordinal + 2 for ordinal in page["outside_operator_ordinals"]
+                    if ordinal < count - 2]
+                for block in page["graphic_blocks"]:
+                    block["first_operator"] += 2
+                    block["last_operator"] += 2
+            else:
+                block = page["graphic_blocks"][0]
+                self.assertEqual(block["kind"], "artifact")
+                digest = block["sha256"]
+                block["sha256"] = ("0" if digest[0] != "0" else "1") + digest[1:]
+            with self.subTest(shared_stream_disagreement=case):
+                self.assertEqual(native["trace"]["nodes"], original["trace"]["nodes"])
+                self.assertEqual(native["trace"]["fonts"], original["trace"]["fonts"])
+                self.assertEqual(native["trace"]["pages"][:2], original["trace"]["pages"][:2])
+                self.assertEqual(native["trace"]["pages"][3], original["trace"]["pages"][3])
+                for name in ("content_sha256", "decoded_stream_bytes", "events",
+                             "runs", "mcid_owners", "reference", "contents_reference"):
+                    self.assertEqual(page[name], second[name])
+                self.m._schema(native, "native")
+                self.m.prior._reference_consistency(native["trace"])
+                projected, _ = self.m.project_text_trace(native["trace"])
+                fonts = {self.m.prior._reference(font["reference"]): font
+                         for font in projected["fonts"]}
+                for observed in projected["pages"]:
+                    self.assertEqual(self.m.prior._replay(observed, fonts), observed["runs"])
+                mapped = page["projected_operator_ordinals"]
+                self.assertEqual(mapped, sorted(set(mapped)))
+                covered = set(mapped)
+                for block in page["graphic_blocks"]:
+                    interval = set(range(block["first_operator"], block["last_operator"] + 1))
+                    self.assertFalse(covered.intersection(interval))
+                    covered.update(interval)
+                self.assertFalse(covered.intersection(page["outside_operator_ordinals"]))
+                covered.update(page["outside_operator_ordinals"])
+                self.assertEqual(covered, set(range(page["original_operator_count"])))
+                self.assertEqual(native["graphics"]["operations"],
+                                 sum(p["original_operator_count"] for p in native["trace"]["pages"])
+                                 + native["graphics"]["form_operations"])
+                with self.assertRaises(ValueError):
+                    self.m._validate_native(native, args["pdf_bytes"], args["expected_profile_sha256"])
+                with patch.object(self.m, "_run_worker", return_value=self.m.canonical(native)) as worker, (
+                        patch.object(self.m, "inspect_pdf_document_metadata")) as metadata:
+                    self.refuse(args)
+                    worker.assert_called_once_with(args["pdf_bytes"], args["expected_pdf_sha256"])
+                    metadata.assert_not_called()
+
+    def test_receipt_projected_nodes_are_bounded_by_matched_span_grammar(self):
+        genuine = self.run_qa(self.arguments(0)).to_dict()
+        self.assertEqual(self.m.TypedOriginalBrandQA(
+            self.m.canonical(genuine)).to_dict(), genuine)
+        self.assertLessEqual(genuine["coverage"]["projected_nodes"],
+                             1 + 6 * genuine["coverage"]["text_mcids"])
+
+        # These counter controls test necessary receipt invariants; they are not
+        # newly observed PDF results or proof of worker-result authentication.
+        boundary = deepcopy(genuine)
+        coverage = boundary["coverage"]
+        maximum = 1 + 6 * coverage["text_mcids"]
+        coverage["projected_nodes"] = maximum
+        coverage["native_nodes"] = maximum + coverage["accounted_brand_wrapper_nodes"]
+        self.m._schema(boundary)
+        self.assertEqual(self.m.TypedOriginalBrandQA(
+            self.m.canonical(boundary)).to_dict(), boundary)
+
+        bad = deepcopy(boundary)
+        coverage = bad["coverage"]
+        coverage["projected_nodes"] += 1
+        coverage["native_nodes"] += 1
+        self.assertEqual(coverage["projected_nodes"], maximum + 1)
+        self.assertEqual(coverage["native_nodes"], coverage["projected_nodes"]
+                         + coverage["accounted_brand_wrapper_nodes"])
+        self.assertEqual(coverage["native_mcids"], coverage["text_mcids"]
+                         + coverage["figure_count"])
+        self.assertLessEqual(2 * coverage["native_nodes"] - 1
+                             + coverage["native_mcids"], self.m.prior.MAX_VISITS)
+        text_units = bad["source_units"] + bad["brand_text_units"]
+        table_nodes = bad["represented_findings"] + 4 if bad["represented_findings"] else 0
+        self.assertGreaterEqual(coverage["projected_nodes"],
+                                coverage["text_mcids"] + text_units + 1 + table_nodes)
+        self.assertGreaterEqual(coverage["text_mcids"], text_units)
+        self.assertGreaterEqual(coverage["text_mcids"], bad["page_count"])
+        self.assertGreaterEqual(coverage["operations"],
+                                7 * coverage["text_mcids"] + self.m.MIN_FIXED_BRAND_OPERATIONS)
+        self.m._schema(bad)
+        payload = self.m.canonical(bad)
+        with self.subTest(boundary="constructor"):
+            with self.assertRaises(ValueError):
+                self.m.TypedOriginalBrandQA(payload)
+        with self.subTest(boundary="resealed-to-dict"):
+            receipt = self.m.TypedOriginalBrandQA(self.m.canonical(genuine))
+            object.__setattr__(receipt, "_payload", payload)
+            object.__setattr__(receipt, "_sealed_sha256", sha256(payload).hexdigest())
+            with self.assertRaises(ValueError):
+                receipt.to_dict()
 
     def test_receipt_window_count_matches_four_page_boundaries(self):
         source = self.run_qa().to_dict()

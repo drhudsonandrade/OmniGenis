@@ -284,6 +284,14 @@ def _validate_native(record: dict, pdf: bytes, profile: str) -> tuple[dict, dict
             and record["pdf_byte_count"] == len(pdf)
             and record["page_count"] == len(record["trace"]["pages"]))
     prior._reference_consistency(record["trace"])
+    shared_contents = {}
+    for page in record["trace"]["pages"]:
+        key = prior._reference(page["contents_reference"])
+        facts = canonical({name: page[name] for name in (
+            "original_operator_count", "projected_operator_ordinals",
+            "outside_operator_ordinals", "graphic_blocks")})
+        require(key not in shared_contents or shared_contents[key] == facts)
+        shared_contents[key] = facts
     trace, counts = project_text_trace(record["trace"])
     figure = next(n for n in record["trace"]["nodes"] if n["role"] == "/Figure")
     figure_slot = (prior._reference(figure["page_reference"]),
@@ -423,11 +431,14 @@ def _validate_receipt(data: dict) -> None:
     text_units = data["source_units"] + data["brand_text_units"]
     # Each finding needs a body TR, plus Table/THead/TBody/header TR.
     table_nodes = findings + 4 if findings else 0
+    # Matched grammar has at most five non-root nodes per Span, plus one
+    # potentially empty TBody per table; every matched table has a Span.
     require(data["source_units"] >= (findings + 3 if findings else 1)
             and data["pdf_byte_count"] >= len(b"%PDF-1.7")
             and coverage["text_mcids"] >= text_units
             and coverage["projected_nodes"] >= (coverage["text_mcids"] + text_units
                                                 + 1 + table_nodes)
+            and coverage["projected_nodes"] <= 1 + 6 * coverage["text_mcids"]
             and coverage["text_mcids"] >= data["page_count"]
             and coverage["operations"] >= 7 * coverage["text_mcids"] + MIN_FIXED_BRAND_OPERATIONS)
 
