@@ -160,10 +160,11 @@ def render_typed_original_brand_pdf(
     assets: BoundBrandAssets, expected_brand_bundle_sha256: object,
 ) -> tuple[TypedBrandPdfCandidate, dict]:
     """Render exact preloaded originals once and withhold all unqualified release claims."""
-    html, resources, record = prepare_typed_original_brand_pdf(
-        presentation_ir=presentation_ir, expected_ir_sha256=expected_ir_sha256,
-        assets=assets, expected_brand_bundle_sha256=expected_brand_bundle_sha256)
     try:
+        require_no_active_scope()
+        html, resources, record = prepare_typed_original_brand_pdf(
+            presentation_ir=presentation_ir, expected_ir_sha256=expected_ir_sha256,
+            assets=assets, expected_brand_bundle_sha256=expected_brand_bundle_sha256)
         _ready(assets, expected_brand_bundle_sha256)
         pdf = render_typed_brand_pdf(
             html=html, expected_html_sha256=record["html_sha256"],

@@ -578,3 +578,89 @@ class PdfNativeLaunchBudgetTests(unittest.TestCase):
         self.assertEqual(binding, {"path": "reporting/pdf-native-launch-budget.v1.json",
                          "policy_id": policy["policy_id"],
                          "sha256": sha256((ROOT / "reporting/pdf-native-launch-budget.v1.json").read_bytes()).hexdigest()})
+
+    def test_typed_reservation_owner_stale_and_duplicate_rules(self):
+        with budget.reserve_standalone_typed_render() as first:
+            with self.assertRaises(ValueError), budget.reserve_standalone_typed_render():
+                pass
+            errors = []
+            def foreign():
+                for operation in (first.arm, first._finalize):
+                    try:
+                        operation()
+                    except ValueError:
+                        errors.append(True)
+            thread = threading.Thread(target=foreign, daemon=True)
+            thread.start()
+            thread.join(2)
+            self.assertFalse(thread.is_alive())
+            self.assertEqual(errors, [True, True])
+            first.arm()
+            with self.assertRaises(ValueError):
+                first.arm()
+            first.settle(1)
+            with self.assertRaises(ValueError):
+                first.settle(1)
+        with budget.reserve_standalone_typed_render() as second:
+            for stale in (first.arm, first._finalize):
+                with self.assertRaises(ValueError):
+                    stale()
+            self.assertIs(budget._TYPED_RENDER, second)
+        with self.assertRaisesRegex(RuntimeError, "before arm"):
+            with budget.reserve_standalone_typed_render():
+                raise RuntimeError("before arm")
+        with self.scope(self.plan(1)):
+            pass
+
+    def test_native_first_reservation_poisons_next_valid_scheduled_attempt(self):
+        plan = self.plan(1)
+        with self.scope(plan):
+            with self.assertRaises(ValueError), budget.reserve_standalone_typed_render():
+                pass
+            with self.assertRaises(ValueError):
+                launch_one(launch_specs(plan)[0], self.pdf)
+
+    def test_typed_foreign_pid_refuses_before_mutex_and_child_hook_preserves_evidence(self):
+        class NeverLock:
+            def __enter__(self):
+                raise AssertionError("foreign process used inherited mutex")
+        for quarantine in (False, True):
+            with self.subTest(quarantine=quarantine), patch.object(budget, "_TYPED_RENDER", None):
+                context = budget.reserve_standalone_typed_render()
+                ticket = context.__enter__()
+                try:
+                    if quarantine:
+                        ticket.arm()
+                        context.__exit__(None, None, None)
+                    with (patch.object(budget, "_LOCK", NeverLock()),
+                          patch.object(os, "getpid", return_value=ticket.pid + 1)):
+                        with self.assertRaises(ValueError):
+                            ticket._finalize()
+                        with self.assertRaises(ValueError):
+                            budget.require_no_active_scope()
+                        budget._after_fork_child()
+                        self.assertIs(budget._TYPED_RENDER, ticket)
+                        with self.assertRaises(ValueError):
+                            budget.require_no_active_scope()
+                finally:
+                    if not quarantine:
+                        context.__exit__(None, None, None)
+        with patch.object(budget, "_LOCK", NeverLock()):
+            budget._after_fork_child()
+            budget.require_no_active_scope()
+
+    def test_settlement_requires_integer_and_quarantine_cannot_expire(self):
+        with patch.object(budget, "_TYPED_RENDER", None):
+            with budget.reserve_standalone_typed_render() as ticket:
+                ticket.arm()
+                with self.assertRaises(ValueError):
+                    ticket.settle(True)
+            self.assertIs(budget._TYPED_RENDER, ticket)
+            scope = self.scope(self.plan(1))
+            with self.assertRaises(ValueError), scope:
+                pass
+            self.assertTrue(scope._invalid)
+            with self.assertRaises(ValueError), budget.reserve_standalone_typed_render():
+                pass
+            with self.assertRaises(ValueError):
+                ticket._finalize()

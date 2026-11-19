@@ -130,6 +130,24 @@ class TypedOriginalBrandPdfTests(unittest.TestCase):
             self.m.render_typed_original_brand_pdf(**self.arguments())
         self.assertEqual(len(calls), 2)
 
+    def test_nested_render_refuses_before_preparation_and_poisons_next_valid_launch(self):
+        from reporting._pdf_native_launch_budget import NativeLaunchScope
+        from reporting.page_windows import plan_pdf_page_windows
+        from test_reporting_pdf_native_launch_budget import launch_one, launch_specs
+        sample = b"%PDF-1.7 synthetic"
+        plan = plan_pdf_page_windows(pdf_sha256=sha256(sample).hexdigest(), ir_sha256="a"*64,
+            page_count=1, admitted_page_budget=1, pages_per_window=16,
+            inspector_profile_id="generated-pdf-text-window-v1")
+        with (NativeLaunchScope(plan, len(sample)),
+              patch.object(self.m, "prepare_typed_original_brand_pdf", wraps=self.m.prepare_typed_original_brand_pdf) as prepare,
+              patch.object(self.m, "render_typed_brand_pdf") as render):
+            with self.assertRaisesRegex(self.m.TypedOriginalBrandError, "^typed_original_brand_pdf_unavailable$"):
+                self.m.render_typed_original_brand_pdf(**(self.arguments() | {"expected_brand_bundle_sha256": None}))
+            prepare.assert_not_called()
+            render.assert_not_called()
+            with self.assertRaises(ValueError):
+                launch_one(launch_specs(plan)[0], sample)
+
     def test_variable_length_content_remains_complete_with_original_assets(self):
         """Brand composition never truncates the source's admitted finding rows."""
         source = document(60)

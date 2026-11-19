@@ -3,6 +3,8 @@ from decimal import Decimal, localcontext
 from hashlib import sha256
 from importlib.metadata import distribution
 import json
+import os
+import stat
 from math import isfinite
 from pathlib import Path
 import re
@@ -47,10 +49,37 @@ def require(condition):
         raise ValueError("typed brand emission refused")
 
 
+def _bounded_file(path, limit, *, retain=False):
+    """Hash one bounded regular descriptor and reject changes across the read."""
+    flags = os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC
+    fd = os.open(path, flags)
+    try:
+        first = os.fstat(fd)
+        require(stat.S_ISREG(first.st_mode) and 0 < first.st_size <= limit)
+        digest = sha256()
+        content = bytearray()
+        consumed = 0
+        while consumed < first.st_size:
+            chunk = os.read(fd, min(8192, first.st_size - consumed))
+            require(bool(chunk))
+            consumed += len(chunk)
+            digest.update(chunk)
+            if retain:
+                content.extend(chunk)
+        last = os.fstat(fd)
+        named = os.stat(path, follow_symlinks=False)
+        def identity(info):
+            return (info.st_dev, info.st_ino, info.st_mode, info.st_size,
+                    info.st_mtime_ns, info.st_ctime_ns)
+        require(identity(first) == identity(last) == identity(named))
+        return bytes(content), digest.hexdigest()
+    finally:
+        os.close(fd)
+
+
 def _manifest():
     from reporting.pdf_raster_render import _strict
-    require(not MANIFEST.is_symlink() and MANIFEST.stat().st_size <= 16384)
-    raw = MANIFEST.read_bytes()
+    raw, manifest_digest = _bounded_file(MANIFEST, 16384, retain=True)
     data = _strict(raw.decode("ascii"))
     require(type(data) is dict and set(data) == set(CONTRACT) | {"sources"})
     fixed = {key: data[key] for key in CONTRACT}
@@ -59,14 +88,14 @@ def _manifest():
     for name in SOURCES:
         path = ROOT / name
         require(not path.is_symlink() and path.resolve().is_relative_to(ROOT)
-                and sha256(path.read_bytes()).hexdigest() == data["sources"][name])
+                and _bounded_file(path, 65536)[1] == data["sources"][name])
     for package, version in CONTRACT["versions"].items():
         dist = distribution(package)
         require(dist.version == version)
         for name, expected in ENGINES.items():
             if name.startswith(package + "/"):
-                require(sha256(Path(dist.locate_file(name)).read_bytes()).hexdigest() == expected)
-    return data, sha256(raw).hexdigest()
+                require(_bounded_file(Path(dist.locate_file(name)), 65536)[1] == expected)
+    return data, manifest_digest
 
 
 def require_source_manifest() -> dict:

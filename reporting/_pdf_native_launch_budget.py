@@ -46,6 +46,17 @@ FIXED_ROLES = (
 )
 _LOCK = threading.Lock()
 _ACTIVE = None
+_TYPED_RENDER = None
+
+
+def _after_fork_child() -> None:
+    """Retain copied ownership evidence and replace only this process's mutex."""
+    global _LOCK
+    _LOCK = threading.Lock()
+
+
+if hasattr(os, "register_at_fork"):
+    os.register_at_fork(after_in_child=_after_fork_child)
 
 
 def launch_budget_policy() -> dict:
@@ -86,6 +97,75 @@ def _before_lock() -> None:
     if active is not None and os.getpid() != active._pid:
         active._invalid = True
         raise ValueError("native launch foreign process")
+
+    ticket = _TYPED_RENDER
+    if ticket is not None and os.getpid() != ticket.pid:
+        raise ValueError("typed render foreign process")
+
+
+class _TypedRenderTicket:
+    """Private, process/thread-owned custody marker for one fixed render child."""
+    __slots__ = ("pid", "thread", "phase")
+
+    def __init__(self):
+        self.pid = os.getpid()
+        self.thread = threading.current_thread()
+        self.phase = "reserved"
+
+    def _check_owner(self):
+        if (_TYPED_RENDER is not self or self.pid != os.getpid()
+                or self.thread is not threading.current_thread()):
+            raise ValueError("typed render owner")
+
+    def arm(self):
+        _before_lock()
+        with _LOCK:
+            self._check_owner()
+            if self.phase != "reserved":
+                raise ValueError("typed render not reserved")
+            self.phase = "armed"
+
+    def settle(self, status):
+        _before_lock()
+        with _LOCK:
+            self._check_owner()
+            if self.phase != "armed" or type(status) is not int:
+                raise ValueError("typed render unsettled")
+            self.phase = "settled"
+
+    def _finalize(self):
+        global _TYPED_RENDER
+        _before_lock()
+        with _LOCK:
+            self._check_owner()
+            if self.phase == "armed":
+                self.phase = "quarantined"
+            elif self.phase in ("reserved", "settled"):
+                _TYPED_RENDER = None
+            else:
+                raise ValueError("typed render quarantined")
+
+
+@contextmanager
+def reserve_standalone_typed_render():
+    """Exclude native scope activation through owned child cleanup and reap."""
+    global _TYPED_RENDER
+    ticket = _TypedRenderTicket()
+    try:
+        _before_lock()
+        with _LOCK:
+            if _ACTIVE is not None:
+                _ACTIVE._invalid = True
+                raise ValueError("native launch scope already active")
+            if _TYPED_RENDER is not None:
+                raise ValueError("typed render unavailable")
+            _TYPED_RENDER = ticket
+        yield ticket
+    finally:
+        # This unwind region exists before publication. Failed admission cannot
+        # finalize the incumbent's ticket. An unresolved armed ticket stays held.
+        if _TYPED_RENDER is ticket:
+            ticket._finalize()
 
 
 def require_no_active_scope() -> None:
@@ -211,6 +291,9 @@ class NativeLaunchScope:
                 _ACTIVE._invalid = True
                 self._invalid = True
                 raise ValueError("native launch nested activation")
+            if _TYPED_RENDER is not None:
+                self._invalid = True
+                raise ValueError("typed render custody active")
             if self._closed or self._invalid or self._next:
                 self._invalid = True
                 raise ValueError("native launch reused scope")

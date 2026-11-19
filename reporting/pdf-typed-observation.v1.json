@@ -72,7 +72,7 @@
     "reporting/_pdf_font_descriptor_worker.py": "b7d3e0eac5f1ccfabcccc02db89f701fed8edc6ecae9cb5d1400d138a12df894",
     "reporting/_pdf_job_durable_receipt.py": "918b19f1e723bae4cba8fbb62f69a028bec70eadc778bf68d34860c8c407019d",
     "reporting/_pdf_mcid_coverage_worker.py": "a51e90ac2e36c004f68fc972250507b75e09723f6ec1d99334c4309f4fd5475e",
-    "reporting/_pdf_native_launch_budget.py": "2260127303a9cc07a3c3c6a2757d9205db7a068dfac0550ecc99778472cb9c42",
+    "reporting/_pdf_native_launch_budget.py": "05a6d31720f5aec478230c14f1aa2ad426f3e386e473db7c04d47ab179853bd0",
     "reporting/_pdf_object_graph_worker.py": "827be34ee3772fc3e95dbd341891f82586f9dbd5a3d6aa8ecd2ffefefed1c59c",
     "reporting/_pdf_page_surface_worker.py": "99df61d305abfc5dbc16b0deb24edd31bfb3be5aad8e4c06aa3cdbc3414c82d2",
     "reporting/_pdf_page_tags_worker.py": "6d54979b76702a42820b608587dd59d57d628d7def14846d1bb45ded59a0f6ef",

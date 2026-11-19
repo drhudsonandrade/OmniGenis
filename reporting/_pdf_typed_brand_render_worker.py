@@ -14,10 +14,20 @@ if __name__ == "__main__":
 
     if sys.argv[5] != emission.MODE:
         raise SystemExit(64)
-    require_policy()
+    original_reader = inherited.read_raster_inputs
+
+    def protected_reader(request_fd, resource_fd):
+        # The base calls this only after descriptor, limit, lifetime and OS guards.
+        try:
+            require_policy()
+        finally:
+            # Failure responses must also identify the route selected by this child.
+            inherited.PROFILE_ID = emission.PROFILE_ID
+            inherited.MODE = emission.MODE
+            inherited.profile_sha256 = emission.profile_sha256
+        emission.install_in_isolated_render_worker()
+        return original_reader(request_fd, resource_fd)
+
     base.RASTER_MODE = emission.MODE
-    inherited.PROFILE_ID = emission.PROFILE_ID
-    inherited.MODE = emission.MODE
-    inherited.profile_sha256 = emission.profile_sha256
-    emission.install_in_isolated_render_worker()
+    inherited.read_raster_inputs = protected_reader
     raise SystemExit(base.main(sys.argv))

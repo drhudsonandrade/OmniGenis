@@ -1,16 +1,18 @@
 """Opt-in four-descriptor launcher for typed original-brand structural emission."""
 from dataclasses import dataclass, field
 from hashlib import sha256
+import dis
 import os
 from pathlib import Path
 import stat
 import sys
 import tempfile
+from types import FunctionType
 
 from reporting import _pdf_render_worker as worker
 from reporting import _pdf_typed_brand_emission as emission
 from reporting import pdf_raster_render as inherited
-from reporting._pdf_native_launch_budget import require_no_active_scope
+from reporting._pdf_native_launch_budget import require_no_active_scope, reserve_standalone_typed_render
 from reporting.pdf_raster_resources import RasterBundle, _canonical, _digest
 
 DISABLE = ("OMNIGENIS_TYPED_BRAND_RENDER_DISABLED", "OMNIGENIS_TYPED_ORIGINAL_BRAND_PDF_DISABLED",
@@ -21,7 +23,10 @@ DISABLE = ("OMNIGENIS_TYPED_BRAND_RENDER_DISABLED", "OMNIGENIS_TYPED_ORIGINAL_BR
 def require_policy():
     inherited._require_policy()
     emission.require(not any(os.environ.get(key) == "1" for key in DISABLE))
-    return emission.profile_sha256()
+    digest = emission.profile_sha256()
+    emission.require(os.environ.get("OMNIGENIS_PDF_QUALIFICATION_RECEIPT_MODE") == "qualification-only"
+                     and not any(os.environ.get(key) == "1" for key in DISABLE))
+    return digest
 
 
 @dataclass(frozen=True)
@@ -96,6 +101,74 @@ def _decode(raw, fd, html_sha, resources_sha, count, profile):
     return TypedBrandPdfCandidate(pdf, html_sha, resources_sha, data["page_count"], count, profile)
 
 
+def _pre_wait_offsets(code):
+    """Certify the single execution-wait expression in the pinned CPython layout."""
+    emission.require(sys.implementation.name == "cpython" and sys.version_info[:2] == (3, 12)
+                     and len(code.co_code) <= 4096)
+    instructions = tuple(dis.get_instructions(code, adaptive=False, show_caches=False))
+    pattern = (("PUSH_NULL", None), ("LOAD_FAST", "waiter"), ("LOAD_FAST", "process"),
+               ("LOAD_FAST", "wall"), ("KW_NAMES", ("wall_seconds",)), ("CALL", 2),
+               ("STORE_FAST", "status"))
+    operations = tuple((item.opname, item.argval) for item in instructions)
+    matches = [i for i in range(len(operations) - len(pattern) + 1)
+               if operations[i:i + len(pattern)] == pattern]
+    emission.require(len(matches) == 1)
+    # CALL and its inline caches cannot establish that the waiter was never entered.
+    return frozenset(item.offset for item in instructions[:matches[0] + 5])
+
+
+def _confirmed_pre_wait(error, controller_code, waiter_code, offsets):
+    """Use saved exception offsets, never the unwound frame's current instruction."""
+    tb = error.__traceback__
+    position = None
+    for _ in range(32):
+        if tb is None:
+            return position in offsets
+        code = tb.tb_frame.f_code
+        if code is waiter_code:
+            return False
+        if code is controller_code:
+            if position is not None:
+                return False
+            position = tb.tb_lasti
+        tb = tb.tb_next
+    return False
+
+
+def _run_owned_child(command, env, fds):
+    from reporting import adapters
+    waiter = adapters._wait_pdf_render_worker
+    wall = worker.WALL_SECONDS
+    emission.require(type(waiter) is FunctionType and type(wall) is int and wall == 30)
+    waiter_code = waiter.__code__
+    controller_code = _run_owned_child.__code__
+    offsets = _pre_wait_offsets(controller_code)
+    unreturned = object()
+    with reserve_standalone_typed_render() as ticket:
+        process = None
+        status = unreturned
+        try:
+            ticket.arm()
+            process = adapters._start_pdf_render_worker(command, env=env, pass_fds=fds)
+            if process is None:
+                raise ValueError("typed render child unavailable")
+            try:
+                status = waiter(process, wall_seconds=wall)
+            finally:
+                if status is not unreturned:
+                    ticket.settle(status)
+            return status
+        except BaseException as error:
+            try:
+                if process is not None and _confirmed_pre_wait(error, controller_code, waiter_code, offsets):
+                    cleanup_status = waiter(process, wall_seconds=0)
+                    ticket.settle(cleanup_status)
+            except BaseException:
+                # Keep the original failure. Unproved custody stays quarantined.
+                pass
+            raise
+
+
 def render_typed_brand_pdf(*, html: str, expected_html_sha256: str, resources: RasterBundle,
                            expected_resources_sha256: str) -> TypedBrandPdfCandidate:
     from reporting import adapters
@@ -132,8 +205,7 @@ def render_typed_brand_pdf(*, html: str, expected_html_sha256: str, resources: R
                        *(str(fd) for fd in fds[:3]), str(os.getpid()), emission.MODE, str(fds[3])]
             require_no_active_scope()
             require(require_policy() == profile)
-            process = adapters._start_pdf_render_worker(command, env=env, pass_fds=fds)
-            code = adapters._wait_pdf_render_worker(process, wall_seconds=worker.WALL_SECONDS)
+            code = _run_owned_child(command, env, fds)
             require(code == 0 and os.fstat(fds[2]).st_size <= worker.RESULT_BYTES)
             response.seek(0)
             result = _decode(response.read(worker.RESULT_BYTES + 1), fds[1], expected_html_sha256,

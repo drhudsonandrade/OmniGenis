@@ -166,7 +166,7 @@ class TypedBrandEmissionTests(unittest.TestCase):
                      "index", "zero-figures", "wrong-page", "rotation", "bleed",
                      "reversed", "nonfinite", "traversal", "depth", "two-figures",
                      "long-id", "bad-mcid", "missing-headers", "foreign-header", "transform",
-                     "owned-attribute", "shared-attribute", "id-budget"):
+                     "owned-attribute", "shared-attribute", "wide-reference-traversal-budget"):
             with self.subTest(case=case):
                 document, pdf, root, figure, headers = fixture()
                 if case == "cycle":
@@ -200,7 +200,7 @@ class TypedBrandEmissionTests(unittest.TestCase):
                 elif case == "shared-attribute":
                     doc = pdf.objects[int(figure["P"].split()[0])]
                     doc["A"] = figure["A"]
-                elif case == "id-budget":
+                elif case == "wide-reference-traversal-budget":
                     row = pdf.objects[int(headers[0]["P"].split()[0])]
                     table_num = row["P"].split()[0].decode()
                     for i in range(10001):
@@ -239,6 +239,8 @@ class TypedBrandEmissionTests(unittest.TestCase):
                 count = len(pdf.objects)
                 with self.assertRaises(ValueError):
                     emit_structure(document, pdf)
+                if case == "wide-reference-traversal-budget":
+                    self.assertNotIn("IDTree", root)
                 self.assertIs(figure["A"]["BBox"], box)
                 self.assertEqual(len(pdf.objects), count)
 
@@ -400,26 +402,362 @@ class TypedBrandRouteTests(unittest.TestCase):
                     os.pwrite(fds[2], json.dumps(self.record).encode(), 0)
                     return marker
                 scope = self.scope()
+                if case == "active-scope":
+                    decode = self.route._decode
+                    def activate_after_wait(*args):
+                        stack.enter_context(scope)
+                        return decode(*args)
+                    stack.enter_context(patch.object(self.route, "_decode", side_effect=activate_after_wait))
+                waited = []
                 def wait(process, *, wall_seconds):
+                    waited.append(process)
                     self.assertIs(process, marker)
                     self.assertEqual(wall_seconds, 30)
                     if case == "late-disable":
                         stack.enter_context(patch.dict("os.environ", {"OMNIGENIS_TYPED_BRAND_RENDER_DISABLED":"1"}))
-                    elif case == "active-scope":
-                        stack.enter_context(scope)
                     elif case == "resources":
                         original = self.bundle.assets
                         stack.callback(object.__setattr__, self.bundle, "assets", original)
                         object.__setattr__(self.bundle, "assets", ())
                     return 1 if case == "failed" else 0
                 stack.enter_context(patch.object(adapters, "_start_pdf_render_worker", side_effect=start))
-                waited = stack.enter_context(patch.object(adapters, "_wait_pdf_render_worker", side_effect=wait))
+                stack.enter_context(patch.object(adapters, "_wait_pdf_render_worker", new=wait))
                 with self.assertRaisesRegex(ValueError, "^typed_brand_render_refused$"):
                     self.route.render_typed_brand_pdf(**self.args)
-                waited.assert_called_once()
+                self.assertEqual(waited, [marker])
                 if case == "active-scope":
                     self.assertTrue(scope._invalid)
                 self.assertEqual(len(fds), 4)
                 for fd in fds:
                     with self.assertRaises(OSError):
                         os.fstat(fd)
+
+    def test_disable_or_mode_change_during_profile_hash_refuses(self):
+        import os
+        from unittest.mock import patch
+        from reporting import _pdf_typed_brand_emission as core
+        for key in (*self.route.DISABLE, "OMNIGENIS_PDF_QUALIFICATION_RECEIPT_MODE"):
+            with self.subTest(key=key), patch.dict(os.environ):
+                def changed():
+                    os.environ[key] = "1"
+                    return self.profile
+                with patch.object(core, "profile_sha256", side_effect=changed), self.assertRaises(ValueError):
+                    self.route.require_policy()
+
+    def test_typed_wait_excludes_native_activation(self):
+        import threading
+        from unittest.mock import patch
+        from reporting import adapters
+        observed = []
+        def check(phase):
+            results = []
+            def challenger():
+                scope = self.scope()
+                try:
+                    with scope:
+                        pass
+                except ValueError:
+                    results.append(scope._invalid)
+                else:
+                    results.append(False)
+            thread = threading.Thread(target=challenger, daemon=True)
+            thread.start()
+            thread.join(2)
+            self.assertFalse(thread.is_alive())
+            self.assertEqual(results, [True])
+            observed.append(phase)
+        def start(*a, **k):
+            check("launch")
+            return object()
+        def wait(process, *, wall_seconds):
+            check("owned wait and cleanup")
+            return 1
+        with (patch.object(adapters, "_start_pdf_render_worker", side_effect=start),
+              patch.object(adapters, "_wait_pdf_render_worker", new=wait),
+              self.assertRaises(ValueError)):
+            self.route.render_typed_brand_pdf(**self.args)
+        self.assertEqual(observed, ["launch", "owned wait and cleanup"])
+        with self.scope():
+            pass
+
+    def test_profile_sources_use_bounded_descriptor_reads(self):
+        from pathlib import Path
+        from unittest.mock import patch
+        from reporting import _pdf_typed_brand_emission as core
+        with patch.object(Path, "read_bytes", side_effect=AssertionError("unbounded path read")):
+            self.assertEqual(core.profile_sha256(), self.profile)
+
+    def test_bounded_file_refuses_nonregular_oversized_and_changed_descriptors(self):
+        import os
+        from pathlib import Path
+        import tempfile
+        from unittest.mock import patch
+        from reporting import _pdf_typed_brand_emission as core
+        real_open, real_read = os.open, os.read
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "profile"
+            for case in ("fifo", "oversized", "grow", "truncate", "replace", "symlink"):
+                with self.subTest(case=case):
+                    if case == "fifo":
+                        os.mkfifo(path)
+                    elif case == "symlink":
+                        path.symlink_to(Path(tmp) / "unavailable")
+                    else:
+                        path.write_bytes(b"abcde" if case == "oversized" else b"abcd")
+                    captured, sizes = [], []
+                    def open_regular(name, flags):
+                        required = os.O_NONBLOCK | os.O_NOFOLLOW | os.O_CLOEXEC
+                        self.assertEqual(flags & required, required)
+                        fd = real_open(name, flags)
+                        captured.append(fd)
+                        return fd
+                    def read(fd, size):
+                        sizes.append(size)
+                        if case == "grow":
+                            with path.open("ab") as changed:
+                                changed.write(b"e")
+                        elif case == "truncate":
+                            with path.open("wb"):
+                                pass
+                        elif case == "replace":
+                            path.unlink()
+                            path.write_bytes(b"abcd")
+                        else:
+                            self.fail("read crossed initial type or size refusal")
+                        return real_read(fd, size)
+                    with (patch.object(os, "open", side_effect=open_regular),
+                          patch.object(os, "read", side_effect=read),
+                          self.assertRaises((OSError, ValueError))):
+                        core._bounded_file(path, 4, retain=True)
+                    self.assertLessEqual(sum(sizes), 4)
+                    for fd in captured:
+                        with self.assertRaises(OSError):
+                            os.fstat(fd)
+                    path.unlink()
+
+    def test_profiles_bind_each_file_category_to_its_descriptor_budget(self):
+        from unittest.mock import patch
+        from reporting import _pdf_typed_brand_emission as core
+        with patch.object(core, "_bounded_file", wraps=core._bounded_file) as bounded:
+            self.assertEqual(core.profile_sha256(), self.profile)
+        calls = bounded.call_args_list
+        self.assertEqual(calls[0].args, (core.MANIFEST, 16384))
+        self.assertEqual(calls[0].kwargs, {"retain": True})
+        self.assertEqual([call.args for call in calls[1:21]],
+                         [(core.ROOT / name, 65536) for name in core.SOURCES])
+        self.assertEqual(len(calls[21:]), 4)
+        for name, call in zip(core.ENGINES, calls[21:]):
+            self.assertTrue(str(call.args[0]).endswith(name))
+            self.assertEqual(call.args[1], 65536)
+
+    def test_actual_worker_entry_orders_audit_and_finisher_after_startup_guards(self):
+        import json
+        from pathlib import Path
+        import subprocess
+        import sys
+        root = Path(self.route.__file__).resolve().parents[1]
+        # Run module-global child adaptations only in a disposable isolated interpreter.
+        program = """
+import json, os, runpy, sys, tempfile
+from contextlib import ExitStack
+from pathlib import Path
+sys.path.insert(0, sys.argv[1])
+case = sys.argv[2]
+from reporting import _pdf_render_worker as base, _pdf_process_sandbox as sandbox
+from reporting import _pdf_typed_brand_emission as core, pdf_typed_brand_render as route
+from reporting import pdf_raster_render as inherited
+events = []
+def stage(label):
+    def run(*a, **k):
+        events.append(label)
+        if label == case or label == "request":
+            raise ValueError("fixture stop")
+        return {}
+    return run
+base._apply_resource_limits = stage("limits")
+base._arm_worker_lifetime = stage("lifetime")
+sandbox.enforce_pdf_landlock = stage("landlock")
+sandbox.enforce_pdf_network_filter = stage("network")
+route.require_policy = stage("audit")
+core.install_in_isolated_render_worker = stage("finisher")
+inherited.read_raster_inputs = stage("request")
+base._failure = lambda *a, **k: 1
+with ExitStack() as stack:
+    fds = [stack.enter_context(tempfile.TemporaryFile()).fileno() for _ in range(4)]
+    if case == "descriptor":
+        fds[1] = fds[0]
+    script = Path(core.__file__).with_name("_pdf_typed_brand_render_worker.py")
+    sys.argv = [str(script), *map(str, fds[:3]), str(os.getpid()), core.MODE, str(fds[3])]
+    try:
+        runpy.run_path(str(script), run_name="__main__")
+    except SystemExit:
+        pass
+print(json.dumps(events))
+"""
+        order = ["limits", "lifetime", "landlock", "network", "audit", "finisher", "request"]
+        for case in ("descriptor", "network", "audit", "request"):
+            with self.subTest(case=case):
+                completed = subprocess.run([sys.executable, "-I", "-B", "-c", program,
+                                            str(root), case], capture_output=True,
+                                           check=True, text=True, timeout=10)
+                expected = [] if case == "descriptor" else order[:order.index(case) + 1]
+                self.assertEqual(json.loads(completed.stdout), expected)
+
+    def test_postflight_hash_disable_withholds_result_after_settled_child(self):
+        from contextlib import ExitStack
+        import os
+        from unittest.mock import patch
+        from reporting import adapters, _pdf_typed_brand_emission as core
+        with ExitStack() as stack:
+            stack.enter_context(patch.dict(os.environ))
+            def stale():
+                os.environ["OMNIGENIS_TYPED_BRAND_RENDER_DISABLED"] = "1"
+                return self.profile
+            def decode(*args):
+                stack.enter_context(patch.object(core, "profile_sha256", side_effect=stale))
+                return object()
+            stack.enter_context(patch.object(self.route, "_decode", side_effect=decode))
+            start = stack.enter_context(patch.object(adapters, "_start_pdf_render_worker", return_value=object()))
+            waits = []
+            def wait(process, *, wall_seconds):
+                waits.append(wall_seconds)
+                return 0
+            stack.enter_context(patch.object(adapters, "_wait_pdf_render_worker", new=wait))
+            with self.assertRaisesRegex(ValueError, "^typed_brand_render_refused$"):
+                self.route.render_typed_brand_pdf(**self.args)
+            start.assert_called_once()
+            self.assertEqual(waits, [30])
+            with self.scope():
+                pass
+
+    def test_ambiguous_launch_wait_and_handoff_preserve_custody(self):
+        from contextlib import ExitStack
+        import dis
+        import inspect
+        import sys
+        from unittest.mock import patch
+        from reporting import adapters, _pdf_native_launch_budget as budget
+        fn = self.route._run_owned_child
+        lines, first = inspect.getsourcelines(fn)
+        handoff = first + next(i for i, line in enumerate(lines)
+                               if line.strip() == "status = waiter(process, wall_seconds=wall)")
+        site = {op.opname: op.offset for op in dis.get_instructions(fn)
+                if op.positions.lineno == handoff}
+        for case in ("uncertain-start", "no-handle", "wait-error", "wait-noninteger",
+                     "handoff-settled", "handoff-unsettled", "call-boundary",
+                     "post-return", "classifier-failure"):
+            with self.subTest(case=case), ExitStack() as stack:
+                self.assertIsNone(budget._TYPED_RENDER)
+                stack.enter_context(patch.object(budget, "_TYPED_RENDER", None))
+                handle = SimpleNamespace(returncode=None)
+                calls = []
+                interruption = KeyboardInterrupt("interrupted known handle")
+                def start(*a, **k):
+                    if case == "uncertain-start":
+                        raise KeyboardInterrupt("uncertain launch")
+                    return None if case == "no-handle" else handle
+                def wait(child, *, wall_seconds):
+                    self.assertIs(child, handle)
+                    calls.append(wall_seconds)
+                    if case in ("wait-error", "handoff-unsettled"):
+                        raise RuntimeError("cleanup unconfirmed")
+                    if case == "wait-noninteger":
+                        return True
+                    return 0
+                stack.enter_context(patch.object(adapters, "_start_pdf_render_worker", side_effect=start))
+                stack.enter_context(patch.object(adapters, "_wait_pdf_render_worker", new=wait))
+                if case == "classifier-failure":
+                    stack.enter_context(patch.object(self.route, "_confirmed_pre_wait", side_effect=SystemExit))
+                injected = case.startswith("handoff") or case in ("call-boundary", "post-return", "classifier-failure")
+                if injected:
+                    def interrupt(frame, event, arg):
+                        if frame.f_code is fn.__code__:
+                            frame.f_trace_opcodes = case in ("call-boundary", "post-return")
+                            if frame.f_trace_opcodes:
+                                trap = site["CALL"] if case == "call-boundary" else site["STORE_FAST"]
+                                if event == "opcode" and frame.f_lasti == trap:
+                                    raise interruption
+                            elif event == "line" and frame.f_lineno == handoff:
+                                raise interruption
+                        return interrupt
+                    # CPython 3.12 enables opcode tracing when a frame requests
+                    # opcode events before the trace function is installed.
+                    test_frame = sys._getframe()
+                    stack.callback(setattr, test_frame, "f_trace_opcodes", test_frame.f_trace_opcodes)
+                    test_frame.f_trace_opcodes = case in ("call-boundary", "post-return")
+                    stack.callback(sys.settrace, sys.gettrace())
+                    sys.settrace(interrupt)
+                expected_error = (KeyboardInterrupt if injected or case == "uncertain-start" else
+                                  ValueError if case in ("wait-noninteger", "no-handle") else RuntimeError)
+                with self.assertRaises(expected_error) as error:
+                    fn([], {}, ())
+                if injected:
+                    self.assertIs(error.exception, interruption)
+                expected_waits = ([0] if case.startswith("handoff") else
+                                  [30] if case.startswith("wait-") or case == "post-return" else [])
+                self.assertEqual(calls, expected_waits)
+                if case == "handoff-settled":
+                    with self.scope():
+                        pass
+                else:
+                    self.assertEqual(budget._TYPED_RENDER.phase, "quarantined")
+                    with self.assertRaises(ValueError), self.scope():
+                        pass
+                    with self.assertRaises(ValueError), budget.reserve_standalone_typed_render():
+                        pass
+
+    def test_native_activation_during_final_policy_refuses_before_spawn(self):
+        from contextlib import ExitStack
+        from unittest.mock import patch
+        from reporting import adapters
+        from test_reporting_pdf_native_launch_budget import launch_one, launch_specs
+        from reporting._pdf_native_launch_budget import NativeLaunchScope
+        from reporting.page_windows import plan_pdf_page_windows
+        from hashlib import sha256
+        plan = plan_pdf_page_windows(pdf_sha256=sha256(self.pdf).hexdigest(), ir_sha256="b"*64,
+            page_count=1, admitted_page_budget=1, pages_per_window=16,
+            inspector_profile_id="generated-pdf-text-window-v1")
+        scope = NativeLaunchScope(plan, len(self.pdf))
+        with ExitStack() as stack:
+            active = []
+            policy = self.route.require_policy
+            def enter_before_reserve():
+                digest = policy()
+                if active:
+                    stack.enter_context(scope)
+                active.append(True)
+                return digest
+            stack.enter_context(patch.object(self.route, "require_policy", side_effect=enter_before_reserve))
+            start = stack.enter_context(patch.object(adapters, "_start_pdf_render_worker"))
+            with self.assertRaisesRegex(ValueError, "^typed_brand_render_refused$"):
+                self.route.render_typed_brand_pdf(**self.args)
+            self.assertEqual(len(active), 2)
+            start.assert_not_called()
+            with self.assertRaises(ValueError):
+                launch_one(launch_specs(plan)[0], self.pdf)
+
+    def test_uncertified_wait_shape_refuses_before_launch(self):
+        from unittest.mock import patch
+        from reporting import adapters
+        with (patch.object(self.route.dis, "get_instructions", return_value=()),
+              patch.object(adapters, "_start_pdf_render_worker") as start):
+            with self.assertRaises(ValueError):
+                self.route._run_owned_child([], {}, ())
+            start.assert_not_called()
+            with self.scope():
+                pass
+
+    def test_uncertain_traceback_evidence_never_authorizes_cleanup(self):
+        controller, waiter, other = object(), object(), object()
+        def traceback_record(code, offset, following=None):
+            return SimpleNamespace(tb_frame=SimpleNamespace(f_code=code), tb_lasti=offset, tb_next=following)
+        pre = traceback_record(controller, 24)
+        entered = traceback_record(waiter, 0)
+        deep = pre
+        for _ in range(32):
+            deep = traceback_record(other, 24, deep)
+        for tb in (None, traceback_record(other, 24), traceback_record(controller, 26),
+                   traceback_record(controller, 24, pre), traceback_record(controller, 24, entered), deep):
+            with self.subTest(traceback=tb):
+                error = SimpleNamespace(__traceback__=tb)
+                self.assertFalse(self.route._confirmed_pre_wait(error, controller, waiter, {24}))

@@ -99,7 +99,7 @@
   "reused_source_sha256": {
     "LICENSE": "d8e46df8dfae62e6d53648256a72a08d0abd126bba8fdb4a77a53eb8b469aa00",
     "THIRD-PARTY-NOTICES.txt": "d08cd95ba4f026b427deb502a284aee6ba2159c0e372674bf5e1e384afa80788",
-    "reporting/_pdf_native_launch_budget.py": "2260127303a9cc07a3c3c6a2757d9205db7a068dfac0550ecc99778472cb9c42",
+    "reporting/_pdf_native_launch_budget.py": "05a6d31720f5aec478230c14f1aa2ad426f3e386e473db7c04d47ab179853bd0",
     "reporting/_pdf_process_lifecycle.py": "6f7e39dd83d5f1d2f3726527c83d282b11f064222e3d1c46cbf0c369d297f465",
     "reporting/_pdf_process_sandbox.py": "76a4648556ecd3d3c39c1ac33122c027ab90769b5e5e9c244b79657454635a3f",
     "reporting/_pdf_raster_job_observation.py": "f69628c645a69ff2ac25ad24362ede4c9a29ec472503e1e7e0fb313945f3813e",
@@ -108,7 +108,7 @@
     "reporting/page_checkpoints.py": "4aebcc9b2ae76d734189d286b4fcc17366ab21b2ce85d5210c094dd32995a51f",
     "reporting/page_windows.py": "c8d6cb86f7876f7c02f878ecead5b93b09ee1024d68f7e68d020bdc62c843833",
     "reporting/pdf-font-style.v1.json": "e0a844bf84569c8a27bf4ec0414aae0b92ad2f59f064c6ee87c85172ad1c7083",
-    "reporting/pdf-native-source-job.v1.json": "13d3dabd38b02d44625100e6703b6e050bf496eb2315a3f07561f12c4ec6c0f8",
+    "reporting/pdf-native-source-job.v1.json": "e2e3ea10c977fbb83b49e8a53fab4dbea424a6ac458ba2212f1c3a54324fffee",
     "reporting/pdf_candidate_qa.py": "40a27ecc9a1f406182fa7b6403abf3d56e8b666dfb8a334846ef5e56f157cb61",
     "reporting/pdf_content.py": "694040deb3dfe24b9c56d93b0161dd4366e3a0e33d4ca5f2eb50c228db4e5b1b",
     "reporting/pdf_font_selection.py": "5c5771d1d6b86aa1695e5d6f3abc42f8d7599deb5dd9f65215488e1e705be034",
