@@ -293,15 +293,28 @@ def _validate_native(record: dict, pdf: bytes, profile: str) -> tuple[dict, dict
     fonts = {prior._reference(f["reference"]): f for f in trace["fonts"]}
     require(len(fonts) == len(trace["fonts"]))
     for font in fonts.values():
-        require(len(dict(font["mapping"])) == len(font["mapping"]))
+        mapping = dict(font["mapping"])
+        require(len(mapping) == len(font["mapping"])
+                and len(mapping) <= font["explicit_cid_width_count"])
+        for text in mapping.values():
+            require(1 <= len(text.encode("utf-16-be", "strict")) // 2 <= 16)
+    require(sum(font["cmap_decoded_bytes"] for font in fonts.values())
+            <= prior.MAX_CMAP_TOTAL
+            and sum(len(font["mapping"]) for font in fonts.values())
+            <= prior.MAX_CMAP_RECORDS)
     require(sum(page["decoded_stream_bytes"] for page in trace["pages"])
             <= prior.MAX_STREAM_BYTES)
     operations = text_bytes = figures = artifacts = dna_paints = 0
     for original, page in zip(record["trace"]["pages"], trace["pages"], strict=True):
+        for state in page["graphics_states"]:
+            alpha = [value for value in (state["fill_alpha"], state["stroke_alpha"])
+                     if value is not None]
+            require(len(alpha) == 1 and prior._num(alpha[0]) == 1)
         mapped = original["projected_operator_ordinals"]
         require(len(mapped) == len(page["events"]) and mapped == sorted(set(mapped)))
         in_span = False
         for index, event in enumerate(page["events"]):
+            require(in_span or event["operator"] == "BDC")
             if in_span:
                 require(mapped[index] == mapped[index - 1] + 1)
             if event["operator"] == "BDC":

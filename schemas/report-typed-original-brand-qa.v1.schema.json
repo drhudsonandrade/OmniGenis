@@ -1026,8 +1026,8 @@
             ],
             "additionalProperties": false
           },
-          "maxItems": 20000,
-          "minItems": 0
+          "maxItems": 3,
+          "minItems": 1
         },
         "events": {
           "type": "array",

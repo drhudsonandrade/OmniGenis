@@ -1696,5 +1696,360 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                     write.assert_not_called()
 
 
+    def test_native_cmap_aggregate_budgets_count_shared_font_records(self):
+        def shared_fonts(writer):
+            resources = writer.pages[0]["/Resources"]["/Font"]
+            source = next(iter(resources.values())).get_object()
+            for index in range(4):
+                name = NameObject("/SharedBudgetFont" + str(index))
+                self.assertNotIn(name, resources)
+                resources[name] = writer._add_object(DictionaryObject(dict(source)))
+        args = self.rewritten(shared_fonts)
+        raw = self.m._run_worker(args["pdf_bytes"], args["expected_pdf_sha256"])
+        original = self.m.prior._loads(raw.decode("ascii"))
+        self.m._validate_native(original, args["pdf_bytes"], args["expected_profile_sha256"])
+
+        def groups(native, key):
+            result = {}
+            for font in native["trace"]["fonts"]:
+                result.setdefault(tuple(font[key]), []).append(font)
+            return result
+
+        initial = groups(original, "cmap_reference")
+        shared = next(key for key, members in initial.items() if len(members) >= 5)
+        single = next(key for key, members in initial.items() if len(members) == 1)
+        self.assertLess(len(initial), len(original["trace"]["fonts"]))
+
+        def pad_mapping(members, size):
+            mapping = deepcopy(members[0]["mapping"])
+            used = {code for code, _ in mapping}
+            self.assertTrue(len(mapping) <= size <= 4096)
+            for number in range(65536):
+                if len(mapping) == size:
+                    break
+                code = format(number, "04x")
+                if code not in used:
+                    mapping.append([code, "Z"])
+                    used.add(code)
+            self.assertEqual(len(mapping), size)
+            for font in members:
+                font["mapping"] = deepcopy(mapping)
+
+        def cover_widths(native):
+            for members in groups(native, "cid_reference").values():
+                width_count = max(max(font["explicit_cid_width_count"], len(font["mapping"]))
+                                  for font in members)
+                self.assertLessEqual(width_count, 4096)
+                for font in members:
+                    font["explicit_cid_width_count"] = width_count
+
+        def unchanged_replay(native):
+            self.assertEqual(native["trace"]["pages"], original["trace"]["pages"])
+            self.assertEqual(native["trace"]["nodes"], original["trace"]["nodes"])
+            self.assertEqual(native["graphics"], original["graphics"])
+            self.m._schema(native, "native")
+            self.m.prior._reference_consistency(native["trace"])
+            projected, _ = self.m.project_text_trace(native["trace"])
+            fonts = {self.m.prior._reference(font["reference"]): font
+                     for font in projected["fonts"]}
+            for font in fonts.values():
+                self.assertEqual(len(dict(font["mapping"])), len(font["mapping"]))
+                self.assertLessEqual(len(font["mapping"]), font["explicit_cid_width_count"])
+                self.assertTrue(0 < font["cmap_decoded_bytes"] <= self.m.prior.MAX_CMAP_BYTES)
+            for page in projected["pages"]:
+                self.assertEqual(self.m.prior._replay(page, fonts), page["runs"])
+
+        for budget, limit in (("bytes", self.m.prior.MAX_CMAP_TOTAL),
+                              ("records", self.m.prior.MAX_CMAP_RECORDS)):
+            with self.subTest(budget=budget):
+                boundary = deepcopy(original)
+                by_cmap = groups(boundary, "cmap_reference")
+                measure = (lambda font: font["cmap_decoded_bytes"]) if budget == "bytes" else (
+                    lambda font: len(font["mapping"]))
+                other = sum(measure(font) for key, members in by_cmap.items()
+                            if key != shared for font in members)
+                amount, remainder = divmod(limit - other, len(by_cmap[shared]))
+                if budget == "bytes":
+                    for font in by_cmap[shared]:
+                        font["cmap_decoded_bytes"] = amount
+                    by_cmap[single][0]["cmap_decoded_bytes"] += remainder
+                else:
+                    pad_mapping(by_cmap[shared], amount)
+                    pad_mapping(by_cmap[single], measure(by_cmap[single][0]) + remainder)
+                    cover_widths(boundary)
+                self.assertEqual(sum(measure(font) for font in boundary["trace"]["fonts"]), limit)
+                unchanged_replay(boundary)
+                self.m._validate_native(boundary, args["pdf_bytes"], args["expected_profile_sha256"])
+
+                bad = deepcopy(boundary)
+                by_cmap = groups(bad, "cmap_reference")
+                if budget == "bytes":
+                    by_cmap[single][0]["cmap_decoded_bytes"] += 1
+                else:
+                    pad_mapping(by_cmap[single], measure(by_cmap[single][0]) + 1)
+                    cover_widths(bad)
+                self.assertEqual(sum(measure(font) for font in bad["trace"]["fonts"]), limit + 1)
+                # Counting shared objects only once would incorrectly admit this packet.
+                self.assertLessEqual(sum(measure(members[0]) for members in by_cmap.values()), limit)
+                if budget == "bytes":
+                    self.assertLessEqual(sum(len(font["mapping"]) for font in bad["trace"]["fonts"]),
+                                         self.m.prior.MAX_CMAP_RECORDS)
+                else:
+                    self.assertLessEqual(sum(font["cmap_decoded_bytes"]
+                                             for font in bad["trace"]["fonts"]),
+                                         self.m.prior.MAX_CMAP_TOTAL)
+                unchanged_replay(bad)
+                with self.assertRaises(ValueError):
+                    self.m._validate_native(bad, args["pdf_bytes"], args["expected_profile_sha256"])
+                payload = self.m.canonical(bad)
+                self.assertLessEqual(len(payload), self.m.prior.RESULT_BYTES)
+                with patch.object(self.m, "_run_worker", return_value=payload) as worker, patch.object(
+                        self.m, "inspect_pdf_document_metadata") as metadata:
+                    self.refuse(args)
+                    worker.assert_called_once_with(args["pdf_bytes"], args["expected_pdf_sha256"])
+                    metadata.assert_not_called()
+
+    def test_native_font_mapping_requires_widths_and_utf16_units(self):
+        args = self.arguments()
+        original = self.native_record()
+        self.m._validate_native(original, args["pdf_bytes"], args["expected_profile_sha256"])
+
+        def unchanged_replay(native):
+            self.assertEqual(native["trace"]["pages"], original["trace"]["pages"])
+            self.assertEqual(native["trace"]["nodes"], original["trace"]["nodes"])
+            self.assertEqual(native["graphics"], original["graphics"])
+            self.m._schema(native, "native")
+            self.m.prior._reference_consistency(native["trace"])
+            projected, _ = self.m.project_text_trace(native["trace"])
+            fonts = {self.m.prior._reference(font["reference"]): font
+                     for font in projected["fonts"]}
+            self.assertLessEqual(sum(len(font["mapping"]) for font in fonts.values()),
+                                 self.m.prior.MAX_CMAP_RECORDS)
+            self.assertLessEqual(sum(font["cmap_decoded_bytes"] for font in fonts.values()),
+                                 self.m.prior.MAX_CMAP_TOTAL)
+            for font in fonts.values():
+                self.assertEqual(len(dict(font["mapping"])), len(font["mapping"]))
+            for page in projected["pages"]:
+                self.assertEqual(self.m.prior._replay(page, fonts), page["runs"])
+
+        def refuse_native(native):
+            unchanged_replay(native)
+            with self.assertRaises(ValueError):
+                self.m._validate_native(native, args["pdf_bytes"], args["expected_profile_sha256"])
+            with patch.object(self.m, "_run_worker", return_value=self.m.canonical(native)) as worker, (
+                    patch.object(self.m, "inspect_pdf_document_metadata")) as metadata:
+                self.refuse(args)
+                worker.assert_called_once_with(args["pdf_bytes"], args["expected_pdf_sha256"])
+                metadata.assert_not_called()
+
+        largest = max(original["trace"]["fonts"], key=lambda font: len(font["mapping"]))
+        cid = largest["cid_reference"]
+        width_count = len(largest["mapping"])
+        self.assertGreater(width_count, 1)
+        boundary = deepcopy(original)
+        for font in boundary["trace"]["fonts"]:
+            if font["cid_reference"] == cid:
+                font["explicit_cid_width_count"] = width_count
+        unchanged_replay(boundary)
+        self.m._validate_native(boundary, args["pdf_bytes"], args["expected_profile_sha256"])
+        bad = deepcopy(boundary)
+        for font in bad["trace"]["fonts"]:
+            if font["cid_reference"] == cid:
+                font["explicit_cid_width_count"] = width_count - 1
+        with self.subTest(mapping="width-count-one-below"):
+            refuse_native(bad)
+
+        cmap = largest["cmap_reference"]
+        known = {code for font in original["trace"]["fonts"] if font["cmap_reference"] == cmap
+                 for code, _ in font["mapping"]}
+        unused = next(format(number, "04x") for number in range(65536)
+                      if format(number, "04x") not in known)
+        affected = {tuple(font["reference"]) for font in original["trace"]["fonts"]
+                    if font["cmap_reference"] == cmap}
+        used = {value[offset:offset + 4] for page in original["trace"]["pages"]
+                for run in page["runs"] if tuple(run["font_reference"]) in affected
+                for kind, value in run["parts"] if kind == "codes"
+                for offset in range(0, len(value), 4)}
+        self.assertNotIn(unused, used)
+
+        def unused_mapping(text):
+            native = deepcopy(original)
+            cid_groups = {}
+            for font in native["trace"]["fonts"]:
+                if font["cmap_reference"] == cmap:
+                    font["mapping"].append([unused, text])
+                cid_groups.setdefault(tuple(font["cid_reference"]), []).append(font)
+            for members in cid_groups.values():
+                width = max(max(font["explicit_cid_width_count"], len(font["mapping"]))
+                            for font in members)
+                self.assertLessEqual(width, 4096)
+                for font in members:
+                    font["explicit_cid_width_count"] = width
+                    self.assertLessEqual(len(font["mapping"]), width)
+            return native
+
+        for text in ("Z", "a" * 16, "\U0001f600" * 8):
+            with self.subTest(valid_utf16_units=len(text.encode("utf-16-be")) // 2):
+                native = unused_mapping(text)
+                unchanged_replay(native)
+                self.m._validate_native(native, args["pdf_bytes"], args["expected_profile_sha256"])
+        overflow = "\U0001f600" * 8 + "a"
+        self.assertEqual(len(overflow.encode("utf-16-be")) // 2, 17)
+        for label, text in (("seventeen-utf16-units", overflow), ("unpaired-surrogate", "\ud800")):
+            self.assertLessEqual(len(text), 16)
+            with self.subTest(invalid_unused_mapping=label):
+                refuse_native(unused_mapping(text))
+
+    def test_projected_events_must_stay_inside_native_spans(self):
+        pairs = {}
+        def outside_pairs(writer):
+            def alter(operations):
+                starts = [index for index, (operands, op) in enumerate(operations)
+                          if op == b"BDC" and operands[0] == "/Span"]
+                self.assertGreaterEqual(len(starts), 2)
+                count = len(operations)
+                pairs.update(prefix=0, between=starts[1] + 2, suffix=count + 4)
+                for index in (count, starts[1], 0):
+                    operations[index:index] = [([], b"q"), ([], b"Q")]
+            self.edit_page(writer, 0, alter)
+        args = self.rewritten(outside_pairs)
+        raw = self.m._run_worker(args["pdf_bytes"], args["expected_pdf_sha256"])
+        original = self.m.prior._loads(raw.decode("ascii"))
+        self.m._validate_native(original, args["pdf_bytes"], args["expected_profile_sha256"])
+        original_page = original["trace"]["pages"][0]
+        for first in pairs.values():
+            self.assertTrue({first, first + 1}.issubset(original_page["outside_operator_ordinals"]))
+        for position, first in pairs.items():
+            with self.subTest(projected_outside_pair=position):
+                native = deepcopy(original)
+                page = native["trace"]["pages"][0]
+                index = sum(ordinal < first for ordinal in page["projected_operator_ordinals"])
+                if index:
+                    self.assertEqual(page["events"][index - 1]["operator"], "EMC")
+                if index < len(page["events"]):
+                    self.assertEqual(page["events"][index]["operator"], "BDC")
+                page["events"][index:index] = [
+                    {"ordinal": 0, "operator": "q", "operands": []},
+                    {"ordinal": 0, "operator": "Q", "operands": []}]
+                for ordinal, event in enumerate(page["events"]):
+                    event["ordinal"] = ordinal
+                page["projected_operator_ordinals"][index:index] = [first, first + 1]
+                page["outside_operator_ordinals"] = [ordinal for ordinal in page["outside_operator_ordinals"]
+                                                    if ordinal not in {first, first + 1}]
+                for run in page["runs"]:
+                    if run["operator_ordinal"] >= index:
+                        run["operator_ordinal"] += 2
+                mapped = page["projected_operator_ordinals"]
+                self.assertEqual(mapped, sorted(set(mapped)))
+                starts = [i for i, event in enumerate(page["events"]) if event["operator"] == "BDC"]
+                ends = [i for i, event in enumerate(page["events"]) if event["operator"] == "EMC"]
+                self.assertEqual(len(starts), len(ends))
+                for begin, end in zip(starts, ends, strict=True):
+                    self.assertEqual(mapped[begin:end + 1], list(range(mapped[begin], mapped[end] + 1)))
+                covered = set(mapped)
+                self.assertFalse(covered.intersection(page["outside_operator_ordinals"]))
+                covered.update(page["outside_operator_ordinals"])
+                for block in page["graphic_blocks"]:
+                    interval = set(range(block["first_operator"], block["last_operator"] + 1))
+                    self.assertFalse(covered.intersection(interval))
+                    covered.update(interval)
+                self.assertEqual(covered, set(range(page["original_operator_count"])))
+                self.assertEqual(native["trace"]["nodes"], original["trace"]["nodes"])
+                self.assertEqual(native["trace"]["fonts"], original["trace"]["fonts"])
+                self.assertEqual(native["graphics"], original["graphics"])
+                self.assertEqual(page["graphic_blocks"], original_page["graphic_blocks"])
+                self.assertEqual(page["mcid_owners"], original_page["mcid_owners"])
+                for observed, source in zip(page["runs"], original_page["runs"], strict=True):
+                    self.assertEqual({key: value for key, value in observed.items() if key != "operator_ordinal"},
+                                     {key: value for key, value in source.items() if key != "operator_ordinal"})
+                self.m._schema(native, "native")
+                self.m.prior._reference_consistency(native["trace"])
+                projected, _ = self.m.project_text_trace(native["trace"])
+                fonts = {self.m.prior._reference(font["reference"]): font for font in projected["fonts"]}
+                for projected_page in projected["pages"]:
+                    self.assertEqual(self.m.prior._replay(projected_page, fonts), projected_page["runs"])
+                with self.assertRaises(ValueError):
+                    self.m._validate_native(native, args["pdf_bytes"], args["expected_profile_sha256"])
+                with patch.object(self.m, "_run_worker", return_value=self.m.canonical(native)) as worker, (
+                        patch.object(self.m, "inspect_pdf_document_metadata")) as metadata:
+                    self.refuse(args)
+                    worker.assert_called_once_with(args["pdf_bytes"], args["expected_pdf_sha256"])
+                    metadata.assert_not_called()
+
+    def test_native_graphics_states_require_bounded_opaque_inventory(self):
+        from jsonschema.exceptions import ValidationError
+
+        args = self.arguments()
+        original = self.native_record()
+        self.m._validate_native(original, args["pdf_bytes"], args["expected_profile_sha256"])
+        states = [
+            {"name": "/InventoryState0", "fill_alpha": "1.0", "stroke_alpha": None},
+            {"name": "/InventoryState1", "fill_alpha": None, "stroke_alpha": "1.000"},
+            {"name": "/InventoryState2", "fill_alpha": "1", "stroke_alpha": None},
+            {"name": "/InventoryState3", "fill_alpha": None, "stroke_alpha": "1"}]
+
+        def inventory(count):
+            native = deepcopy(original)
+            page = native["trace"]["pages"][0]
+            page["graphics_states"] = deepcopy(states[:count])
+            for event in page["events"]:
+                if event["operator"] == "gs":
+                    event["operands"] = [states[0]["name"]]
+            return native
+
+        def unchanged_replay(native):
+            self.m.prior._reference_consistency(native["trace"])
+            projected, _ = self.m.project_text_trace(native["trace"])
+            fonts = {self.m.prior._reference(font["reference"]): font for font in projected["fonts"]}
+            for page, before in zip(projected["pages"], original["trace"]["pages"], strict=True):
+                self.assertEqual(page["runs"], before["runs"])
+                self.assertEqual(self.m.prior._replay(page, fonts), page["runs"])
+                self.assertEqual(page["projected_operator_ordinals"], before["projected_operator_ordinals"])
+                self.assertEqual(page["outside_operator_ordinals"], before["outside_operator_ordinals"])
+                self.assertEqual(page["graphic_blocks"], before["graphic_blocks"])
+            self.assertEqual(native["trace"]["nodes"], original["trace"]["nodes"])
+            self.assertEqual(native["trace"]["fonts"], original["trace"]["fonts"])
+            self.assertEqual(native["graphics"], original["graphics"])
+
+        def public_refusal(native):
+            with patch.object(self.m, "_run_worker", return_value=self.m.canonical(native)) as worker, (
+                    patch.object(self.m, "inspect_pdf_document_metadata")) as metadata:
+                self.refuse(args)
+                worker.assert_called_once_with(args["pdf_bytes"], args["expected_pdf_sha256"])
+                metadata.assert_not_called()
+
+        for count in (1, 3):
+            with self.subTest(valid_inventory=count):
+                native = inventory(count)
+                self.m._schema(native, "native")
+                unchanged_replay(native)
+                self.m._validate_native(native, args["pdf_bytes"], args["expected_profile_sha256"])
+        for count, validator in ((0, "minItems"), (4, "maxItems")):
+            with self.subTest(invalid_inventory=count):
+                native = inventory(count)
+                with self.assertRaises(ValidationError) as caught:
+                    self.m._schema(native, "native")
+                self.assertEqual(caught.exception.validator, validator)
+                self.assertEqual(list(caught.exception.absolute_path),
+                                 ["trace", "pages", 0, "graphics_states"])
+                with self.assertRaises(ValidationError):
+                    self.m._validate_native(native, args["pdf_bytes"], args["expected_profile_sha256"])
+                public_refusal(native)
+        for label, fill, stroke in (("fractional-fill", "0.5", None),
+                                    ("fractional-stroke", None, ".5"),
+                                    ("both-alphas-present", "1", "1")):
+            with self.subTest(invalid_unused_state=label):
+                native = inventory(3)
+                unused = native["trace"]["pages"][0]["graphics_states"][2]
+                self.assertFalse(any(event["operator"] == "gs" and event["operands"] == [unused["name"]]
+                                     for event in native["trace"]["pages"][0]["events"]))
+                unused["fill_alpha"], unused["stroke_alpha"] = fill, stroke
+                self.m._schema(native, "native")
+                unchanged_replay(native)
+                with self.assertRaises(ValueError):
+                    self.m._validate_native(native, args["pdf_bytes"], args["expected_profile_sha256"])
+                public_refusal(native)
+
+
 if __name__ == "__main__":
     unittest.main()
