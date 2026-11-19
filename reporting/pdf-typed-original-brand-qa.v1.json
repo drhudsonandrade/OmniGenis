@@ -17,11 +17,11 @@
     "reporting/pdf-typed-observation.v1.json": "2d344aa71738213c2980b5dbbf019b2240d8c092034185fb0e9eee0b4c51d292",
     "reporting/pdf_original_brand_inclusion.py": "8e3e00eed71d7b51e247bae8a6e952248ecf8a9119d03ef7fa4113d7e12b3660",
     "reporting/typed_original_brand_pdf.py": "6562af3558cddbbaadb8b3e442cd9cb5072f7d99f64e5b764d2a4bda99cdc985",
-    "reporting/typed_original_brand_qa.py": "5221ea6307ddf7a511c277ac45f75ddf5d45f6aeb063881e4e7ca77214b050d9",
+    "reporting/typed_original_brand_qa.py": "77f988539d1293d9c4f2127ba7b9d03b34f860a36d9406ba42cf995b64f24776",
     "reporting/typed_pdf_association.py": "0b6f4be7d81dc5624aaa3b7e11ed3cfbca0d7d9222272f6c24ba07ee617b3a63",
     "reporting/typed_pdf_source.py": "ace530cd727eaf513bffb9070c1b412db166ca4b966d390e710b853ec8676c59",
     "schemas/report-typed-original-brand-qa.v1.schema.json": "c78e658f41db628c3a6126b4a51da2cc49e41fdccdec465fe78316fa94f2c256",
-    "tests/test_reporting_typed_original_brand_qa.py": "3b799ed9008da5009dc3b533a8b156aec0e4ac829f35f677248265570c9de512"
+    "tests/test_reporting_typed_original_brand_qa.py": "37ad3533af8eb868be16e9a7c35579819c57e8e626c02516f5d2fdde14861a60"
   },
   "structure_id_tree_policy": "FLAT_NAMES_EXACT_ORIGINAL_BYTE_ID_MAP",
   "table_identifier_policy": "PYPDF_TEXTSTRINGOBJECT_ONLY_ORIGINAL_BYTES_1_TO_128"

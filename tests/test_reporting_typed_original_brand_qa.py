@@ -997,6 +997,42 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                     self.m, "_run_worker", return_value=self.m.canonical(native)):
                 self.refuse(args)
 
+    def test_native_decoded_page_stream_bytes_obey_aggregate_budget(self):
+        args = self.arguments(96)
+        original = self.native_record(96)
+        self.m._validate_native(original, args["pdf_bytes"], args["expected_profile_sha256"])
+        boundary = deepcopy(original)
+        pages = boundary["trace"]["pages"]
+        self.assertGreater(len(pages), 1)
+        self.assertEqual(len({tuple(page["contents_reference"]) for page in pages}), len(pages))
+        limit = self.m.prior.MAX_STREAM_BYTES
+        pages[0]["decoded_stream_bytes"] = limit - sum(
+            page["decoded_stream_bytes"] for page in pages[1:])
+        self.assertTrue(all(0 < page["decoded_stream_bytes"] <= limit for page in pages))
+        self.assertEqual(sum(page["decoded_stream_bytes"] for page in pages), limit)
+        self.m._schema(boundary, "native")
+        self.m._validate_native(boundary, args["pdf_bytes"], args["expected_profile_sha256"])
+        bad = deepcopy(boundary)
+        bad["trace"]["pages"][0]["decoded_stream_bytes"] += 1
+        self.assertEqual(sum(page["decoded_stream_bytes"] for page in bad["trace"]["pages"]),
+                         limit + 1)
+        for observed, source in zip(bad["trace"]["pages"], original["trace"]["pages"], strict=True):
+            self.assertTrue(0 < observed["decoded_stream_bytes"] <= limit)
+            self.assertEqual({key: value for key, value in observed.items()
+                              if key != "decoded_stream_bytes"},
+                             {key: value for key, value in source.items()
+                              if key != "decoded_stream_bytes"})
+        self.m._schema(bad, "native")
+        self.m.prior._reference_consistency(bad["trace"])
+        projected, _ = self.m.project_text_trace(bad["trace"])
+        fonts = {self.m.prior._reference(font["reference"]): font for font in projected["fonts"]}
+        for page in projected["pages"]:
+            self.assertEqual(self.m.prior._replay(page, fonts), page["runs"])
+        with self.assertRaises(ValueError):
+            self.m._validate_native(bad, args["pdf_bytes"], args["expected_profile_sha256"])
+        with patch.object(self.m, "_run_worker", return_value=self.m.canonical(bad)):
+            self.refuse(args)
+
     def test_native_reference_categories_remain_disjoint_with_valid_sharing(self):
         def shared_font(writer):
             fonts = writer.pages[0]["/Resources"]["/Font"]
@@ -1029,6 +1065,37 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     self.m._validate_native(
                         native, args["pdf_bytes"], args["expected_profile_sha256"])
+        groups = {}
+        for font in fonts:
+            groups.setdefault(tuple(font["cmap_reference"]), []).append(font)
+        unshared = next(group for group in groups.values() if len(group) == 1)
+        shared = next(group for group in groups.values() if len(group) > 1)
+        for mode, group in (("unshared-record", unshared), ("all-shared-records", shared)):
+            native = deepcopy(original)
+            target = tuple(group[0]["cmap_reference"])
+            affected = []
+            for font in native["trace"]["fonts"]:
+                if tuple(font["cmap_reference"]) == target:
+                    mapping = dict(font["mapping"])
+                    font["mapping"].append(deepcopy(font["mapping"][0]))
+                    self.assertEqual(dict(font["mapping"]), mapping)
+                    self.assertEqual(len(font["mapping"]), len(mapping) + 1)
+                    affected.append(font["reference"])
+            self.assertEqual(len(affected), len(group))
+            self.m._schema(native, "native")
+            self.m.prior._reference_consistency(native["trace"])
+            projected, _ = self.m.project_text_trace(native["trace"])
+            bound = {self.m.prior._reference(font["reference"]): font
+                     for font in projected["fonts"]}
+            for page in projected["pages"]:
+                self.assertEqual(self.m.prior._replay(page, bound), page["runs"])
+            with self.subTest(duplicate_cmap=mode, boundary="parent"):
+                with self.assertRaises(ValueError):
+                    self.m._validate_native(
+                        native, args["pdf_bytes"], args["expected_profile_sha256"])
+            with self.subTest(duplicate_cmap=mode, boundary="public"), patch.object(
+                    self.m, "_run_worker", return_value=self.m.canonical(native)):
+                self.refuse(args)
 
     def test_projected_span_ordinals_are_contiguous_only_within_spans(self):
         def with_gap(writer):
@@ -1299,6 +1366,57 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             object.__setattr__(receipt, "_sealed_sha256", sha256(payload).hexdigest())
             with self.assertRaises(ValueError):
                 receipt.to_dict()
+        self.assertGreaterEqual(
+            bad["coverage"]["projected_nodes"],
+            bad["coverage"]["text_mcids"] + text_units + 1
+            + (bad["represented_findings"] + 4 if bad["represented_findings"] else 0))
+        for findings in (0, 1, 2, 96):
+            exact = deepcopy(source)
+            exact["represented_findings"] = findings
+            exact["source_units"] = findings + 3 if findings else 1
+            exact["page_count"] = exact["raster_inspected_pages"] = exact["raster_window_count"] = 1
+            coverage = exact["coverage"]
+            text_units = exact["source_units"] + exact["brand_text_units"]
+            coverage["text_mcids"] = text_units
+            coverage["native_mcids"] = text_units + coverage["figure_count"]
+            # Each source/brand unit has a text container and at least one Span;
+            # findings additionally require their body TRs and four table wrappers.
+            base_nodes = coverage["text_mcids"] + text_units + 1
+            table_nodes = findings + 4 if findings else 0
+            coverage["projected_nodes"] = base_nodes + table_nodes
+            coverage["native_nodes"] = (coverage["projected_nodes"]
+                                        + coverage["accounted_brand_wrapper_nodes"])
+            coverage["operations"] = 7 * coverage["text_mcids"] + self.m.MIN_FIXED_BRAND_OPERATIONS
+            self.m._schema(exact)
+            with self.subTest(findings=findings, node_bound="exact-minimum"):
+                self.assertEqual(self.m.TypedOriginalBrandQA(
+                    self.m.canonical(exact)).to_dict(), exact)
+            lower = [("one-below-minimum", base_nodes + table_nodes - 1)]
+            if findings:
+                lower.append(("four-table-wrappers-without-finding-rows", base_nodes + 4))
+            for mode, projected_nodes in lower:
+                bad = deepcopy(exact)
+                coverage = bad["coverage"]
+                coverage["projected_nodes"] = projected_nodes
+                coverage["native_nodes"] = (projected_nodes
+                                            + coverage["accounted_brand_wrapper_nodes"])
+                self.assertLess(projected_nodes, base_nodes + table_nodes)
+                self.assertEqual(coverage["native_mcids"], coverage["text_mcids"] + 1)
+                self.assertEqual(coverage["operations"],
+                                 7 * coverage["text_mcids"] + self.m.MIN_FIXED_BRAND_OPERATIONS)
+                self.assertLessEqual(2 * coverage["native_nodes"] - 1
+                                     + coverage["native_mcids"], self.m.prior.MAX_VISITS)
+                self.m._schema(bad)
+                payload = self.m.canonical(bad)
+                with self.subTest(findings=findings, node_bound=mode, boundary="constructor"):
+                    with self.assertRaises(ValueError):
+                        self.m.TypedOriginalBrandQA(payload)
+                with self.subTest(findings=findings, node_bound=mode, boundary="resealed-to-dict"):
+                    receipt = self.m.TypedOriginalBrandQA(self.m.canonical(exact))
+                    object.__setattr__(receipt, "_payload", payload)
+                    object.__setattr__(receipt, "_sealed_sha256", sha256(payload).hexdigest())
+                    with self.assertRaises(ValueError):
+                        receipt.to_dict()
 
     def test_receipt_window_count_matches_four_page_boundaries(self):
         source = self.run_qa().to_dict()

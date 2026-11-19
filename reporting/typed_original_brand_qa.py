@@ -292,6 +292,10 @@ def _validate_native(record: dict, pdf: bytes, profile: str) -> tuple[dict, dict
     dna_page = record["trace"]["pages"][-1]["reference"]
     fonts = {prior._reference(f["reference"]): f for f in trace["fonts"]}
     require(len(fonts) == len(trace["fonts"]))
+    for font in fonts.values():
+        require(len(dict(font["mapping"])) == len(font["mapping"]))
+    require(sum(page["decoded_stream_bytes"] for page in trace["pages"])
+            <= prior.MAX_STREAM_BYTES)
     operations = text_bytes = figures = artifacts = dna_paints = 0
     for original, page in zip(record["trace"]["pages"], trace["pages"], strict=True):
         mapped = original["projected_operator_ordinals"]
@@ -404,10 +408,13 @@ def _validate_receipt(data: dict) -> None:
             and coverage["native_mcids"] == coverage["text_mcids"] + coverage["figure_count"])
     findings = data["represented_findings"]
     text_units = data["source_units"] + data["brand_text_units"]
+    # Each finding needs a body TR, plus Table/THead/TBody/header TR.
+    table_nodes = findings + 4 if findings else 0
     require(data["source_units"] >= (findings + 3 if findings else 1)
             and data["pdf_byte_count"] >= len(b"%PDF-1.7")
             and coverage["text_mcids"] >= text_units
-            and coverage["projected_nodes"] >= coverage["text_mcids"] + text_units + 1
+            and coverage["projected_nodes"] >= (coverage["text_mcids"] + text_units
+                                                + 1 + table_nodes)
             and coverage["text_mcids"] >= data["page_count"]
             and coverage["operations"] >= 7 * coverage["text_mcids"] + MIN_FIXED_BRAND_OPERATIONS)
 
