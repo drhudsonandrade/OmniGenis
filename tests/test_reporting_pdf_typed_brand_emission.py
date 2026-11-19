@@ -41,6 +41,7 @@ def fixture(with_ids=True):
     figure = node("/Figure", document)
     figure["A"] = pydyf.Dictionary({"O": "/Layout", "BBox": pydyf.Array(
         [1.000001, 2.000001, 3.000001, 4.000001])})
+    tree["Nums"][3].append(figure.reference)
     headers = []
     if with_ids:
         table = node("/Table", document)
@@ -125,6 +126,29 @@ class TypedBrandEmissionTests(unittest.TestCase):
                     emit_structure(document, pdf)
                 self.assertEqual(before, (figure["A"].data, root.data, tree.data, len(pdf.objects)))
                 self.assertNotIn("IDTree", root)
+
+    def test_owner_arrays_require_bounded_indirect_structure_references(self):
+        from reporting._pdf_typed_brand_emission import emit_structure
+        for case in ("inline-figure", "nested-array", "wrong-reference", "foreign", "budget"):
+            with self.subTest(case=case):
+                document, pdf, root, figure, _ = fixture()
+                tree = pdf.objects[int(root["ParentTree"].split()[0])]
+                owners = tree["Nums"][3]
+                if case == "inline-figure":
+                    owners[0] = figure
+                elif case == "nested-array":
+                    owners[0] = pydyf.Array([figure.reference])
+                elif case == "wrong-reference":
+                    owners[0] = pdf.pages.reference
+                elif case == "foreign":
+                    owners[0] = b"999999 0 R"
+                else:
+                    tree["Nums"][1].extend([figure.reference] * 10000)
+                    owners.extend([figure.reference] * 10000)
+                before = (figure.data, root.data, tree.data, len(pdf.objects))
+                with self.assertRaises(ValueError):
+                    emit_structure(document, pdf)
+                self.assertEqual(before, (figure.data, root.data, tree.data, len(pdf.objects)))
 
     def test_zero_ids_does_not_create_index_and_cannot_emit_twice(self):
         from reporting._pdf_typed_brand_emission import emit_structure

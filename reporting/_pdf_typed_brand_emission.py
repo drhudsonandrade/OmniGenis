@@ -113,7 +113,7 @@ def _page_sizes(document, pdf):
         page = _owned(pdf, ref, pydyf.Dictionary)
         require(ref not in sizes and page["Type"] == "/Page" and page["Parent"] == pages.reference
                 and all(key not in page for key in ("Rotate", "UserUnit", "CropBox")))
-        require(set(layout.bleed) == {"top", "bottom", "left", "right"}
+        require(len(layout.bleed) == 4 and all(key in layout.bleed for key in ("top", "bottom", "left", "right"))
                 and all(type(v) in (int, float) and v == 0 for v in layout.bleed.values()))
         _numeric(layout.width)
         _numeric(layout.height)
@@ -133,7 +133,7 @@ def _page_sizes(document, pdf):
 def _box(attr, size):
     import pydyf
     require(type(attr) is pydyf.Dictionary and attr.number is None
-            and set(attr) == {"O", "BBox"} and attr.get("O") == "/Layout")
+            and len(attr) == 2 and "BBox" in attr and attr.get("O") == "/Layout")
     box = attr["BBox"]
     require(type(box) is pydyf.Array and len(box) == 4)
     x0, y0, x1, y1 = map(_numeric, box)
@@ -161,12 +161,18 @@ def emit_structure(document, pdf) -> dict:
     require(root["Type"] == "/StructTreeRoot" and "IDTree" not in root and
             type(root["K"]) is pydyf.Array and len(root["K"]) == 1)
     parent_tree = _owned(pdf, root["ParentTree"], pydyf.Dictionary)
-    require(parent_tree is not root and set(parent_tree) == {"Nums"})
+    require(parent_tree is not root and len(parent_tree) == 1 and "Nums" in parent_tree)
     nums = parent_tree["Nums"]
     require(type(nums) is pydyf.Array and len(nums) == 2 * len(sizes))
+    owner_count = 0
     for page_index in range(len(sizes)):
         key, owners = nums[2 * page_index:2 * page_index + 2]
         require(type(key) is int and key == page_index and type(owners) is pydyf.Array)
+        owner_count += len(owners)
+        require(owner_count <= 20000)
+        for reference in owners:
+            owner = _owned(pdf, reference, pydyf.Dictionary)
+            require(owner.get("Type") == "/StructElem")
     pending = [(root["K"][0], root.reference, 1, None)]
     seen, ids, headers = set(), {}, []
     figure = None
