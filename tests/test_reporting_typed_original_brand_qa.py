@@ -30,6 +30,7 @@ ROOT = Path(__file__).resolve().parents[1]
 FLAGS = {
     "OMNIGENIS_PDF_QUALIFICATION_RECEIPT_MODE": "qualification-only",
     "OMNIGENIS_TYPED_ORIGINAL_BRAND_QA_DISABLED": "",
+    "OMNIGENIS_TYPED_BRAND_RENDER_DISABLED": "",
     "OMNIGENIS_TYPED_ORIGINAL_BRAND_PDF_DISABLED": "",
     "OMNIGENIS_TYPED_EDITORIAL_PDF_DISABLED": "",
     "OMNIGENIS_PDF_PRELOADED_RASTER_DISABLED": "",
@@ -39,63 +40,6 @@ FLAGS = {
     "OMNIGENIS_PDF_RASTER_WINDOWS_DISABLED": "",
     "OMNIGENIS_PDF_DOCUMENT_METADATA_DISABLED": "",
 }
-
-
-def corrected_bbox_control(pdf_bytes: bytes) -> bytes:
-    """Create a separate synthetic validator control; never repair a producer or validator."""
-    def require_fixture(condition):
-        if not condition:
-            raise ValueError("synthetic_bbox_control_refused")
-    def number(value):
-        require_fixture(type(value) in {NumberObject, FloatObject})
-        result = Decimal(int(value)) if type(value) is NumberObject else Decimal(repr(float(value)))
-        require_fixture(result.is_finite())
-        return result
-    require_fixture(type(pdf_bytes) is bytes and pdf_bytes.startswith(b"%PDF-1.7"))
-    reader = PdfReader(BytesIO(pdf_bytes), strict=True)
-    page_content = tuple(page["/Contents"].get_data() for page in reader.pages)
-    writer = PdfWriter(clone_from=reader)
-    writer.pdf_header = b"%PDF-1.7"
-    figures = []
-    def visit(value):
-        value = value.get_object()
-        if isinstance(value, DictionaryObject):
-            if value.get("/S") == "/Figure":
-                figures.append(value)
-            if "/K" in value:
-                visit(value.raw_get("/K"))
-        elif isinstance(value, ArrayObject):
-            for child in value:
-                visit(child)
-    visit(writer._root_object.raw_get("/StructTreeRoot"))
-    require_fixture(len(figures) == 1)
-    figure = figures[0]
-    pages = [page for page in writer.pages
-             if page.indirect_reference == figure.raw_get("/Pg")]
-    require_fixture(len(pages) == 1 and pages[0] is writer.pages[0])
-    page = pages[0]
-    operations = ContentStream(
-        page.raw_get("/Contents"), writer, forced_encoding="bytes").operations
-    require_fixture([op for _, op in operations[:3]] == [b"cm", b"q", b"cm"]
-                    and not operations[1][0])
-    first = tuple(number(v) for v in operations[0][0])
-    second = tuple(number(v) for v in operations[2][0])
-    require_fixture(len(first) == 6 and first[:5] == (1, 0, 0, -1, 0) and first[5] > 0
-                    and second == (Decimal("0.75"), 0, 0, Decimal("0.75"), 0, 0))
-    box = figure["/A"]["/BBox"]
-    require_fixture(type(box) is ArrayObject and len(box) == 4)
-    x0, y0, x1, y1 = (number(v) for v in box)
-    require_fixture(x0 < x1 and y0 < y1)
-    scale, page_y = second[0], first[5]
-    corrected = (scale * x0, page_y - scale * y1, scale * x1, page_y - scale * y0)
-    figure["/A"][NameObject("/BBox")] = ArrayObject([FloatObject(str(v)) for v in corrected])
-    output = BytesIO()
-    writer.write(output)
-    candidate = output.getvalue()
-    reparsed = PdfReader(BytesIO(candidate), strict=True)
-    require_fixture(candidate != pdf_bytes and
-                    tuple(page["/Contents"].get_data() for page in reparsed.pages) == page_content)
-    return candidate
 
 
 def _install_flat_id_tree(writer):
@@ -129,41 +73,6 @@ def _install_flat_id_tree(writer):
         DictionaryObject({NameObject("/Names"): names}))
 
 
-def corrected_id_tree_control(pdf_bytes: bytes) -> bytes:
-    """Create a separate index-only control; never repair the producer or caller bytes."""
-    def snapshot(reader):
-        boxes = []
-        def visit(value):
-            value = value.get_object()
-            if isinstance(value, DictionaryObject):
-                if value.get("/S") == "/Figure":
-                    boxes.append(tuple(float(v) for v in value["/A"]["/BBox"]))
-                if "/K" in value:
-                    visit(value.raw_get("/K"))
-            elif isinstance(value, ArrayObject):
-                for child in value:
-                    visit(child)
-        visit(reader.root_object.raw_get("/StructTreeRoot"))
-        information = tuple(sorted((str(key), value.original_bytes)
-                                   for key, value in reader.trailer["/Info"].items()))
-        metadata = reader.root_object["/Metadata"].get_data()
-        return (tuple(page["/Contents"].get_data() for page in reader.pages),
-                information, metadata, tuple(boxes))
-    if type(pdf_bytes) is not bytes or not pdf_bytes.startswith(b"%PDF-1.7"):
-        raise ValueError("synthetic_id_tree_control_refused")
-    reader = PdfReader(BytesIO(pdf_bytes), strict=True)
-    original = snapshot(reader)
-    writer = PdfWriter(clone_from=reader)
-    writer.pdf_header = b"%PDF-1.7"
-    _install_flat_id_tree(writer)
-    output = BytesIO()
-    writer.write(output)
-    candidate = output.getvalue()
-    if candidate == pdf_bytes or snapshot(PdfReader(BytesIO(candidate), strict=True)) != original:
-        raise ValueError("synthetic_id_tree_control_refused")
-    return candidate
-
-
 class TypedOriginalBrandQATests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -192,7 +101,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 assets=self.assets, expected_brand_bundle_sha256=self.bundle)
             pristine = rendered.pdf_bytes
             self.pristine_fixtures[count] = source, pristine
-            self.fixtures[count] = source, corrected_id_tree_control(corrected_bbox_control(pristine))
+            self.fixtures[count] = source, pristine
         source, pdf = self.fixtures[count]
         return deepcopy(source), pdf
 
@@ -207,21 +116,32 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             pdf_bytes=pdf, expected_pdf_sha256=sha256(pdf).hexdigest(),
             expected_profile_sha256=self.m.profile_sha256())
 
-    def pristine_arguments(self, count=2):
-        args = self.arguments(count)
-        _, pristine = self.pristine_fixtures[count]
-        args["pdf_bytes"] = pristine
-        args["expected_pdf_sha256"] = sha256(pristine).hexdigest()
-        return args
-
     def run_qa(self, args=None):
         return self.m.validate_typed_original_brand_candidate(
             **(self.arguments() if args is None else args))
 
+    def test_untouched_producer_indexes_headers_and_emits_logo_in_page_space(self):
+        _, pdf = self.fixture()
+        reader = PdfReader(BytesIO(pdf), strict=True)
+        root = reader.root_object["/StructTreeRoot"]
+        with self.subTest(obligation="header-index"):
+            self.assertIn("/IDTree", root)
+        page = reader.pages[0]
+        figure = next(node for node in self.nodes(SimpleNamespace(_root_object=reader.root_object))
+                      if node["/S"] == "/Figure")
+        box = figure["/A"]["/BBox"]
+        transform = ContentStream(page.raw_get("/Contents"), reader).operations[0][0]
+        with self.subTest(obligation="page-space-logo"):
+            # The actual original logo is placed in the top half of the first page.
+            self.assertGreater(float(box[1]), float(transform[-1]) / 2)
+        with self.subTest(obligation="same-artifact-qa"):
+            self.assertEqual(self.run_qa(self.arguments()).to_dict()["pdf_sha256"],
+                             sha256(pdf).hexdigest())
+
     def test_full_multipage_source_brand_and_every_page_bind_to_exact_caller_bytes(self):
         args = self.arguments(96)
         before = bytes(args["pdf_bytes"])
-        self.assertNotEqual(before, self.pristine_fixtures[96][1])
+        self.assertEqual(before, self.pristine_fixtures[96][1])
         result = self.run_qa(args).to_dict()
         self.assertEqual(result["status"], "TYPED_ORIGINAL_BRAND_CANDIDATE_INSPECTED")
         self.assertEqual(result["pdf_sha256"], sha256(before).hexdigest())
@@ -625,22 +545,20 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 self.refuse(self.rewritten(mutate))
 
     def test_figure_bbox_contains_the_actual_logo_geometry(self):
-        pristine = self.pristine_arguments()
-        original_bytes = pristine["pdf_bytes"]
-        reader = PdfReader(BytesIO(original_bytes), strict=True)
+        from reporting import _pdf_typed_original_brand_qa_worker as worker
+        def layout_box(writer):
+            figure = next(n for n in self.nodes(writer) if n["/S"] == "/Figure")
+            x0, y0, x1, y1 = map(float, figure["/A"]["/BBox"])
+            page = writer.pages[0]
+            h = float(ContentStream(page.raw_get("/Contents"), writer).operations[0][0][-1])
+            values = (x0 / .75, (h-y1) / .75, x1 / .75, (h-y0) / .75)
+            figure["/A"][NameObject("/BBox")] = ArrayObject([FloatObject(v) for v in values])
+
+        index_only = self.rewritten(layout_box)
+        reader = PdfReader(BytesIO(index_only["pdf_bytes"]), strict=True)
         original_figure = next(n for n in self.nodes(
             SimpleNamespace(_root_object=reader.root_object)) if n["/S"] == "/Figure")
         producer_box = [float(v) for v in original_figure["/A"]["/BBox"]]
-        with self.subTest(candidate="pristine-producer"):
-            self.refuse(pristine)
-        self.assertEqual(pristine["pdf_bytes"], original_bytes)
-        self.assertEqual(self.pristine_fixtures[2][1], original_bytes)
-        self.assertNotEqual(self.arguments()["pdf_bytes"], original_bytes)
-        from reporting import _pdf_typed_original_brand_qa_worker as worker
-        index_only = dict(pristine)
-        index_only["pdf_bytes"] = corrected_id_tree_control(original_bytes)
-        index_only["expected_pdf_sha256"] = sha256(index_only["pdf_bytes"]).hexdigest()
-        reader = PdfReader(BytesIO(index_only["pdf_bytes"]), strict=True)
         pages = worker.native._page_tree(reader)
         trace, attributes, figures = worker._structure(reader, pages)
         worker._passive(reader, attributes, figures)

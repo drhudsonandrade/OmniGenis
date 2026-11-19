@@ -19,9 +19,11 @@ from reporting.brand_assets import (
 )
 from reporting.editorial_typed_pdf import prepare_editorial_typed_html
 from reporting.pdf_original_brand_inclusion import _logo_markup
-from reporting.pdf_raster_render import (
-    RasterPdfCandidate, render_preloaded_raster_pdf,
+from reporting.pdf_typed_brand_render import (
+    TypedBrandPdfCandidate, render_typed_brand_pdf, require_policy as require_render_policy,
 )
+from reporting._pdf_native_launch_budget import require_no_active_scope
+from reporting import _pdf_typed_brand_emission as emission
 from reporting.pdf_raster_resources import RasterAsset, RasterBundle
 
 PROFILE_ID = "typed-original-logo-dna-candidate-v1"
@@ -156,17 +158,19 @@ def prepare_typed_original_brand_pdf(
 def render_typed_original_brand_pdf(
     *, presentation_ir: object, expected_ir_sha256: object,
     assets: BoundBrandAssets, expected_brand_bundle_sha256: object,
-) -> tuple[RasterPdfCandidate, dict]:
+) -> tuple[TypedBrandPdfCandidate, dict]:
     """Render exact preloaded originals once and withhold all unqualified release claims."""
     html, resources, record = prepare_typed_original_brand_pdf(
         presentation_ir=presentation_ir, expected_ir_sha256=expected_ir_sha256,
         assets=assets, expected_brand_bundle_sha256=expected_brand_bundle_sha256)
     try:
         _ready(assets, expected_brand_bundle_sha256)
-        pdf = render_preloaded_raster_pdf(
+        pdf = render_typed_brand_pdf(
             html=html, expected_html_sha256=record["html_sha256"],
             resources=resources, expected_resources_sha256=record["resources_sha256"])
-        _require(type(pdf) is RasterPdfCandidate
+        _require(type(pdf) is TypedBrandPdfCandidate
+                 and pdf.html_sha256 == record["html_sha256"]
+                 and pdf.resources_sha256 == record["resources_sha256"]
                  and 1 <= pdf.page_count <= 64
                  and sha256(pdf.pdf_bytes).hexdigest() == pdf.pdf_sha256)
         again_html, again_resources, again_record = prepare_typed_original_brand_pdf(
@@ -174,7 +178,12 @@ def render_typed_original_brand_pdf(
             assets=assets, expected_brand_bundle_sha256=expected_brand_bundle_sha256)
         _require(again_record == record and again_html == html
                  and again_resources.to_bytes() == resources.to_bytes())
-        return pdf, {**record, "pdf_sha256": pdf.pdf_sha256,
-                     "page_count": pdf.page_count}
+        metadata = pdf.to_dict()
+        require_no_active_scope()
+        _require(require_render_policy() == metadata["profile_sha256"])
+        return pdf, {**record, "render_profile_id": emission.PROFILE_ID,
+                     "render_profile_sha256": metadata["profile_sha256"],
+                     "pdf_sha256": metadata["pdf_sha256"],
+                     "page_count": metadata["page_count"]}
     except Exception:
         raise TypedOriginalBrandError("typed_original_brand_pdf_unavailable") from None

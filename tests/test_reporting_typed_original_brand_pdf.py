@@ -43,6 +43,7 @@ class TypedOriginalBrandPdfTests(unittest.TestCase):
         self.mode = patch.dict(os.environ, {
             "OMNIGENIS_PDF_QUALIFICATION_RECEIPT_MODE": "qualification-only",
             "OMNIGENIS_TYPED_ORIGINAL_BRAND_PDF_DISABLED": "",
+            "OMNIGENIS_TYPED_BRAND_RENDER_DISABLED": "",
             "OMNIGENIS_TYPED_EDITORIAL_PDF_DISABLED": "",
             "OMNIGENIS_PDF_PRELOADED_RASTER_DISABLED": "",
             "OMNIGENIS_PDF_QUALIFICATION_RECEIPT_DISABLED": "",
@@ -87,9 +88,12 @@ class TypedOriginalBrandPdfTests(unittest.TestCase):
                      "whole_job_resources_qualified", "pdf_ua_certified"):
             self.assertIs(record[flag], False)
 
-    def test_originals_and_semantics_survive_single_existing_raster_render(self):
+    def test_originals_and_semantics_survive_single_typed_brand_render(self):
         pdf, record = self.m.render_typed_original_brand_pdf(**self.arguments())
         self.assertTrue(pdf.pdf_bytes.startswith(b"%PDF-1.7"))
+        self.assertEqual(record["render_profile_id"], "typed-original-brand-render-v1")
+        self.assertEqual(pdf.to_dict()["profile_id"], record["render_profile_id"])
+        self.assertEqual(pdf.to_dict()["profile_sha256"], record["render_profile_sha256"])
         self.assertEqual(sha256(pdf.pdf_bytes).hexdigest(), pdf.pdf_sha256)
         self.assertEqual(record["pdf_sha256"], pdf.pdf_sha256)
         self.assertGreater(pdf.page_count, 0)
@@ -104,6 +108,27 @@ class TypedOriginalBrandPdfTests(unittest.TestCase):
         self.assertEqual(text.count(REQUIRED_CREDIT_EN), 1)
         self.assertFalse(record["release_authorized"])
         self.assertFalse(record["human_accessibility_verified"])
+
+    def test_disable_retained_during_source_postflight_withholds_candidate(self):
+        from reporting import _pdf_typed_brand_emission as emission
+        from reporting.pdf_typed_brand_render import TypedBrandPdfCandidate
+        prepare = self.m.prepare_typed_original_brand_pdf
+        calls = []
+        def preparation(**kwargs):
+            value = prepare(**kwargs)
+            calls.append(True)
+            if len(calls) == 2:
+                os.environ["OMNIGENIS_TYPED_BRAND_RENDER_DISABLED"] = "1"
+            return value
+        def sealed(**kwargs):
+            return TypedBrandPdfCandidate(b"%PDF-1.7 synthetic boundary fixture",
+                kwargs["expected_html_sha256"], kwargs["expected_resources_sha256"],
+                1, 1, emission.profile_sha256())
+        with (patch.object(self.m, "prepare_typed_original_brand_pdf", side_effect=preparation),
+              patch.object(self.m, "render_typed_brand_pdf", side_effect=sealed),
+              self.assertRaises(self.m.TypedOriginalBrandError)):
+            self.m.render_typed_original_brand_pdf(**self.arguments())
+        self.assertEqual(len(calls), 2)
 
     def test_variable_length_content_remains_complete_with_original_assets(self):
         """Brand composition never truncates the source's admitted finding rows."""
@@ -154,7 +179,7 @@ class TypedOriginalBrandPdfTests(unittest.TestCase):
         """Whitespace cannot disguise an existing required legal notice."""
         wrapped = REQUIRED_CREDIT_EN.replace(". Used", ".\nUsed")
         source = document(1, paragraph=wrapped)
-        with patch.object(self.m, "render_preloaded_raster_pdf",
+        with patch.object(self.m, "render_typed_brand_pdf",
                           side_effect=AssertionError("unexpected render")) as render:
             with self.assertRaises(self.m.TypedOriginalBrandError):
                 self.m.render_typed_original_brand_pdf(
@@ -183,7 +208,7 @@ class TypedOriginalBrandPdfTests(unittest.TestCase):
             components=parts).to_dict()
         kwargs = self.arguments() | {'presentation_ir': source,
                                      'expected_ir_sha256': digest(source)}
-        with patch.object(self.m, 'render_preloaded_raster_pdf',
+        with patch.object(self.m, 'render_typed_brand_pdf',
                           side_effect=AssertionError('unexpected render')) as renderer:
             with self.assertRaises(self.m.TypedOriginalBrandError):
                 self.m.prepare_typed_original_brand_pdf(**kwargs)
@@ -199,7 +224,7 @@ class TypedOriginalBrandPdfTests(unittest.TestCase):
             "presentation_ir": source,
             "expected_ir_sha256": digest(source),
         }
-        with patch.object(self.m, "render_preloaded_raster_pdf",
+        with patch.object(self.m, "render_typed_brand_pdf",
                           side_effect=AssertionError("unexpected render")) as render:
             with self.assertRaises(self.m.TypedOriginalBrandError):
                 self.m.prepare_typed_original_brand_pdf(**kwargs)
@@ -211,7 +236,7 @@ class TypedOriginalBrandPdfTests(unittest.TestCase):
         """An HTML-encoded carriage return cannot hide a second notice."""
         wrapped = REQUIRED_CREDIT_EN.replace(". Used", ".\rUsed")
         source = document(1, paragraph=wrapped)
-        with patch.object(self.m, "render_preloaded_raster_pdf",
+        with patch.object(self.m, "render_typed_brand_pdf",
                           side_effect=AssertionError("unexpected render")) as render:
             with self.assertRaises(self.m.TypedOriginalBrandError):
                 self.m.render_typed_original_brand_pdf(
@@ -240,7 +265,7 @@ class TypedOriginalBrandPdfTests(unittest.TestCase):
                 case.doCleanups()
 
     def test_invalid_identity_or_disabled_profile_refuses_before_render(self):
-        with patch.object(self.m, "render_preloaded_raster_pdf",
+        with patch.object(self.m, "render_typed_brand_pdf",
                           side_effect=AssertionError("unexpected rendering")) as render:
             for invalid in ("0" * 64, self.bundle_sha.upper(), None):
                 with self.subTest(invalid=invalid):

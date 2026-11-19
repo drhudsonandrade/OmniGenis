@@ -8,20 +8,24 @@
   "sources": {
     "reporting/_pdf_original_dna_png_admission.py": "3f1a849a98b32cecaf73c09b5f289b5ab7bcb04cc50f01400bfb0fa81adc4a4a",
     "reporting/_pdf_original_svg_layout_worker.py": "bdfd7b79d7445d3d68351cde7e0cd63777a8339f903a4ac3ae72f421ec211f76",
+    "reporting/_pdf_typed_brand_emission.py": "48beb408743f084fe5802c93645d6e8a251002c7bc55304ffee35c77f62750ab",
+    "reporting/_pdf_typed_brand_render_worker.py": "2f3d22b7c3f508c3d64345500bd4e01c37f034451e96c017f0a0c3c2ca75ffab",
     "reporting/_pdf_typed_original_brand_qa_worker.py": "cc4f1877b530bc254986f0a2bc12503837eefc19aaa438e16c562cc726b6b259",
     "reporting/assets/brand-permission.md": "14a5170bec0e347ec274312f1b915aa9a9d94de61ad32260fc8305f1eb9ddeab",
     "reporting/assets/dna_column.png": "596ca17e055b473c5d265ab1865a9adb7e453bf20a001aab79a1a255b36b6437",
     "reporting/assets/omnigenis_logo.svg": "29983790bef75837d683a392515ed35d0410d919d49b6c52a7121f7659770c51",
     "reporting/brand_assets.py": "400045ee7f8eca94a938608566695d03b276e322f8aa3bcd78485b7abb1b4649",
     "reporting/editorial_typed_pdf.py": "0e2a2266b49f18e4742850b484227dceebc90f6ffdaeea98cd33eea2cb037dc8",
+    "reporting/pdf-typed-brand-render.v1.json": "debe0fddd7f415259de7e09f36b73fdd21b8f39ae0f42160324586dcea419f83",
     "reporting/pdf-typed-observation.v1.json": "2d344aa71738213c2980b5dbbf019b2240d8c092034185fb0e9eee0b4c51d292",
     "reporting/pdf_original_brand_inclusion.py": "8e3e00eed71d7b51e247bae8a6e952248ecf8a9119d03ef7fa4113d7e12b3660",
-    "reporting/typed_original_brand_pdf.py": "6562af3558cddbbaadb8b3e442cd9cb5072f7d99f64e5b764d2a4bda99cdc985",
-    "reporting/typed_original_brand_qa.py": "1370b3984aba1e1533e7919bdb7ba1c5942922444562be0b495851243dafa635",
+    "reporting/pdf_typed_brand_render.py": "7c4dcff8f20d730906ce67212feedd80d9aa19d24db0e7073f8f8a5e1516efc5",
+    "reporting/typed_original_brand_pdf.py": "24ab1288f807245f8836b2ed498666579d6e17b16e4b34261a16f38638cbcbe3",
+    "reporting/typed_original_brand_qa.py": "e7eecf7f60cf462aa7a2e8ff23f25744f400ea7459f85fd72726d93f00fb8137",
     "reporting/typed_pdf_association.py": "0b6f4be7d81dc5624aaa3b7e11ed3cfbca0d7d9222272f6c24ba07ee617b3a63",
     "reporting/typed_pdf_source.py": "ace530cd727eaf513bffb9070c1b412db166ca4b966d390e710b853ec8676c59",
     "schemas/report-typed-original-brand-qa.v1.schema.json": "744ddd3269c2fd2f1da44cf2466bb44212c958d62f31af5256c1d05544802b75",
-    "tests/test_reporting_typed_original_brand_qa.py": "69e698b78079c633a4ec8da15a0b5eec1a9d240a49d6f236728e0e2fb2f6a873"
+    "tests/test_reporting_typed_original_brand_qa.py": "a844fce6e8755e381d2fd94c55d1d5f55dd7e03325733f5bd92214752cae88c6"
   },
   "structure_id_tree_policy": "FLAT_NAMES_EXACT_ORIGINAL_BYTE_ID_MAP",
   "table_identifier_policy": "PYPDF_TEXTSTRINGOBJECT_ONLY_ORIGINAL_BYTES_1_TO_128"

@@ -53,6 +53,10 @@ DISABLE_FLAGS = (
     "OMNIGENIS_PDF_RASTER_WINDOWS_DISABLED",
 )
 SOURCE_FILES = (
+    "reporting/pdf-typed-brand-render.v1.json",
+    "reporting/pdf_typed_brand_render.py",
+    "reporting/_pdf_typed_brand_emission.py",
+    "reporting/_pdf_typed_brand_render_worker.py",
     "reporting/typed_original_brand_qa.py",
     "reporting/_pdf_typed_original_brand_qa_worker.py",
     "schemas/report-typed-original-brand-qa.v1.schema.json",
