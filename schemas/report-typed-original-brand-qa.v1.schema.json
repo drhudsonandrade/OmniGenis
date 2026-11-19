@@ -1,0 +1,1313 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:omnigenis:report-typed-original-brand-qa:v1",
+  "title": "Typed original-brand same-PDF candidate QA",
+  "description": "Complete admitted literal source, native structure, original brand geometry and pixel accounting on unchanged bytes, with controlled metadata and all-page raster inspection. No visual, human assistive, whole-job resource, cryptographic worker, scientific or release qualification.",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "profile_id": {
+      "const": "typed-original-brand-qa-v1"
+    },
+    "status": {
+      "const": "TYPED_ORIGINAL_BRAND_CANDIDATE_INSPECTED"
+    },
+    "profile_sha256": {
+      "$ref": "#/$defs/digest"
+    },
+    "pdf_sha256": {
+      "$ref": "#/$defs/digest"
+    },
+    "ir_sha256": {
+      "$ref": "#/$defs/digest"
+    },
+    "source_expectation_sha256": {
+      "$ref": "#/$defs/digest"
+    },
+    "brand_bundle_sha256": {
+      "$ref": "#/$defs/digest"
+    },
+    "html_sha256": {
+      "$ref": "#/$defs/digest"
+    },
+    "native_observation_sha256": {
+      "$ref": "#/$defs/digest"
+    },
+    "association_sha256": {
+      "$ref": "#/$defs/digest"
+    },
+    "metadata_sha256": {
+      "$ref": "#/$defs/digest"
+    },
+    "raster_plan_sha256": {
+      "$ref": "#/$defs/digest"
+    },
+    "raster_ledger_sha256": {
+      "$ref": "#/$defs/digest"
+    },
+    "request_sha256": {
+      "$ref": "#/$defs/digest"
+    },
+    "source_binding_sha256": {
+      "$ref": "#/$defs/digest"
+    },
+    "plan_sha256": {
+      "$ref": "#/$defs/digest"
+    },
+    "ledger_sha256": {
+      "$ref": "#/$defs/digest"
+    },
+    "content_sha256": {
+      "$ref": "#/$defs/digest"
+    },
+    "section_states_sha256": {
+      "$ref": "#/$defs/digest"
+    },
+    "pdf_byte_count": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 16777216
+    },
+    "page_count": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 64
+    },
+    "represented_findings": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 5000
+    },
+    "source_units": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 19997
+    },
+    "brand_text_units": {
+      "type": "integer",
+      "const": 3
+    },
+    "figure_count": {
+      "type": "integer",
+      "const": 1
+    },
+    "dna_image_count": {
+      "type": "integer",
+      "const": 1
+    },
+    "original_credit_count": {
+      "type": "integer",
+      "const": 1
+    },
+    "raster_inspected_pages": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 64
+    },
+    "raster_window_count": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 16
+    },
+    "coverage": {
+      "type": "object",
+      "properties": {
+        "native_nodes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20000
+        },
+        "projected_nodes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20000
+        },
+        "accounted_brand_wrapper_nodes": {
+          "type": "integer",
+          "const": 5
+        },
+        "native_mcids": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20000
+        },
+        "text_mcids": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 19999
+        },
+        "figure_count": {
+          "type": "integer",
+          "const": 1
+        },
+        "operations": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20000
+        }
+      },
+      "required": [
+        "native_nodes",
+        "projected_nodes",
+        "accounted_brand_wrapper_nodes",
+        "native_mcids",
+        "text_mcids",
+        "figure_count",
+        "operations"
+      ],
+      "additionalProperties": false
+    },
+    "stages": {
+      "type": "object",
+      "properties": {
+        "source_identity": {
+          "const": "PASS"
+        },
+        "native_structure_and_graphics": {
+          "const": "PASS"
+        },
+        "literal_source_association": {
+          "const": "PASS"
+        },
+        "controlled_metadata_and_catalog": {
+          "const": "PASS"
+        },
+        "all_page_raster": {
+          "const": "PASS"
+        },
+        "postflight_identity": {
+          "const": "PASS"
+        }
+      },
+      "required": [
+        "source_identity",
+        "native_structure_and_graphics",
+        "literal_source_association",
+        "controlled_metadata_and_catalog",
+        "all_page_raster",
+        "postflight_identity"
+      ],
+      "additionalProperties": false
+    },
+    "complete_literal_source_accounting": {
+      "type": "boolean",
+      "const": true
+    },
+    "complete_native_structure_accounting": {
+      "type": "boolean",
+      "const": true
+    },
+    "original_logo_source_geometry_matched": {
+      "type": "boolean",
+      "const": true
+    },
+    "original_dna_pixels_matched": {
+      "type": "boolean",
+      "const": true
+    },
+    "visual_semantic_parity_verified": {
+      "type": "boolean",
+      "const": false
+    },
+    "human_assistive_accessibility_verified": {
+      "type": "boolean",
+      "const": false
+    },
+    "whole_job_resources_qualified": {
+      "type": "boolean",
+      "const": false
+    },
+    "pdf_ua_certified": {
+      "type": "boolean",
+      "const": false
+    },
+    "source_asset_bytes_authenticated_from_pdf": {
+      "type": "boolean",
+      "const": false
+    },
+    "release_authorized": {
+      "type": "boolean",
+      "const": false
+    },
+    "worker_results_authenticated": {
+      "type": "boolean",
+      "const": false
+    },
+    "scientific_equivalence_verified": {
+      "type": "boolean",
+      "const": false
+    },
+    "all_file_revisions_inspected": {
+      "type": "boolean",
+      "const": false
+    },
+    "default_pipeline_activated": {
+      "type": "boolean",
+      "const": false
+    }
+  },
+  "required": [
+    "schema_version",
+    "profile_id",
+    "status",
+    "profile_sha256",
+    "pdf_sha256",
+    "ir_sha256",
+    "source_expectation_sha256",
+    "brand_bundle_sha256",
+    "html_sha256",
+    "native_observation_sha256",
+    "association_sha256",
+    "metadata_sha256",
+    "raster_plan_sha256",
+    "raster_ledger_sha256",
+    "request_sha256",
+    "source_binding_sha256",
+    "plan_sha256",
+    "ledger_sha256",
+    "content_sha256",
+    "section_states_sha256",
+    "pdf_byte_count",
+    "page_count",
+    "represented_findings",
+    "source_units",
+    "brand_text_units",
+    "figure_count",
+    "dna_image_count",
+    "original_credit_count",
+    "raster_inspected_pages",
+    "raster_window_count",
+    "coverage",
+    "stages",
+    "complete_literal_source_accounting",
+    "complete_native_structure_accounting",
+    "original_logo_source_geometry_matched",
+    "original_dna_pixels_matched",
+    "visual_semantic_parity_verified",
+    "human_assistive_accessibility_verified",
+    "whole_job_resources_qualified",
+    "pdf_ua_certified",
+    "source_asset_bytes_authenticated_from_pdf",
+    "release_authorized",
+    "worker_results_authenticated",
+    "scientific_equivalence_verified",
+    "all_file_revisions_inspected",
+    "default_pipeline_activated"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "reference": {
+      "type": "array",
+      "prefixItems": [
+        {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535
+        }
+      ],
+      "minItems": 2,
+      "maxItems": 2,
+      "items": false
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])",
+      "maxLength": 64,
+      "minLength": 64
+    },
+    "number": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[+-]?(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)(?![\\s\\S])"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 128,
+      "pattern": "^/[^\\s]+(?![\\s\\S])"
+    },
+    "native_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[\\u0000-\\u00ff]+(?![\\s\\S])"
+    },
+    "part": {
+      "oneOf": [
+        {
+          "type": "array",
+          "prefixItems": [
+            {
+              "const": "codes"
+            },
+            {
+              "type": "string",
+              "maxLength": 4194304,
+              "pattern": "^(?:[0-9a-f]{4})*(?![\\s\\S])"
+            }
+          ],
+          "minItems": 2,
+          "maxItems": 2,
+          "items": false
+        },
+        {
+          "type": "array",
+          "prefixItems": [
+            {
+              "const": "adjust"
+            },
+            {
+              "$ref": "#/$defs/number"
+            }
+          ],
+          "minItems": 2,
+          "maxItems": 2,
+          "items": false
+        }
+      ]
+    },
+    "child": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "ordinal": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 19999
+            },
+            "kind": {
+              "const": "node"
+            },
+            "reference": {
+              "$ref": "#/$defs/reference"
+            }
+          },
+          "required": [
+            "ordinal",
+            "kind",
+            "reference"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "ordinal": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 19999
+            },
+            "kind": {
+              "const": "mcid"
+            },
+            "value": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 19999
+            }
+          },
+          "required": [
+            "ordinal",
+            "kind",
+            "value"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "node": {
+      "type": "object",
+      "properties": {
+        "reference": {
+          "$ref": "#/$defs/reference"
+        },
+        "parent": {
+          "$ref": "#/$defs/reference"
+        },
+        "role": {
+          "enum": [
+            "/Document",
+            "/H1",
+            "/H2",
+            "/P",
+            "/Table",
+            "/Caption",
+            "/THead",
+            "/TBody",
+            "/TR",
+            "/TH",
+            "/TD",
+            "/Span",
+            "/Div",
+            "/Sect",
+            "/Figure"
+          ]
+        },
+        "page_reference": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/reference"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "children_form": {
+          "enum": [
+            "array",
+            "reference",
+            "mcid"
+          ]
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/child"
+          },
+          "maxItems": 20000,
+          "minItems": 0
+        },
+        "table_attribute": {
+          "type": "boolean"
+        },
+        "native_id": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/native_id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "headers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/native_id"
+          },
+          "maxItems": 1,
+          "minItems": 0
+        },
+        "alternate_text": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          ]
+        },
+        "figure_bbox": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/number"
+              },
+              "minItems": 4,
+              "maxItems": 4
+            }
+          ]
+        }
+      },
+      "required": [
+        "reference",
+        "parent",
+        "role",
+        "page_reference",
+        "children_form",
+        "children",
+        "table_attribute",
+        "native_id",
+        "headers",
+        "alternate_text",
+        "figure_bbox"
+      ],
+      "additionalProperties": false
+    },
+    "event": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "ordinal": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 19999
+            },
+            "operator": {
+              "enum": [
+                "q",
+                "Q",
+                "BT",
+                "ET",
+                "EMC"
+              ]
+            },
+            "operands": {
+              "type": "array",
+              "items": {},
+              "maxItems": 0,
+              "minItems": 0
+            }
+          },
+          "required": [
+            "ordinal",
+            "operator",
+            "operands"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "ordinal": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 19999
+            },
+            "operator": {
+              "enum": [
+                "cm",
+                "Tm"
+              ]
+            },
+            "operands": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/number"
+              },
+              "maxItems": 6,
+              "minItems": 6
+            }
+          },
+          "required": [
+            "ordinal",
+            "operator",
+            "operands"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "ordinal": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 19999
+            },
+            "operator": {
+              "enum": [
+                "rg"
+              ]
+            },
+            "operands": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/number"
+              },
+              "maxItems": 3,
+              "minItems": 3
+            }
+          },
+          "required": [
+            "ordinal",
+            "operator",
+            "operands"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "ordinal": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 19999
+            },
+            "operator": {
+              "enum": [
+                "gs"
+              ]
+            },
+            "operands": {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "$ref": "#/$defs/name"
+                }
+              ],
+              "minItems": 1,
+              "maxItems": 1,
+              "items": false
+            }
+          },
+          "required": [
+            "ordinal",
+            "operator",
+            "operands"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "ordinal": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 19999
+            },
+            "operator": {
+              "enum": [
+                "BDC"
+              ]
+            },
+            "operands": {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 19999
+                }
+              ],
+              "minItems": 1,
+              "maxItems": 1,
+              "items": false
+            }
+          },
+          "required": [
+            "ordinal",
+            "operator",
+            "operands"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "ordinal": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 19999
+            },
+            "operator": {
+              "enum": [
+                "Tf"
+              ]
+            },
+            "operands": {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "$ref": "#/$defs/name"
+                },
+                {
+                  "$ref": "#/$defs/number"
+                }
+              ],
+              "minItems": 2,
+              "maxItems": 2,
+              "items": false
+            }
+          },
+          "required": [
+            "ordinal",
+            "operator",
+            "operands"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "ordinal": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 19999
+            },
+            "operator": {
+              "enum": [
+                "TJ"
+              ]
+            },
+            "operands": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/part"
+              },
+              "maxItems": 20000,
+              "minItems": 1
+            }
+          },
+          "required": [
+            "ordinal",
+            "operator",
+            "operands"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "run": {
+      "type": "object",
+      "properties": {
+        "ordinal": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 19999
+        },
+        "text_object": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 19999
+        },
+        "operator_ordinal": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 19999
+        },
+        "mcid": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 19999
+        },
+        "structure_reference": {
+          "$ref": "#/$defs/reference"
+        },
+        "font_reference": {
+          "$ref": "#/$defs/reference"
+        },
+        "font_resource": {
+          "$ref": "#/$defs/name"
+        },
+        "font_size": {
+          "$ref": "#/$defs/number"
+        },
+        "text_matrix": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/number"
+          },
+          "maxItems": 6,
+          "minItems": 6
+        },
+        "parts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/part"
+          },
+          "maxItems": 20000,
+          "minItems": 1
+        },
+        "text": {
+          "type": "string",
+          "maxLength": 2097152
+        },
+        "utf8_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2097152
+        },
+        "scalars": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2097152
+        },
+        "glyph_codes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4194304
+        }
+      },
+      "required": [
+        "ordinal",
+        "text_object",
+        "operator_ordinal",
+        "mcid",
+        "structure_reference",
+        "font_reference",
+        "font_resource",
+        "font_size",
+        "text_matrix",
+        "parts",
+        "text",
+        "utf8_bytes",
+        "scalars",
+        "glyph_codes"
+      ],
+      "additionalProperties": false
+    },
+    "font": {
+      "type": "object",
+      "properties": {
+        "reference": {
+          "$ref": "#/$defs/reference"
+        },
+        "base_font": {
+          "$ref": "#/$defs/name"
+        },
+        "cid_reference": {
+          "$ref": "#/$defs/reference"
+        },
+        "cmap_reference": {
+          "$ref": "#/$defs/reference"
+        },
+        "cmap_sha256": {
+          "$ref": "#/$defs/digest"
+        },
+        "cmap_decoded_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 262144
+        },
+        "explicit_cid_width_count": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4096
+        },
+        "mapping": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "type": "string",
+                "pattern": "^[0-9a-f]{4}(?![\\s\\S])",
+                "maxLength": 4,
+                "minLength": 4
+              },
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16
+              }
+            ],
+            "minItems": 2,
+            "maxItems": 2,
+            "items": false
+          },
+          "maxItems": 16384,
+          "minItems": 1
+        }
+      },
+      "required": [
+        "reference",
+        "base_font",
+        "cid_reference",
+        "cmap_reference",
+        "cmap_sha256",
+        "cmap_decoded_bytes",
+        "explicit_cid_width_count",
+        "mapping"
+      ],
+      "additionalProperties": false
+    },
+    "page": {
+      "type": "object",
+      "properties": {
+        "index": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 63
+        },
+        "reference": {
+          "$ref": "#/$defs/reference"
+        },
+        "struct_parents": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 19999
+        },
+        "contents_reference": {
+          "$ref": "#/$defs/reference"
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/digest"
+        },
+        "decoded_stream_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 8388608
+        },
+        "mcid_owners": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "mcid": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 19999
+              },
+              "structure_reference": {
+                "$ref": "#/$defs/reference"
+              }
+            },
+            "required": [
+              "mcid",
+              "structure_reference"
+            ],
+            "additionalProperties": false
+          },
+          "maxItems": 20000,
+          "minItems": 1
+        },
+        "font_resources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "$ref": "#/$defs/name"
+              },
+              "reference": {
+                "$ref": "#/$defs/reference"
+              }
+            },
+            "required": [
+              "name",
+              "reference"
+            ],
+            "additionalProperties": false
+          },
+          "maxItems": 32,
+          "minItems": 1
+        },
+        "graphics_states": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "$ref": "#/$defs/name"
+              },
+              "fill_alpha": {
+                "oneOf": [
+                  {
+                    "$ref": "#/$defs/number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "stroke_alpha": {
+                "oneOf": [
+                  {
+                    "$ref": "#/$defs/number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "name",
+              "fill_alpha",
+              "stroke_alpha"
+            ],
+            "additionalProperties": false
+          },
+          "maxItems": 3,
+          "minItems": 1
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/event"
+          },
+          "maxItems": 20000,
+          "minItems": 1
+        },
+        "runs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/run"
+          },
+          "maxItems": 20000,
+          "minItems": 1
+        },
+        "original_operator_count": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20000
+        },
+        "projected_operator_ordinals": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 19999
+          },
+          "minItems": 1,
+          "maxItems": 20000
+        },
+        "outside_operator_ordinals": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 19999
+          },
+          "minItems": 0,
+          "maxItems": 20000
+        },
+        "graphic_blocks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "enum": [
+                  "figure",
+                  "artifact"
+                ]
+              },
+              "first_operator": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 19999
+              },
+              "last_operator": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 19999
+              },
+              "mcid": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 19999
+                  }
+                ]
+              },
+              "dna_paints": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "sha256": {
+                "$ref": "#/$defs/digest"
+              }
+            },
+            "required": [
+              "kind",
+              "first_operator",
+              "last_operator",
+              "mcid",
+              "dna_paints",
+              "sha256"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 0,
+          "maxItems": 20000
+        }
+      },
+      "required": [
+        "index",
+        "reference",
+        "struct_parents",
+        "contents_reference",
+        "content_sha256",
+        "decoded_stream_bytes",
+        "mcid_owners",
+        "font_resources",
+        "graphics_states",
+        "events",
+        "runs",
+        "original_operator_count",
+        "projected_operator_ordinals",
+        "outside_operator_ordinals",
+        "graphic_blocks"
+      ],
+      "additionalProperties": false
+    },
+    "trace": {
+      "type": "object",
+      "properties": {
+        "root_reference": {
+          "$ref": "#/$defs/reference"
+        },
+        "root_children_form": {
+          "enum": [
+            "array",
+            "reference"
+          ]
+        },
+        "root_children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/reference"
+          },
+          "maxItems": 1,
+          "minItems": 1
+        },
+        "nodes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/node"
+          },
+          "maxItems": 20000,
+          "minItems": 1
+        },
+        "pages": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/page"
+          },
+          "maxItems": 64,
+          "minItems": 1
+        },
+        "fonts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/font"
+          },
+          "maxItems": 32,
+          "minItems": 1
+        }
+      },
+      "required": [
+        "root_reference",
+        "root_children_form",
+        "root_children",
+        "nodes",
+        "pages",
+        "fonts"
+      ],
+      "additionalProperties": false
+    },
+    "native": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "profile_id": {
+          "const": "typed-original-brand-qa-v1"
+        },
+        "status": {
+          "const": "NATIVE_TYPED_BRAND_ACCOUNTED"
+        },
+        "profile_sha256": {
+          "$ref": "#/$defs/digest"
+        },
+        "pdf_sha256": {
+          "$ref": "#/$defs/digest"
+        },
+        "pdf_byte_count": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16777216
+        },
+        "page_count": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 64
+        },
+        "limits": {
+          "type": "object",
+          "properties": {
+            "memory_bytes": {
+              "const": 268435456
+            },
+            "cpu_seconds": {
+              "const": 5
+            },
+            "file_bytes": {
+              "const": 11534336
+            },
+            "open_files": {
+              "const": 128
+            }
+          },
+          "required": [
+            "memory_bytes",
+            "cpu_seconds",
+            "file_bytes",
+            "open_files"
+          ],
+          "additionalProperties": false
+        },
+        "trace": {
+          "$ref": "#/$defs/trace"
+        },
+        "graphics": {
+          "type": "object",
+          "properties": {
+            "figure_count": {
+              "type": "integer",
+              "const": 1
+            },
+            "artifact_count": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20000
+            },
+            "dna_paints": {
+              "type": "integer",
+              "const": 1
+            },
+            "dna_rgb_sha256": {
+              "$ref": "#/$defs/digest"
+            },
+            "operations": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20000
+            },
+            "form_operations": {
+              "type": "integer",
+              "const": 3
+            }
+          },
+          "required": [
+            "figure_count",
+            "artifact_count",
+            "dna_paints",
+            "dna_rgb_sha256",
+            "operations",
+            "form_operations"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "schema_version",
+        "profile_id",
+        "status",
+        "profile_sha256",
+        "pdf_sha256",
+        "pdf_byte_count",
+        "page_count",
+        "limits",
+        "trace",
+        "graphics"
+      ],
+      "additionalProperties": false
+    }
+  }
+}
