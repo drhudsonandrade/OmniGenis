@@ -42,13 +42,16 @@ def _wait_for_exit(process: subprocess.Popen, deadline: float):
 
 
 def wait_owned_process_group(
-    process: subprocess.Popen, *, wall_seconds: float, cleanup_seconds: float = 2
+    process: subprocess.Popen, *, wall_seconds: float, cleanup_seconds: float = 2,
+    cleanup_observer=None,
 ) -> int:
     """Wait, clean the original group while identity is owned, then reap once.
 
     A timeout remains a timeout even when cleanup succeeds. Unknown ownership or
     any unresolved cleanup operation refuses success. The selected cleanup
     budget is shared by independent group/direct-child cleanup and final reap.
+    The optional observer receives the exact exit code only after confirmed
+    cleanup and reap, before an original wait failure is rethrown.
     """
     if isinstance(cleanup_seconds, bool) or not isinstance(cleanup_seconds, (int, float)):
         raise ValueError("finite positive cleanup budget required")
@@ -78,6 +81,8 @@ def wait_owned_process_group(
 
     cleanup_deadline = time.monotonic() + cleanup_seconds
     cleanup_failure = None
+    reaped = False
+    exitcode = None
     try:
         _observe(process)
     except (OSError, AttributeError) as error:
@@ -114,10 +119,21 @@ def wait_owned_process_group(
             pid, status = os.waitpid(process.pid, os.WNOHANG)
             if pid != process.pid:
                 raise ChildProcessError("inspection child reap unresolved")
-            process.returncode = os.waitstatus_to_exitcode(status)
+            exitcode = os.waitstatus_to_exitcode(status)
+            if type(exitcode) is not int:
+                raise ChildProcessError("inspection child exit status unknown")
+            process.returncode = exitcode
+            reaped = True
         except (OSError, subprocess.TimeoutExpired) as error:
             cleanup_failure = cleanup_failure or error
 
+    if reaped and cleanup_failure is None and cleanup_observer is not None:
+        try:
+            cleanup_observer(exitcode)
+        except BaseException:
+            if failure is not None:
+                raise failure
+            raise
     if failure is not None:
         raise failure
     if cleanup_failure is not None:

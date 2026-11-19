@@ -391,7 +391,8 @@ class TypedBrandRouteTests(unittest.TestCase):
             with self.subTest(case=case), ExitStack() as stack:
                 fds = []
                 marker = object()
-                def start(command, *, pass_fds, env):
+                def start(command, *, pass_fds, env, before_spawn):
+                    before_spawn()
                     fds.extend(pass_fds)
                     self.assertEqual(len(set(fds)), 4)
                     self.assertEqual(command[1:3], ["-I", "-B"])
@@ -409,7 +410,7 @@ class TypedBrandRouteTests(unittest.TestCase):
                         return decode(*args)
                     stack.enter_context(patch.object(self.route, "_decode", side_effect=activate_after_wait))
                 waited = []
-                def wait(process, *, wall_seconds):
+                def wait(process, *, wall_seconds, cleanup_observer):
                     waited.append(process)
                     self.assertIs(process, marker)
                     self.assertEqual(wall_seconds, 30)
@@ -419,7 +420,9 @@ class TypedBrandRouteTests(unittest.TestCase):
                         original = self.bundle.assets
                         stack.callback(object.__setattr__, self.bundle, "assets", original)
                         object.__setattr__(self.bundle, "assets", ())
-                    return 1 if case == "failed" else 0
+                    status = 1 if case == "failed" else 0
+                    cleanup_observer(status)
+                    return status
                 stack.enter_context(patch.object(adapters, "_start_pdf_render_worker", side_effect=start))
                 stack.enter_context(patch.object(adapters, "_wait_pdf_render_worker", new=wait))
                 with self.assertRaisesRegex(ValueError, "^typed_brand_render_refused$"):
@@ -467,10 +470,12 @@ class TypedBrandRouteTests(unittest.TestCase):
             self.assertEqual(results, [True])
             observed.append(phase)
         def start(*a, **k):
+            k["before_spawn"]()
             check("launch")
             return object()
-        def wait(process, *, wall_seconds):
+        def wait(process, *, wall_seconds, cleanup_observer):
             check("owned wait and cleanup")
+            cleanup_observer(1)
             return 1
         with (patch.object(adapters, "_start_pdf_render_worker", side_effect=start),
               patch.object(adapters, "_wait_pdf_render_worker", new=wait),
@@ -617,10 +622,14 @@ print(json.dumps(events))
                 stack.enter_context(patch.object(core, "profile_sha256", side_effect=stale))
                 return object()
             stack.enter_context(patch.object(self.route, "_decode", side_effect=decode))
-            start = stack.enter_context(patch.object(adapters, "_start_pdf_render_worker", return_value=object()))
+            def launched(*args, **kwargs):
+                kwargs["before_spawn"]()
+                return object()
+            start = stack.enter_context(patch.object(adapters, "_start_pdf_render_worker", side_effect=launched))
             waits = []
-            def wait(process, *, wall_seconds):
+            def wait(process, *, wall_seconds, cleanup_observer):
                 waits.append(wall_seconds)
+                cleanup_observer(0)
                 return 0
             stack.enter_context(patch.object(adapters, "_wait_pdf_render_worker", new=wait))
             with self.assertRaisesRegex(ValueError, "^typed_brand_render_refused$"):
@@ -640,7 +649,7 @@ print(json.dumps(events))
         fn = self.route._run_owned_child
         lines, first = inspect.getsourcelines(fn)
         handoff = first + next(i for i, line in enumerate(lines)
-                               if line.strip() == "status = waiter(process, wall_seconds=wall)")
+                               if line.strip() == "status = waiter(process, wall_seconds=wall, cleanup_observer=observer)")
         site = {op.opname: op.offset for op in dis.get_instructions(fn)
                 if op.positions.lineno == handoff}
         for case in ("uncertain-start", "no-handle", "wait-error", "wait-noninteger",
@@ -653,16 +662,19 @@ print(json.dumps(events))
                 calls = []
                 interruption = KeyboardInterrupt("interrupted known handle")
                 def start(*a, **k):
+                    k["before_spawn"]()
                     if case == "uncertain-start":
                         raise KeyboardInterrupt("uncertain launch")
                     return None if case == "no-handle" else handle
-                def wait(child, *, wall_seconds):
+                def wait(child, *, wall_seconds, cleanup_observer):
                     self.assertIs(child, handle)
                     calls.append(wall_seconds)
                     if case in ("wait-error", "handoff-unsettled"):
                         raise RuntimeError("cleanup unconfirmed")
                     if case == "wait-noninteger":
+                        cleanup_observer(True)
                         return True
+                    cleanup_observer(0)
                     return 0
                 stack.enter_context(patch.object(adapters, "_start_pdf_render_worker", side_effect=start))
                 stack.enter_context(patch.object(adapters, "_wait_pdf_render_worker", new=wait))
@@ -696,7 +708,7 @@ print(json.dumps(events))
                 expected_waits = ([0] if case.startswith("handoff") else
                                   [30] if case.startswith("wait-") or case == "post-return" else [])
                 self.assertEqual(calls, expected_waits)
-                if case == "handoff-settled":
+                if case in ("handoff-settled", "post-return"):
                     with self.scope():
                         pass
                 else:
@@ -761,3 +773,224 @@ print(json.dumps(events))
             with self.subTest(traceback=tb):
                 error = SimpleNamespace(__traceback__=tb)
                 self.assertFalse(self.route._confirmed_pre_wait(error, controller, waiter, {24}))
+
+
+    def test_child_audit_failure_writes_bounded_fail_without_profile_reaudit(self):
+        import json
+        from pathlib import Path
+        import subprocess
+        import sys
+        root = Path(self.route.__file__).resolve().parents[1]
+        program = """
+import json, os, runpy, sys, tempfile
+from contextlib import ExitStack
+from pathlib import Path
+sys.path.insert(0, sys.argv[1])
+from reporting import _pdf_render_worker as base, _pdf_process_sandbox as sandbox
+from reporting import _pdf_typed_brand_emission as core, pdf_typed_brand_render as route
+from reporting import pdf_raster_render as inherited
+events = []
+limits = {"memory_bytes":1073741824,"cpu_seconds":20,"file_bytes":16777216,"open_files":128}
+def stage(name, result=None):
+    def run(*args, **kwargs):
+        events.append(name)
+        return result
+    return run
+base._apply_resource_limits = stage("limits", limits)
+base._arm_worker_lifetime = stage("lifetime")
+sandbox.enforce_pdf_landlock = stage("landlock")
+sandbox.enforce_pdf_network_filter = stage("network")
+def forbidden(*args, **kwargs):
+    raise AssertionError("failure repeated an audit or crossed input admission")
+scenario = sys.argv[2]
+audit = route.require_policy
+def checked_audit():
+    events.append("audit")
+    if scenario == "audit":
+        raise ValueError("PRIVATE source drift detail")
+    digest = audit()
+    core.profile_sha256 = forbidden
+    return digest
+def failed_reader(*args, **kwargs):
+    events.append("reader")
+    raise ValueError("PRIVATE input detail")
+route.require_policy = checked_audit
+base.native_render_profile_sha256 = forbidden
+if scenario == "audit":
+    core.profile_sha256 = forbidden
+inherited.read_raster_inputs = failed_reader
+core.install_in_isolated_render_worker = stage("finisher")
+base._render = forbidden
+with ExitStack() as stack:
+    files = [stack.enter_context(tempfile.TemporaryFile()) for _ in range(4)]
+    fds = [file.fileno() for file in files]
+    script = Path(core.__file__).with_name("_pdf_typed_brand_render_worker.py")
+    sys.argv = [str(script), *map(str, fds[:3]), str(os.getpid()), core.MODE, str(fds[3])]
+    try:
+        runpy.run_path(str(script), run_name="__main__")
+    except SystemExit as stopped:
+        code = stopped.code
+    raw = os.pread(fds[2], 65537, 0)
+    print(json.dumps({"code":code,"record":json.loads(raw),"bytes":len(raw),
+                      "pdf_bytes":os.fstat(fds[1]).st_size,"events":events}))
+"""
+        import tempfile
+        for scenario in ("audit", "reader"):
+            with self.subTest(scenario=scenario):
+                result = subprocess.run([sys.executable, "-I", "-B", "-c", program, str(root), scenario],
+                                        capture_output=True, text=True, check=True, timeout=10)
+                observed = json.loads(result.stdout)
+                self.assertEqual(observed["code"], 0)
+                stages = ["limits", "lifetime", "landlock", "network", "audit"]
+                if scenario == "reader":
+                    stages += ["finisher", "reader"]
+                self.assertEqual(observed["events"], stages)
+                self.assertEqual(observed["pdf_bytes"], 0)
+                self.assertLessEqual(observed["bytes"], 65536)
+                expected = {"protocol_version": 1, "status": "FAIL",
+                    "error": "pdf_render_protocol_invalid",
+                    "limits": {"memory_bytes": 1073741824, "cpu_seconds": 20,
+                               "file_bytes": 16777216, "open_files": 128}}
+                if scenario == "reader":
+                    expected.update(protocol_version=3, profile_id="typed-original-brand-render-v1",
+                                    profile_sha256=self.profile)
+                self.assertEqual(observed["record"], expected)
+                self.assertNotIn("PRIVATE", result.stdout)
+                with tempfile.TemporaryFile() as output, self.assertRaises(ValueError):
+                    self.route._decode(json.dumps(observed["record"]).encode(), output.fileno(),
+                        self.args["expected_html_sha256"], self.bundle.bundle_sha256, 1, self.profile)
+
+    def test_prelaunch_preparation_failure_releases_reserved_custody(self):
+        import errno
+        import os
+        from contextlib import ExitStack
+        from unittest.mock import patch
+        from reporting import adapters, _pdf_native_launch_budget as budget
+        self.enterContext(patch.object(budget, "_TYPED_RENDER", None))
+        failed = OSError(errno.EMFILE, "descriptor capacity")
+        for stage in ("stdio", "cwd"):
+            with self.subTest(stage=stage), ExitStack() as stack:
+                if stage == "stdio":
+                    preparation = stack.enter_context(patch("builtins.open", side_effect=failed))
+                else:
+                    preparation = stack.enter_context(patch.object(adapters.Path, "resolve", side_effect=failed))
+                spawn = stack.enter_context(patch.object(adapters.subprocess, "Popen", side_effect=failed))
+                with self.assertRaises(OSError) as caught:
+                    self.route._run_owned_child([], {}, ())
+                self.assertIs(caught.exception, failed)
+                if stage == "stdio":
+                    preparation.assert_called_once_with(os.devnull, "r+b", buffering=0)
+                else:
+                    preparation.assert_called_once_with()
+                spawn.assert_not_called()
+            self.assertIsNone(budget._TYPED_RENDER)
+            with self.scope():
+                pass
+            with budget.reserve_standalone_typed_render():
+                pass
+
+    def test_confirmed_timeout_cleanup_releases_custody_without_a_result(self):
+        import subprocess
+        from unittest.mock import patch
+        from reporting import adapters, _pdf_native_launch_budget as budget
+        from test_reporting_pdf_process_lifecycle import real_child
+        self.enterContext(patch.object(budget, "_TYPED_RENDER", None))
+        original = adapters._wait_pdf_render_worker
+        with real_child("import time; time.sleep(30)") as child:
+            def launch(*args, **kwargs):
+                if "before_spawn" in kwargs:
+                    kwargs["before_spawn"]()
+                return child
+            def wait(process, *, wall_seconds, cleanup_observer=None):
+                options = {} if cleanup_observer is None else {"cleanup_observer": cleanup_observer}
+                return original(process, wall_seconds=0.02, **options)
+            with (patch.object(adapters, "_start_pdf_render_worker", side_effect=launch),
+                  patch.object(adapters, "_wait_pdf_render_worker", new=wait),
+                  self.assertRaisesRegex(RuntimeError, "^pdf_render_failed$") as caught):
+                self.route._run_owned_child([], {}, ())
+            self.assertIsInstance(caught.exception.__cause__, subprocess.TimeoutExpired)
+            self.assertEqual(child.returncode, -9)
+        self.assertIsNone(budget._TYPED_RENDER)
+        with self.scope():
+            pass
+
+    def test_proved_pre_wait_timeout_cleanup_preserves_original_interruption(self):
+        import inspect
+        import sys
+        from contextlib import ExitStack
+        from unittest.mock import patch
+        from reporting import adapters, _pdf_native_launch_budget as budget
+        from test_reporting_pdf_process_lifecycle import real_child
+        self.enterContext(patch.object(budget, "_TYPED_RENDER", None))
+        fn = self.route._run_owned_child
+        lines, first = inspect.getsourcelines(fn)
+        handoff = first + next(i for i, line in enumerate(lines)
+            if line.strip().startswith("status = waiter(process, wall_seconds=wall"))
+        interruption = KeyboardInterrupt("known pre-wait boundary")
+        original = adapters._wait_pdf_render_worker
+        calls = []
+        with real_child("import time; time.sleep(30)") as child, ExitStack() as stack:
+            def launch(*args, **kwargs):
+                if "before_spawn" in kwargs:
+                    kwargs["before_spawn"]()
+                return child
+            def wait(process, *, wall_seconds, cleanup_observer=None):
+                calls.append(wall_seconds)
+                options = {} if cleanup_observer is None else {"cleanup_observer": cleanup_observer}
+                return original(process, wall_seconds=wall_seconds, **options)
+            def interrupt(frame, event, arg):
+                if frame.f_code is fn.__code__ and event == "line" and frame.f_lineno == handoff:
+                    raise interruption
+                return interrupt
+            stack.enter_context(patch.object(adapters, "_start_pdf_render_worker", side_effect=launch))
+            stack.enter_context(patch.object(adapters, "_wait_pdf_render_worker", new=wait))
+            stack.callback(sys.settrace, sys.gettrace())
+            sys.settrace(interrupt)
+            with self.assertRaises(KeyboardInterrupt) as caught:
+                fn([], {}, ())
+            self.assertIs(caught.exception, interruption)
+            self.assertEqual(calls, [0])
+            self.assertEqual(child.returncode, -9)
+        self.assertIsNone(budget._TYPED_RENDER)
+        with self.scope():
+            pass
+
+    def test_failed_group_cleanup_keeps_reaped_child_custody_quarantined(self):
+        from unittest.mock import patch
+        from reporting import adapters, _pdf_native_launch_budget as budget
+        from test_reporting_pdf_process_lifecycle import real_child, signal_observer
+        original = adapters._wait_pdf_render_worker
+        with patch.object(budget, "_TYPED_RENDER", None):
+            with real_child("import time; time.sleep(30)") as child:
+                def launch(*args, **kwargs):
+                    if "before_spawn" in kwargs:
+                        kwargs["before_spawn"]()
+                    return child
+                def wait(process, *, wall_seconds, cleanup_observer=None):
+                    options = {} if cleanup_observer is None else {"cleanup_observer": cleanup_observer}
+                    return original(process, wall_seconds=0.02, **options)
+                with (patch.object(adapters, "_start_pdf_render_worker", side_effect=launch),
+                      patch.object(adapters, "_wait_pdf_render_worker", new=wait),
+                      signal_observer(child, [], group_error=PermissionError("group refused")),
+                      self.assertRaises(RuntimeError)):
+                    self.route._run_owned_child([], {}, ())
+                self.assertEqual(child.returncode, -9)
+            self.assertEqual(budget._TYPED_RENDER.phase, "quarantined")
+            with self.assertRaises(ValueError), self.scope():
+                pass
+
+    def test_integer_wait_without_cleanup_receipt_cannot_return_a_result(self):
+        from unittest.mock import patch
+        from reporting import adapters, _pdf_native_launch_budget as budget
+        def launch(*args, **kwargs):
+            if "before_spawn" in kwargs:
+                kwargs["before_spawn"]()
+            return object()
+        def wait(process, *, wall_seconds, cleanup_observer=None):
+            return 0
+        with patch.object(budget, "_TYPED_RENDER", None):
+            with (patch.object(adapters, "_start_pdf_render_worker", side_effect=launch),
+                  patch.object(adapters, "_wait_pdf_render_worker", new=wait),
+                  self.assertRaises(ValueError)):
+                self.route._run_owned_child([], {}, ())
+            self.assertEqual(budget._TYPED_RENDER.phase, "quarantined")

@@ -97,7 +97,7 @@
   "source_revision": "f3b885d5590e307e02542f1a724cec55d567fdaa",
   "source_sha256": {
     "reporting/_pdf_render_worker.py": "30b6454c7cd9b1b83d5713c406e135de91ccf127116a8bd42a13d17036cbd5ce",
-    "reporting/adapters.py": "a9cb893ae64200adbe211802fafa97ed2b08575f0195ab8e8f3303f8b3cba76f",
+    "reporting/adapters.py": "4617038aea9465db76aa0f4049f458dc6b7de7686f56addc21a45f5f2bf6bba0",
     "reporting/pdf_font_selection.py": "5c5771d1d6b86aa1695e5d6f3abc42f8d7599deb5dd9f65215488e1e705be034",
     "requirements-reporting.lock": "bc2c6d8e66ace82ca442e7931ea44b608ea037e1adddddc7a5dbebeb56008671"
   },

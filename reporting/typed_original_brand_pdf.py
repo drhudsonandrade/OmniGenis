@@ -180,8 +180,8 @@ def render_typed_original_brand_pdf(
         _require(again_record == record and again_html == html
                  and again_resources.to_bytes() == resources.to_bytes())
         metadata = pdf.to_dict()
-        require_no_active_scope()
         _require(require_render_policy() == metadata["profile_sha256"])
+        require_no_active_scope()
         return pdf, {**record, "render_profile_id": emission.PROFILE_ID,
                      "render_profile_sha256": metadata["profile_sha256"],
                      "pdf_sha256": metadata["pdf_sha256"],

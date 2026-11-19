@@ -107,14 +107,15 @@ def _pre_wait_offsets(code):
                      and len(code.co_code) <= 4096)
     instructions = tuple(dis.get_instructions(code, adaptive=False, show_caches=False))
     pattern = (("PUSH_NULL", None), ("LOAD_FAST", "waiter"), ("LOAD_FAST", "process"),
-               ("LOAD_FAST", "wall"), ("KW_NAMES", ("wall_seconds",)), ("CALL", 2),
+               ("LOAD_FAST", "wall"), ("LOAD_FAST", "observer"),
+               ("KW_NAMES", ("wall_seconds", "cleanup_observer")), ("CALL", 3),
                ("STORE_FAST", "status"))
     operations = tuple((item.opname, item.argval) for item in instructions)
     matches = [i for i in range(len(operations) - len(pattern) + 1)
                if operations[i:i + len(pattern)] == pattern]
     emission.require(len(matches) == 1)
     # CALL and its inline caches cannot establish that the waiter was never entered.
-    return frozenset(item.offset for item in instructions[:matches[0] + 5])
+    return frozenset(item.offset for item in instructions[:matches[0] + 6])
 
 
 def _confirmed_pre_wait(error, controller_code, waiter_code, offsets):
@@ -143,26 +144,21 @@ def _run_owned_child(command, env, fds):
     waiter_code = waiter.__code__
     controller_code = _run_owned_child.__code__
     offsets = _pre_wait_offsets(controller_code)
-    unreturned = object()
     with reserve_standalone_typed_render() as ticket:
         process = None
-        status = unreturned
+        observer = ticket.settle
         try:
-            ticket.arm()
-            process = adapters._start_pdf_render_worker(command, env=env, pass_fds=fds)
+            process = adapters._start_pdf_render_worker(
+                command, env=env, pass_fds=fds, before_spawn=ticket.arm)
             if process is None:
                 raise ValueError("typed render child unavailable")
-            try:
-                status = waiter(process, wall_seconds=wall)
-            finally:
-                if status is not unreturned:
-                    ticket.settle(status)
+            status = waiter(process, wall_seconds=wall, cleanup_observer=observer)
+            emission.require(ticket.phase == "settled" and type(status) is int)
             return status
         except BaseException as error:
             try:
                 if process is not None and _confirmed_pre_wait(error, controller_code, waiter_code, offsets):
-                    cleanup_status = waiter(process, wall_seconds=0)
-                    ticket.settle(cleanup_status)
+                    waiter(process, wall_seconds=0, cleanup_observer=observer)
             except BaseException:
                 # Keep the original failure. Unproved custody stays quarantined.
                 pass

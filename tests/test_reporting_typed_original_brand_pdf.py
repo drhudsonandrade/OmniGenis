@@ -321,5 +321,31 @@ class TypedOriginalBrandPdfTests(unittest.TestCase):
         self.assertEqual(self.sources["dna_png"],original)
 
 
+    def test_native_activation_during_final_policy_audit_withholds_real_candidate(self):
+        from contextlib import ExitStack
+        from reporting._pdf_native_launch_budget import NativeLaunchScope
+        from reporting.page_windows import plan_pdf_page_windows
+        # Keep a real untouched producer candidate; this check grants no final QA.
+        candidate, _ = self.m.render_typed_original_brand_pdf(**self.arguments())
+        plan = plan_pdf_page_windows(pdf_sha256=candidate.pdf_sha256, ir_sha256=self.expected_ir_sha,
+            page_count=candidate.page_count, admitted_page_budget=candidate.page_count,
+            pages_per_window=16, inspector_profile_id="generated-pdf-text-window-v1")
+        scope = NativeLaunchScope(plan, len(candidate.pdf_bytes))
+        audited = []
+        audit = self.m.require_render_policy
+        with ExitStack() as stack:
+            def activate_during_audit():
+                result = audit()
+                stack.enter_context(scope)
+                audited.append(True)
+                return result
+            stack.enter_context(patch.object(self.m, "render_typed_brand_pdf", return_value=candidate))
+            stack.enter_context(patch.object(self.m, "require_render_policy", side_effect=activate_during_audit))
+            with self.assertRaisesRegex(self.m.TypedOriginalBrandError, "^typed_original_brand_pdf_unavailable$"):
+                self.m.render_typed_original_brand_pdf(**self.arguments())
+            self.assertEqual(audited, [True])
+            self.assertTrue(scope._invalid)
+
+
 if __name__=="__main__":
     unittest.main()

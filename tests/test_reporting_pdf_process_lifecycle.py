@@ -486,6 +486,96 @@ class RendererChildLifecycleTests(unittest.TestCase):
                 })
 
 
+    def test_pre_spawn_hook_follows_stdio_preparation_and_preserves_defaults(self):
+        from reporting import adapters
+        with patch.object(adapters.subprocess, "Popen", return_value=object()) as spawn:
+            adapters._start_pdf_render_worker(["fixed"], env={"fixed": "value"}, pass_fds=(7,))
+            self.assertEqual(spawn.call_args.kwargs["stdin"], subprocess.DEVNULL)
+            self.assertEqual(spawn.call_args.kwargs["stdout"], subprocess.DEVNULL)
+            self.assertEqual(spawn.call_args.kwargs["stderr"], subprocess.DEVNULL)
+            self.assertTrue(spawn.call_args.kwargs["start_new_session"])
+            self.assertTrue(spawn.call_args.kwargs["close_fds"])
+            self.assertEqual(spawn.call_args.kwargs["pass_fds"], (7,))
+        events, descriptors = [], []
+        marker = object()
+        def before_spawn():
+            events.append("armed")
+        def launch(command, **kwargs):
+            self.assertEqual(events, ["armed"])
+            descriptor = kwargs["stdin"]
+            self.assertIs(type(descriptor), int)
+            self.assertEqual((descriptor, descriptor), (kwargs["stdout"], kwargs["stderr"]))
+            os.fstat(descriptor)
+            descriptors.append(descriptor)
+            self.assertTrue(kwargs["start_new_session"])
+            self.assertTrue(kwargs["close_fds"])
+            self.assertEqual(kwargs["pass_fds"], (7,))
+            events.append("spawn")
+            return marker
+        with patch.object(adapters.subprocess, "Popen", side_effect=launch):
+            self.assertIs(adapters._start_pdf_render_worker(["fixed"], env={}, pass_fds=(7,),
+                          before_spawn=before_spawn), marker)
+        self.assertEqual(events, ["armed", "spawn"])
+        with self.assertRaises(OSError):
+            os.fstat(descriptors[0])
+
+    def test_cleanup_observer_confirms_reap_even_when_timeout_is_rethrown(self):
+        from reporting import adapters
+        observed = []
+        with real_child("import time;time.sleep(30)") as process:
+            def confirmed(status):
+                self.assertIs(type(status), int)
+                self.assertEqual(status, -9)
+                with self.assertRaises(ChildProcessError):
+                    REAL_WAITID(os.P_PID, process.pid, WAIT_FLAGS)
+                observed.append(status)
+            with self.assertRaisesRegex(RuntimeError, "^pdf_render_failed$") as caught:
+                adapters._wait_pdf_render_worker(process, wall_seconds=0.02,
+                                                cleanup_observer=confirmed)
+            self.assertIsInstance(caught.exception.__cause__, subprocess.TimeoutExpired)
+        self.assertEqual(observed, [-9])
+
+    def test_cleanup_observer_is_withheld_when_group_cleanup_remains_unresolved(self):
+        from reporting import adapters
+        observed = []
+        with real_child("import time;time.sleep(30)") as process:
+            with signal_observer(process, [], group_error=PermissionError("group refused")):
+                with self.assertRaisesRegex(RuntimeError, "^pdf_render_failed$"):
+                    adapters._wait_pdf_render_worker(process, wall_seconds=0.02,
+                                                    cleanup_observer=observed.append)
+            self.assertEqual(process.returncode, -9)
+        self.assertEqual(observed, [])
+
+    def test_cleanup_observer_error_preserves_the_original_timeout(self):
+        from reporting import adapters
+        observed = []
+        def rejected(status):
+            observed.append(status)
+            raise ValueError("observer rejected")
+        with real_child("import time;time.sleep(30)") as process:
+            with self.assertRaisesRegex(RuntimeError, "^pdf_render_failed$") as caught:
+                adapters._wait_pdf_render_worker(process, wall_seconds=0.02,
+                                                cleanup_observer=rejected)
+            self.assertIsInstance(caught.exception.__cause__, subprocess.TimeoutExpired)
+            self.assertEqual(process.returncode, -9)
+        self.assertEqual(observed, [-9])
+
+    def test_cleanup_observer_error_refuses_an_otherwise_successful_wait(self):
+        from reporting import adapters
+        observed = []
+        rejected = ValueError("observer rejected")
+        def observer(status):
+            observed.append(status)
+            raise rejected
+        with real_child("import os;os._exit(0)") as process:
+            observe_exit(process)
+            with self.assertRaisesRegex(RuntimeError, "^pdf_render_failed$") as caught:
+                adapters._wait_pdf_render_worker(process, wall_seconds=1, cleanup_observer=observer)
+            self.assertIs(caught.exception.__cause__, rejected)
+            self.assertEqual(process.returncode, 0)
+        self.assertEqual(observed, [0])
+
+
 @unittest.skipUnless(sys.platform == "linux" and hasattr(os, "pidfd_open"), "Linux pidfd required")
 class CleanupAllowanceTests(unittest.TestCase):
     def test_invalid_cleanup_allowance_rejects_before_any_process_operation(self):
