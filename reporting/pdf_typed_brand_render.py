@@ -115,23 +115,63 @@ def _pre_wait_offsets(code):
                if operations[i:i + len(pattern)] == pattern]
     emission.require(len(matches) == 1)
     # CALL and its inline caches cannot establish that the waiter was never entered.
-    return frozenset(item.offset for item in instructions[:matches[0] + 6])
+    call, following = instructions[matches[0] + 6:matches[0] + 8]
+    call_offsets = frozenset(item.offset for item in dis.get_instructions(
+        code, adaptive=False, show_caches=True) if call.offset <= item.offset < following.offset)
+    return frozenset(item.offset for item in instructions[:matches[0] + 6]), call_offsets
 
 
-def _confirmed_pre_wait(error, controller_code, waiter_code, offsets):
-    """Use saved exception offsets, never the unwound frame's current instruction."""
+def _adapter_prefix(waiter):
+    """Recognize only the actual adapter's finite prefix before lifecycle entry."""
+    from reporting import adapters, _pdf_process_lifecycle as lifecycle
+    code = waiter.__code__
+    if (waiter.__globals__ is not vars(adapters) or code.co_name != "_wait_pdf_render_worker"
+            or code.co_argcount != 1 or code.co_kwonlyargcount != 2 or code.co_posonlyargcount != 0
+            or code.co_varnames != ("process", "wall_seconds", "cleanup_observer", "options", "exc")
+            or code.co_freevars or code.co_cellvars or len(code.co_code) > 4096
+            or adapters.wait_owned_process_group is not lifecycle.wait_owned_process_group
+            or type(lifecycle.wait_owned_process_group) is not FunctionType):
+        return frozenset(), None
+    instructions = tuple(dis.get_instructions(code, adaptive=False, show_caches=False))
+    if len(instructions) < 21:
+        return frozenset(), None
+    # Both forward option-map branches are call-free and rejoin before delegation.
+    expected = (("RESUME", 0), ("LOAD_FAST", "cleanup_observer"),
+                ("POP_JUMP_IF_NOT_NONE", instructions[5].offset), ("BUILD_MAP", 0),
+                ("JUMP_FORWARD", instructions[8].offset), ("LOAD_CONST", "cleanup_observer"),
+                ("LOAD_FAST", "cleanup_observer"), ("BUILD_MAP", 1), ("STORE_FAST", "options"),
+                ("NOP", None), ("LOAD_GLOBAL", "wait_owned_process_group"),
+                ("LOAD_FAST", "process"), ("BUILD_TUPLE", 1), ("LOAD_FAST", "wall_seconds"),
+                ("LOAD_CONST", 5), ("LOAD_CONST", ("wall_seconds", "cleanup_seconds")),
+                ("BUILD_CONST_KEY_MAP", 2), ("LOAD_FAST", "options"), ("DICT_MERGE", 1),
+                ("CALL_FUNCTION_EX", 1), ("RETURN_VALUE", None))
+    if tuple((item.opname, item.argval) for item in instructions[:21]) != expected:
+        return frozenset(), None
+    return frozenset(item.offset for item in instructions[:19]), lifecycle.wait_owned_process_group.__code__
+
+
+def _confirmed_pre_wait(error, controller_code, waiter_code, offsets,
+                        call_offsets=(), adapter_offsets=(), lifecycle_code=None):
+    """Use saved exception offsets and a direct, certified adapter-prefix chain."""
     tb = error.__traceback__
-    position = None
+    position = previous = None
+    adapter_seen = False
     for _ in range(32):
         if tb is None:
-            return position in offsets
+            return adapter_seen or position in offsets
         code = tb.tb_frame.f_code
         if code is waiter_code:
-            return False
-        if code is controller_code:
+            if (adapter_seen or previous is not controller_code or position not in call_offsets
+                    or tb.tb_lasti not in adapter_offsets):
+                return False
+            adapter_seen = True
+        elif code is controller_code:
             if position is not None:
                 return False
             position = tb.tb_lasti
+        elif lifecycle_code is not None and code is lifecycle_code:
+            return False
+        previous = code
         tb = tb.tb_next
     return False
 
@@ -143,7 +183,8 @@ def _run_owned_child(command, env, fds):
     emission.require(type(waiter) is FunctionType and type(wall) is int and wall == 30)
     waiter_code = waiter.__code__
     controller_code = _run_owned_child.__code__
-    offsets = _pre_wait_offsets(controller_code)
+    offsets, call_offsets = _pre_wait_offsets(controller_code)
+    adapter_offsets, lifecycle_code = _adapter_prefix(waiter)
     with reserve_standalone_typed_render() as ticket:
         process = None
         observer = ticket.settle
@@ -157,7 +198,9 @@ def _run_owned_child(command, env, fds):
             return status
         except BaseException as error:
             try:
-                if process is not None and _confirmed_pre_wait(error, controller_code, waiter_code, offsets):
+                if process is not None and _confirmed_pre_wait(
+                        error, controller_code, waiter_code, offsets, call_offsets,
+                        adapter_offsets, lifecycle_code):
                     waiter(process, wall_seconds=0, cleanup_observer=observer)
             except BaseException:
                 # Keep the original failure. Unproved custody stays quarantined.

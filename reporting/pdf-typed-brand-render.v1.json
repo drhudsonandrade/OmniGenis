@@ -46,7 +46,7 @@
     "reporting/pdf_font_selection.py": "5c5771d1d6b86aa1695e5d6f3abc42f8d7599deb5dd9f65215488e1e705be034",
     "reporting/pdf_raster_render.py": "48883e3d12402cdfb9fdfd086c806b89ca3c331e961698a29ef8916975a1873b",
     "reporting/pdf_raster_resources.py": "00b6f0c7ee15b0b069863511a1e02418b666aa644b63163c3119e7a3bbf7fb10",
-    "reporting/pdf_typed_brand_render.py": "5a3bd705e2eac6ea60e6d8c13dee72955f309f9776b42f36db22d37afdecda45",
+    "reporting/pdf_typed_brand_render.py": "280f66326f4c12e4c9fc739f55e4e3f5a0d91aa99bb380def85bd5f68fe719da",
     "reporting/png_inspection.py": "189e1e1d77eabaaf829915cd6fcb21611831bb7c3af577e00e423a1b40f5bcec",
     "reporting/typed_original_brand_pdf.py": "a5ec0009c716c47897c51941b100a5c51498373e5ae69fe25ffbccdbd1b03ff5",
     "requirements-reporting.lock": "bc2c6d8e66ace82ca442e7931ea44b608ea037e1adddddc7a5dbebeb56008671"

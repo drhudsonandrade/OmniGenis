@@ -992,6 +992,198 @@ with ExitStack() as stack:
         with self.scope():
             pass
 
+    def test_actual_adapter_pre_lifecycle_interrupt_reaps_and_releases_custody(self):
+        from contextlib import ExitStack
+        import dis
+        import inspect
+        import os
+        import sys
+        from unittest.mock import patch
+        from reporting import adapters, _pdf_native_launch_budget as budget
+        from reporting import _pdf_process_lifecycle as lifecycle
+        from test_reporting_pdf_process_lifecycle import (
+            REAL_WAITID, WAIT_FLAGS, real_child, signal_observer)
+        adapter_code = adapters._wait_pdf_render_worker.__code__
+        lifecycle_code = lifecycle.wait_owned_process_group.__code__
+        self.assertIs(adapters.wait_owned_process_group, lifecycle.wait_owned_process_group)
+        lines, first = inspect.getsourcelines(adapters._wait_pdf_render_worker)
+        options_line = first + next(i for i, line in enumerate(lines)
+                                   if line.strip().startswith("options = "))
+        instructions = tuple(dis.get_instructions(adapter_code, adaptive=False, show_caches=False))
+        delegation = [i for i, op in enumerate(instructions) if op.opname == "CALL_FUNCTION_EX"]
+        self.assertEqual(len(delegation), 1)
+        prefix = instructions[delegation[0] - 1]
+        self.assertEqual(prefix.opname, "DICT_MERGE")
+        for case in ("options-line", "last-prefix-opcode"):
+            with self.subTest(case=case), patch.object(budget, "_TYPED_RENDER", None):
+                with real_child("import time; time.sleep(30)") as child, ExitStack() as stack:
+                    interruption = KeyboardInterrupt("adapter interrupted before lifecycle delegation")
+                    adapter_calls, lifecycle_calls, observations = [], [], []
+                    trapped = []
+                    def launch(*args, **kwargs):
+                        kwargs["before_spawn"]()
+                        return child
+                    def profile(frame, event, arg):
+                        if event == "call" and frame.f_code in (adapter_code, lifecycle_code):
+                            self.assertIs(frame.f_locals["process"], child)
+                            calls = adapter_calls if frame.f_code is adapter_code else lifecycle_calls
+                            calls.append(frame.f_locals["wall_seconds"])
+                    def interrupt(frame, event, arg):
+                        if frame.f_code is adapter_code:
+                            frame.f_trace_opcodes = case == "last-prefix-opcode"
+                            at_prefix = (event == "opcode" and frame.f_lasti == prefix.offset
+                                         if case == "last-prefix-opcode" else
+                                         event == "line" and frame.f_lineno == options_line)
+                            if at_prefix and not trapped:
+                                trapped.append(frame.f_lasti)
+                                raise interruption
+                        return interrupt
+                    start = stack.enter_context(patch.object(
+                        adapters, "_start_pdf_render_worker", side_effect=launch))
+                    stack.enter_context(signal_observer(child, observations))
+                    test_frame = sys._getframe()
+                    stack.callback(setattr, test_frame, "f_trace_opcodes", test_frame.f_trace_opcodes)
+                    test_frame.f_trace_opcodes = case == "last-prefix-opcode"
+                    stack.callback(sys.setprofile, sys.getprofile())
+                    stack.callback(sys.settrace, sys.gettrace())
+                    sys.setprofile(profile)
+                    sys.settrace(interrupt)
+                    with self.assertRaises(KeyboardInterrupt) as caught:
+                        self.route._run_owned_child([], {}, ())
+                    self.assertIs(caught.exception, interruption)
+                    start.assert_called_once()
+                    self.assertEqual(len(trapped), 1)
+                    self.assertEqual(adapter_calls, [30, 0])
+                    self.assertEqual(lifecycle_calls, [0])
+                    self.assertEqual(child.returncode, -9)
+                    with self.assertRaises(ChildProcessError):
+                        REAL_WAITID(os.P_PID, child.pid, WAIT_FLAGS)
+                    self.assertEqual([kind for kind, _, _ in observations if kind == "group"], ["group"])
+                    self.assertTrue(all(owned for _, owned, _ in observations), observations)
+                self.assertIsNone(budget._TYPED_RENDER)
+                with self.scope():
+                    pass
+                with budget.reserve_standalone_typed_render():
+                    pass
+
+    def test_actual_adapter_delegation_boundary_never_retries_cleanup(self):
+        from contextlib import ExitStack
+        import dis
+        import os
+        import sys
+        from unittest.mock import patch
+        from reporting import adapters, _pdf_native_launch_budget as budget
+        from reporting import _pdf_process_lifecycle as lifecycle
+        from test_reporting_pdf_process_lifecycle import REAL_WAITID, WAIT_FLAGS, real_child
+        adapter_code = adapters._wait_pdf_render_worker.__code__
+        lifecycle_code = lifecycle.wait_owned_process_group.__code__
+        calls = [op.offset for op in dis.get_instructions(adapter_code, adaptive=False, show_caches=False)
+                 if op.opname == "CALL_FUNCTION_EX"]
+        self.assertEqual(len(calls), 1)
+        for case in ("delegation-call", "entered-lifecycle"):
+            with self.subTest(case=case), patch.object(budget, "_TYPED_RENDER", None):
+                with real_child("import time; time.sleep(30)") as child, ExitStack() as stack:
+                    interruption = KeyboardInterrupt("lifecycle entry is not a cleanup receipt")
+                    adapter_calls, lifecycle_calls, trapped = [], [], []
+                    def launch(*args, **kwargs):
+                        kwargs["before_spawn"]()
+                        return child
+                    def profile(frame, event, arg):
+                        if event == "call" and frame.f_code in (adapter_code, lifecycle_code):
+                            self.assertIs(frame.f_locals["process"], child)
+                            seen = adapter_calls if frame.f_code is adapter_code else lifecycle_calls
+                            seen.append(frame.f_locals["wall_seconds"])
+                    def interrupt(frame, event, arg):
+                        if frame.f_code is adapter_code:
+                            frame.f_trace_opcodes = case == "delegation-call"
+                        at_boundary = (case == "delegation-call" and frame.f_code is adapter_code
+                                       and event == "opcode" and frame.f_lasti == calls[0])
+                        inside_lifecycle = (case == "entered-lifecycle" and frame.f_code is lifecycle_code
+                                            and event == "line")
+                        if (at_boundary or inside_lifecycle) and not trapped:
+                            trapped.append(frame.f_lasti)
+                            raise interruption
+                        return interrupt
+                    start = stack.enter_context(patch.object(
+                        adapters, "_start_pdf_render_worker", side_effect=launch))
+                    test_frame = sys._getframe()
+                    stack.callback(setattr, test_frame, "f_trace_opcodes", test_frame.f_trace_opcodes)
+                    test_frame.f_trace_opcodes = case == "delegation-call"
+                    stack.callback(sys.setprofile, sys.getprofile())
+                    stack.callback(sys.settrace, sys.gettrace())
+                    sys.setprofile(profile)
+                    sys.settrace(interrupt)
+                    with self.assertRaises(KeyboardInterrupt) as caught:
+                        self.route._run_owned_child([], {}, ())
+                    self.assertIs(caught.exception, interruption)
+                    start.assert_called_once()
+                    self.assertEqual(len(trapped), 1)
+                    self.assertEqual(adapter_calls, [30])
+                    self.assertEqual(lifecycle_calls, [] if case == "delegation-call" else [30])
+                    self.assertIsNone(child.returncode)
+                    self.assertIsNone(REAL_WAITID(os.P_PID, child.pid, WAIT_FLAGS))
+                    self.assertEqual(budget._TYPED_RENDER.phase, "quarantined")
+                    with self.assertRaises(ValueError), self.scope():
+                        pass
+                    with self.assertRaises(ValueError), budget.reserve_standalone_typed_render():
+                        pass
+
+    def test_unknown_waiter_frame_cannot_authorize_adapter_prefix_recovery(self):
+        from contextlib import ExitStack
+        import inspect
+        import os
+        import sys
+        from unittest.mock import patch
+        from reporting import adapters, _pdf_native_launch_budget as budget
+        from reporting import _pdf_process_lifecycle as lifecycle
+        from test_reporting_pdf_process_lifecycle import REAL_WAITID, WAIT_FLAGS, real_child
+        original = adapters._wait_pdf_render_worker
+        lifecycle_code = lifecycle.wait_owned_process_group.__code__
+        lines, first = inspect.getsourcelines(original)
+        options_line = first + next(i for i, line in enumerate(lines)
+                                   if line.strip().startswith("options = "))
+        with patch.object(budget, "_TYPED_RENDER", None):
+            with real_child("import time; time.sleep(30)") as child, ExitStack() as stack:
+                interruption = KeyboardInterrupt("an unknown wrapper interrupts the proof chain")
+                waiter_calls, lifecycle_calls, trapped = [], [], []
+                def launch(*args, **kwargs):
+                    kwargs["before_spawn"]()
+                    return child
+                def wait(process, *, wall_seconds, cleanup_observer):
+                    waiter_calls.append(wall_seconds)
+                    return original(process, wall_seconds=wall_seconds, cleanup_observer=cleanup_observer)
+                def profile(frame, event, arg):
+                    if event == "call" and frame.f_code is lifecycle_code:
+                        lifecycle_calls.append(frame.f_locals["wall_seconds"])
+                def interrupt(frame, event, arg):
+                    if (frame.f_code is original.__code__ and event == "line"
+                            and frame.f_lineno == options_line and not trapped):
+                        trapped.append(frame.f_lasti)
+                        raise interruption
+                    return interrupt
+                start = stack.enter_context(patch.object(
+                    adapters, "_start_pdf_render_worker", side_effect=launch))
+                stack.enter_context(patch.object(adapters, "_wait_pdf_render_worker", new=wait))
+                stack.callback(sys.setprofile, sys.getprofile())
+                stack.callback(sys.settrace, sys.gettrace())
+                sys.setprofile(profile)
+                sys.settrace(interrupt)
+                with self.assertRaises(KeyboardInterrupt) as caught:
+                    self.route._run_owned_child([], {}, ())
+                self.assertIs(caught.exception, interruption)
+                start.assert_called_once()
+                self.assertEqual(len(trapped), 1)
+                self.assertEqual(waiter_calls, [30])
+                self.assertEqual(lifecycle_calls, [])
+                self.assertIsNone(child.returncode)
+                self.assertIsNone(REAL_WAITID(os.P_PID, child.pid, WAIT_FLAGS))
+                self.assertEqual(budget._TYPED_RENDER.phase, "quarantined")
+                with self.assertRaises(ValueError), self.scope():
+                    pass
+                with self.assertRaises(ValueError), budget.reserve_standalone_typed_render():
+                    pass
+
+
     def test_failed_group_cleanup_keeps_reaped_child_custody_quarantined(self):
         from unittest.mock import patch
         from reporting import adapters, _pdf_native_launch_budget as budget

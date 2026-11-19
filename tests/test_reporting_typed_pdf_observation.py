@@ -1,6 +1,7 @@
 """Physical PDF observations with synthetic source and real confined parser fixtures."""
 from __future__ import annotations
 
+from contextlib import contextmanager
 from dataclasses import FrozenInstanceError
 from hashlib import sha256
 from io import BytesIO
@@ -8,6 +9,8 @@ import importlib
 import importlib.util
 import json
 import os
+import shutil
+import tempfile
 from pathlib import Path
 from time import monotonic_ns
 import unittest
@@ -687,6 +690,273 @@ class TypedPdfObservationTests(unittest.TestCase):
         self.assertFalse(profile['aggregate_job_resources_qualified'])
         for name, expected in profile['source_sha256'].items():
             self.assertEqual(sha256((ROOT / name).read_bytes()).hexdigest(), expected)
+
+    @contextmanager
+    def _profile_case_tree(self):
+        """Copy only the current fixed observer closure into a private test tree."""
+        profile_name = 'reporting/pdf-typed-observation.v1.json'
+        raw = (ROOT / profile_name).read_bytes()
+        profile = json.loads(raw)
+        self.assertEqual(len(profile['source_sha256']), 109)
+        with tempfile.TemporaryDirectory(prefix='typed-observer-profile-') as name:
+            root = Path(name)
+            for relative, expected in profile['source_sha256'].items():
+                content = (ROOT / relative).read_bytes()
+                self.assertEqual(sha256(content).hexdigest(), expected)
+                destination = root / relative
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_bytes(content)
+            manifest = root / profile_name
+            manifest.write_bytes(raw)
+            with patch.object(self.m, 'ROOT', root), \
+                    patch.object(self.m, '_PROFILE_FILE', manifest), \
+                    patch.dict(os.environ, {'OMNIGENIS_TYPED_PDF_OBSERVATION_DISABLED': '0'}):
+                yield root, manifest, profile
+
+    @contextmanager
+    def _profile_case_io(self, protected, *, before_open=None, after_open=None,
+                         before_read=None, after_read=None):
+        """Observe real descriptor I/O; refuse a protected pathname reopen safely."""
+        protected = {Path(path) for path in protected}
+        original_open, original_read, original_close = os.open, os.read, os.close
+        original_path_open = Path.open
+        records, active = [], {}
+
+        def pathname_open(path, *args, **kwargs):
+            if Path(path) in protected:
+                self.fail('profile admission reopened a protected path via Path.open')
+            return original_path_open(path, *args, **kwargs)
+
+        def descriptor_open(path, flags, *args, **kwargs):
+            named = Path(os.fsdecode(path)) if isinstance(path, (str, bytes, os.PathLike)) else None
+            if named in protected:
+                required = os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC
+                self.assertEqual(flags & required, required)
+                self.assertEqual(flags & os.O_ACCMODE, os.O_RDONLY)
+                if before_open is not None:
+                    before_open(named)
+            fd = original_open(path, flags, *args, **kwargs)
+            if named in protected:
+                record = {'path': named, 'fd': fd, 'requests': [], 'bytes': 0,
+                          'closed': False}
+                records.append(record)
+                active[fd] = record
+                if after_open is not None:
+                    after_open(named)
+            return fd
+
+        def descriptor_read(fd, count):
+            record = active.get(fd)
+            if record is not None:
+                limit = (65536 if record['path'].name == 'pdf-typed-observation.v1.json'
+                         else 262144)
+                self.assertGreater(count, 0)
+                self.assertLessEqual(count, 8192)
+                self.assertLessEqual(count, limit - record['bytes'])
+                record['requests'].append(count)
+                replacement = (before_read(record['path'])
+                               if before_read is not None else None)
+                content = original_read(fd, count) if replacement is None else replacement
+                record['bytes'] += len(content)
+                self.assertLessEqual(record['bytes'], limit)
+                if after_read is not None:
+                    after_read(record['path'])
+                return content
+            return original_read(fd, count)
+
+        def descriptor_close(fd):
+            result = original_close(fd)
+            record = active.pop(fd, None)
+            if record is not None:
+                record['closed'] = True
+            return result
+
+        try:
+            with patch.object(Path, 'open', pathname_open), \
+                    patch.object(os, 'open', descriptor_open), \
+                    patch.object(os, 'read', descriptor_read), \
+                    patch.object(os, 'close', descriptor_close):
+                yield records
+        finally:
+            leaked = [record['path'] for record in active.values()]
+            for fd in tuple(active):
+                try:
+                    original_close(fd)
+                except OSError:
+                    pass
+            self.assertEqual(leaked, [], 'profile admission leaked a descriptor')
+
+    def test_profile_manifest_uses_one_bounded_descriptor(self):
+        for size in ('actual', 'existing-cap'):
+            with self.subTest(size=size), self._profile_case_tree() as (_, manifest, profile):
+                raw = manifest.read_bytes()
+                if size == 'existing-cap':
+                    raw += b' ' * (65536 - len(raw))
+                    manifest.write_bytes(raw)
+                with self._profile_case_io([manifest]) as records:
+                    actual = self.m._profile()
+                self.assertEqual(actual, sha256(encoded(profile)).hexdigest())
+                self.assertEqual(len(records), 1)
+                self.assertEqual(records[0]['bytes'], len(raw))
+                self.assertTrue(records[0]['closed'])
+
+    def test_profile_source_reads_preserve_raw_hash_and_empty_file_semantics(self):
+        for case in ('actual', 'empty-source', 'defensive-source-cap'):
+            with self.subTest(case=case), self._profile_case_tree() as (root, manifest, profile):
+                relative = sorted(profile['source_sha256'])[0]
+                target = root / relative
+                if case != 'actual':
+                    content = b'' if case == 'empty-source' else b'x' * 262144
+                    target.write_bytes(content)
+                    profile['source_sha256'][relative] = sha256(content).hexdigest()
+                    manifest.write_bytes(encoded(profile) + b'\n')
+                expected_bytes = target.stat().st_size
+                sources = [root / path for path in profile['source_sha256']]
+                # Only this known regular, finite fixture manifest may use the
+                # old read path, so its defect cannot hide the separate source site.
+                with self._profile_case_io(sources) as records:
+                    actual = self.m._profile()
+                self.assertEqual(actual, sha256(encoded(profile)).hexdigest())
+                self.assertEqual({row['path'] for row in records}, set(sources))
+                self.assertEqual(len(records), 109)
+                chosen = [row for row in records if row['path'] == target]
+                self.assertEqual(len(chosen), 1)
+                self.assertEqual(chosen[0]['bytes'], expected_bytes)
+                if case == 'empty-source':
+                    self.assertEqual(chosen[0]['requests'], [])
+
+    def test_profile_files_refuse_nonregular_and_oversized_before_read(self):
+        for site in ('manifest', 'source'):
+            for case in ('fifo-no-writer', 'directory', 'symlink', 'oversized'):
+                with self.subTest(site=site, case=case), \
+                        self._profile_case_tree() as (root, manifest, profile):
+                    sources = [root / path for path in sorted(profile['source_sha256'])]
+                    target = manifest if site == 'manifest' else sources[0]
+                    original = target.read_bytes()
+                    target.unlink()
+                    if case == 'fifo-no-writer':
+                        os.mkfifo(target)
+                    elif case == 'directory':
+                        target.mkdir()
+                    elif case == 'symlink':
+                        backing = target.with_name(target.name + '.backing')
+                        backing.write_bytes(original)
+                        target.symlink_to(backing)
+                    else:
+                        limit = 65536 if site == 'manifest' else 262144
+                        target.write_bytes(b'x' * (limit + 1))
+                    protected = [manifest] if site == 'manifest' else sources
+                    with self._profile_case_io(protected) as records:
+                        with self.assertRaises((ValueError, OSError)):
+                            self.m._profile()
+                    target_records = [row for row in records if row['path'] == target]
+                    self.assertTrue(all(row['bytes'] == 0 and not row['requests']
+                                        for row in target_records))
+
+    def test_profile_descriptor_drift_and_io_failure_close_without_reopening(self):
+        for site in ('manifest', 'source'):
+            for case in ('replace-before-open', 'replace-after-open', 'replace-after-read',
+                         'same-size-write-after-read', 'grow-after-read', 'truncate-after-read',
+                         'read-error', 'short-read'):
+                with self.subTest(site=site, case=case), \
+                        self._profile_case_tree() as (root, manifest, profile):
+                    sources = [root / path for path in sorted(profile['source_sha256'])]
+                    target = manifest if site == 'manifest' else sources[0]
+                    fired = []
+
+                    def before_open(path):
+                        if path == target and case == 'replace-before-open' and not fired:
+                            target.rename(target.with_name(target.name + '.original'))
+                            os.mkfifo(target)
+                            fired.append(case)
+
+                    def before_read(path):
+                        if path == target and case in ('read-error', 'short-read') and not fired:
+                            fired.append(case)
+                            if case == 'read-error':
+                                raise OSError('injected bounded profile read failure')
+                            return b''
+                        return None
+
+                    def after_open(path):
+                        if path == target and case == 'replace-after-open' and not fired:
+                            target.rename(target.with_name(target.name + '.original'))
+                            os.mkfifo(target)
+                            fired.append(case)
+
+                    def after_read(path):
+                        if path == target and case in ('replace-after-read', 'same-size-write-after-read',
+                                                       'grow-after-read', 'truncate-after-read') \
+                                and not fired:
+                            fired.append(case)
+                            if case == 'replace-after-read':
+                                target.rename(target.with_name(target.name + '.original'))
+                                os.mkfifo(target)
+                            elif case == 'same-size-write-after-read':
+                                before = target.stat()
+                                with open(target, 'r+b') as mutation:
+                                    first = mutation.read(1)
+                                    self.assertEqual(len(first), 1)
+                                    mutation.seek(0)
+                                    mutation.write(bytes([first[0] ^ 1]))
+                                os.utime(target, ns=(before.st_atime_ns, before.st_mtime_ns + 1000000000))
+                                self.assertEqual(target.stat().st_size, before.st_size)
+                            else:
+                                length = target.stat().st_size + 1 if case == 'grow-after-read' else 0
+                                os.truncate(target, length)
+
+                    protected = [manifest] if site == 'manifest' else sources
+                    with self._profile_case_io(protected, before_open=before_open,
+                                               after_open=after_open,
+                                               before_read=before_read,
+                                               after_read=after_read) as records:
+                        with self.assertRaises((ValueError, OSError)):
+                            self.m._profile()
+                    self.assertEqual(fired, [case])
+                    self.assertTrue(all(row['closed'] for row in records))
+                    self.assertEqual(len([row for row in records if row['path'] == target]), 1)
+
+    def test_profile_audit_and_qa_admission_keep_inherited_guards(self):
+        for case in ('disabled', 'empty-manifest', 'contract', 'duplicate-key', 'source-membership',
+                     'source-digest', 'source-root-escape', 'qa-fifo-admission'):
+            with self.subTest(case=case), self._profile_case_tree() as (root, manifest, profile):
+                source = root / sorted(profile['source_sha256'])[0]
+                if case == 'empty-manifest':
+                    manifest.write_bytes(b'')
+                elif case == 'contract':
+                    profile['release_authorized'] = True
+                    manifest.write_bytes(encoded(profile) + b'\n')
+                elif case == 'duplicate-key':
+                    manifest.write_bytes(encoded(profile)[:-1] + b',"schema_version":"1.0.0"}')
+                elif case == 'source-membership':
+                    del profile['source_sha256'][sorted(profile['source_sha256'])[0]]
+                    manifest.write_bytes(encoded(profile) + b'\n')
+                elif case == 'source-digest':
+                    source.write_bytes(source.read_bytes() + b'\nchanged')
+                elif case == 'source-root-escape':
+                    outside = root.with_name(root.name + '-outside')
+                    self.addCleanup(lambda path=outside: shutil.rmtree(path, ignore_errors=True))
+                    (root / 'schemas').rename(outside)
+                    (root / 'schemas').symlink_to(outside, target_is_directory=True)
+                elif case == 'qa-fifo-admission':
+                    qa = importlib.import_module('reporting.typed_original_brand_qa')
+                    manifest.unlink()
+                    os.mkfifo(manifest)
+                environment = ({'OMNIGENIS_TYPED_PDF_OBSERVATION_DISABLED': '1'}
+                               if case == 'disabled' else {})
+                with patch.dict(os.environ, environment), \
+                        self._profile_case_io([manifest]) as records:
+                    if case == 'qa-fifo-admission':
+                        with patch.object(qa, '_bounded_profile_file') as later_qa_read:
+                            with self.assertRaises((ValueError, OSError)):
+                                qa.profile_sha256()
+                            later_qa_read.assert_not_called()
+                    else:
+                        with self.assertRaises((ValueError, OSError)):
+                            self.m._profile()
+                if case == 'disabled':
+                    self.assertEqual(records, [])
+
 
 
 class TypedPdfProcessObservationTests(unittest.TestCase):
