@@ -11,6 +11,12 @@ component contract remains unchanged. The complete source title must fit the
 cover area beside the DNA and below the logo in the actual fixed-font layout.
 Title boxes or glyph ink outside that area refuse rendering before the first
 page is painted. The existing gaps allow safe ink overhang. Text is never shortened.
+
+Each generated contents entry, including its printed page suffix, must occupy one
+complete paragraph box inside a physical page's content area. Entries may wrap
+within that page and the contents section may continue between entries. The
+worker refuses fragmented or out-of-page entry boxes before painting that page
+or returning a PDF candidate. Staging establishes source identity, not layout fit.
 """
 from __future__ import annotations
 
@@ -97,11 +103,24 @@ def _require(ok: bool) -> None:
 
 
 class _VisibleBodyText(HTMLParser):
-    """Collect decoded text without interpreting markup-like source values."""
+    """Collect decoded text and the generated contents row's literal separator."""
 
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
         self.parts: list[str] = []
+        self.navigation_row = False
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag == "p":
+            self.navigation_row = any(name == "data-editorial-nav-target" for name, _ in attrs)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == "p" and self.navigation_row:
+            # CSS adds this separator before the page counter. HTMLParser does
+            # not see generated content, but adjacent labels are not contiguous
+            # visible source text. Ordinary source paragraphs remain contiguous.
+            self.parts.append(" | ")
+            self.navigation_row = False
 
     def handle_data(self, value: str) -> None:
         self.parts.append(value)
@@ -141,8 +160,9 @@ def prepare_typed_original_brand_pdf(
 ) -> tuple[str, RasterBundle, dict]:
     """Stage this profile's exact source, including one or more section headings.
 
-    Title fit is decided from the actual layout in the existing render worker.
-    Preparation alone does not establish that the complete title fits the cover.
+    Title and contents-entry fit are decided from the actual layout in the
+    existing render worker. Preparation alone establishes neither cover fit nor
+    the one-page admission of a complete navigation paragraph.
     """
     try:
         _ready(assets, expected_brand_bundle_sha256)

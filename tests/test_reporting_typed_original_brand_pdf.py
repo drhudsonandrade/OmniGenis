@@ -78,11 +78,11 @@ class TypedOriginalBrandPdfTests(unittest.TestCase):
                          "\n".join(page.extract_text() for page in reader.pages))
 
 
-    def _source_with_cover_title(self, title, *, heading=True):
+    def _source_with_cover_title(self, title, *, heading=True, heading_text="Findings"):
         request, ledger = context(1, "SYNTHETIC-CASE")
         components = (
             TextComponent("title", "identity", "document_title", title),
-            *((TextComponent("heading", "findings", "section_heading", "Findings"),)
+            *((TextComponent("heading", "findings", "section_heading", heading_text),)
               if heading else ()),
             FindingsTable("table", "findings", "Synthetic findings",
                 (TableColumn("variant", "Variant"), TableColumn("value", "Value")),
@@ -101,10 +101,37 @@ class TypedOriginalBrandPdfTests(unittest.TestCase):
         for title in titles:
             with self.subTest(explicit_lines="\n" in title):
                 source = self._source_with_cover_title(title)
+                args = self.arguments() | {
+                    "presentation_ir": source, "expected_ir_sha256": digest(source)}
+                html, _, staged = self.m.prepare_typed_original_brand_pdf(**args)
+                self.assertEqual(staged["status"], "STAGED_TYPED_ORIGINAL_BRAND_CANDIDATE")
+                self.assertEqual(staged["source_ir_sha256"], args["expected_ir_sha256"])
+                self.assertEqual(staged["html_sha256"], sha256(html.encode("utf-8")).hexdigest())
                 with self.assertRaisesRegex(
                         self.m.TypedOriginalBrandError, "^typed_original_brand_pdf_unavailable$"):
-                    self.m.render_typed_original_brand_pdf(**(self.arguments() | {
-                        "presentation_ir": source, "expected_ir_sha256": digest(source)}))
+                    self.m.render_typed_original_brand_pdf(**args)
+
+    def test_oversized_navigation_entry_stages_but_refuses_render(self):
+        labels = ("\n".join(["Explicit navigation line"] * 128),
+                  "Wrapped navigation label " * 512)
+        self.assertNotIn("\n", labels[1])
+        for label in labels:
+            with self.subTest(explicit_lines="\n" in label):
+                source = self._source_with_cover_title("Technical report", heading_text=label)
+                args = self.arguments() | {
+                    "presentation_ir": source, "expected_ir_sha256": digest(source)}
+                html, _, staged = self.m.prepare_typed_original_brand_pdf(**args)
+                self.assertEqual(staged["status"], "STAGED_TYPED_ORIGINAL_BRAND_CANDIDATE")
+                self.assertEqual(staged["source_ir_sha256"], args["expected_ir_sha256"])
+                self.assertEqual(staged["html_sha256"], sha256(html.encode("utf-8")).hexdigest())
+                self.assertEqual(staged["navigation_entry_count"], 1)
+                self.assertIn('<p data-editorial-nav-target="#heading">' + label + '</p>', html)
+                with patch.object(self.m, "render_typed_brand_pdf",
+                                  wraps=self.m.render_typed_brand_pdf) as render:
+                    with self.assertRaisesRegex(
+                            self.m.TypedOriginalBrandError, "^typed_original_brand_pdf_unavailable$"):
+                        self.m.render_typed_original_brand_pdf(**args)
+                    render.assert_called_once()
 
     def test_heading_free_generic_source_refuses_before_original_brand_render(self):
         source = self._source_with_cover_title("Technical report", heading=False)
@@ -382,6 +409,32 @@ class TypedOriginalBrandPdfTests(unittest.TestCase):
             with self.assertRaises(self.m.TypedOriginalBrandError):
                 self.m.render_typed_original_brand_pdf(**kwargs)
             renderer.assert_not_called()
+
+        # The same notice halves are not adjacent source text when separated by
+        # a paragraph. Generated contents rows retain their visible page suffix
+        # boundary, so copying the labels must not manufacture a second notice.
+        separated = (
+            parts[0],
+            TextComponent('first-label', 'identity', 'section_heading', first + '.'),
+            TextComponent('label-separator', 'identity', 'paragraph', 'Synthetic context.'),
+            TextComponent('second-label', 'findings', 'section_heading', 'Used ' + second),
+            parts[-1],
+        )
+        source = build_typed_report_projection(
+            request=request, ledger=ledger,
+            projection_request_sha256=request.request.request_sha256,
+            expected_content_sha256=component_content_sha256(separated),
+            components=separated).to_dict()
+        args = self.arguments() | {'presentation_ir': source,
+                                  'expected_ir_sha256': digest(source)}
+        source_html, _ = prepare_editorial_typed_html(
+            presentation_ir=source, expected_ir_sha256=args['expected_ir_sha256'])
+        self.assertEqual(self.m._credit_count(source_html), 0)
+        html, _, staged = self.m.prepare_typed_original_brand_pdf(**args)
+        self.assertEqual(staged['status'], 'STAGED_TYPED_ORIGINAL_BRAND_CANDIDATE')
+        self.assertEqual(staged['navigation_entry_count'], 2)
+        self.assertEqual(staged['original_credit_count'], 1)
+        self.assertEqual(self.m._credit_count(html), 1)
 
     def test_soft_hyphen_hidden_duplicate_credit_refuses_before_render(self):
         """An invisible U+00AD cannot conceal a duplicate owner's notice."""

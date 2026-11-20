@@ -2411,7 +2411,8 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         count = second["original_operator_count"]
         self.assertEqual(second["outside_operator_ordinals"][-2:], [count - 2, count - 1])
 
-        for case in ("extra-outside-pair", "relocated-outside-pair", "graphic-block-digest"):
+        for case in ("extra-outside-pair", "relocated-outside-pair",
+                     "graphic-block-digest", "pagination-event-only"):
             native = deepcopy(original)
             page = native["trace"]["pages"][receiver]
             if case == "extra-outside-pair":
@@ -2426,11 +2427,17 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 for block in (*page["graphic_blocks"], *page["pagination_blocks"]):
                     block["first_operator"] += 2
                     block["last_operator"] += 2
-            else:
+            elif case == "graphic-block-digest":
                 block = page["graphic_blocks"][0]
                 self.assertEqual(block["kind"], "artifact")
                 value = block["sha256"]
                 block["sha256"] = ("0" if value[0] != "0" else "1") + value[1:]
+            else:
+                block = page["pagination_blocks"][0]
+                color = block["events"][1]
+                self.assertEqual(color["operator"], "rg")
+                color["operands"][0] = "0" if color["operands"][0] != "0" else "1"
+                block["sha256"] = sha256(self.m.canonical(block["events"])).hexdigest()
             with self.subTest(shared_stream_disagreement=case):
                 self.m._schema(native, "native")
                 self.m.prior._reference_consistency(native["trace"])

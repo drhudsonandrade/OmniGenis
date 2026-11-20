@@ -439,6 +439,29 @@ def _editorial_cover_title(page_box, cover_box):
     require(text_count > 0)
 
 
+def _editorial_navigation_row(page_box, row):
+    """Refuse a sliced or out-of-page generated contents paragraph before paint."""
+    from weasyprint.formatting_structure import boxes
+
+    require(type(row) is boxes.BlockBox and row.element_tag == "p"
+            and row.element is not None and row.element.get("data-editorial-nav-target"))
+    # The pinned layout marks both incomplete and continued slice edges, even
+    # when an oversized break-inside:avoid paragraph's partial box fits a page.
+    require(row.style["box_decoration_break"] == "slice" and not row.remove_decoration_sides)
+
+    def rectangle(x, y, width, height):
+        x0, y0, w, h = map(_numeric, (x, y, width, height))
+        require(w >= 0 and h >= 0)
+        return x0, y0, _numeric(x + width), _numeric(y + height)
+
+    page = rectangle(page_box.content_box_x(), page_box.content_box_y(),
+                     page_box.width, page_box.height)
+    bounds = rectangle(row.border_box_x(), row.border_box_y(),
+                       row.border_width(), row.border_height())
+    require(page[0] <= bounds[0] <= bounds[2] <= page[2]
+            and page[1] <= bounds[1] <= bounds[3] <= page[3])
+
+
 def _editorial_footer(page_box, expected):
     """Admit the exact unwrapped bottom-right text; no other margin content."""
     from weasyprint.formatting_structure import boxes
@@ -492,6 +515,10 @@ def _install_editorial_after_font_bootstrap():
         for charge, box in enumerate(page_box.descendants(), 1):
             require(charge <= CONTRACT["limits"]["structure_charge"])
             cover_present = cover_present or box.element is cover
+            if (type(box) is boxes.BlockBox and box.element_tag == "p"
+                    and box.element is not None
+                    and box.element.get("data-editorial-nav-target") is not None):
+                _editorial_navigation_row(page_box, box)
         if page_index == 0:
             bodies = [box for box in html.children if box.element_tag == "body"]
             require(len(bodies) == 1 and bool(bodies[0].children) and cover_present

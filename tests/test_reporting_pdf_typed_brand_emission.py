@@ -1710,6 +1710,46 @@ class EditorialBrandEmissionTests(unittest.TestCase):
                         pango.pango_layout_line_get_extents.assert_called_once()
                         layout.deactivate.assert_called_once()
 
+    def test_navigation_row_requires_complete_in_page_layout(self):
+        from xml.etree.ElementTree import Element
+        from weasyprint.formatting_structure import boxes
+        from reporting._pdf_typed_brand_emission import _editorial_navigation_row
+
+        def geometry(box, x, y, width, height):
+            box.position_x, box.position_y = x, y
+            box.width, box.height = width, height
+            for side in ("left", "right", "top", "bottom"):
+                setattr(box, "margin_" + side, 0)
+                setattr(box, "padding_" + side, 0)
+                setattr(box, "border_" + side + "_width", 0)
+            return box
+
+        cases = (
+            ("normal", (100, 100, 700, 40), set(), "slice", True),
+            ("multiline", (100, 100, 700, 240), set(), "slice", True),
+            ("exact-page-boundary", (50, 50, 800, 1100), set(), "slice", True),
+            ("incomplete-bottom", (100, 100, 700, 40), {"bottom"}, "slice", False),
+            ("continued-top", (100, 100, 700, 40), {"top"}, "slice", False),
+            ("continued-middle", (100, 100, 700, 40), {"top", "bottom"}, "slice", False),
+            ("outside-left", (49, 100, 700, 40), set(), "slice", False),
+            ("outside-top", (100, 49, 700, 40), set(), "slice", False),
+            ("outside-right", (100, 100, 751, 40), set(), "slice", False),
+            ("outside-bottom", (100, 1100, 700, 51), set(), "slice", False),
+            ("unadmitted-cloned-decoration", (100, 100, 700, 40), set(), "clone", False),
+        )
+        for name, bounds, removed, decoration, admitted in cases:
+            with self.subTest(case=name):
+                page = geometry(boxes.Box("page", {}, None), 50, 50, 800, 1100)
+                element = Element("p", {"data-editorial-nav-target": "#heading"})
+                row = geometry(boxes.BlockBox("p", {"box_decoration_break": decoration},
+                                               element, []), *bounds)
+                row.remove_decoration_sides = removed
+                if admitted:
+                    _editorial_navigation_row(page, row)
+                else:
+                    with self.assertRaises(ValueError):
+                        _editorial_navigation_row(page, row)
+
     def test_exact_footer_admits_only_one_generated_text_leaf(self):
         from reporting._pdf_typed_brand_emission import _editorial_footer
         page, margin, _, text, expected = self.footer_page()
