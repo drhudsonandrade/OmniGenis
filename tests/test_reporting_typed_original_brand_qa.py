@@ -249,6 +249,84 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             self.assertEqual(self.run_qa(self.arguments()).to_dict()["pdf_sha256"],
                              sha256(pdf).hexdigest())
 
+    def test_wrapped_cover_title_preserves_every_source_space(self):
+        """Bind one wrapped title to real PDF runs without inventing whitespace."""
+        from reporting.components import (
+            FindingRow, FindingsTable, TableColumn, TextComponent,
+            build_typed_report_projection, component_content_sha256,
+        )
+        title = "A demonstration report that preserves every literal space in a wrapped title"
+        request, ledger = context(1)
+        parts = (
+            TextComponent("title", "identity", "document_title", title),
+            TextComponent("heading", "findings", "section_heading", "Demonstration findings"),
+            TextComponent("intro", "findings", "paragraph", "Demonstration values only."),
+            FindingsTable(
+                "table", "findings", "Declared demonstration findings",
+                (TableColumn("identifier", "Identifier"), TableColumn("value", "Value")),
+                (FindingRow(request.plan.expected_finding_ids[0], ("DEMO-001", "0.1")),)),
+        )
+        source = build_typed_report_projection(
+            request=request, ledger=ledger,
+            projection_request_sha256=request.request.request_sha256,
+            expected_content_sha256=component_content_sha256(parts),
+            components=parts).to_dict()
+        ir_sha = digest(source)
+        expectation = prepare_typed_pdf_source(
+            presentation_ir=source, expected_ir_sha256=ir_sha)
+        title_unit = expectation.to_dict()["units"][0]
+        self.assertEqual(title_unit["kind"], "document_title")
+        self.assertEqual(title_unit["utf8_bytes"], len(title.encode("utf-8")))
+        self.assertEqual(title_unit["text_sha256"], sha256(title.encode("utf-8")).hexdigest())
+        rendered, _ = render_typed_original_brand_pdf(
+            presentation_ir=source, expected_ir_sha256=ir_sha,
+            assets=self.assets, expected_brand_bundle_sha256=self.bundle)
+        pdf, pdf_sha = rendered.pdf_bytes, rendered.pdf_sha256
+        observations = []
+        original_worker = self.m._run_worker
+
+        def retain_observation(candidate_bytes, candidate_sha):
+            self.assertEqual(candidate_bytes, pdf)
+            self.assertEqual(candidate_sha, pdf_sha)
+            raw = original_worker(candidate_bytes, candidate_sha)
+            observations.append(json.loads(raw))
+            return raw
+
+        with patch.object(self.m, "_run_worker", side_effect=retain_observation):
+            result = self.run_qa(dict(
+                presentation_ir=source, expected_ir_sha256=ir_sha,
+                expected_source_expectation_sha256=expectation.expectation_sha256,
+                assets=self.assets, expected_brand_bundle_sha256=self.bundle,
+                pdf_bytes=pdf, expected_pdf_sha256=pdf_sha,
+                expected_profile_sha256=self.m.profile_sha256())).to_dict()
+        self.assertEqual(len(observations), 1)
+        self.assertEqual(result["pdf_sha256"], pdf_sha)
+        self.assertEqual(result["ir_sha256"], ir_sha)
+        self.assertEqual(result["source_expectation_sha256"], expectation.expectation_sha256)
+        trace = observations[0]["trace"]
+        nodes = {tuple(node["reference"]): node for node in trace["nodes"]}
+        headings = [node for node in nodes.values() if node["role"] == "/H1"]
+        self.assertEqual(len(headings), 1)
+        heading = headings[0]
+        page = next(page for page in trace["pages"]
+                    if page["reference"] == heading["page_reference"])
+        runs = {run["mcid"]: run for run in page["runs"]}
+        fragments = []
+        for child in heading["children"]:
+            self.assertEqual(child["kind"], "node")
+            span = nodes[tuple(child["reference"])]
+            self.assertEqual(span["role"], "/Span")
+            self.assertEqual(span["page_reference"], heading["page_reference"])
+            self.assertEqual(len(span["children"]), 1)
+            run = runs[span["children"][0]["value"]]
+            self.assertEqual(run["structure_reference"], span["reference"])
+            fragments.append(run["text"])
+        self.assertGreater(len(fragments), 1)
+        literal = "".join(fragments)
+        self.assertEqual(literal, title)
+        self.assertEqual(len(literal.encode("utf-8")), title_unit["utf8_bytes"])
+        self.assertEqual(sha256(literal.encode("utf-8")).hexdigest(), title_unit["text_sha256"])
+
     def test_full_multipage_source_brand_and_every_page_bind_to_exact_caller_bytes(self):
         args = self.arguments(96)
         before = bytes(args["pdf_bytes"])

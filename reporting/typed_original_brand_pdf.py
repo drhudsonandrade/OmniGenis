@@ -35,6 +35,7 @@ _DISABLE = "OMNIGENIS_TYPED_ORIGINAL_BRAND_PDF_DISABLED"
 _QUALIFICATION = "OMNIGENIS_PDF_QUALIFICATION_RECEIPT_MODE"
 _END = "</body></html>"
 _COVER_CSS = (
+    'h1,h2,p,caption,th,td{white-space:pre-wrap}'
     'section[data-editorial-ir-sha256]{position:relative;height:753.88976pt;'
     'margin:0;padding:0;break-after:page}'
     'div[data-brand=original-dna]{position:absolute;left:0;top:0;'
