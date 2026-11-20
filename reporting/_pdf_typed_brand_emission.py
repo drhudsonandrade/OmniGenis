@@ -159,6 +159,40 @@ def _page_sizes(document, pdf):
     return sizes
 
 
+def _untransformed_layout(document):
+    """Admit the fixed no-CSS-transform layout before changing PDF structure."""
+    from weasyprint.formatting_structure.boxes import Box, TableBox
+    from weasyprint.layout.absolute import AbsolutePlaceholder
+
+    limits = CONTRACT["limits"]
+    try:
+        pending = [(page._page_box, 1) for page in document.pages]
+        charge = len(pending)
+        require(1 <= charge <= limits["pages"])
+        while pending:
+            box, depth = pending.pop()
+            if type(box) is AbsolutePlaceholder:
+                box = object.__getattribute__(box, "_box")
+                require(not isinstance(box, AbsolutePlaceholder))
+            require(isinstance(box, Box) and depth <= limits["structure_depth"])
+            transform, children = box.style["transform"], box.children
+            require(type(transform) is tuple and not transform
+                    and box.transformation_matrix is None
+                    and type(children) in (tuple, list))
+            column_groups = box.column_groups if isinstance(box, TableBox) else ()
+            require(type(column_groups) in (tuple, list))
+            fanout = len(children) + len(column_groups)
+            require(not fanout or depth < limits["structure_depth"])
+            # Charge each root once and each child node plus its incoming edge.
+            # This reserves the entire fanout before extending the finite stack.
+            require(fanout <= (limits["structure_charge"] - charge) // 2)
+            charge += 2 * fanout
+            pending.extend((child, depth + 1)
+                           for group in (children, column_groups) for child in group)
+    except (AttributeError, KeyError, TypeError):
+        require(False)
+
+
 def _box(attr, size):
     import pydyf
     require(type(attr) is pydyf.Dictionary and attr.number is None
@@ -186,6 +220,7 @@ def emit_structure(document, pdf) -> dict:
     import pydyf
     require(type(pdf) is pydyf.PDF)
     sizes = _page_sizes(document, pdf)
+    _untransformed_layout(document)
     root = _owned(pdf, pdf.catalog["StructTreeRoot"], pydyf.Dictionary)
     require(root["Type"] == "/StructTreeRoot" and "IDTree" not in root and
             type(root["K"]) is pydyf.Array and len(root["K"]) == 1)

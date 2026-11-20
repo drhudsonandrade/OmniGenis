@@ -8,6 +8,12 @@ import pydyf
 def fixture(with_ids=True):
     pdf = pydyf.PDF()
     pages = []
+    def layout_box(tag, children=()):
+        from weasyprint.formatting_structure.boxes import Box
+        box = Box(tag, {"transform": ()}, None)
+        box.children = list(children)
+        return box
+
     for height in (100, 200):
         stream = pydyf.Stream([f"1 0 0 -1 0 {height * 3 // 4} cm".encode(),
                                b"q", b"0.75 0 0 0.75 0 0 cm"])
@@ -19,7 +25,10 @@ def fixture(with_ids=True):
             page[key] = pydyf.Array(rectangle)
         pdf.add_page(page)
         pages.append(SimpleNamespace(width=100, height=height,
-                     bleed=dict.fromkeys(("left", "right", "top", "bottom"), 0)))
+                     bleed=dict.fromkeys(("left", "right", "top", "bottom"), 0),
+                     _page_box=layout_box("page", [layout_box("html", [layout_box("body")])])))
+    pages[1]._page_box.children[0].children[0].children.append(
+        layout_box("{http://www.w3.org/2000/svg}svg"))
     pdf.info["Title"] = pydyf.String("Synthetic metadata")
     tree = pydyf.Dictionary({"Nums": pydyf.Array([0, pydyf.Array(), 1, pydyf.Array()])})
     pdf.add_object(tree)
@@ -299,6 +308,156 @@ class TypedBrandEmissionTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             wrapped(selection, document, pdf)
         self.assertEqual(called, [True])
+
+
+    def test_figure_and_ancestor_transforms_refuse_before_structure_mutation(self):
+        from reporting._pdf_typed_brand_emission import emit_structure
+        from weasyprint.css.properties import Dimension
+        from weasyprint.layout.absolute import AbsolutePlaceholder
+        from weasyprint.matrix import Matrix
+
+        for case in ("figure", "body-ancestor", "html-ancestor", "placeholder-descendant"):
+            with self.subTest(case=case):
+                document, pdf, root, figure, _ = fixture()
+                page_box = document.pages[1]._page_box
+                html_box = page_box.children[0]
+                body_box = html_box.children[0]
+                figure_box = body_box.children[0]
+                transformed = {"figure": figure_box, "body-ancestor": body_box,
+                               "html-ancestor": html_box,
+                               "placeholder-descendant": figure_box}[case]
+                if case == "placeholder-descendant":
+                    html_box.children[0] = AbsolutePlaceholder(body_box)
+                transformed.style["transform"] = (
+                    ("translate", (Dimension(40, "px"), Dimension(0, "px"))),)
+                transformed.transformation_matrix = Matrix(e=40)
+                page = pdf.objects[int(figure["Pg"].split()[0])]
+                stream = pdf.objects[int(page["Contents"].split()[0])]
+                prefix = tuple(stream.stream[:3])
+                stream.stream.extend([b"q", b"1 0 0 1 40 0 cm",
+                                      b"/Figure <</MCID 0>> BDC", b"EMC", b"Q"])
+                self.assertEqual(tuple(stream.stream[:3]), prefix)
+                self.assertEqual(prefix, (b"1 0 0 -1 0 150 cm", b"q",
+                                          b"0.75 0 0 0.75 0 0 cm"))
+                objects = tuple(pdf.objects)
+                snapshots = [(obj, obj.data) for obj in objects
+                             if isinstance(obj, (pydyf.Dictionary, pydyf.Stream))]
+                layout, box = figure["A"], figure["A"]["BBox"]
+                parent_tree = root["ParentTree"]
+                with self.assertRaisesRegex(ValueError, "^typed brand emission refused$"):
+                    emit_structure(document, pdf)
+                self.assertEqual(len(pdf.objects), len(objects))
+                self.assertTrue(all(before is after for before, after in
+                                    zip(objects, pdf.objects)))
+                self.assertEqual([obj.data for obj, _ in snapshots],
+                                 [data for _, data in snapshots])
+                self.assertIs(figure["A"], layout)
+                self.assertIs(figure["A"]["BBox"], box)
+                self.assertEqual(root["ParentTree"], parent_tree)
+                self.assertNotIn("IDTree", root)
+
+    def test_layout_transform_admission_refuses_unknown_or_unbounded_tree(self):
+        from reporting._pdf_typed_brand_emission import emit_structure
+        from weasyprint.formatting_structure.boxes import (
+            Box, TableBox, TableColumnBox, TableColumnGroupBox)
+        from weasyprint.layout.absolute import AbsolutePlaceholder
+        from weasyprint.matrix import Matrix
+
+        def layout_box(children=()):
+            box = Box("div", {"transform": ()}, None)
+            box.children = list(children)
+            return box
+
+        positive = {"depth-at-limit", "charge-at-limit", "valid-placeholder",
+                    "valid-column-groups"}
+        cases = ("missing-page-box", "missing-transform", "malformed-transform",
+                 "css-identity", "matrix-only", "malformed-children",
+                 "placeholder-cycle", "cycle", "depth-over-limit",
+                 "charge-over-limit", "depth-at-limit", "charge-at-limit",
+                 "valid-placeholder", "transformed-column-descendant",
+                 "missing-column-groups", "malformed-column-groups",
+                 "combined-column-fanout-over-limit", "valid-column-groups")
+        for case in cases:
+            with self.subTest(case=case):
+                document, pdf, root, figure, _ = fixture()
+                page_box = document.pages[1]._page_box
+                html_box = page_box.children[0]
+                body_box = html_box.children[0]
+                figure_box = body_box.children[0]
+                if case == "missing-page-box":
+                    del document.pages[1]._page_box
+                elif case == "missing-transform":
+                    del figure_box.style["transform"]
+                elif case == "malformed-transform":
+                    figure_box.style["transform"] = []
+                elif case == "css-identity":
+                    figure_box.style["transform"] = (("matrix", (1, 0, 0, 1, 0, 0)),)
+                elif case == "matrix-only":
+                    figure_box.transformation_matrix = Matrix()
+                elif case == "malformed-children":
+                    figure_box.children = iter(())
+                elif case == "placeholder-cycle":
+                    placeholder = AbsolutePlaceholder(figure_box)
+                    object.__setattr__(placeholder, "_box", placeholder)
+                    body_box.children[0] = placeholder
+                elif case == "cycle":
+                    body_box.children = [body_box]
+                elif case in ("depth-at-limit", "depth-over-limit"):
+                    current = figure_box
+                    for _ in range(60 if case == "depth-at-limit" else 61):
+                        current = layout_box([current])
+                    body_box.children = [current]
+                elif case in ("charge-at-limit", "charge-over-limit"):
+                    first_body = document.pages[0]._page_box.children[0].children[0]
+                    first_body.children = [
+                        layout_box() for _ in range(9994 if case == "charge-at-limit" else 9995)]
+                elif case == "valid-placeholder":
+                    html_box.children[0] = AbsolutePlaceholder(body_box)
+                else:
+                    table_box = TableBox("table", {"transform": ()}, None, ())
+                    column_box = TableColumnBox("col", {"transform": ()}, None, ())
+                    column_group = TableColumnGroupBox(
+                        "colgroup", {"transform": ()}, None, (column_box,))
+                    table_box.column_groups = (column_group,)
+                    first_body = document.pages[0]._page_box.children[0].children[0]
+                    first_body.children.append(table_box)
+                    if case == "transformed-column-descendant":
+                        column_box.style["transform"] = (("matrix", (1, 0, 0, 1, 40, 0)),)
+                        column_box.transformation_matrix = Matrix(e=40)
+                    elif case == "missing-column-groups":
+                        del table_box.column_groups
+                    elif case == "malformed-column-groups":
+                        table_box.column_groups = iter(())
+                    elif case == "combined-column-fanout-over-limit":
+                        table_box.children = [layout_box() for _ in range(4997)]
+                        table_box.column_groups = [
+                            TableColumnGroupBox("colgroup", {"transform": ()}, None, ())
+                            for _ in range(4997)]
+                objects = tuple(pdf.objects)
+                snapshots = [(obj, obj.data) for obj in objects
+                             if isinstance(obj, (pydyf.Dictionary, pydyf.Stream))]
+                layout, box = figure["A"], figure["A"]["BBox"]
+                parent_tree = root["ParentTree"]
+                if case in positive:
+                    self.assertEqual(emit_structure(document, pdf),
+                                     {"figure_count": 1, "id_count": 2})
+                    self.assertIn("IDTree", root)
+                    self.assertEqual(figure["A"]["BBox"],
+                                     [b"0.75000075", b"146.99999925",
+                                      b"2.25000075", b"148.49999925"])
+                else:
+                    with self.assertRaisesRegex(ValueError, "^typed brand emission refused$"):
+                        emit_structure(document, pdf)
+                    self.assertEqual(len(pdf.objects), len(objects))
+                    self.assertTrue(all(before is after for before, after in
+                                        zip(objects, pdf.objects)))
+                    self.assertEqual([obj.data for obj, _ in snapshots],
+                                     [data for _, data in snapshots])
+                    self.assertIs(figure["A"], layout)
+                    self.assertIs(figure["A"]["BBox"], box)
+                    self.assertEqual(root["ParentTree"], parent_tree)
+                    self.assertNotIn("IDTree", root)
+
 
 
 class TypedBrandRouteTests(unittest.TestCase):
@@ -1223,3 +1382,164 @@ with ExitStack() as stack:
                   self.assertRaises(ValueError)):
                 self.route._run_owned_child([], {}, ())
             self.assertEqual(budget._TYPED_RENDER.phase, "quarantined")
+
+    def _observe_child_final_profile(self, scenario):
+        import base64
+        import json
+        from pathlib import Path
+        import subprocess
+        import sys
+        root = Path(self.route.__file__).resolve().parents[1]
+        fixture_input = {"html": self.args["html"],
+                         "resources_base64": base64.b64encode(self.bundle.to_bytes()).decode("ascii"),
+                         "pdf_base64": base64.b64encode(self.pdf).decode("ascii")}
+        # The existing startup seams and deterministic renderer do not qualify
+        # native rendering, resource limits, lifetime, Landlock or network policy.
+        program = r"""
+import base64, json, os, runpy, stat, sys, tempfile
+from contextlib import ExitStack
+from hashlib import sha256
+from pathlib import Path
+sys.path.insert(0, sys.argv[1])
+scenario = sys.argv[2]
+fixture = json.loads(sys.argv[3])
+from reporting import _pdf_render_worker as base, _pdf_process_sandbox as sandbox
+from reporting import _pdf_typed_brand_emission as core, pdf_typed_brand_render as route
+events, audits, admissions = [], [], []
+after_render = False
+html_bytes = fixture["html"].encode("utf-8")
+resource_bytes = base64.b64decode(fixture["resources_base64"], validate=True)
+pdf_fixture = base64.b64decode(fixture["pdf_base64"], validate=True)
+html_digest = sha256(html_bytes).hexdigest()
+resource_digest = sha256(resource_bytes).hexdigest()
+raw_a = core.MANIFEST.read_bytes()
+raw_b = raw_a + b"\n"
+assert 0 < len(raw_b) <= 16384 and json.loads(raw_a) == json.loads(raw_b)
+digest_a, digest_b = sha256(raw_a).hexdigest(), sha256(raw_b).hexdigest()
+assert digest_a != digest_b
+limits = {"memory_bytes": base.MEMORY_BYTES, "cpu_seconds": base.CPU_SECONDS,
+          "file_bytes": base.NATIVE_PDF_BYTES, "open_files": base.OPEN_FILES}
+def startup(name, result=None):
+    def observe(*args, **kwargs):
+        events.append(name)
+        return result
+    return observe
+base._apply_resource_limits = startup("limits_fixture", limits)
+base._arm_worker_lifetime = startup("lifetime_fixture")
+sandbox.enforce_pdf_landlock = startup("landlock_fixture")
+sandbox.enforce_pdf_network_filter = startup("network_fixture")
+original_profile = core.profile_sha256
+def observed_profile():
+    phase = "after_render" if after_render else "before_render"
+    try:
+        digest = original_profile()
+    except Exception:
+        audits.append({"phase": phase, "status": "refused"})
+        raise
+    audits.append({"phase": phase, "status": "verified", "digest": digest})
+    return digest
+core.profile_sha256 = observed_profile
+original_policy = route.require_policy
+def observed_admission():
+    digest = original_policy()
+    admissions.append(digest)
+    return digest
+route.require_policy = observed_admission
+with tempfile.TemporaryDirectory(prefix="typed-brand-profile-") as directory, ExitStack() as stack:
+    manifest = Path(directory) / "profile.json"
+    manifest.write_bytes(raw_b if scenario == "drift" else raw_a)
+    core.MANIFEST = manifest
+    def render_fixture(html, digest, **options):
+        global after_render
+        assert html == fixture["html"] and digest == html_digest
+        assert options["resources"].bundle_sha256 == resource_digest
+        assert options["max_pdf_bytes"] == base.NATIVE_PDF_BYTES
+        events.append("render_fixture")
+        manifest.write_bytes(b"{" if scenario == "audit_failure" else raw_a)
+        after_render = True
+        return pdf_fixture, None
+    def page_count_fixture(pdf):
+        assert pdf == pdf_fixture
+        events.append("page_count_fixture")
+        return 1, None
+    base._render = render_fixture
+    base._discover_page_count = page_count_fixture
+    files = [stack.enter_context(tempfile.TemporaryFile()) for _ in range(4)]
+    fds = [file.fileno() for file in files]
+    anonymous = len(set(fds)) == 4 and all(
+        stat.S_ISREG(os.fstat(fd).st_mode) and os.fstat(fd).st_nlink == 0 for fd in fds)
+    files[0].write(f"3 {html_digest} {resource_digest}\n".encode("ascii") + html_bytes)
+    files[0].flush()
+    files[0].seek(0)
+    files[3].write(resource_bytes)
+    files[3].flush()
+    files[3].seek(0)
+    script = Path(core.__file__).with_name("_pdf_typed_brand_render_worker.py")
+    sys.argv = [str(script), *map(str, fds[:3]), str(os.getppid()), core.MODE, str(fds[3])]
+    try:
+        runpy.run_path(str(script), run_name="__main__")
+    except SystemExit as stopped:
+        code = stopped.code
+    response = os.pread(fds[2], base.RESULT_BYTES + 1, 0)
+    pdf = os.pread(fds[1], base.NATIVE_PDF_BYTES + 1, 0)
+    observation = {"code": code, "record": json.loads(response) if response else None,
+                   "response_bytes": len(response), "pdf_bytes": len(pdf),
+                   "pdf_base64": base64.b64encode(pdf).decode("ascii"),
+                   "digest_a": digest_a, "digest_b": digest_b,
+                   "admissions": admissions, "audits": audits, "events": events,
+                   "anonymous_descriptors": anonymous, "isolated": sys.flags.isolated,
+                   "dont_write_bytecode": sys.dont_write_bytecode}
+print(json.dumps(observation))
+"""
+        completed = subprocess.run([sys.executable, "-I", "-B", "-c", program,
+                                    str(root), scenario, json.dumps(fixture_input)],
+                                   capture_output=True, text=True, check=True, timeout=20)
+        observed = json.loads(completed.stdout)
+        self.assertEqual(observed["isolated"], 1)
+        self.assertTrue(observed["dont_write_bytecode"])
+        self.assertTrue(observed["anonymous_descriptors"])
+        self.assertEqual(observed["digest_a"], self.profile)
+        self.assertNotEqual(observed["digest_a"], observed["digest_b"])
+        self.assertEqual(observed["events"], ["limits_fixture", "lifetime_fixture",
+                         "landlock_fixture", "network_fixture", "render_fixture",
+                         "page_count_fixture"])
+        return observed
+
+    def test_child_profile_drift_after_admission_refuses_pass(self):
+        observed = self._observe_child_final_profile("drift")
+        self.assertEqual(observed["admissions"], [observed["digest_b"]])
+        self.assertEqual(observed["audits"], [
+            {"phase": "before_render", "status": "verified", "digest": observed["digest_b"]},
+            {"phase": "before_render", "status": "verified", "digest": observed["digest_b"]},
+            {"phase": "after_render", "status": "verified", "digest": observed["digest_a"]},
+        ])
+        self.assertEqual(observed["code"], 70, observed)
+        self.assertEqual(observed["pdf_bytes"], 0)
+        self.assertEqual(observed["response_bytes"], 0)
+        self.assertIsNone(observed["record"])
+
+    def test_child_final_profile_audit_preserves_match_and_refuses_failure(self):
+        import base64
+        for scenario in ("stable", "audit_failure"):
+            with self.subTest(scenario=scenario):
+                observed = self._observe_child_final_profile(scenario)
+                self.assertEqual(observed["admissions"], [self.profile])
+                expected_audits = [
+                    {"phase": "before_render", "status": "verified", "digest": self.profile},
+                    {"phase": "before_render", "status": "verified", "digest": self.profile},
+                ]
+                if scenario == "stable":
+                    expected_audits.append({"phase": "after_render", "status": "verified",
+                                            "digest": self.profile})
+                    self.assertEqual(observed["code"], 0)
+                    self.assertEqual(observed["record"], self.record)
+                    self.assertGreater(observed["response_bytes"], 0)
+                    self.assertLessEqual(observed["response_bytes"], 65536)
+                    self.assertEqual(base64.b64decode(observed["pdf_base64"], validate=True), self.pdf)
+                else:
+                    expected_audits.append({"phase": "after_render", "status": "refused"})
+                    self.assertEqual(observed["code"], 70)
+                    self.assertEqual(observed["pdf_bytes"], 0)
+                    self.assertEqual(observed["response_bytes"], 0)
+                    self.assertIsNone(observed["record"])
+                self.assertEqual(observed["audits"], expected_audits)

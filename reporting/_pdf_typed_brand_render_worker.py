@@ -30,13 +30,18 @@ if __name__ == "__main__":
             "limits": limits})
         return 0
 
+    def admitted_profile_sha256():
+        # Re-audit before reusing the profile identity that admitted this request.
+        emission.require(emission.profile_sha256() == validated_profile)
+        return validated_profile
+
     def protected_reader(request_fd, resource_fd):
         # The base calls this only after descriptor, limit, lifetime and OS guards.
         global validated_profile
         validated_profile = require_policy()
         inherited.PROFILE_ID = emission.PROFILE_ID
         inherited.MODE = emission.MODE
-        inherited.profile_sha256 = emission.profile_sha256
+        inherited.profile_sha256 = admitted_profile_sha256
         emission.install_in_isolated_render_worker()
         return original_reader(request_fd, resource_fd)
 
