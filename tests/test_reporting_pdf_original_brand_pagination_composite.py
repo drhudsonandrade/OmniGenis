@@ -115,6 +115,30 @@ class BrandPaginationCompositeTests(unittest.TestCase):
         self.assertFalse(raster["semantic_visual_equivalence_verified"])
         self.assertFalse(raster["aggregate_job_resources_qualified"])
 
+    def test_reused_page_parse_preserves_text_and_restores_exact_content(self):
+        from reporting import _pdf_original_brand_pagination_observer_worker as worker
+        from reporting._pdf_content_worker import normalize_stream
+
+        candidate = self.render()
+        reader = PdfReader(BytesIO(candidate.pdf_bytes), strict=True)
+        for number, page in enumerate(reader.pages, start=1):
+            with self.subTest(page=number):
+                original = page.raw_get("/Contents")
+                expected_text = normalize_stream(page.extract_text())
+                expected_count = len(ContentStream(
+                    page.get_contents(), reader, forced_encoding="bytes").operations)
+                found, count, decorated, text = worker._page_observation(
+                    page, reader, str(number))
+                self.assertEqual(found, str(number))
+                self.assertEqual(count, expected_count)
+                self.assertIn(decorated, (0, 1))
+                self.assertEqual(text, expected_text)
+                self.assertIs(page.raw_get("/Contents"), original)
+                with patch.object(page, "extract_text", side_effect=ValueError("extraction refused")):
+                    with self.assertRaisesRegex(ValueError, "extraction refused"):
+                        worker._page_observation(page, reader, str(number))
+                self.assertIs(page.raw_get("/Contents"), original)
+
     def test_wrong_asset_identity_and_disable_are_fail_closed(self):
         with self.assertRaises(CompositeCandidateError):
             self.render(expected_brand_bundle_sha256="0" * 64)

@@ -771,7 +771,22 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             values = (x0 / .75, (h-y1) / .75, x1 / .75, (h-y0) / .75)
             figure["/A"][NameObject("/BBox")] = ArrayObject([FloatObject(v) for v in values])
 
-        index_only = self.rewritten(layout_box)
+        coordinate_space = self.rewritten(layout_box)
+        with self.subTest(candidate="css-coordinate-box-outside-page"):
+            from reporting._pdf_original_svg_layout_worker import _Refusal
+            reader = PdfReader(BytesIO(coordinate_space["pdf_bytes"]), strict=True)
+            pages = worker.native._page_tree(reader)
+            with self.assertRaisesRegex(_Refusal, "^pdf_svg_layout_invalid$"):
+                worker._structure(reader, pages)
+            self.refuse(coordinate_space)
+
+        def undersized_page_box(writer):
+            figure = next(n for n in self.nodes(writer) if n["/S"] == "/Figure")
+            x0, y0, x1, y1 = map(float, figure["/A"]["/BBox"])
+            values = (x0, y0, (x0 + x1) / 2, y1)
+            figure["/A"][NameObject("/BBox")] = ArrayObject([FloatObject(v) for v in values])
+
+        index_only = self.rewritten(undersized_page_box)
         reader = PdfReader(BytesIO(index_only["pdf_bytes"]), strict=True)
         original_figure = next(n for n in self.nodes(
             SimpleNamespace(_root_object=reader.root_object)) if n["/S"] == "/Figure")
@@ -792,14 +807,14 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             self.assertEqual(contains.call_args.args[0], declared_box)
         self.assertTrue(all(worker._contains(*call.args) for call in contains.call_args_list[:-1]))
         self.assertFalse(worker._contains(*contains.call_args.args))
-        with self.subTest(candidate="id-tree-only-original-bbox"):
+        with self.subTest(candidate="in-page-box-with-insufficient-logo-coverage"):
             self.refuse(index_only)
         def box(writer, mode):
             figure = next(n for n in self.nodes(writer) if n["/S"] == "/Figure")
             corrected = [float(v) for v in figure["/A"]["/BBox"]]
             if mode == "full-page":
                 values = [float(v) for v in writer.pages[0].mediabox]
-            elif mode == "reintroduced-producer":
+            elif mode == "undersized-page-box":
                 values = producer_box
             elif mode == "disjoint":
                 values = [0, 0, 1, 1]
@@ -815,7 +830,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             with self.subTest(control=mode):
                 args = self.rewritten(lambda writer: box(writer, mode))
                 self.assertEqual(self.run_qa(args).to_dict()["figure_count"], 1)
-        for mode in ("reintroduced-producer", "disjoint", "partial"):
+        for mode in ("undersized-page-box", "disjoint", "partial"):
             with self.subTest(mode=mode):
                 self.refuse(self.rewritten(lambda writer: box(writer, mode)))
 
@@ -2647,6 +2662,11 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             for event in page["events"]:
                 if event["operator"] == "gs":
                     event["operands"] = [states[0]["name"]]
+            for block in page["pagination_blocks"]:
+                for event in block["events"]:
+                    if event["operator"] == "gs":
+                        event["operands"] = [states[0]["name"]]
+                block["sha256"] = sha256(self.m.canonical(block["events"])).hexdigest()
             return native
 
         def unchanged_replay(native):
