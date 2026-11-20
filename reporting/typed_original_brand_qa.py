@@ -69,6 +69,7 @@ SOURCE_FILES = (
     "schemas/report-typed-original-brand-qa.v1.schema.json",
     "tests/test_reporting_typed_original_brand_qa.py",
     "reporting/typed_original_brand_pdf.py",
+    "reporting/internal_navigation.py",
     "reporting/pdf-typed-observation.v1.json",
     "reporting/brand_assets.py",
     "reporting/pdf_original_brand_inclusion.py",
@@ -544,7 +545,6 @@ def _run_worker(pdf: bytes, digest: str) -> bytes:
 def _associate(manifest: dict, physical: dict, document: dict) -> dict:
     """Match all source and generated text, then join final heading occurrences."""
     document = capture_typed_document(document, manifest["ir_sha256"])
-    source_component_ids = {c["component_id"] for c in document["components"]}
     headings = [c for c in document["components"] if c["component_type"] == "section_heading"]
     require(1 <= len(headings) == physical["navigation_entries"]
             and len({c["section_id"] for c in headings}) == len(headings))
@@ -561,7 +561,7 @@ def _associate(manifest: dict, physical: dict, document: dict) -> dict:
     navigation, generated = [], []
 
     def generated_unit(kind, text, component_id):
-        require(component_id not in source_component_ids)
+        # Matching uses distinct component ordinals; source opaque IDs stay unreserved.
         unit = {
             "ordinal": 0, "kind": kind,
             "component_ordinal": manifest["counts"]["components"] + len(generated),

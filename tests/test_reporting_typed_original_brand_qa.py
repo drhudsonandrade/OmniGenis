@@ -327,6 +327,60 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         self.assertEqual(len(literal.encode("utf-8")), title_unit["utf8_bytes"])
         self.assertEqual(sha256(literal.encode("utf-8")).hexdigest(), title_unit["text_sha256"])
 
+    def test_generated_editorial_ids_do_not_reserve_source_component_ids(self):
+        from dataclasses import replace
+        from reporting.components import (
+            FindingRow, FindingsTable, TableColumn, TextComponent,
+            build_typed_report_projection, component_content_sha256,
+        )
+        request, ledger = context(1)
+        parts = (
+            TextComponent("fixed-navigation-title", "identity", "document_title", "Technical report"),
+            TextComponent("fixed-navigation-0", "findings", "section_heading", "Declared findings"),
+            TextComponent("fixed-brand-0", "findings", "paragraph", "Synthetic values only."),
+            FindingsTable(
+                "fixed-brand-1", "findings", "Declared synthetic findings",
+                (TableColumn("identifier", "Identifier"), TableColumn("value", "Value")),
+                (FindingRow(request.plan.expected_finding_ids[0], ("SYNTHETIC-001", "0.1")),)),
+        )
+        ledger = replace(ledger, represented=tuple(
+            replace(finding, component_ids=(parts[-1].component_id,))
+            for finding in ledger.represented))
+        source = build_typed_report_projection(
+            request=request, ledger=ledger,
+            projection_request_sha256=request.request.request_sha256,
+            expected_content_sha256=component_content_sha256(parts), components=parts).to_dict()
+        ir_sha = digest(source)
+        expectation = prepare_typed_pdf_source(
+            presentation_ir=source, expected_ir_sha256=ir_sha)
+        rendered, _ = render_typed_original_brand_pdf(
+            presentation_ir=source, expected_ir_sha256=ir_sha,
+            assets=self.assets, expected_brand_bundle_sha256=self.bundle)
+        associations = []
+        associate = self.m._associate
+
+        def retain_association(manifest, physical, document):
+            result = associate(manifest, physical, document)
+            associations.append(result)
+            return result
+
+        with patch.object(self.m, "_associate", side_effect=retain_association):
+            receipt = self.run_qa(dict(
+                presentation_ir=source, expected_ir_sha256=ir_sha,
+                expected_source_expectation_sha256=expectation.expectation_sha256,
+                assets=self.assets, expected_brand_bundle_sha256=self.bundle,
+                pdf_bytes=rendered.pdf_bytes, expected_pdf_sha256=rendered.pdf_sha256,
+                expected_profile_sha256=self.m.profile_sha256())).to_dict()
+        self.assertEqual(receipt["ir_sha256"], ir_sha)
+        self.assertEqual(receipt["source_expectation_sha256"], expectation.expectation_sha256)
+        self.assertEqual(receipt["pdf_sha256"], rendered.pdf_sha256)
+        self.assertIs(receipt["complete_literal_source_accounting"], True)
+        self.assertEqual(len(associations), 1)
+        navigation = associations[0]["editorial_navigation"]
+        self.assertEqual(len(navigation), 1)
+        self.assertEqual(navigation[0]["source_component_id"], "fixed-navigation-0")
+        self.assertEqual(navigation[0]["source_section_id"], "findings")
+
     def test_full_multipage_source_brand_and_every_page_bind_to_exact_caller_bytes(self):
         args = self.arguments(96)
         before = bytes(args["pdf_bytes"])
@@ -1181,6 +1235,63 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 self.edit_page(writer, page_index, alter)
             with self.subTest(duplicate=duplicate):
                 self.refuse(self.rewritten(credit))
+
+    def test_footer_declared_geometry_requires_position_clips_and_page_bounds(self):
+        """Keep every footer code while changing only its declared physical layout."""
+        def change(writer, case):
+            page = writer.pages[-1]
+            if case in {"crop", "media"}:
+                key = "/CropBox" if case == "crop" else "/MediaBox"
+                box = deepcopy(page.raw_get("/MediaBox"))
+                box[1] = NumberObject(44)
+                page[NameObject(key)] = box
+                return
+
+            def alter(ops):
+                start, end = self.footer_range(ops)
+                shown = next(args[0] for args, op in ops[start + 1:end] if op == b"TJ")
+                original_codes = [bytes(item) for item in shown if type(item) is ByteStringObject]
+                matrix = next(args for args, op in ops[start + 1:end] if op == b"Tm")
+                if case == "tm-left":
+                    matrix[4] = FloatObject(float(matrix[4]) - 100)
+                elif case == "tm-body":
+                    matrix[5] = FloatObject(float(matrix[5]) - 100)
+                elif case == "outside-page":
+                    matrix[4] = FloatObject(float(matrix[4]) + 2000)
+                elif case == "tj-displaced":
+                    # Restore the final pen while leaving all declared glyph boxes
+                    # displaced: checking only the advance endpoint is insufficient.
+                    shown.insert(0, NumberObject(10000))
+                    shown.append(NumberObject(-10000))
+                else:
+                    payload = [([], b"q")]
+                    if case in {"outer-translation", "outer-shear"}:
+                        values = (1, 0, 0, 1, 0, -100) if case == "outer-translation" else (1, 0, 1, 1, 0, 0)
+                        payload.append(([NumberObject(value) for value in values], b"cm"))
+                    else:
+                        rectangle = (0, 0, 1200, 1600) if case == "containing-clip" else (0, 0, 1, 1)
+                        payload.extend([
+                            ([NumberObject(value) for value in rectangle], b"re"),
+                            ([], b"W"), ([], b"n")])
+                    if case == "restored-clip":
+                        payload.append(([], b"Q"))
+                    else:
+                        ops.insert(end + 1, ([], b"Q"))
+                    ops[start:start] = payload
+                first, last = self.footer_range(ops)
+                current = next(args[0] for args, op in ops[first + 1:last] if op == b"TJ")
+                self.assertEqual([bytes(item) for item in current if type(item) is ByteStringObject],
+                                 original_codes)
+            self.edit_page(writer, -1, alter)
+
+        for case in ("containing-clip", "restored-clip"):
+            with self.subTest(control=case):
+                receipt = self.run_qa(self.rewritten(lambda writer: change(writer, case))).to_dict()
+                self.assertIs(receipt["complete_literal_source_accounting"], True)
+        for case in ("tm-left", "tm-body", "outside-page", "outer-translation", "outer-shear",
+                     "excluding-clip", "crop", "media", "tj-displaced"):
+            with self.subTest(refusal=case):
+                self.refuse(self.rewritten(lambda writer: change(writer, case)))
 
     def test_footers_require_exact_identity_once_on_each_physical_page(self):
         args = self.arguments()
@@ -2409,8 +2520,9 @@ class TypedOriginalBrandQATests(unittest.TestCase):
 
     def test_new_profile_pins_the_executed_original_brand_dependencies(self):
         for name in ("reporting/brand_assets.py", "reporting/pdf_original_brand_inclusion.py",
-                     "reporting/_pdf_original_dna_png_admission.py"):
+                     "reporting/_pdf_original_dna_png_admission.py", "reporting/internal_navigation.py"):
             with self.subTest(source=name), _temporary_profile_tree(self.m) as root:
+                self.assertEqual(self.m.profile_sha256(), sha256(self.m.MANIFEST.read_bytes()).hexdigest())
                 target = root / name
                 target.write_bytes(target.read_bytes() + b"\n")
                 with self.assertRaises(ValueError):

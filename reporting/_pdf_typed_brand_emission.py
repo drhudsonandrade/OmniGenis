@@ -37,6 +37,12 @@ ENGINES = {
     "weasyprint/draw/__init__.py": "fb6fcee79a80059c72a3142ef941d4968e3aeeddc8fbbcac2e8519e8be55e348",
     "weasyprint/css/targets.py": "dc7a175f80bbca473564d4462cc60a240c6f4a45456e83165de73dd2c5d574b8",
     "weasyprint/formatting_structure/build.py": "335ad8b541295d6b9c5b71830d5184cd692f730d7b83ba5bac39fdb5aea23c87",
+    "weasyprint/formatting_structure/boxes.py": "8ffd28ab74a149f0097208fcba6a80df0c8bb01e8fd4f9ced95d11b7e9807e23",
+    "weasyprint/draw/text.py": "c9a450aa209277e760227e1fed2da492647bd28e5a5ebc4c9d8aaedecc400d77",
+    "weasyprint/text/line_break.py": "1f5a855ad992e0bebaf5512d2b806fd991090e0e91bf79d3d5a3a0176b22af97",
+    "weasyprint/text/ffi.py": "530e83118f7841d2791678ece23d5e43a7a24150ee1ea64bb4ba70c70b3eb5da",
+    "weasyprint/layout/absolute.py": "240e268cec1e66dda1f87aec6bdd671e7bf36439c5fa09de32965f717893ba07",
+    "weasyprint/layout/block.py": "9457dca0528c378f3ff6dd2ca5126d04ca017542de2fb77b1db48c3073401085",
 }
 CONTRACT = {
     "schema_version": "1.0.0", "profile_id": PROFILE_ID, "mode": MODE, "protocol_version": 3,
@@ -343,6 +349,96 @@ def _editorial_source(page_box):
     return roots[0], cover, value
 
 
+def _editorial_cover_title(page_box, cover_box):
+    """Refuse title boxes or glyph ink outside the space left by the originals."""
+    from weasyprint.formatting_structure import boxes
+    from weasyprint.layout.absolute import AbsolutePlaceholder
+    from weasyprint.text.ffi import FROM_UNITS, ffi, pango
+
+    def unwrap(box):
+        return object.__getattribute__(box, "_box") if type(box) is AbsolutePlaceholder else box
+
+    def rectangle(x, y, width, height):
+        # Compare the same finite decimal coordinates admitted for serialization.
+        x0, y0, w, h = map(_numeric, (x, y, width, height))
+        require(w >= 0 and h >= 0)
+        return x0, y0, _numeric(x + width), _numeric(y + height)
+
+    def border(box):
+        return rectangle(box.border_box_x(), box.border_box_y(),
+                         box.border_width(), box.border_height())
+
+    def inside(inner, outer):
+        require(outer[0] <= inner[0] <= inner[2] <= outer[2]
+                and outer[1] <= inner[1] <= inner[3] <= outer[3])
+
+    require(type(cover_box) is boxes.BlockBox and cover_box.element_tag == "section")
+    page_area = rectangle(page_box.content_box_x(), page_box.content_box_y(),
+                          page_box.width, page_box.height)
+    cover_area = rectangle(cover_box.content_box_x(), cover_box.content_box_y(),
+                           cover_box.width, cover_box.height)
+    inside(cover_area, page_area)
+    source_titles = [element for element in cover_box.element if element.tag == "h1"]
+    require(len(source_titles) == 1)
+    require(len(cover_box.children) <= CONTRACT["limits"]["structure_charge"])
+    children = [unwrap(box) for box in cover_box.children]
+
+    def bound_child(element):
+        matches = [box for box in children if box.element is element]
+        require(len(matches) == 1 and type(matches[0]) is boxes.BlockBox
+                and matches[0].element_tag == element.tag)
+        return matches[0]
+
+    title = bound_child(source_titles[0])
+    # An absolute title can continue on another page while its first fragment fits.
+    # Sliced decorations mark either incomplete edge before any page is painted.
+    require(not title.remove_decoration_sides)
+    original_boxes = []
+    for name in ("original-dna", "original-logo"):
+        elements = [element for element in cover_box.element
+                    if element.tag == "div" and element.get("data-brand") == name]
+        require(len(elements) == 1)
+        original_boxes.append(border(bound_child(elements[0])))
+        inside(original_boxes[-1], cover_area)
+    dna, logo = original_boxes
+    # The existing white gaps remain available for safe glyph overhang.
+    title_area = dna[2], logo[3], cover_area[2], cover_area[3]
+    require(title_area[0] < title_area[2] and title_area[1] < title_area[3])
+    inside(border(title), title_area)
+    require(bool(title.children) and len(title.children) <= CONTRACT["limits"]["structure_charge"])
+    charge, text_count = 1, 0
+    for line in title.children:
+        require(type(line) is boxes.LineBox and line.element is source_titles[0]
+                and len(line.children) <= CONTRACT["limits"]["structure_charge"] - charge)
+        charge += 1 + len(line.children)
+        require(charge <= CONTRACT["limits"]["structure_charge"])
+        inside(border(line), title_area)
+        for text in line.children:
+            require(type(text) is boxes.TextBox and text.element is source_titles[0]
+                    and not text.children)
+            text_count += 1
+            inside(border(text), title_area)
+            layout = text.pango_layout
+            layout.reactivate(text.style)
+            try:
+                # draw_text uses this same final line, single-paragraph mode and baseline.
+                pango.pango_layout_set_single_paragraph_mode(layout.layout, True)
+                first_line, next_line = layout.get_first_line()
+                require(first_line != ffi.NULL and next_line is None)
+                ink = ffi.new("PangoRectangle *")
+                try:
+                    pango.pango_layout_line_get_extents(first_line, ink, ffi.NULL)
+                    inside(rectangle(
+                        text.position_x + ink.x * FROM_UNITS,
+                        text.position_y + text.baseline + ink.y * FROM_UNITS,
+                        ink.width * FROM_UNITS, ink.height * FROM_UNITS), title_area)
+                finally:
+                    ffi.release(ink)
+            finally:
+                layout.deactivate()
+    require(text_count > 0)
+
+
 def _editorial_footer(page_box, expected):
     """Admit the exact unwrapped bottom-right text; no other margin content."""
     from weasyprint.formatting_structure import boxes
@@ -401,6 +497,7 @@ def _install_editorial_after_font_bootstrap():
             require(len(bodies) == 1 and bool(bodies[0].children) and cover_present
                     and bodies[0].children[0].element is cover
                     and bodies[0].children[0].element_tag == "section")
+            _editorial_cover_title(page_box, bodies[0].children[0])
         else:
             require(not cover_present)
         expected = "OmniGenis | " + source_ir[:12] + " | " + str(page_index + 1)

@@ -4,6 +4,13 @@ Composes only the exact source-approved original assets and mandatory owner cred
 over the already validated en-US typed editorial HTML. The existing confined
 preloaded-raster worker performs the only rendering. No default delivery,
 clinical/scientific claims, new executor, PDF/UA or visual parity is established.
+
+This original-brand editorial profile requires at least one section heading with
+an unambiguous source section anchor for its printed contents. The generic typed
+component contract remains unchanged. The complete source title must fit the
+cover area beside the DNA and below the logo in the actual fixed-font layout.
+Title boxes or glyph ink outside that area refuse rendering before the first
+page is painted. The existing gaps allow safe ink overhang. Text is never shortened.
 """
 from __future__ import annotations
 
@@ -132,7 +139,11 @@ def prepare_typed_original_brand_pdf(
     *, presentation_ir: object, expected_ir_sha256: object,
     assets: BoundBrandAssets, expected_brand_bundle_sha256: object,
 ) -> tuple[str, RasterBundle, dict]:
-    """Combine source-bound typed HTML and reviewed originals without reinterpreting either."""
+    """Stage this profile's exact source, including one or more section headings.
+
+    Title fit is decided from the actual layout in the existing render worker.
+    Preparation alone does not establish that the complete title fits the cover.
+    """
     try:
         _ready(assets, expected_brand_bundle_sha256)
         source, source_record = prepare_editorial_typed_html(

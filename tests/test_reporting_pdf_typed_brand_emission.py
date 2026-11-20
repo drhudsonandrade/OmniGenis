@@ -1635,6 +1635,75 @@ class EditorialBrandEmissionTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             _editorial_source(page)
 
+
+    def test_cover_title_keeps_original_art_clear_and_allows_safe_ink_overhang(self):
+        from unittest.mock import Mock, patch
+        from xml.etree.ElementTree import Element, SubElement
+        from weasyprint.formatting_structure import boxes
+        from weasyprint.layout.absolute import AbsolutePlaceholder
+        from reporting._pdf_typed_brand_emission import _editorial_cover_title
+
+        def geometry(box, x, y, width, height):
+            box.position_x, box.position_y = x, y
+            box.width, box.height = width, height
+            for side in ("left", "right", "top", "bottom"):
+                setattr(box, "margin_" + side, 0)
+                setattr(box, "padding_" + side, 0)
+                setattr(box, "border_" + side + "_width", 0)
+            return box
+
+        cases = (
+            ("normal", (5, -50, 190, 50), (350, 400), True),
+            ("safe-gap-overhang", (-20, -100, 210, 100), (350, 400), True),
+            ("ink-in-dna", (-70, -50, 190, 50), (350, 400), False),
+            ("ink-in-logo", (5, -180, 190, 50), (350, 400), False),
+            ("box-in-dna", (5, -50, 190, 50), (280, 400), False),
+            ("box-in-logo", (5, -50, 190, 50), (350, 280), False),
+        )
+        for name, extents, title_position, admitted in cases:
+            with self.subTest(name=name):
+                source = Element("section")
+                dna_source = SubElement(source, "div", {"data-brand": "original-dna"})
+                logo_source = SubElement(source, "div", {"data-brand": "original-logo"})
+                title_source = SubElement(source, "h1")
+                text = geometry(boxes.TextBox("h1", {}, title_source, "Cover title"),
+                                350, 400, 200, 60)
+                text.baseline = 60
+                layout = SimpleNamespace(
+                    layout=object(), reactivate=Mock(), deactivate=Mock(),
+                    get_first_line=Mock(return_value=(object(), None)))
+                text.pango_layout = layout
+                line = geometry(boxes.LineBox("h1", {}, title_source, [text]),
+                                350, 400, 500, 80)
+                title = geometry(boxes.BlockBox("h1", {}, title_source, [line]),
+                                 *title_position, 500, 100)
+                dna = geometry(boxes.BlockBox("div", {}, dna_source, []),
+                               50, 50, 250, 900)
+                logo = geometry(boxes.BlockBox("div", {}, logo_source, []),
+                                350, 200, 300, 100)
+                cover = geometry(boxes.BlockBox("section", {}, source,
+                    [AbsolutePlaceholder(box) for box in (dna, logo, title)]),
+                    50, 50, 900, 900)
+                page = geometry(boxes.Box("page", {}, None), 0, 0, 1000, 1000)
+
+                def measure(_line, ink, _logical):
+                    ink.x, ink.y, ink.width, ink.height = extents
+
+                with patch("weasyprint.text.ffi.pango") as pango, \
+                     patch("weasyprint.text.ffi.FROM_UNITS", 1):
+                    pango.pango_layout_line_get_extents.side_effect = measure
+                    if admitted:
+                        _editorial_cover_title(page, cover)
+                    else:
+                        with self.assertRaises(ValueError):
+                            _editorial_cover_title(page, cover)
+                    if name.startswith("box-"):
+                        pango.pango_layout_line_get_extents.assert_not_called()
+                        layout.reactivate.assert_not_called()
+                    else:
+                        pango.pango_layout_line_get_extents.assert_called_once()
+                        layout.deactivate.assert_called_once()
+
     def test_exact_footer_admits_only_one_generated_text_leaf(self):
         from reporting._pdf_typed_brand_emission import _editorial_footer
         page, margin, _, text, expected = self.footer_page()

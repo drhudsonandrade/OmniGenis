@@ -486,8 +486,91 @@ def _effective_crop_box(page, reader):
     require(False)
 
 
-def _paint_geometry(operations, page, reader, forms, xobjects, figure_points):
-    """Require original brand paints inside the existing known rectangle clips."""
+def _footer_declared_geometry(block, resources, reader, ctm, media):
+    """Bind declared PDF advances and typographic boxes, not glyph contours or ink.
+
+    The existing Type0/Identity-H font admission supplies bounded explicit /W
+    runs. Ascent/descent and widths are PDF declarations: this does not decode
+    FontFile2, authenticate outlines, or establish actual painted-ink bounds.
+    """
+    from pypdf.generic import ByteStringObject, NumberObject
+
+    require([op.decode("ascii") for _, op in block] == list(qa.PAGINATION_OPERATORS))
+    matrix = tuple(map(Decimal, _numbers(block[3][0], 6)))
+    font_name, size_value = block[4][0]
+    size = Decimal(native._number(size_value))
+    effective = _ctm(matrix, ctm)
+    # WeasyPrint's PDF scale is 72/96; draw_text reverses the CSS text y-axis.
+    scale, half_decimal = Decimal("0.75"), Decimal("0.0000005")
+    require(effective[:4] == (scale, Decimal(0), Decimal(0), scale))
+    # Existing 8.6pt footer -> integer Pango units -> pydyf's six decimal places.
+    exact_size = Decimal(int(Decimal("8.6") / scale * 1024)) / 1024
+    require(size == exact_size.quantize(Decimal("0.000001")))
+    font_map = native._dictionary(resources.raw_get("/Font"), reader)
+    require(font_name in font_map)
+    font = native._dictionary(font_map.raw_get(font_name), reader)
+    cid = native._dictionary(font.raw_get("/DescendantFonts")[0], reader)
+    descriptor = native._dictionary(cid.raw_get("/FontDescriptor"), reader)
+    ascent = Decimal(native._number(descriptor.raw_get("/Ascent")))
+    descent = Decimal(native._number(descriptor.raw_get("/Descent")))
+    require(descent < 0 < ascent)
+    widths = {}
+    declared = cid.raw_get("/W")
+    # native._font already checked the ascending, disjoint 4096-value envelope.
+    for offset in range(0, len(declared), 2):
+        first = int(declared[offset])
+        for index, value in enumerate(declared[offset + 1]):
+            require(type(value) is NumberObject)
+            widths[first + index] = Decimal(int(value))
+    pen, glyphs, points, maximum_extent = Decimal(0), 0, [], Decimal(0)
+    shown = block[5][0][0]
+    for item in shown:
+        if type(item) is NumberObject:
+            pen -= Decimal(int(item))
+            continue
+        require(type(item) is ByteStringObject)
+        data = bytes(item)
+        require(0 < len(data) and len(data) % 2 == 0)
+        for offset in range(0, len(data), 2):
+            glyphs += 1
+            require(glyphs <= 64)
+            code = int.from_bytes(data[offset:offset + 2], "big")
+            require(code in widths)
+            width = widths[code]
+            points.extend(_rectangle(
+                (pen * size / 1000, descent * size / 1000,
+                 width * size / 1000, (ascent - descent) * size / 1000), effective))
+            maximum_extent = max(maximum_extent, abs(pen), abs(pen + width))
+            pen += width
+    require(glyphs > 0 and pen > 0)
+    maximum_extent = max(maximum_extent, abs(pen))
+    x0, y0 = min(p[0] for p in points), min(p[1] for p in points)
+    x1, y1 = max(p[0] for p in points), max(p[1] for p in points)
+    bounds = _rectangle((x0, y0, x1 - x0, y1 - y0), IDENTITY)
+    # draw/text.py rounds /W and truncates each TJ kerning to an integer.
+    # One unit per glyph bounds truncation; one more bounds the final rounded
+    # logical edge. Add the exact Tf serialization error and half a serialized
+    # decimal unit for Tm and the page edge. This is a data-derived bound, not
+    # an arbitrary coordinate tolerance; it never relaxes physical clipping.
+    allowance = (scale * (
+        exact_size * (glyphs + 1) / 1000
+        + abs(exact_size - size) * maximum_extent / 1000 + half_decimal)
+        + half_decimal)
+    margin = Decimal(44)
+    left, bottom, right, top = media
+    require(right - left > 2 * margin and top - bottom > margin)
+    target_right = right - margin
+    advance_right = _point((pen * size / 1000, Decimal(0)), effective)[0]
+    require(abs(advance_right - target_right) <= allowance
+            and abs(x1 - target_right) <= allowance)
+    region = _rectangle((left + margin, bottom,
+                         right - left - 2 * margin + allowance, margin), IDENTITY)
+    require(_contains(region, bounds))
+    return bounds
+
+
+def _paint_geometry(operations, page, reader, forms, xobjects, figure_points, resources):
+    """Check brand paints and declared footer boxes against the active rectangles."""
     from pypdf.generic import ArrayObject
     ctm, stack, clip = IDENTITY, [], ()
     path, pending_clip = None, False
@@ -496,12 +579,15 @@ def _paint_geometry(operations, page, reader, forms, xobjects, figure_points):
     crop_box = _effective_crop_box(page, reader)
     if crop_box is not None:
         boxes.append(crop_box)
+    media = None
     for box in boxes:
         require(type(box) is ArrayObject and len(box) == 4)
         x0, y0, x1, y1 = (Decimal(native._number(v)) for v in box)
         require(x0 < x1 and y0 < y1)
+        if media is None:
+            media = x0, y0, x1, y1
         clip = (_rectangle((x0, y0, x1 - x0, y1 - y0), IDENTITY), clip)
-    for args, op in operations:
+    for ordinal, (args, op) in enumerate(operations):
         if op == b"q":
             require(len(stack) < contract.MAX_DEPTH)
             stack.append((ctm, clip))
@@ -532,6 +618,15 @@ def _paint_geometry(operations, page, reader, forms, xobjects, figure_points):
             while inherited:
                 bounds, inherited = inherited
                 require(_contains(bounds, logo))
+        elif op == b"BDC" and args[0] == "/Artifact":
+            require(_determinant(ctm) != 0 and clip is not None
+                    and path is None and not pending_clip)
+            footer = _footer_declared_geometry(
+                operations[ordinal + 1:ordinal + 8], resources, reader, ctm, media)
+            inherited = clip
+            while inherited:
+                bounds, inherited = inherited
+                require(_contains(bounds, footer))
         elif op == b"Do":
             require(_determinant(ctm) != 0 and clip is not None
                     and path is None and not pending_clip)
@@ -851,7 +946,7 @@ def _page(page, obj, resources, reader, fonts, forms, roles, remaining):
         index += 1
     require(outside_depth == 0 and not outside_path and not outside_clip
             and used == set(owners) and len(page["pagination_blocks"]) == 1)
-    _paint_geometry(ops, obj, reader, forms, xobjects, figure_points)
+    _paint_geometry(ops, obj, reader, forms, xobjects, figure_points, resources)
     text_page = dict(page)
     text_page["mcid_owners"] = [v for v in page["mcid_owners"] if roles[tuple(v["structure_reference"])] == "/Span"]
     page["runs"] = contract._replay(text_page, fonts)

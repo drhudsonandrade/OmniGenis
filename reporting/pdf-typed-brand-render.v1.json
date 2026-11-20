@@ -6,10 +6,16 @@
     "weasyprint/css/targets.py": "dc7a175f80bbca473564d4462cc60a240c6f4a45456e83165de73dd2c5d574b8",
     "weasyprint/document.py": "f08f91af64563f5fb27596828891fb326262511a56e4ace714e5a960898024c8",
     "weasyprint/draw/__init__.py": "fb6fcee79a80059c72a3142ef941d4968e3aeeddc8fbbcac2e8519e8be55e348",
+    "weasyprint/draw/text.py": "c9a450aa209277e760227e1fed2da492647bd28e5a5ebc4c9d8aaedecc400d77",
+    "weasyprint/formatting_structure/boxes.py": "8ffd28ab74a149f0097208fcba6a80df0c8bb01e8fd4f9ced95d11b7e9807e23",
     "weasyprint/formatting_structure/build.py": "335ad8b541295d6b9c5b71830d5184cd692f730d7b83ba5bac39fdb5aea23c87",
+    "weasyprint/layout/absolute.py": "240e268cec1e66dda1f87aec6bdd671e7bf36439c5fa09de32965f717893ba07",
+    "weasyprint/layout/block.py": "9457dca0528c378f3ff6dd2ca5126d04ca017542de2fb77b1db48c3073401085",
     "weasyprint/pdf/__init__.py": "426e0855db0473121bf70666b3c6c5fbd9ebfe832741d31a3689e8b10a14281f",
     "weasyprint/pdf/stream.py": "4faf9169d1970d4688b9cf41f733659ca6b1c4c098707c64f67c47a07309e81e",
-    "weasyprint/pdf/tags.py": "fae488b773686ea7fb685967c78a5b011854b88b61377f426ffb4e9ec00d76d2"
+    "weasyprint/pdf/tags.py": "fae488b773686ea7fb685967c78a5b011854b88b61377f426ffb4e9ec00d76d2",
+    "weasyprint/text/ffi.py": "530e83118f7841d2791678ece23d5e43a7a24150ee1ea64bb4ba70c70b3eb5da",
+    "weasyprint/text/line_break.py": "1f5a855ad992e0bebaf5512d2b806fd991090e0e91bf79d3d5a3a0176b22af97"
   },
   "inherited_profile_sha256": "5391bdae627341ce95c351093bfc2a6dc2575e48203f9ee4bd4581c6ec1eb0de",
   "limits": {
@@ -40,7 +46,7 @@
     "reporting/_pdf_process_lifecycle.py": "e3da8ad54736b891ff2c2eb1c9a65e384114307e775da49b42518c07768f7b2f",
     "reporting/_pdf_process_sandbox.py": "76a4648556ecd3d3c39c1ac33122c027ab90769b5e5e9c244b79657454635a3f",
     "reporting/_pdf_render_worker.py": "30b6454c7cd9b1b83d5713c406e135de91ccf127116a8bd42a13d17036cbd5ce",
-    "reporting/_pdf_typed_brand_emission.py": "ef062acfeb33f93cfe88b04e41abf741cb813fca937b856d509148230740c9fc",
+    "reporting/_pdf_typed_brand_emission.py": "815dff4eff7bd737570d25e949634d1a932ff1f05f462b8211fb8b07eff992cb",
     "reporting/_pdf_typed_brand_render_worker.py": "6054dab7dc6c8e2d342ef7ce4a313bf2d39dc8f9472b16e25a2c9622e1abf4d5",
     "reporting/adapters.py": "4617038aea9465db76aa0f4049f458dc6b7de7686f56addc21a45f5f2bf6bba0",
     "reporting/bindings.py": "bdbc232cb0cfd507001731075ea9856cd421b60202f2871511d406aead09eb38",
@@ -55,7 +61,7 @@
     "reporting/pdf_typed_brand_render.py": "280f66326f4c12e4c9fc739f55e4e3f5a0d91aa99bb380def85bd5f68fe719da",
     "reporting/png_inspection.py": "189e1e1d77eabaaf829915cd6fcb21611831bb7c3af577e00e423a1b40f5bcec",
     "reporting/typed_html.py": "9b0dcd5dd6220302eaf1dcb101fedbed767b80b29fcc33c7fc19fc46a6e6f9fb",
-    "reporting/typed_original_brand_pdf.py": "ffb9d53142670e53b75419291e0d0b361e0f0dc7022a4786643cd8b0e8ba4862",
+    "reporting/typed_original_brand_pdf.py": "fdf69a3eb94508dd87a22685352e19294cc630400e43b8dfd84e33274aed406e",
     "requirements-reporting.lock": "bc2c6d8e66ace82ca442e7931ea44b608ea037e1adddddc7a5dbebeb56008671"
   },
   "versions": {

@@ -127,8 +127,25 @@ class BrandPaginationCompositeTests(unittest.TestCase):
                 expected_text = normalize_stream(page.extract_text())
                 expected_count = len(ContentStream(
                     page.get_contents(), reader, forced_encoding="bytes").operations)
-                found, count, decorated, text = worker._page_observation(
-                    page, reader, str(number))
+                page_data = page.get_contents().get_data()
+                # Identify this top-level stream before measuring. Form XObjects
+                # have distinct bytes and must not count as another page parse.
+                for ref in page["/Resources"].get("/XObject", {}).values():
+                    form = ref.get_object()
+                    if form.get("/Subtype") == "/Form":
+                        self.assertNotEqual(form.get_data(), page_data)
+                parses = []
+                original_parse = ContentStream._parse_content_stream
+
+                def count_page_parse(content, data):
+                    if data.getvalue() == page_data:
+                        parses.append(content)
+                    return original_parse(content, data)
+
+                with patch.object(ContentStream, "_parse_content_stream", new=count_page_parse):
+                    found, count, decorated, text = worker._page_observation(
+                        page, reader, str(number))
+                self.assertEqual(len(parses), 1)
                 self.assertEqual(found, str(number))
                 self.assertEqual(count, expected_count)
                 self.assertIn(decorated, (0, 1))

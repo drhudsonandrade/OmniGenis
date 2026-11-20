@@ -74,8 +74,50 @@ class TypedOriginalBrandPdfTests(unittest.TestCase):
                   for page in observation["trace"]["pages"]]
         self.assertEqual(paints, [1] + [0] * (candidate.page_count - 1))
         self.assertIn("Technical report", reader.pages[0].extract_text())
-        self.assertNotIn("Original DNA illustration",
+        self.assertNotIn("Original decorative OmniGenis DNA illustration",
                          "\n".join(page.extract_text() for page in reader.pages))
+
+
+    def _source_with_cover_title(self, title, *, heading=True):
+        request, ledger = context(1, "SYNTHETIC-CASE")
+        components = (
+            TextComponent("title", "identity", "document_title", title),
+            *((TextComponent("heading", "findings", "section_heading", "Findings"),)
+              if heading else ()),
+            FindingsTable("table", "findings", "Synthetic findings",
+                (TableColumn("variant", "Variant"), TableColumn("value", "Value")),
+                (FindingRow(request.plan.expected_finding_ids[0],
+                            ("NM_000001.1:c.1A>G", "0.1")),)),
+        )
+        return build_typed_report_projection(
+            request=request, ledger=ledger,
+            projection_request_sha256=request.request.request_sha256,
+            expected_content_sha256=component_content_sha256(components),
+            components=components).to_dict()
+
+    def test_cover_title_overflow_refuses_instead_of_returning_a_clipped_candidate(self):
+        titles = ("\n".join(["Explicit cover line"] * 18), "Wrapped cover title " * 60)
+        self.assertNotIn("\n", titles[1])
+        for title in titles:
+            with self.subTest(explicit_lines="\n" in title):
+                source = self._source_with_cover_title(title)
+                with self.assertRaisesRegex(
+                        self.m.TypedOriginalBrandError, "^typed_original_brand_pdf_unavailable$"):
+                    self.m.render_typed_original_brand_pdf(**(self.arguments() | {
+                        "presentation_ir": source, "expected_ir_sha256": digest(source)}))
+
+    def test_heading_free_generic_source_refuses_before_original_brand_render(self):
+        source = self._source_with_cover_title("Technical report", heading=False)
+        source_sha = digest(source)
+        html, _ = prepare_editorial_typed_html(
+            presentation_ir=source, expected_ir_sha256=source_sha)
+        self.assertNotIn("<h2 ", html)
+        with patch.object(self.m, "render_typed_brand_pdf") as render:
+            with self.assertRaisesRegex(
+                    self.m.TypedOriginalBrandError, "^typed_original_brand_pdf_unavailable$"):
+                self.m.render_typed_original_brand_pdf(**(self.arguments() | {
+                    "presentation_ir": source, "expected_ir_sha256": source_sha}))
+            render.assert_not_called()
 
     def test_editorial_folios_bind_the_report_identity_and_every_physical_page(self):
         candidate, _ = self.m.render_typed_original_brand_pdf(**self.arguments())
