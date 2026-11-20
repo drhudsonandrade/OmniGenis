@@ -1,4 +1,5 @@
 """Finite pre-serialization structure emission for the typed original-brand route."""
+from contextlib import contextmanager
 from decimal import Decimal, localcontext
 from hashlib import sha256
 from importlib.metadata import distribution
@@ -25,12 +26,17 @@ SOURCES = (
     "reporting/_pdf_native_launch_budget.py", "reporting/_pdf_document_byte_budget.py",
     "reporting/page_windows.py", "reporting/bindings.py", "reporting/contracts.py",
     "reporting/_pdf_original_dna_png_admission.py", "requirements-reporting.lock",
+    "reporting/internal_navigation.py", "reporting/typed_html.py", "reporting/editorial_typed_pdf.py",
 )
 ENGINES = {
     "weasyprint/pdf/tags.py": "fae488b773686ea7fb685967c78a5b011854b88b61377f426ffb4e9ec00d76d2",
     "weasyprint/pdf/__init__.py": "426e0855db0473121bf70666b3c6c5fbd9ebfe832741d31a3689e8b10a14281f",
     "weasyprint/document.py": "f08f91af64563f5fb27596828891fb326262511a56e4ace714e5a960898024c8",
     "pydyf/__init__.py": "f0cdb619c0de7cd40e04fce1927411d98fc2186b509db6cfa93a142c755a08fd",
+    "weasyprint/pdf/stream.py": "4faf9169d1970d4688b9cf41f733659ca6b1c4c098707c64f67c47a07309e81e",
+    "weasyprint/draw/__init__.py": "fb6fcee79a80059c72a3142ef941d4968e3aeeddc8fbbcac2e8519e8be55e348",
+    "weasyprint/css/targets.py": "dc7a175f80bbca473564d4462cc60a240c6f4a45456e83165de73dd2c5d574b8",
+    "weasyprint/formatting_structure/build.py": "335ad8b541295d6b9c5b71830d5184cd692f730d7b83ba5bac39fdb5aea23c87",
 }
 CONTRACT = {
     "schema_version": "1.0.0", "profile_id": PROFILE_ID, "mode": MODE, "protocol_version": 3,
@@ -312,9 +318,164 @@ def _compose_finisher(original):
     return finisher
 
 
+def _editorial_source(page_box):
+    """Recognize only one full-IR marker on the first source-body section."""
+    roots = [child for child in page_box.children if child.element_tag == "html"]
+    require(len(roots) <= 1)
+    if not roots or roots[0].element is None:
+        return roots[0] if roots else None, None, None
+    root = roots[0].element
+    marked = []
+    for charge, element in enumerate(root.iter(), 1):
+        require(charge <= CONTRACT["limits"]["structure_charge"])
+        if "data-editorial-ir-sha256" in element.attrib:
+            marked.append(element)
+            require(len(marked) == 1)
+    if not marked:
+        return roots[0], None, None
+    cover = marked[0]
+    value = cover.get("data-editorial-ir-sha256")
+    bodies = [element for element in root if element.tag == "body"]
+    require(type(value) is str and re.fullmatch(r"[0-9a-f]{64}", value)
+            and len(bodies) == 1 and len(bodies[0]) > 0
+            and bodies[0][0] is cover and cover.tag == "section"
+            and not (bodies[0].text or "").strip())
+    return roots[0], cover, value
+
+
+def _editorial_footer(page_box, expected):
+    """Admit the exact unwrapped bottom-right text; no other margin content."""
+    from weasyprint.formatting_structure import boxes
+    margins = [box for box in page_box.children if isinstance(box, boxes.MarginBox)]
+    require(len(margins) == 1)
+    margin = margins[0]
+    require(type(margin) is boxes.MarginBox and margin.at_keyword == "@bottom-right"
+            and margin.element is None and len(margin.children) == 1)
+    line = margin.children[0]
+    require(type(line) is boxes.LineBox and len(line.children) == 1)
+    text = line.children[0]
+    require(type(text) is boxes.TextBox and not text.children and text.element is None
+            and type(text.text) is str and text.text == expected)
+    return margin, text
+
+
+def _install_editorial_after_font_bootstrap():
+    """Install one finite footer route inside the already admitted render child."""
+    require(sys.flags.isolated and sys.dont_write_bytecode
+            and Path(sys.argv[0]).resolve() == Path(__file__).with_name("_pdf_typed_brand_render_worker.py"))
+    import pydyf
+    import weasyprint.document as document_module
+    import weasyprint.pdf.tags as tag_module
+    import weasyprint.pdf.stream as stream_module
+    from weasyprint.formatting_structure import boxes
+
+    original_draw = document_module.draw_page
+    original_build = tag_module._build_box_tree
+    original_marked = stream_module.Stream.marked
+    require(not getattr(original_draw, "_typed_brand_editorial", False))
+    pages, margins, texts = [], {}, {}
+    source_root, source_cover, source_ir = None, None, None
+
+    def draw_page(page_box, stream):
+        nonlocal source_root, source_cover, source_ir
+        html, cover, ir = _editorial_source(page_box)
+        if not pages:
+            source_root = html.element if html is not None else None
+            source_cover, source_ir = cover, ir
+        else:
+            require(ir == source_ir)
+        page_index = len(pages)
+        require(page_index < CONTRACT["limits"]["pages"] and page_box not in pages)
+        pages.append(page_box)
+        if source_ir is None:
+            original_draw(page_box, stream)
+            return
+        require(html is not None and html.element is source_root
+                and cover is source_cover and stream._tags is not None)
+        cover_present = False
+        for charge, box in enumerate(page_box.descendants(), 1):
+            require(charge <= CONTRACT["limits"]["structure_charge"])
+            cover_present = cover_present or box.element is cover
+        if page_index == 0:
+            bodies = [box for box in html.children if box.element_tag == "body"]
+            require(len(bodies) == 1 and bool(bodies[0].children) and cover_present
+                    and bodies[0].children[0].element is cover
+                    and bodies[0].children[0].element_tag == "section")
+        else:
+            require(not cover_present)
+        expected = "OmniGenis | " + source_ir[:12] + " | " + str(page_index + 1)
+        margin, text = _editorial_footer(page_box, expected)
+        require(margin not in margins and text not in texts)
+        slot = {"page": page_index, "stream": stream, "text": text, "drawn": False, "tagged": False}
+        margins[margin], texts[text] = slot, slot
+        original_draw(page_box, stream)
+        require(slot["drawn"] and text not in stream._tags)
+
+    def build_box_tree(box, parent, pdf, page_number, nums, annotations, tags):
+        if source_ir is not None and isinstance(box, boxes.MarginBox):
+            require(box in margins)
+            slot = margins[box]
+            require(slot["page"] == page_number and slot["drawn"] and not slot["tagged"]
+                    and all(descendant not in tags for descendant in box.descendants()))
+            slot["tagged"] = True
+            return
+        yield from original_build(box, parent, pdf, page_number, nums, annotations, tags)
+
+    @contextmanager
+    def marked(self, box, tag):
+        if box not in texts:
+            with original_marked(self, box, tag):
+                yield
+            return
+        slot = texts[box]
+        require(slot["stream"] is self and tag == "Span" and self._tags is not None
+                and box not in self._tags and not slot["drawn"])
+        slot["drawn"] = True
+        pydyf.Stream.begin_marked_content(self, "Artifact", pydyf.Dictionary({
+            "Type": "/Pagination", "Subtype": "/Footer"}))
+        try:
+            yield
+        finally:
+            pydyf.Stream.end_marked_content(self)
+
+    def finish(document, pdf):
+        require(pages == [page._page_box for page in document.pages])
+        if source_ir is None:
+            return
+        require(1 <= len(pages) <= CONTRACT["limits"]["pages"] and len(margins) == len(pages)
+                and len(texts) == len(pages) and all(slot["drawn"] and slot["tagged"] for slot in margins.values())
+                and "PageLabels" not in pdf.catalog)
+        pdf.catalog["PageLabels"] = pydyf.Dictionary({
+            "Nums": pydyf.Array([0, pydyf.Dictionary({"S": "/D", "St": 1})])})
+
+    draw_page._typed_brand_editorial = True
+    document_module.draw_page = draw_page
+    tag_module._build_box_tree = build_box_tree
+    stream_module.Stream.marked = marked
+    return finish
+
+
 def install_in_isolated_render_worker() -> None:
     from reporting.pdf_font_selection import LatoFontSelection
     require(sys.flags.isolated and sys.dont_write_bytecode and
             Path(sys.argv[0]).resolve() == Path(__file__).with_name("_pdf_typed_brand_render_worker.py")
             and not getattr(LatoFontSelection.finisher, "_typed_brand", False))
-    LatoFontSelection.finisher = _compose_finisher(LatoFontSelection.finisher)
+    original_enter = LatoFontSelection.__enter__
+    composed = _compose_finisher(LatoFontSelection.finisher)
+    finish_editorial = None
+
+    def enter(selection):
+        nonlocal finish_editorial
+        require(finish_editorial is None)
+        active = original_enter(selection)
+        finish_editorial = _install_editorial_after_font_bootstrap()
+        return active
+
+    def finisher(selection, document, pdf):
+        require(finish_editorial is not None)
+        composed(selection, document, pdf)
+        finish_editorial(document, pdf)
+
+    finisher._typed_brand = True
+    LatoFontSelection.__enter__ = enter
+    LatoFontSelection.finisher = finisher

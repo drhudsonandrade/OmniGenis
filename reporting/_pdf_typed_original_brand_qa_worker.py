@@ -126,7 +126,7 @@ def _structure(reader, pages):
                 and type(obj.raw_get("/S")) is NameObject
                 and native._ref(obj.raw_get("/P"), reader) == native._ref(parent_ref, reader))
         role = str(obj.raw_get("/S"))
-        require(role in set(contract.ROLES) | {"/Div", "/Sect", "/Figure"})
+        require(role in set(contract.ROLES) | {"/Div", "/Sect", "/Figure", "/NonStruct"})
         form, children = kids(obj.raw_get("/K"))
         visits += 1 + len(children)
         require(visits <= contract.MAX_VISITS)
@@ -353,10 +353,12 @@ def _form(ref, reader, fonts, forms):
     require([op for _, op in ops] == [b"cm", b"cm", b"Do"])
     first = tuple(map(Decimal, _numbers(ops[0][0], 6)))
     second = tuple(map(Decimal, _numbers(ops[1][0], 6)))
+    # Fixed 753.88976 pt cover panel serialized in CSS px by the qualified renderer.
+    dna_height = Decimal("1005.186347")
     require(first[:4] == (1, 0, 0, 1) and all(abs(x) <= 1600 for x in first[4:])
             and second[1:3] == (0, 0) and second[4] == 0
-            and second[3] == -530 and second[5] == 530
-            and abs(second[0] - Decimal(530 * 324) / Decimal(1154)) <= Decimal("0.000001")
+            and second[3] == -dna_height and second[5] == dna_height
+            and abs(second[0] - dna_height * Decimal(324) / Decimal(1154)) <= Decimal("0.000001")
             and len(ops[2][0]) == 1 and type(ops[2][0][0]) is NameObject
             and ops[2][0][0] == image_name)
     image_bounds = _rectangle((Decimal(0), Decimal(0), Decimal(1), Decimal(1)),
@@ -702,6 +704,24 @@ def _op_digest(operations):
                                for args, op in operations])).hexdigest()
 
 
+def _page_labels(reader, count):
+    """Observe the explicit flat decimal labels, never the parser's defaults."""
+    from pypdf.generic import ArrayObject, DictionaryObject, NameObject, NumberObject
+    root = reader.root_object
+    require("/PageLabels" in root)
+    labels = native._dictionary(root.raw_get("/PageLabels"), reader)
+    require(set(labels) == {"/Nums"})
+    values = labels.raw_get("/Nums")
+    require(type(values) is ArrayObject and len(values) == 2
+            and type(values[0]) is NumberObject and int(values[0]) == 0
+            and type(values[1]) is DictionaryObject and set(values[1]) == {"/S", "/St"}
+            and type(values[1].raw_get("/S")) is NameObject and values[1].raw_get("/S") == "/D"
+            and type(values[1].raw_get("/St")) is NumberObject and int(values[1].raw_get("/St")) == 1)
+    actual = reader.page_labels
+    require(actual == [str(i) for i in range(1, count + 1)])
+    return actual
+
+
 def _page(page, obj, resources, reader, fonts, forms, roles, remaining):
     from pypdf.generic import DictionaryObject, IndirectObject, NameObject, NumberObject
     states, xobjects = _resources(resources, reader, fonts, forms, page)
@@ -714,6 +734,7 @@ def _page(page, obj, resources, reader, fonts, forms, roles, remaining):
     page["original_operator_count"] = len(ops)
     page["projected_operator_ordinals"] = []
     page["graphic_blocks"] = []
+    page["pagination_blocks"] = []
     page["outside_operator_ordinals"] = []
     owners = {m["mcid"]: tuple(m["structure_reference"]) for m in page["mcid_owners"]}
     used, index, outside_depth = set(), 0, 0
@@ -728,13 +749,22 @@ def _page(page, obj, resources, reader, fonts, forms, roles, remaining):
             kind, mcid = None, None
             if op == b"BDC":
                 require(len(args) == 2 and type(args[0]) is NameObject
-                        and args[0] in {"/Span", "/Figure"}
-                        and type(args[1]) is DictionaryObject and set(args[1]) == {"/MCID"}
-                        and type(args[1].raw_get("/MCID")) is NumberObject)
-                mcid = int(args[1].raw_get("/MCID"))
-                require(mcid in owners and mcid not in used and roles[owners[mcid]] == str(args[0]))
-                used.add(mcid)
-                kind = "text" if args[0] == "/Span" else "figure"
+                        and type(args[1]) is DictionaryObject)
+                if args[0] == "/Artifact":
+                    require(set(args[1]) == {"/Type", "/Subtype"}
+                            and type(args[1].raw_get("/Type")) is NameObject
+                            and args[1].raw_get("/Type") == "/Pagination"
+                            and type(args[1].raw_get("/Subtype")) is NameObject
+                            and args[1].raw_get("/Subtype") == "/Footer"
+                            and not page["pagination_blocks"])
+                    kind = "pagination"
+                else:
+                    require(args[0] in {"/Span", "/Figure"} and set(args[1]) == {"/MCID"}
+                            and type(args[1].raw_get("/MCID")) is NumberObject)
+                    mcid = int(args[1].raw_get("/MCID"))
+                    require(mcid in owners and mcid not in used and roles[owners[mcid]] == str(args[0]))
+                    used.add(mcid)
+                    kind = "text" if args[0] == "/Span" else "figure"
             else:
                 require(len(args) == 1 and type(args[0]) is NameObject and args[0] == "/Artifact")
                 kind = "artifact"
@@ -749,6 +779,13 @@ def _page(page, obj, resources, reader, fonts, forms, roles, remaining):
                     a, o = ops[original_ordinal]
                     page["events"].append(_text_event(a, o, len(page["events"])))
                     page["projected_operator_ordinals"].append(original_ordinal)
+            elif kind == "pagination":
+                require([o.decode("ascii") for _, o in block] == list(qa.PAGINATION_OPERATORS))
+                events = [_text_event(a, o, ordinal) for ordinal, (a, o) in enumerate(block)]
+                page["pagination_blocks"].append({
+                    "kind": "pagination", "type": "Pagination", "subtype": "Footer",
+                    "first_operator": start, "last_operator": index,
+                    "events": events, "sha256": sha256(qa.canonical(events)).hexdigest()})
             else:
                 if kind == "figure":
                     figure = native._dictionary(IndirectObject(*owners[mcid], reader), reader)
@@ -783,7 +820,7 @@ def _page(page, obj, resources, reader, fonts, forms, roles, remaining):
         page["outside_operator_ordinals"].append(index)
         index += 1
     require(outside_depth == 0 and not outside_path and not outside_clip
-            and used == set(owners))
+            and used == set(owners) and len(page["pagination_blocks"]) == 1)
     _paint_geometry(ops, obj, reader, forms, xobjects, figure_points)
     text_page = dict(page)
     text_page["mcid_owners"] = [v for v in page["mcid_owners"] if roles[tuple(v["structure_reference"])] == "/Span"]
@@ -805,13 +842,14 @@ def inspect(pdf, digest, limits):
         require(not reader.is_encrypted)
         pages = native._page_tree(reader)
         contract.require_pdf_document_budget(len(pdf), len(pages))
+        labels = _page_labels(reader, len(pages))
         trace, attributes, figures = _structure(reader, pages)
         _passive(reader, attributes, figures)
         fonts, forms, decoded = {}, {}, 0
         nodes = {tuple(n["reference"]): n for n in trace["nodes"]}
         roles = {key: node["role"] for key, node in nodes.items()}
         document = nodes[tuple(trace["root_children"][0])]
-        dna_page = nodes[tuple(document["children"][-2]["reference"])]["page_reference"]
+        dna_page = nodes[tuple(document["children"][0]["reference"])]["page_reference"]
         for page, (_, obj, resources) in zip(trace["pages"], pages, strict=True):
             _page(page, obj, resources, reader, fonts, forms, roles,
                   contract.MAX_STREAM_BYTES - decoded)
@@ -832,7 +870,7 @@ def inspect(pdf, digest, limits):
             "schema_version": "1.0.0", "profile_id": qa.PROFILE_ID,
             "profile_sha256": profile, "status": "NATIVE_TYPED_BRAND_ACCOUNTED",
             "pdf_sha256": digest, "pdf_byte_count": len(pdf), "page_count": len(pages),
-            "limits": limits, "trace": trace, "graphics": graphics,
+            "limits": limits, "trace": trace, "graphics": graphics, "page_labels": labels,
         }
         qa._validate_native(result, pdf, profile)
         require(qa.profile_sha256() == profile)

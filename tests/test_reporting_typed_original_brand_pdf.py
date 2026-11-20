@@ -60,6 +60,57 @@ class TypedOriginalBrandPdfTests(unittest.TestCase):
             "expected_brand_bundle_sha256": self.bundle_sha,
         }
 
+    def _editorial_native_fixture(self):
+        """Observe the actual unchanged producer bytes with the existing native worker."""
+        import json
+        from reporting import typed_original_brand_qa as qa
+        candidate, _ = self.m.render_typed_original_brand_pdf(**self.arguments())
+        observation = json.loads(qa._run_worker(candidate.pdf_bytes, candidate.pdf_sha256))
+        return candidate, observation, PdfReader(BytesIO(candidate.pdf_bytes), strict=True)
+
+    def test_editorial_cover_places_the_original_dna_on_the_first_page(self):
+        candidate, observation, reader = self._editorial_native_fixture()
+        paints = [sum(block["dna_paints"] for block in page["graphic_blocks"])
+                  for page in observation["trace"]["pages"]]
+        self.assertEqual(paints, [1] + [0] * (candidate.page_count - 1))
+        self.assertIn("Technical report", reader.pages[0].extract_text())
+        self.assertNotIn("Original DNA illustration",
+                         "\n".join(page.extract_text() for page in reader.pages))
+
+    def test_editorial_folios_bind_the_report_identity_and_every_physical_page(self):
+        candidate, _ = self.m.render_typed_original_brand_pdf(**self.arguments())
+        reader = PdfReader(BytesIO(candidate.pdf_bytes), strict=True)
+        self.assertIn("/PageLabels", reader.root_object)
+        self.assertEqual(reader.page_labels, [str(i) for i in range(1, len(reader.pages) + 1)])
+        for number, page in enumerate(reader.pages, 1):
+            self.assertIn("OmniGenis | " + self.expected_ir_sha[:12] + " | " + str(number),
+                          page.extract_text())
+
+    def test_editorial_navigation_matches_the_final_heading_page_without_annotations(self):
+        _, observation, reader = self._editorial_native_fixture()
+        trace = observation["trace"]
+        nodes = {tuple(node["reference"]): node for node in trace["nodes"]}
+        pages = {tuple(page["reference"]): page for page in trace["pages"]}
+
+        def literal(node):
+            parts = []
+            for child in node["children"]:
+                if child["kind"] == "node":
+                    parts.append(literal(nodes[tuple(child["reference"])]))
+                else:
+                    page = pages[tuple(node["page_reference"])]
+                    parts.extend(run["text"] for run in page["runs"]
+                                 if run["mcid"] == child["value"])
+            return "".join(parts)
+
+        headings = [node for node in nodes.values()
+                    if node["role"] == "/H2" and literal(node) == "Declared findings"]
+        self.assertEqual(len(headings), 1)
+        number = pages[tuple(headings[0]["page_reference"] )]["index"] + 1
+        self.assertIn("Declared findings | " + str(number),
+                      "\n".join(page.extract_text() for page in reader.pages))
+        self.assertTrue(all("/Annots" not in page for page in reader.pages))
+
     def test_exact_original_asset_bytes_and_one_credit_are_in_prepared_markup(self):
         typed_html, typed_record = prepare_editorial_typed_html(
             presentation_ir=self.source, expected_ir_sha256=self.expected_ir_sha)
@@ -87,6 +138,60 @@ class TypedOriginalBrandPdfTests(unittest.TestCase):
                      "visual_equivalence_verified", "human_accessibility_verified",
                      "whole_job_resources_qualified", "pdf_ua_certified"):
             self.assertIs(record[flag], False)
+
+    def test_navigation_reuses_exact_source_anchors_without_activating_links(self):
+        html, _, record = self.m.prepare_typed_original_brand_pdf(**self.arguments())
+        headings = [c for c in self.source["components"]
+                    if c["component_type"] == "section_heading"]
+        self.assertEqual(record["navigation_entry_count"], len(headings))
+        for heading in headings:
+            self.assertIn('data-editorial-nav-target="#' + heading["component_id"] + '"', html)
+        self.assertNotIn("<a ", html)
+        self.assertIn('target-counter(attr(data-editorial-nav-target),page)', html)
+        self.assertIn('data-editorial-ir-sha256="' + self.expected_ir_sha + '"', html)
+
+    def test_navigation_labels_remain_inert_escaped_source_text(self):
+        request, ledger = context(1, "SYNTHETIC-CASE")
+        label = 'Findings <section> & "label"'
+        components = (
+            TextComponent("title", "identity", "document_title", "Technical report"),
+            TextComponent("heading", "findings", "section_heading", label),
+            FindingsTable("table", "findings", "Synthetic findings",
+                (TableColumn("variant", "Variant"), TableColumn("value", "Value")),
+                (FindingRow(request.plan.expected_finding_ids[0],
+                            ("NM_000001.1:c.1A>G", "0.1")),)),
+        )
+        source = build_typed_report_projection(
+            request=request, ledger=ledger,
+            projection_request_sha256=request.request.request_sha256,
+            expected_content_sha256=component_content_sha256(components),
+            components=components).to_dict()
+        html, _, _ = self.m.prepare_typed_original_brand_pdf(**(self.arguments() | {
+            "presentation_ir": source, "expected_ir_sha256": digest(source)}))
+        self.assertIn('Findings &lt;section&gt; &amp; &quot;label&quot;</p>', html)
+        self.assertNotIn(label, html)
+
+    def test_ambiguous_source_section_heading_refuses_before_render(self):
+        request, ledger = context(1, "SYNTHETIC-CASE")
+        components = (
+            TextComponent("title", "identity", "document_title", "Technical report"),
+            TextComponent("heading-first", "findings", "section_heading", "First"),
+            TextComponent("heading-second", "findings", "section_heading", "Second"),
+            FindingsTable("table", "findings", "Synthetic findings",
+                (TableColumn("variant", "Variant"), TableColumn("value", "Value")),
+                (FindingRow(request.plan.expected_finding_ids[0],
+                            ("NM_000001.1:c.1A>G", "0.1")),)),
+        )
+        source = build_typed_report_projection(
+            request=request, ledger=ledger,
+            projection_request_sha256=request.request.request_sha256,
+            expected_content_sha256=component_content_sha256(components),
+            components=components).to_dict()
+        with patch.object(self.m, "render_typed_brand_pdf") as render:
+            with self.assertRaises(self.m.TypedOriginalBrandError):
+                self.m.render_typed_original_brand_pdf(**(self.arguments() | {
+                    "presentation_ir": source, "expected_ir_sha256": digest(source)}))
+            render.assert_not_called()
 
     def test_originals_and_semantics_survive_single_typed_brand_render(self):
         pdf, record = self.m.render_typed_original_brand_pdf(**self.arguments())

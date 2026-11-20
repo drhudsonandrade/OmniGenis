@@ -744,10 +744,13 @@ class TypedBrandRouteTests(unittest.TestCase):
         calls = bounded.call_args_list
         self.assertEqual(calls[0].args, (core.MANIFEST, 16384))
         self.assertEqual(calls[0].kwargs, {"retain": True})
-        self.assertEqual([call.args for call in calls[1:21]],
+        source_end = 1 + len(core.SOURCES)
+        self.assertEqual([call.args for call in calls[1:source_end]],
                          [(core.ROOT / name, 65536) for name in core.SOURCES])
-        self.assertEqual(len(calls[21:]), 4)
-        for name, call in zip(core.ENGINES, calls[21:]):
+        engine_names = [name for package in core.CONTRACT["versions"]
+                        for name in core.ENGINES if name.startswith(package + "/")]
+        self.assertEqual(len(calls[source_end:]), len(engine_names))
+        for name, call in zip(engine_names, calls[source_end:]):
             self.assertTrue(str(call.args[0]).endswith(name))
             self.assertEqual(call.args[1], 65536)
 
@@ -1543,3 +1546,161 @@ print(json.dumps(observation))
                     self.assertEqual(observed["response_bytes"], 0)
                     self.assertIsNone(observed["record"])
                 self.assertEqual(observed["audits"], expected_audits)
+
+
+class EditorialBrandEmissionTests(unittest.TestCase):
+    def source_page(self, marked=True):
+        from xml.etree.ElementTree import Element, SubElement
+        from weasyprint.formatting_structure.boxes import Box
+        root = Element("html")
+        SubElement(root, "head")
+        body = SubElement(root, "body")
+        cover = SubElement(body, "section")
+        if marked:
+            cover.set("data-editorial-ir-sha256", "a" * 64)
+        cover_box = Box("section", {}, cover)
+        body_box = Box("body", {}, body)
+        body_box.children = [cover_box]
+        html_box = Box("html", {}, root)
+        html_box.children = [body_box]
+        page = Box("page", {}, None)
+        page.children = [html_box]
+        return page, root, body, cover
+
+    def footer_page(self):
+        from weasyprint.formatting_structure.boxes import Box, LineBox, MarginBox, TextBox
+        expected = "OmniGenis | " + "a" * 12 + " | 2"
+        text = TextBox(None, {}, None, expected)
+        line = LineBox(None, {}, None, [text])
+        margin = MarginBox("@bottom-right", {})
+        margin.children = [line]
+        page = Box("page", {}, None)
+        page.children = [margin]
+        return page, margin, line, text, expected
+
+    def test_editorial_source_binds_full_ir_to_first_source_section(self):
+        from reporting._pdf_typed_brand_emission import _editorial_source
+        page, root, body, cover = self.source_page()
+        html, admitted, digest = _editorial_source(page)
+        self.assertIs(html, page.children[0])
+        self.assertIs(html.element, root)
+        self.assertIs(admitted, body[0])
+        self.assertIs(admitted, cover)
+        self.assertEqual(digest, "a" * 64)
+
+    def test_unmarked_or_synthetic_legacy_page_does_not_opt_in(self):
+        from reporting._pdf_typed_brand_emission import _editorial_source
+        page, _, _, _ = self.source_page(marked=False)
+        html = page.children[0]
+        self.assertEqual(_editorial_source(page), (html, None, None))
+        html.element = None
+        self.assertEqual(_editorial_source(page), (html, None, None))
+        page.children = []
+        self.assertEqual(_editorial_source(page), (None, None, None))
+
+    def test_invalid_duplicate_or_late_editorial_markers_refuse(self):
+        from xml.etree.ElementTree import Element, SubElement
+        from reporting._pdf_typed_brand_emission import _editorial_source
+        for case in ("short", "uppercase", "newline", "empty", "duplicate",
+                     "late", "nested", "wrong-tag", "outside-body", "prior-text"):
+            with self.subTest(case=case):
+                page, root, body, cover = self.source_page()
+                if case in ("short", "uppercase", "newline", "empty"):
+                    cover.set("data-editorial-ir-sha256", {
+                        "short": "a" * 63, "uppercase": "A" * 64,
+                        "newline": "a" * 64 + "\n", "empty": ""}[case])
+                elif case == "duplicate":
+                    SubElement(body, "section", {"data-editorial-ir-sha256": "a" * 64})
+                elif case == "late":
+                    body.insert(0, Element("p"))
+                elif case == "nested":
+                    body.remove(cover)
+                    SubElement(body, "div").append(cover)
+                elif case == "wrong-tag":
+                    cover.tag = "div"
+                elif case == "outside-body":
+                    body.remove(cover)
+                    root[0].append(cover)
+                else:
+                    body.text = "Unaccounted cover prefix"
+                with self.assertRaises(ValueError):
+                    _editorial_source(page)
+
+    def test_editorial_marker_scan_refuses_excess_source_nodes(self):
+        from xml.etree.ElementTree import SubElement
+        from reporting._pdf_typed_brand_emission import _editorial_source
+        page, _, body, _ = self.source_page()
+        for _ in range(20000):
+            SubElement(body, "span")
+        with self.assertRaises(ValueError):
+            _editorial_source(page)
+
+    def test_exact_footer_admits_only_one_generated_text_leaf(self):
+        from reporting._pdf_typed_brand_emission import _editorial_footer
+        page, margin, _, text, expected = self.footer_page()
+        admitted_margin, admitted_text = _editorial_footer(page, expected)
+        self.assertIs(admitted_margin, margin)
+        self.assertIs(admitted_text, text)
+        self.assertEqual(text.children, [])
+        self.assertIsNone(text.element)
+
+    def test_extra_wrapped_or_forged_footer_content_refuses(self):
+        from xml.etree.ElementTree import Element
+        from weasyprint.formatting_structure.boxes import Box, InlineBox, MarginBox
+        from reporting._pdf_typed_brand_emission import _editorial_footer
+        for case in ("missing", "duplicate", "other-margin", "position", "margin-element",
+                     "missing-line", "extra-line", "wrong-line", "wrapped", "extra-text",
+                     "wrong-identity", "wrong-page", "text-child", "text-element"):
+            with self.subTest(case=case):
+                page, margin, line, text, expected = self.footer_page()
+                if case == "missing":
+                    page.children = []
+                elif case == "duplicate":
+                    page.children.append(margin)
+                elif case == "other-margin":
+                    page.children.append(MarginBox("@top-left", {}))
+                elif case == "position":
+                    margin.at_keyword = "@bottom-left"
+                elif case == "margin-element":
+                    margin.element = Element("p")
+                elif case == "missing-line":
+                    margin.children = []
+                elif case == "extra-line":
+                    margin.children.append(line)
+                elif case == "wrong-line":
+                    margin.children = [Box(None, {}, None)]
+                elif case == "wrapped":
+                    line.children = [InlineBox(None, {}, None, [text])]
+                elif case == "extra-text":
+                    line.children = [text, text.copy_with_text("forged")]
+                elif case == "wrong-identity":
+                    text.text = "OmniGenis | " + "b" * 12 + " | 2"
+                elif case == "wrong-page":
+                    text.text = "OmniGenis | " + "a" * 12 + " | 3"
+                elif case == "text-child":
+                    text.children = [Box(None, {}, None)]
+                else:
+                    text.element = Element("p")
+                with self.assertRaises(ValueError):
+                    _editorial_footer(page, expected)
+
+    def test_editorial_hook_installation_refuses_outside_exact_child(self):
+        import sys
+        from unittest.mock import patch
+        import weasyprint.document as document_module
+        import weasyprint.pdf.tags as tag_module
+        import weasyprint.pdf.stream as stream_module
+        from reporting import _pdf_typed_brand_emission as core
+        from reporting.pdf_font_selection import LatoFontSelection
+        before = (document_module.draw_page, tag_module._build_box_tree,
+                  stream_module.Stream.marked, LatoFontSelection.__enter__,
+                  LatoFontSelection.finisher)
+        with patch.object(sys, "argv", ["unadmitted-editorial-test-entry"]):
+            for install in (core.install_in_isolated_render_worker,
+                            core._install_editorial_after_font_bootstrap):
+                with self.assertRaises(ValueError):
+                    install()
+        after = (document_module.draw_page, tag_module._build_box_tree,
+                 stream_module.Stream.marked, LatoFontSelection.__enter__,
+                 LatoFontSelection.finisher)
+        self.assertTrue(all(a is b for a, b in zip(before, after)))
