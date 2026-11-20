@@ -126,7 +126,8 @@
         },
         "accounted_brand_wrapper_nodes": {
           "type": "integer",
-          "const": 6
+          "minimum": 6,
+          "maximum": 68
         },
         "native_mcids": {
           "type": "integer",

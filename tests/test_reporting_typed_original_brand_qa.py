@@ -1238,6 +1238,10 @@ class TypedOriginalBrandQATests(unittest.TestCase):
 
     def test_footer_declared_geometry_requires_position_clips_and_page_bounds(self):
         """Keep every footer code while changing only its declared physical layout."""
+        from reporting import _pdf_typed_original_brand_qa_worker as worker
+
+        self.assertIs(self.run_qa().to_dict()["complete_literal_source_accounting"], True)
+
         def change(writer, case):
             page = writer.pages[-1]
             if case in {"crop", "media"}:
@@ -1252,6 +1256,31 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 shown = next(args[0] for args, op in ops[start + 1:end] if op == b"TJ")
                 original_codes = [bytes(item) for item in shown if type(item) is ByteStringObject]
                 matrix = next(args for args, op in ops[start + 1:end] if op == b"Tm")
+                endpoint_clip = None
+                if case in {"endpoint-containing-clip", "endpoint-excluding-clip"}:
+                    self.assertEqual(list(matrix[:4]), [1, 0, 0, -1])
+                    font_name, size = next(args for args, op in ops[start + 1:end] if op == b"Tf")
+                    font = page["/Resources"]["/Font"][font_name]
+                    widths = font["/DescendantFonts"][0].get_object()["/W"]
+                    widths = {int(widths[offset]) + index: int(value)
+                              for offset in range(0, len(widths), 2)
+                              for index, value in enumerate(widths[offset + 1])}
+                    pen = rightmost = 0
+                    for item in shown:
+                        if type(item) is NumberObject:
+                            pen -= int(item)
+                        else:
+                            self.assertIs(type(item), ByteStringObject)
+                            for offset in range(0, len(item), 2):
+                                pen += widths[int.from_bytes(item[offset:offset + 2], "big")]
+                                rightmost = max(rightmost, pen)
+                    # Place the endpoint one declared font unit beyond every
+                    # glyph rectangle. The clip splits that unit for refusal,
+                    # or contains one further unit for the positive control.
+                    shown.append(NumberObject(pen - rightmost - 1))
+                    units = Decimal(2) if case == "endpoint-containing-clip" else Decimal("0.5")
+                    endpoint_clip = (Decimal(str(matrix[4]))
+                                     + Decimal(str(size)) * (rightmost + units) / 1000)
                 if case == "tm-left":
                     matrix[4] = FloatObject(float(matrix[4]) - 100)
                 elif case == "tm-body":
@@ -1270,8 +1299,11 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                         payload.append(([NumberObject(value) for value in values], b"cm"))
                     else:
                         rectangle = (0, 0, 1200, 1600) if case == "containing-clip" else (0, 0, 1, 1)
+                        if endpoint_clip is not None:
+                            rectangle = (0, 0, endpoint_clip, 1600)
                         payload.extend([
-                            ([NumberObject(value) for value in rectangle], b"re"),
+                            ([NumberObject(value) if type(value) is int else FloatObject(value)
+                              for value in rectangle], b"re"),
                             ([], b"W"), ([], b"n")])
                     if case == "restored-clip":
                         payload.append(([], b"Q"))
@@ -1284,14 +1316,33 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                                  original_codes)
             self.edit_page(writer, -1, alter)
 
-        for case in ("containing-clip", "restored-clip"):
+        for case in ("containing-clip", "restored-clip", "endpoint-containing-clip"):
             with self.subTest(control=case):
                 receipt = self.run_qa(self.rewritten(lambda writer: change(writer, case))).to_dict()
                 self.assertIs(receipt["complete_literal_source_accounting"], True)
         for case in ("tm-left", "tm-body", "outside-page", "outer-translation", "outer-shear",
-                     "excluding-clip", "crop", "media", "tj-displaced"):
+                     "excluding-clip", "crop", "media", "tj-displaced", "endpoint-excluding-clip"):
             with self.subTest(refusal=case):
-                self.refuse(self.rewritten(lambda writer: change(writer, case)))
+                args = self.rewritten(lambda writer: change(writer, case))
+                if case == "endpoint-excluding-clip":
+                    reader = PdfReader(BytesIO(args["pdf_bytes"]), strict=True)
+                    pages = worker.native._page_tree(reader)
+                    trace, attributes, figures = worker._structure(reader, pages)
+                    worker._passive(reader, attributes, figures)
+                    roles = {tuple(node["reference"]): node["role"] for node in trace["nodes"]}
+                    with patch.object(worker, "_contains", wraps=worker._contains) as contains:
+                        with self.assertRaisesRegex(ValueError, "^typed original-brand QA refused$"):
+                            worker._page(trace["pages"][-1], pages[-1][1], pages[-1][2], reader,
+                                         {}, {}, roles, worker.contract.MAX_STREAM_BYTES)
+                    self.assertTrue(all(worker._contains(*call.args)
+                                        for call in contains.call_args_list[:-1]))
+                    clip, footer = contains.call_args.args
+                    # Returning five points means the unchanged alignment and
+                    # typographic-region checks succeeded before this clip test.
+                    self.assertEqual(len(footer), 5)
+                    self.assertTrue(worker._contains(clip, footer[:4]))
+                    self.assertFalse(worker._contains(clip, footer[-1:]))
+                self.refuse(args)
 
     def test_footers_require_exact_identity_once_on_each_physical_page(self):
         args = self.arguments()
@@ -1480,6 +1531,188 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                     record[NameObject("/S")] = NameObject("/R")
             with self.subTest(page_labels=mode):
                 self.refuse(self.rewritten(labels, count=96))
+
+    def test_wrapped_navigation_entries_continue_across_pages_with_atomic_suffixes(self):
+        """Use one real PDF to bind continued contents and every printed page suffix."""
+        from dataclasses import replace
+        from reporting.completeness import SectionAvailability
+        from reporting.components import (
+            FindingRow, FindingsTable, TableColumn, TextComponent,
+            build_typed_report_projection, component_content_sha256,
+        )
+        request, ledger = context(1)
+        section_ids = tuple(f"navigation-{i:02d}" for i in range(47)) + ("findings",)
+        present = ("identity",) + section_ids
+        plan = replace(request.plan, expected_section_ids=present + ("optional",),
+                       required_section_ids=present)
+        snapshot = replace(request.request, completeness_plan_sha256=plan.plan_sha256)
+        request = replace(request, request=snapshot, resolved_request=snapshot, plan=plan)
+        ledger = replace(ledger, plan=plan, projection_plan_sha256=plan.plan_sha256,
+                         section_states=tuple(SectionAvailability(section, "PRESENT")
+                                              for section in present) + (ledger.section_states[-1],))
+        labels = [f"Navigation section {i:02d}" if i < 40 else
+                  f"Wrapped navigation section {i:02d}" + " literal" * (i - 22)
+                  for i in range(47)] + ["Declared findings"]
+        parts = [TextComponent("title", "identity", "document_title", "Technical report")]
+        for index, (section, label) in enumerate(zip(section_ids, labels, strict=True)):
+            parts.extend((
+                TextComponent(f"heading-{index:02d}", section, "section_heading", label),
+                TextComponent(f"paragraph-{index:02d}", section, "paragraph", "Synthetic context.")))
+        parts.append(FindingsTable(
+            "table", "findings", "Declared synthetic findings",
+            (TableColumn("identifier", "Identifier"), TableColumn("value", "Value")),
+            (FindingRow(request.plan.expected_finding_ids[0], ("SYNTHETIC-001", "0.1")),)))
+        parts = tuple(parts)
+        source = build_typed_report_projection(
+            request=request, ledger=ledger,
+            projection_request_sha256=request.request.request_sha256,
+            expected_content_sha256=component_content_sha256(parts), components=parts).to_dict()
+        ir_sha = digest(source)
+        expectation = prepare_typed_pdf_source(presentation_ir=source, expected_ir_sha256=ir_sha)
+        rendered, _ = render_typed_original_brand_pdf(
+            presentation_ir=source, expected_ir_sha256=ir_sha,
+            assets=self.assets, expected_brand_bundle_sha256=self.bundle)
+        observations, associations = [], []
+        inspect_native, associate = self.m._run_worker, self.m._associate
+
+        def retain_observation(pdf_bytes, pdf_sha256):
+            raw = inspect_native(pdf_bytes, pdf_sha256)
+            observations.append(raw)
+            return raw
+
+        def retain_association(*args):
+            value = associate(*args)
+            associations.append(value)
+            return value
+
+        with patch.object(self.m, "_run_worker", side_effect=retain_observation) as inspected, \
+                patch.object(self.m, "_associate", side_effect=retain_association):
+            receipt = self.run_qa(dict(
+                presentation_ir=source, expected_ir_sha256=ir_sha,
+                expected_source_expectation_sha256=expectation.expectation_sha256,
+                assets=self.assets, expected_brand_bundle_sha256=self.bundle,
+                pdf_bytes=rendered.pdf_bytes, expected_pdf_sha256=rendered.pdf_sha256,
+                expected_profile_sha256=self.m.profile_sha256())).to_dict()
+            inspected.assert_called_once_with(rendered.pdf_bytes, rendered.pdf_sha256)
+        self.assertEqual(len(observations), 1)
+        self.assertEqual(len(associations), 1)
+        self.assertEqual(receipt["pdf_sha256"], rendered.pdf_sha256)
+        self.assertEqual(receipt["ir_sha256"], ir_sha)
+        self.assertEqual(receipt["source_expectation_sha256"], expectation.expectation_sha256)
+        self.assertEqual(receipt["native_observation_sha256"], sha256(observations[0]).hexdigest())
+        self.assertEqual(receipt["navigation_entries"], len(labels))
+        self.assertEqual(receipt["coverage"]["accounted_navigation_wrapper_nodes"], len(labels))
+        native = self.m.prior._loads(observations[0].decode("ascii"))
+        trace = native["trace"]
+        nodes = {tuple(node["reference"]): node for node in trace["nodes"]}
+        pages = {tuple(page["reference"]): page for page in trace["pages"]}
+
+        def children(node):
+            self.assertTrue(all(child["kind"] == "node" for child in node["children"]))
+            return [nodes[tuple(child["reference"])] for child in node["children"]]
+
+        def literal(node):
+            if node["role"] == "/Span":
+                page = pages[tuple(node["page_reference"])]
+                self.assertEqual(len(node["children"]), 1)
+                mcid = node["children"][0]["value"]
+                runs = [run for run in page["runs"] if run["mcid"] == mcid]
+                self.assertEqual(len(runs), 1)
+                self.assertEqual(runs[0]["structure_reference"], node["reference"])
+                return runs[0]["text"]
+            return "".join(literal(child) for child in children(node))
+
+        top = children(nodes[tuple(trace["root_children"][0])])
+        navigation_end = 1
+        while navigation_end < len(top) - 1 and top[navigation_end]["role"] == "/Sect":
+            navigation_end += 1
+        sections = top[1:navigation_end]
+        self.assertGreater(len(sections), 1)
+        fragments = [children(section) for section in sections]
+        self.assertGreaterEqual(len(fragments[0]), 2)
+        self.assertEqual(fragments[0][0]["role"], "/H2")
+        self.assertTrue(all(fragment for fragment in fragments))
+        self.assertTrue(all(node["role"] == "/P" for node in fragments[0][1:]))
+        self.assertTrue(all(node["role"] == "/P" for fragment in fragments[1:] for node in fragment))
+        for section, fragment in zip(sections, fragments, strict=True):
+            self.assertTrue(all(node["parent"] == section["reference"]
+                                and node["page_reference"] == section["page_reference"] for node in fragment))
+        fragment_pages = [pages[tuple(section["page_reference"])]["index"] for section in sections]
+        self.assertEqual(fragment_pages, sorted(set(fragment_pages)))
+        self.assertGreaterEqual(fragment_pages[0], 1)
+        self.assertLess(fragment_pages[-1], len(trace["pages"]) - 1)
+        navigation = [node for fragment in fragments for node in fragment]
+        self.assertEqual(literal(navigation[0]), "Contents")
+        self.assertEqual(sections[0]["page_reference"], navigation[0]["page_reference"])
+        self.assertEqual(receipt["coverage"]["accounted_brand_wrapper_nodes"], 5 + len(sections))
+        self.assertEqual(receipt["coverage"]["native_nodes"], receipt["coverage"]["projected_nodes"]
+                         + 5 + len(sections) + len(labels))
+        entries = navigation[1:]
+        self.assertEqual(len(entries), len(labels))
+        indexes = [pages[tuple(entry["page_reference"])]["index"] for entry in entries]
+        self.assertEqual(indexes, sorted(indexes))
+        self.assertGreaterEqual(indexes[0], 1)
+        self.assertGreater(len(set(indexes)), 1)
+        targets = [node for node in top[navigation_end:-1] if node["role"] == "/H2"]
+        self.assertEqual(len(targets), len(labels))
+        links = associations[0]["editorial_navigation"]
+        self.assertEqual(len(links), len(labels))
+        wrapped = 0
+        for index, (label, entry, target, link) in enumerate(zip(
+                labels, entries, targets, links, strict=True)):
+            spans = children(entry)
+            self.assertTrue(all(span["role"] == "/Span" for span in spans[:-1]))
+            self.assertEqual(spans[-1]["role"], "/NonStruct")
+            suffix = children(spans[-1])
+            self.assertEqual([span["role"] for span in suffix], ["/Span"])
+            self.assertTrue(all(span["page_reference"] == entry["page_reference"]
+                                for span in spans + suffix))
+            wrapped += len(spans[:-1]) > 1
+            self.assertEqual("".join(literal(span) for span in spans[:-1]), label)
+            self.assertEqual(literal(target), label)
+            target_page = pages[tuple(target["page_reference"])]["index"]
+            printed = label + " | " + str(target_page + 1)
+            self.assertEqual(literal(suffix[0]), " | " + str(target_page + 1))
+            self.assertEqual(literal(entry), printed)
+            self.assertEqual(link["source_component_id"], f"heading-{index:02d}")
+            self.assertEqual(link["source_section_id"], section_ids[index])
+            self.assertEqual(link["navigation_page_index"], indexes[index])
+            self.assertEqual(link["target_page_index"], target_page)
+            self.assertEqual(link["target_container_reference"], target["reference"])
+            self.assertEqual(link["navigation_container_reference"], entry["reference"])
+            self.assertEqual(link["printed_reference_sha256"], sha256(printed.encode()).hexdigest())
+        self.assertGreater(wrapped, 0)
+
+        for mode in ("section-page", "continuation-page", "cross-page-span",
+                     "backward-fragment-order", "continuation-heading"):
+            bad = deepcopy(trace)
+            changed = {tuple(node["reference"]): node for node in bad["nodes"]}
+            if mode == "section-page":
+                changed[tuple(sections[0]["reference"])]["page_reference"] = bad["pages"][0]["reference"]
+            elif mode == "continuation-page":
+                changed[tuple(sections[-1]["reference"])]["page_reference"] = sections[0]["page_reference"]
+            elif mode == "cross-page-span":
+                span = children(entries[0])[0]
+                changed[tuple(span["reference"])]["page_reference"] = entries[-1]["page_reference"]
+            elif mode == "backward-fragment-order":
+                first, last = fragment_pages[0], fragment_pages[-1]
+                bad["pages"][first], bad["pages"][last] = bad["pages"][last], bad["pages"][first]
+                for index, page in enumerate(bad["pages"]):
+                    page["index"] = index
+                # Keep every node, parent, Pg, MCID and owner unchanged. Only the
+                # declared physical ordering of the two existing body pages changes.
+                self.assertEqual(bad["nodes"], trace["nodes"])
+                self.assertEqual(bad["pages"][0], trace["pages"][0])
+                self.assertEqual(bad["pages"][-1], trace["pages"][-1])
+                for page in bad["pages"]:
+                    self.assertEqual(page["mcid_owners"], pages[tuple(page["reference"])]["mcid_owners"])
+                reordered = {tuple(page["reference"]): page["index"] for page in bad["pages"]}
+                order = [reordered[tuple(section["page_reference"])] for section in sections]
+                self.assertNotEqual(order, sorted(set(order)))
+            else:
+                changed[tuple(fragments[-1][0]["reference"])]["role"] = "/H2"
+            with self.subTest(refusal=mode), self.assertRaises(ValueError):
+                self.m.project_text_trace(bad)
 
     def test_navigation_text_and_references_bind_actual_source_heading_pages(self):
         args = self.arguments(navigation=True)
@@ -1906,7 +2139,8 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             with self.subTest(producer_findings=findings):
                 self.assertEqual(produced["counts"]["represented_findings"], findings)
                 self.assertEqual(len(produced["units"]), actual_units)
-                self.assertGreaterEqual(actual_units, 1 if findings == 0 else findings + 3)
+                headings = sum(unit["kind"] == "section_heading" for unit in produced["units"])
+                self.assertGreaterEqual(actual_units, (1 if findings == 0 else findings + 3) + headings)
         for case in ("missing-title-or-findings", "missing-table-units", "short-pdf",
                      "too-few-text-mcids", "too-few-projected-nodes", "too-many-pages",
                      "too-few-operations"):
@@ -1979,7 +2213,8 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                          + coverage["figure_count"])
         text_units = bad["source_units"] + bad["brand_text_units"] + 1 + bad["navigation_entries"]
         self.assertGreaterEqual(bad["source_units"],
-                                bad["represented_findings"] + 3 if bad["represented_findings"] else 1)
+                                (bad["represented_findings"] + 3 if bad["represented_findings"] else 1)
+                                + bad["navigation_entries"])
         self.assertGreaterEqual(bad["pdf_byte_count"], 8)
         self.assertGreaterEqual(coverage["text_mcids"], text_units)
         self.assertGreaterEqual(coverage["projected_nodes"],
@@ -2006,11 +2241,11 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         for findings in (0, 1, 2, 96):
             exact = deepcopy(source)
             exact["represented_findings"] = findings
-            exact["source_units"] = max(findings + 3 if findings else 1,
-                                        exact["navigation_entries"] + 1)
-            exact["page_count"] = exact["raster_inspected_pages"] = exact["raster_window_count"] = 1
+            exact["source_units"] = (findings + 3 if findings else 1) + exact["navigation_entries"]
+            exact["page_count"] = exact["raster_inspected_pages"] = 2
+            exact["raster_window_count"] = 1
             coverage = exact["coverage"]
-            exact["pagination_pages"] = coverage["pagination_blocks"] = 1
+            exact["pagination_pages"] = coverage["pagination_blocks"] = 2
             text_units = exact["source_units"] + exact["brand_text_units"] + 1 + exact["navigation_entries"]
             coverage["text_mcids"] = text_units
             coverage["native_mcids"] = text_units + coverage["figure_count"]
@@ -2026,6 +2261,19 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             with self.subTest(findings=findings, node_bound="exact-minimum"):
                 self.assertEqual(self.m.TypedOriginalBrandQA(
                     self.m.canonical(exact)).to_dict(), exact)
+            missing_heading = deepcopy(exact)
+            missing_heading["source_units"] -= 1
+            self.m._schema(missing_heading)
+            payload = self.m.canonical(missing_heading)
+            with self.subTest(findings=findings, source_floor="one-below", boundary="constructor"):
+                with self.assertRaises(ValueError):
+                    self.m.TypedOriginalBrandQA(payload)
+            with self.subTest(findings=findings, source_floor="one-below", boundary="resealed-to-dict"):
+                receipt = self.m.TypedOriginalBrandQA(self.m.canonical(exact))
+                object.__setattr__(receipt, "_payload", payload)
+                object.__setattr__(receipt, "_sealed_sha256", sha256(payload).hexdigest())
+                with self.assertRaises(ValueError):
+                    receipt.to_dict()
             lower = [("one-below-minimum", base_nodes + table_nodes - 1)]
             if findings:
                 lower.append(("four-table-wrappers-without-finding-rows", base_nodes + 4))
@@ -2051,6 +2299,56 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                     object.__setattr__(receipt, "_sealed_sha256", sha256(payload).hexdigest())
                     with self.assertRaises(ValueError):
                         receipt.to_dict()
+
+        def navigation_boundary(fragment_count, page_count, entries):
+            value = deepcopy(source)
+            value["represented_findings"] = 0
+            value["navigation_entries"] = entries
+            value["source_units"] = 1 + entries
+            value["page_count"] = value["raster_inspected_pages"] = value["pagination_pages"] = page_count
+            value["raster_window_count"] = (page_count + self.m.RASTER_PAGES_PER_WINDOW - 1) // self.m.RASTER_PAGES_PER_WINDOW
+            coverage = value["coverage"]
+            coverage["accounted_brand_wrapper_nodes"] = 5 + fragment_count
+            coverage["accounted_navigation_wrapper_nodes"] = entries
+            coverage["pagination_blocks"] = page_count
+            units = value["source_units"] + value["brand_text_units"] + 1 + entries
+            coverage["text_mcids"] = max(units, page_count)
+            coverage["native_mcids"] = coverage["text_mcids"] + coverage["figure_count"]
+            coverage["projected_nodes"] = coverage["text_mcids"] + units + 1
+            coverage["native_nodes"] = (coverage["projected_nodes"]
+                                        + coverage["accounted_brand_wrapper_nodes"] + entries)
+            coverage["operations"] = self.operation_floor(value)
+            return value
+
+        for fragments, page_count, entries in ((1, 2, 1), (2, 3, 2), (63, 64, 63)):
+            exact = navigation_boundary(fragments, page_count, entries)
+            self.m._schema(exact)
+            with self.subTest(fragment_count=fragments, boundary="exact"):
+                self.assertEqual(self.m.TypedOriginalBrandQA(self.m.canonical(exact)).to_dict(), exact)
+        for mode, parameters in (("pages", (2, 3, 3)), ("entries", (1, 3, 1))):
+            exact = navigation_boundary(*parameters)
+            self.assertEqual(self.m.TypedOriginalBrandQA(self.m.canonical(exact)).to_dict(), exact)
+            bad = deepcopy(exact)
+            coverage = bad["coverage"]
+            coverage["accounted_brand_wrapper_nodes"] += 1
+            coverage["native_nodes"] += 1
+            self.m._schema(bad)
+            self.assertEqual(coverage["native_nodes"], coverage["projected_nodes"]
+                             + coverage["accounted_brand_wrapper_nodes"] + coverage["accounted_navigation_wrapper_nodes"])
+            if mode == "pages":
+                self.assertGreater(coverage["accounted_brand_wrapper_nodes"], bad["page_count"] + 4)
+                self.assertLessEqual(coverage["accounted_brand_wrapper_nodes"], 5 + bad["navigation_entries"])
+            else:
+                self.assertGreater(coverage["accounted_brand_wrapper_nodes"], 5 + bad["navigation_entries"])
+                self.assertLessEqual(coverage["accounted_brand_wrapper_nodes"], bad["page_count"] + 4)
+            payload = self.m.canonical(bad)
+            with self.subTest(fragment_bound=mode, boundary="constructor"), self.assertRaises(ValueError):
+                self.m.TypedOriginalBrandQA(payload)
+            receipt = self.m.TypedOriginalBrandQA(self.m.canonical(exact))
+            object.__setattr__(receipt, "_payload", payload)
+            object.__setattr__(receipt, "_sealed_sha256", sha256(payload).hexdigest())
+            with self.subTest(fragment_bound=mode, boundary="resealed-to-dict"), self.assertRaises(ValueError):
+                receipt.to_dict()
 
     def test_shared_content_requires_identical_native_operator_accounting(self):
         from reporting import _pdf_typed_original_brand_qa_worker as worker

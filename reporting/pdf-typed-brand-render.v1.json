@@ -46,7 +46,7 @@
     "reporting/_pdf_process_lifecycle.py": "e3da8ad54736b891ff2c2eb1c9a65e384114307e775da49b42518c07768f7b2f",
     "reporting/_pdf_process_sandbox.py": "76a4648556ecd3d3c39c1ac33122c027ab90769b5e5e9c244b79657454635a3f",
     "reporting/_pdf_render_worker.py": "30b6454c7cd9b1b83d5713c406e135de91ccf127116a8bd42a13d17036cbd5ce",
-    "reporting/_pdf_typed_brand_emission.py": "815dff4eff7bd737570d25e949634d1a932ff1f05f462b8211fb8b07eff992cb",
+    "reporting/_pdf_typed_brand_emission.py": "073cb0a0bccfb8d31ce8ca428a7c038d054c8dbc50b7d008003e5e62873d246d",
     "reporting/_pdf_typed_brand_render_worker.py": "6054dab7dc6c8e2d342ef7ce4a313bf2d39dc8f9472b16e25a2c9622e1abf4d5",
     "reporting/adapters.py": "4617038aea9465db76aa0f4049f458dc6b7de7686f56addc21a45f5f2bf6bba0",
     "reporting/bindings.py": "bdbc232cb0cfd507001731075ea9856cd421b60202f2871511d406aead09eb38",
@@ -61,7 +61,7 @@
     "reporting/pdf_typed_brand_render.py": "280f66326f4c12e4c9fc739f55e4e3f5a0d91aa99bb380def85bd5f68fe719da",
     "reporting/png_inspection.py": "189e1e1d77eabaaf829915cd6fcb21611831bb7c3af577e00e423a1b40f5bcec",
     "reporting/typed_html.py": "9b0dcd5dd6220302eaf1dcb101fedbed767b80b29fcc33c7fc19fc46a6e6f9fb",
-    "reporting/typed_original_brand_pdf.py": "fdf69a3eb94508dd87a22685352e19294cc630400e43b8dfd84e33274aed406e",
+    "reporting/typed_original_brand_pdf.py": "41934476eefa761be12c269911c3a909b1bed7e55c0fe3dd94ea02fc4004ed81",
     "requirements-reporting.lock": "bc2c6d8e66ace82ca442e7931ea44b608ea037e1adddddc7a5dbebeb56008671"
   },
   "versions": {

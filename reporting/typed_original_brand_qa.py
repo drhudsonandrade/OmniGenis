@@ -203,6 +203,8 @@ def project_text_trace(trace: dict) -> tuple[dict, dict]:
     require(len(trace["root_children"]) == 1)
     document = nodes[ref(trace["root_children"][0])]
     require(document["role"] == "/Document" and document["page_reference"] is None)
+    require(document["children_form"] == "array" and len(document["children"]) >= 4
+            and all(child["kind"] == "node" for child in document["children"]))
     seen, visited, owners, headers, cells = [], set(), {}, {}, []
     visits = 0
     roles = {
@@ -294,16 +296,35 @@ def project_text_trace(trace: dict) -> tuple[dict, dict]:
     require([n["role"] for n in cover] == ["/Div", "/Div", "/H1"]
             and not cover[0]["children"])
     logo = children(cover[1])
-    navigation = children(top[1])
+    navigation_end = 1
+    while navigation_end < len(top) - 1 and top[navigation_end]["role"] == "/Sect":
+        navigation_end += 1
+    navigation_sections = top[1:navigation_end]
+    fragments = [children(section) for section in navigation_sections]
+    require(bool(fragments) and len(fragments[0]) >= 2
+            and fragments[0][0]["role"] == "/H2"
+            and all(n["role"] == "/P" for n in fragments[0][1:])
+            and all(fragment and all(n["role"] == "/P" for n in fragment)
+                    for fragment in fragments[1:]))
+    navigation = [node for fragment in fragments for node in fragment]
     credit = children(top[-1])
     require(len(logo) == 1 and logo[0]["role"] == "/Figure"
-            and len(navigation) >= 2 and navigation[0]["role"] == "/H2"
-            and all(n["role"] == "/P" for n in navigation[1:])
             and [n["role"] for n in credit] == ["/H2", "/P"])
     require(ref(top[0]["page_reference"]) == ref(trace["pages"][0]["reference"])
             and ref(logo[0]["page_reference"]) == ref(trace["pages"][0]["reference"])
             and ref(top[-1]["page_reference"]) == ref(trace["pages"][-1]["reference"]))
-    require(all(n["role"] in prior._CHILD_ROLES["/Document"] for n in top[2:-1]))
+    require(all(n["role"] in prior._CHILD_ROLES["/Document"]
+                for n in top[navigation_end:-1]))
+    # The pinned tagger emits a separate page-local Sect for each physical
+    # fragment of this one leading contents block. Every descendant retains
+    # the strict parent-page rule; only these contiguous Sects are flattened.
+    navigation_pages = [pages[ref(section["page_reference"])]["index"]
+                        for section in navigation_sections]
+    require(ref(navigation_sections[0]["page_reference"])
+            == ref(navigation[0]["page_reference"])
+            and navigation_pages == sorted(set(navigation_pages))
+            and 1 <= navigation_pages[0] <= navigation_pages[-1] < len(pages)
+            and len(navigation_sections) <= len(navigation) - 1)
     # The generated page value has one precise pseudo-element wrapper. It is
     # admitted only as the last child of each declared navigation paragraph.
     pseudo = {}
@@ -316,13 +337,15 @@ def project_text_trace(trace: dict) -> tuple[dict, dict]:
         pseudo[ref(parts[-1]["reference"])] = (paragraph, parts[:-1] + suffix)
     require(set(pseudo) == {key for key, node in nodes.items() if node["role"] == "/NonStruct"})
     brand_removed = {ref(n["reference"]) for n in
-                     (top[0], cover[0], cover[1], logo[0], top[1], top[-1])}
-    require(len(brand_removed) == 6 and sum(n["role"] == "/Figure" for n in nodes.values()) == 1)
+                     (top[0], cover[0], cover[1], logo[0], top[-1])}
+    brand_removed.update(ref(section["reference"]) for section in navigation_sections)
+    require(len(brand_removed) == 5 + len(navigation_sections)
+            and sum(n["role"] == "/Figure" for n in nodes.values()) == 1)
     removed = brand_removed | set(pseudo)
     projection = deepcopy(trace)
     projection["nodes"] = [n for n in projection["nodes"] if ref(n["reference"]) not in removed]
     projected = {ref(n["reference"]): n for n in projection["nodes"]}
-    flattened = [cover[2]] + navigation + top[2:-1] + credit
+    flattened = [cover[2]] + navigation + top[navigation_end:-1] + credit
     projected[ref(document["reference"])]["children"] = [
         {"ordinal": i, "kind": "node", "reference": n["reference"]}
         for i, n in enumerate(flattened)]
@@ -630,6 +653,10 @@ def _validate_receipt(data: dict) -> None:
                                               + coverage["accounted_navigation_wrapper_nodes"])
             and coverage["native_mcids"] == coverage["text_mcids"] + coverage["figure_count"]
             and coverage["accounted_navigation_wrapper_nodes"] == data["navigation_entries"]
+            # Five fixed wrappers plus nonempty contents fragments, each on a
+            # distinct page after the cover and containing at least one entry.
+            and coverage["accounted_brand_wrapper_nodes"] <= data["page_count"] + 4
+            and coverage["accounted_brand_wrapper_nodes"] <= 5 + data["navigation_entries"]
             and coverage["pagination_blocks"] == data["pagination_pages"] == data["page_count"])
     findings = data["represented_findings"]
     text_units = data["source_units"] + data["brand_text_units"] + 1 + data["navigation_entries"]
@@ -637,7 +664,7 @@ def _validate_receipt(data: dict) -> None:
     table_nodes = findings + 4 if findings else 0
     # Matched grammar has at most five non-root nodes per Span, plus one
     # potentially empty TBody per table; every matched table has a Span.
-    require(data["source_units"] >= max(findings + 3 if findings else 1, data["navigation_entries"] + 1)
+    require(data["source_units"] >= (findings + 3 if findings else 1) + data["navigation_entries"]
             and data["pdf_byte_count"] >= len(b"%PDF-1.7")
             and coverage["text_mcids"] >= text_units
             and coverage["projected_nodes"] >= (coverage["text_mcids"] + text_units

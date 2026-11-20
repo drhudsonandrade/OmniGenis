@@ -1629,11 +1629,17 @@ class EditorialBrandEmissionTests(unittest.TestCase):
     def test_editorial_marker_scan_refuses_excess_source_nodes(self):
         from xml.etree.ElementTree import SubElement
         from reporting._pdf_typed_brand_emission import _editorial_source
-        page, _, body, _ = self.source_page()
-        for _ in range(20000):
-            SubElement(body, "span")
-        with self.assertRaises(ValueError):
-            _editorial_source(page)
+        for marked in (False, True):
+            with self.subTest(editorial_opt_in=marked):
+                page, _, body, _ = self.source_page(marked=marked)
+                for _ in range(20000):
+                    SubElement(body, "span")
+                if marked:
+                    with self.assertRaises(ValueError):
+                        _editorial_source(page)
+                else:
+                    self.assertEqual(_editorial_source(page),
+                                     (page.children[0], None, None))
 
 
     def test_cover_title_keeps_original_art_clear_and_allows_safe_ink_overhang(self):

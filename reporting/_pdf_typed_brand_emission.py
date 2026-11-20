@@ -333,12 +333,12 @@ def _editorial_source(page_box):
     root = roots[0].element
     marked = []
     for charge, element in enumerate(root.iter(), 1):
-        require(charge <= CONTRACT["limits"]["structure_charge"])
         if "data-editorial-ir-sha256" in element.attrib:
             marked.append(element)
             require(len(marked) == 1)
     if not marked:
         return roots[0], None, None
+    require(charge <= CONTRACT["limits"]["structure_charge"])
     cover = marked[0]
     value = cover.get("data-editorial-ir-sha256")
     bodies = [element for element in root if element.tag == "body"]

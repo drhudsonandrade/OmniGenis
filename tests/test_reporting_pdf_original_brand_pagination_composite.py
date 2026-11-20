@@ -125,22 +125,26 @@ class BrandPaginationCompositeTests(unittest.TestCase):
             with self.subTest(page=number):
                 original = page.raw_get("/Contents")
                 expected_text = normalize_stream(page.extract_text())
-                expected_count = len(ContentStream(
-                    page.get_contents(), reader, forced_encoding="bytes").operations)
-                page_data = page.get_contents().get_data()
-                # Identify this top-level stream before measuring. Form XObjects
-                # have distinct bytes and must not count as another page parse.
+                parsed = ContentStream(page.get_contents(), reader, forced_encoding="bytes")
+                expected_count = len(parsed.operations)
+                serialized = ContentStream(None, reader, forced_encoding="bytes")
+                serialized.operations = deepcopy(parsed.operations)
+                serialized_data = serialized.get_data()
+                page_payloads = {page.get_contents().get_data(), serialized_data}
+                # A second page parse may see pypdf's serialization of the same
+                # operators. Neither top-level payload may identify a Form parse.
                 for ref in page["/Resources"].get("/XObject", {}).values():
                     form = ref.get_object()
                     if form.get("/Subtype") == "/Form":
-                        self.assertNotEqual(form.get_data(), page_data)
+                        self.assertNotIn(form.get_data(), page_payloads)
                 parses = []
                 original_parse = ContentStream._parse_content_stream
 
-                def count_page_parse(content, data):
-                    if data.getvalue() == page_data:
-                        parses.append(content)
-                    return original_parse(content, data)
+                def count_page_parse(content, data, *, payloads=page_payloads,
+                                     observed=parses, parse=original_parse):
+                    if data.getvalue() in payloads:
+                        observed.append(content)
+                    return parse(content, data)
 
                 with patch.object(ContentStream, "_parse_content_stream", new=count_page_parse):
                     found, count, decorated, text = worker._page_observation(
@@ -151,6 +155,13 @@ class BrandPaginationCompositeTests(unittest.TestCase):
                 self.assertIn(decorated, (0, 1))
                 self.assertEqual(text, expected_text)
                 self.assertIs(page.raw_get("/Contents"), original)
+                # Demonstrate that a fresh parse of the independently serialized
+                # top-level operators is observable as a second page parse.
+                replay = ContentStream(None, reader, forced_encoding="bytes")
+                replay.set_data(serialized_data)
+                with patch.object(ContentStream, "_parse_content_stream", new=count_page_parse):
+                    self.assertEqual(len(replay.operations), expected_count)
+                self.assertEqual(len(parses), 2)
                 with patch.object(page, "extract_text", side_effect=ValueError("extraction refused")):
                     with self.assertRaisesRegex(ValueError, "extraction refused"):
                         worker._page_observation(page, reader, str(number))

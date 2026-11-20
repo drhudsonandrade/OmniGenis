@@ -125,8 +125,9 @@ class TypedOriginalBrandPdfTests(unittest.TestCase):
         self.assertIn("/PageLabels", reader.root_object)
         self.assertEqual(reader.page_labels, [str(i) for i in range(1, len(reader.pages) + 1)])
         for number, page in enumerate(reader.pages, 1):
-            self.assertIn("OmniGenis | " + self.expected_ir_sha[:12] + " | " + str(number),
-                          page.extract_text())
+            folios = [line.strip() for line in page.extract_text().splitlines()
+                      if line.strip().startswith("OmniGenis | ")]
+            self.assertEqual(folios, ["OmniGenis | " + self.expected_ir_sha[:12] + " | " + str(number)])
 
     def test_editorial_navigation_matches_the_final_heading_page_without_annotations(self):
         _, observation, reader = self._editorial_native_fixture()
@@ -149,8 +150,9 @@ class TypedOriginalBrandPdfTests(unittest.TestCase):
                     if node["role"] == "/H2" and literal(node) == "Declared findings"]
         self.assertEqual(len(headings), 1)
         number = pages[tuple(headings[0]["page_reference"] )]["index"] + 1
-        self.assertIn("Declared findings | " + str(number),
-                      "\n".join(page.extract_text() for page in reader.pages))
+        entries = [line.strip() for page in reader.pages for line in page.extract_text().splitlines()
+                   if line.strip().startswith("Declared findings | ")]
+        self.assertEqual(entries, ["Declared findings | " + str(number)])
         self.assertTrue(all("/Annots" not in page for page in reader.pages))
 
     def test_exact_original_asset_bytes_and_one_credit_are_in_prepared_markup(self):

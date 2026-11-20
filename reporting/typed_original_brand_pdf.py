@@ -55,7 +55,7 @@ _COVER_CSS = (
     'width:279.27559pt;margin:0;overflow-wrap:anywhere}'
     'section[data-editorial-navigation]{margin:0 0 18pt;break-inside:avoid}'
     'p[data-editorial-nav-target]{margin:5pt 0;break-inside:avoid}'
-    'p[data-editorial-nav-target]::after{content:" | " '
+    'p[data-editorial-nav-target]::after{white-space:pre;content:" | " '
     'target-counter(attr(data-editorial-nav-target),page)}'
 )
 

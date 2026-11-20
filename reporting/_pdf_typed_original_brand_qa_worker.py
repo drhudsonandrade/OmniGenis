@@ -560,17 +560,19 @@ def _footer_declared_geometry(block, resources, reader, ctm, media):
     left, bottom, right, top = media
     require(right - left > 2 * margin and top - bottom > margin)
     target_right = right - margin
-    advance_right = _point((pen * size / 1000, Decimal(0)), effective)[0]
+    advance = _point((pen * size / 1000, Decimal(0)), effective)
+    advance_right = advance[0]
     require(abs(advance_right - target_right) <= allowance
             and abs(x1 - target_right) <= allowance)
     region = _rectangle((left + margin, bottom,
                          right - left - 2 * margin + allowance, margin), IDENTITY)
     require(_contains(region, bounds))
-    return bounds
+    # Active clips and page boxes contain the endpoint without an allowance.
+    return (*bounds, advance)
 
 
 def _paint_geometry(operations, page, reader, forms, xobjects, figure_points, resources):
-    """Check brand paints and declared footer boxes against the active rectangles."""
+    """Check brand paints, footer boxes and the advance against active rectangles."""
     from pypdf.generic import ArrayObject
     ctm, stack, clip = IDENTITY, [], ()
     path, pending_clip = None, False
