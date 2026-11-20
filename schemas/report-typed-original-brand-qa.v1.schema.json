@@ -1281,7 +1281,7 @@
               "const": 268435456
             },
             "cpu_seconds": {
-              "const": 5
+              "const": 20
             },
             "file_bytes": {
               "const": 11534336

@@ -33,6 +33,9 @@ from reporting.typed_pdf_association import _Matcher, _canonical as association_
 PROFILE_ID = "typed-original-brand-qa-v1"
 STATUS = "TYPED_ORIGINAL_BRAND_CANDIDATE_INSPECTED"
 RASTER_PAGES_PER_WINDOW = 4
+LIMITS = {**prior.LIMITS, "cpu_seconds": 20}
+WALL_SECONDS = 30
+CLEANUP_SECONDS = 2
 TABLE_IDENTIFIER_POLICY = "PYPDF_TEXTSTRINGOBJECT_ONLY_ORIGINAL_BYTES_1_TO_128"
 ID_TREE_POLICY = "FLAT_NAMES_EXACT_ORIGINAL_BYTE_ID_MAP"
 # Figure: 506 drawing + 6 color + 6 paint + 7 gs + 5 cm + 2 q/Q + 2 marks.
@@ -137,13 +140,18 @@ def profile_sha256() -> str:
     require(type(data) is dict and set(data) == {
         "schema_version", "profile_id", "sources", "max_pages", "max_pdf_bytes",
         "default_pipeline_activated", "release_authorized", "table_identifier_policy",
-        "structure_id_tree_policy"})
+        "structure_id_tree_policy", "limits", "wall_seconds", "cleanup_seconds"})
     require(data["schema_version"] == "1.0.0" and data["profile_id"] == PROFILE_ID
             and type(data["max_pages"]) is int and data["max_pages"] == 64
             and type(data["max_pdf_bytes"]) is int
             and data["max_pdf_bytes"] == prior.MAX_PDF_BYTES
             and data["default_pipeline_activated"] is False
             and data["release_authorized"] is False
+            and type(data["limits"]) is dict and data["limits"] == LIMITS
+            and all(type(value) is int for value in data["limits"].values())
+            and type(data["wall_seconds"]) is int and data["wall_seconds"] == WALL_SECONDS
+            and type(data["cleanup_seconds"]) is int
+            and data["cleanup_seconds"] == CLEANUP_SECONDS
             and type(data["table_identifier_policy"]) is str
             and data["table_identifier_policy"] == TABLE_IDENTIFIER_POLICY
             and type(data["structure_id_tree_policy"]) is str
@@ -526,7 +534,8 @@ def _run_worker(pdf: bytes, digest: str) -> bytes:
                  "OMNIGENIS_PDF_QUALIFICATION_RECEIPT_MODE": "qualification-only"},
             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             close_fds=True, pass_fds=fds, start_new_session=True)
-        code = wait_owned_process_group(process, wall_seconds=10, cleanup_seconds=2)
+        code = wait_owned_process_group(
+            process, wall_seconds=WALL_SECONDS, cleanup_seconds=CLEANUP_SECONDS)
         require(code == 0 and 0 < os.fstat(fds[1]).st_size <= prior.RESULT_BYTES)
         output.seek(0)
         return output.read(prior.RESULT_BYTES + 1)

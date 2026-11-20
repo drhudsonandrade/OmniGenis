@@ -1254,10 +1254,22 @@ class TypedOriginalBrandQATests(unittest.TestCase):
 
     def test_navigation_text_and_references_bind_actual_source_heading_pages(self):
         args = self.arguments(navigation=True)
-        receipt = self.run_qa(args).to_dict()
+        observations = []
+        inspect_native = self.m._run_worker
+
+        def retain_observation(pdf_bytes, pdf_sha256):
+            raw = inspect_native(pdf_bytes, pdf_sha256)
+            observations.append(raw)
+            return raw
+
+        with patch.object(self.m, "_run_worker", side_effect=retain_observation) as inspected:
+            receipt = self.run_qa(args).to_dict()
+            inspected.assert_called_once_with(args["pdf_bytes"], args["expected_pdf_sha256"])
+        self.assertEqual(len(observations), 1)
+        self.assertEqual(sha256(observations[0]).hexdigest(), receipt["native_observation_sha256"])
         self.assertEqual(receipt["navigation_entries"], 2)
         self.assertEqual(receipt["coverage"]["accounted_navigation_wrapper_nodes"], 2)
-        native = self.native_record(navigation=True)
+        native = self.m.prior._loads(observations[0].decode("ascii"))
         nodes = {tuple(node["reference"]): node for node in native["trace"]["nodes"]}
         pages = {tuple(page["reference"]): page for page in native["trace"]["pages"]}
         def literal(node):
@@ -2031,7 +2043,13 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             with self.subTest(response=response), patch.object(self.m, "_run_worker", return_value=response):
                 self.refuse(self.arguments())
         args = self.arguments()
-        response = self.m.canonical(self.native_record())
+        native = self.native_record()
+        self.assertEqual(native["limits"], self.m.LIMITS)
+        stale = deepcopy(native)
+        stale["limits"]["cpu_seconds"] = 5
+        with patch.object(self.m, "_run_worker", return_value=self.m.canonical(stale)):
+            self.refuse(args)
+        response = self.m.canonical(native)
         self.m._schema(self.m.prior._loads(response.decode("ascii")), "native")
         process = object()
         def complete_output(command, **kwargs):
@@ -2050,7 +2068,8 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                     with self.assertRaises(ValueError):
                         self.m._run_worker(args["pdf_bytes"], args["expected_pdf_sha256"])
                 launch.assert_called_once()
-                wait.assert_called_once_with(process, wall_seconds=10, cleanup_seconds=2)
+                wait.assert_called_once_with(
+                    process, wall_seconds=self.m.WALL_SECONDS, cleanup_seconds=self.m.CLEANUP_SECONDS)
 
     def test_guard_failure_precedes_request_read_and_output(self):
         from reporting import _pdf_typed_original_brand_qa_worker as worker
@@ -2059,7 +2078,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                     tempfile.TemporaryFile() as output, \
                     patch.object(worker.sys, "flags", SimpleNamespace(isolated=1)), \
                     patch.object(worker.sys, "dont_write_bytecode", True), \
-                    patch.object(worker.native, "_limits", return_value={}), \
+                    patch.object(worker, "_limits", return_value={}), \
                     patch.object(worker, "_lifetime"), \
                     patch.object(worker, "enforce_pdf_landlock") as landlock, \
                     patch.object(worker, "enforce_pdf_network_filter") as network, \
@@ -2279,6 +2298,37 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 self.assertTrue(records)
                 self.assertTrue(all(item["closed"] for item in records))
 
+    def test_combined_execution_budget_is_bound_to_its_own_profile(self):
+        inherited = deepcopy(self.m.prior.LIMITS)
+        original = json.loads(self.m.MANIFEST.read_bytes())
+        self.assertEqual(original["limits"], self.m.LIMITS)
+        self.assertEqual(original["wall_seconds"], self.m.WALL_SECONDS)
+        self.assertEqual(original["cleanup_seconds"], self.m.CLEANUP_SECONDS)
+        self.assertEqual(inherited["cpu_seconds"], 5)
+        self.assertEqual(self.m.LIMITS["cpu_seconds"], 20)
+        cases = (
+            ("limits", {**self.m.LIMITS, "cpu_seconds": 5}),
+            ("limits", {**self.m.LIMITS, "cpu_seconds": -1}),
+            ("limits", {**self.m.LIMITS, "cpu_seconds": 20.0}),
+            ("wall_seconds", 10),
+            ("cleanup_seconds", 3),
+        )
+        for field, value in cases:
+            with self.subTest(field=field, value=value), _temporary_profile_tree(self.m):
+                changed = json.loads(self.m.MANIFEST.read_bytes())
+                changed[field] = value
+                self.m.MANIFEST.write_text(json.dumps(changed), encoding="ascii")
+                with self.assertRaises(ValueError):
+                    self.m.profile_sha256()
+        for field in ("limits", "wall_seconds", "cleanup_seconds"):
+            with self.subTest(missing=field), _temporary_profile_tree(self.m):
+                changed = json.loads(self.m.MANIFEST.read_bytes())
+                del changed[field]
+                self.m.MANIFEST.write_text(json.dumps(changed), encoding="ascii")
+                with self.assertRaises(ValueError):
+                    self.m.profile_sha256()
+        self.assertEqual(self.m.prior.LIMITS, inherited)
+
     def test_new_profile_pins_the_executed_original_brand_dependencies(self):
         for name in ("reporting/brand_assets.py", "reporting/pdf_original_brand_inclusion.py",
                      "reporting/_pdf_original_dna_png_admission.py"):
@@ -2350,7 +2400,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                     output.flush()
                 with patch.object(worker.sys, "flags", SimpleNamespace(isolated=1)), \
                         patch.object(worker.sys, "dont_write_bytecode", True), \
-                        patch.object(worker.native, "_limits") as limits, \
+                        patch.object(worker, "_limits") as limits, \
                         patch.object(worker.native, "_read_request") as read, \
                         patch.object(worker, "enforce_pdf_landlock") as landlock, \
                         patch.object(worker, "_write_bytes") as write:

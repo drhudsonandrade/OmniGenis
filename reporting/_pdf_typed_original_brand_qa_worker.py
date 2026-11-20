@@ -9,6 +9,7 @@ import logging
 import os
 from pathlib import Path
 import re
+import signal
 import stat
 import sys
 import xml.etree.ElementTree as ET
@@ -23,12 +24,41 @@ from reporting import _pdf_typed_observation_worker as native
 from reporting import _pdf_safety_worker as passive
 from reporting._pdf_original_svg_layout_worker import _inspect_figure
 from reporting._pdf_resource_leaves_worker import _lab_presets
-from reporting._pdf_object_graph_worker import _lifetime
 from reporting._pdf_process_sandbox import enforce_pdf_landlock, enforce_pdf_network_filter
-from reporting._pdf_render_worker import _write_bytes
+from reporting._pdf_render_worker import _arm_worker_lifetime, _write_bytes
 
 require = qa.require
 IDENTITY = tuple(map(Decimal, ("1", "0", "0", "1", "0", "0")))
+
+
+def _limits() -> dict:
+    """Install the combined QA profile's finite process limits before input."""
+    import resource
+
+    values = (
+        (resource.RLIMIT_AS, qa.LIMITS["memory_bytes"]),
+        (resource.RLIMIT_CPU, qa.LIMITS["cpu_seconds"]),
+        (resource.RLIMIT_FSIZE, qa.LIMITS["file_bytes"]),
+        (resource.RLIMIT_NOFILE, qa.LIMITS["open_files"]),
+        (resource.RLIMIT_CORE, 0),
+    )
+    for key, value in values:
+        resource.setrlimit(key, (value, value))
+    require(all(resource.getrlimit(key) == (value, value) for key, value in values))
+    limits = {
+        "memory_bytes": resource.getrlimit(resource.RLIMIT_AS)[0],
+        "cpu_seconds": resource.getrlimit(resource.RLIMIT_CPU)[0],
+        "file_bytes": resource.getrlimit(resource.RLIMIT_FSIZE)[0],
+        "open_files": resource.getrlimit(resource.RLIMIT_NOFILE)[0],
+    }
+    require(limits == qa.LIMITS)
+    return limits
+
+
+def _lifetime(parent: int) -> None:
+    """Retain parent-death binding and the combined QA profile's fixed timer."""
+    _arm_worker_lifetime(parent)
+    signal.setitimer(signal.ITIMER_REAL, qa.WALL_SECONDS)
 
 
 def _identifier(value):
@@ -895,7 +925,7 @@ def main(argv=None):
         require(all(stat.S_ISREG(v.st_mode) and v.st_nlink == 0 and v.st_uid == os.geteuid() for v in infos)
                 and (infos[0].st_dev, infos[0].st_ino) != (infos[1].st_dev, infos[1].st_ino)
                 and infos[1].st_size == 0)
-        limits = native._limits()
+        limits = _limits()
         _lifetime(parent)
         enforce_pdf_landlock(Path(__file__))
         enforce_pdf_network_filter()
