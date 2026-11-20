@@ -1322,22 +1322,57 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 self.refuse(self.rewritten(alter_footer))
 
         fonts = {tuple(font["reference"]): font for font in original["trace"]["fonts"]}
-        first_page = original["trace"]["pages"][0]
-        first_events = first_page["pagination_blocks"][0]["events"]
-        font_name = first_events[4]["operands"][0]
-        font_reference = next(item["reference"] for item in first_page["font_resources"]
-                              if item["name"] == font_name)
-        mapping = dict(fonts[tuple(font_reference)]["mapping"])
-        prefix_start, cursor, candidates = len("OmniGenis | "), 0, []
-        for kind, value in first_events[5]["operands"]:
-            if kind == "codes":
-                for offset in range(0, len(value), 4):
-                    text = mapping[value[offset:offset + 4]]
-                    if prefix_start <= cursor < prefix_start + 12 and len(text) == 1:
-                        candidates.append((cursor, text))
-                    cursor += len(text)
-        position, old = candidates[0]
-        replacement = next(text for _, text in candidates if text != old)
+        def declared_widths(font):
+            # The original native observation admitted these explicit CID /W runs.
+            declared = font["/DescendantFonts"][0].get_object()["/W"]
+            return {int(declared[offset]) + index: int(value)
+                    for offset in range(0, len(declared), 2)
+                    for index, value in enumerate(declared[offset + 1])}
+
+        reader = PdfReader(BytesIO(args["pdf_bytes"]), strict=True)
+        prefix_start, footer_fonts = len("OmniGenis | "), []
+        for page_index, page in enumerate(original["trace"]["pages"]):
+            events = page["pagination_blocks"][0]["events"]
+            font_name = events[4]["operands"][0]
+            reference = next(item["reference"] for item in page["font_resources"]
+                             if item["name"] == font_name)
+            mapping = dict(fonts[tuple(reference)]["mapping"])
+            widths = declared_widths(reader.pages[page_index]["/Resources"]["/Font"][font_name])
+            cursor, prefix = 0, {}
+            for kind, value in events[5]["operands"]:
+                if kind == "codes":
+                    for offset in range(0, len(value), 4):
+                        code = value[offset:offset + 4]
+                        text = mapping[code]
+                        if prefix_start <= cursor < prefix_start + 12 and len(text) == 1:
+                            prefix[cursor] = code, text
+                        cursor += len(text)
+            footer_fonts.append((mapping, widths, prefix))
+
+        # Change identity alone: derive a distinct hex glyph with the same /W
+        # advance in every footer font, without assuming tabular digit metrics.
+        selection = None
+        for position, (_, old) in footer_fonts[0][2].items():
+            replacements = sorted({text for text in footer_fonts[0][0].values()
+                                   if len(text) == 1 and text in "0123456789abcdef" and text != old})
+            for replacement in replacements:
+                codes = []
+                for mapping, widths, prefix in footer_fonts:
+                    prior = prefix.get(position)
+                    if prior is None or prior[1] != old:
+                        break
+                    matches = [code for code, text in sorted(mapping.items())
+                               if text == replacement and widths[int(code, 16)] == widths[int(prior[0], 16)]]
+                    if not matches:
+                        break
+                    codes.append(bytes.fromhex(matches[0]))
+                if len(codes) == len(footer_fonts):
+                    selection = position, old, replacement, codes
+                    break
+            if selection is not None:
+                break
+        self.assertIsNotNone(selection, "same-PDF footers need a distinct equal-width hex substitution")
+        position, old, replacement, replacement_codes = selection
         self.assertIn(old, "0123456789abcdef")
         self.assertIn(replacement, "0123456789abcdef")
         expected_prefix = args["expected_ir_sha256"][:12]
@@ -1347,13 +1382,15 @@ class TypedOriginalBrandQATests(unittest.TestCase):
 
         def foreign_source(writer):
             for page_index, native_page in enumerate(original["trace"]["pages"]):
-                def alter(ops, native_page=native_page):
+                def alter(ops, native_page=native_page, page_index=page_index):
                     start, end = self.footer_range(ops)
                     tf = next(i for i in range(start + 1, end) if ops[i][1] == b"Tf")
                     reference = next(item["reference"] for item in native_page["font_resources"]
                                      if item["name"] == str(ops[tf][0][0]))
                     cmap = dict(fonts[tuple(reference)]["mapping"])
-                    code = bytes.fromhex(next(code for code, text in cmap.items() if text == replacement))
+                    code = replacement_codes[page_index]
+                    self.assertEqual(cmap[code.hex()], replacement)
+                    widths = declared_widths(writer.pages[page_index]["/Resources"]["/Font"][ops[tf][0][0]])
                     tj = next(i for i in range(start + 1, end) if ops[i][1] == b"TJ")
                     cursor = 0
                     for index, part in enumerate(ops[tj][0][0]):
@@ -1364,6 +1401,9 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                             text = cmap[raw[byte:byte + 2].hex()]
                             if cursor == position:
                                 self.assertEqual(text, old)
+                                self.assertEqual(widths[int.from_bytes(raw[byte:byte + 2], "big")],
+                                                 widths[int.from_bytes(code, "big")])
+                                # Preserve Tm, every TJ adjustment and all other glyph codes.
                                 ops[tj][0][0][index] = ByteStringObject(raw[:byte] + code + raw[byte + 2:])
                                 return
                             cursor += len(text)
