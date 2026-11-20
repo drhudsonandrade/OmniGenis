@@ -128,10 +128,39 @@ def _profile_contract() -> dict:
     }
 
 
+def _bounded_profile_file(path: Path, limit: int, *, retain: bool = False) -> tuple[bytes, str]:
+    """Read one stable regular descriptor with a finite byte budget."""
+    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC)
+    try:
+        first = os.fstat(fd)
+        _require(stat.S_ISREG(first.st_mode) and 0 <= first.st_size <= limit)
+        digest = sha256()
+        content = bytearray() if retain else None
+        consumed = 0
+        while consumed < first.st_size:
+            chunk = os.read(fd, min(8192, first.st_size - consumed))
+            _require(bool(chunk))
+            consumed += len(chunk)
+            digest.update(chunk)
+            if content is not None:
+                content.extend(chunk)
+        last = os.fstat(fd)
+        named = os.stat(path, follow_symlinks=False)
+
+        def identity(info):
+            return (info.st_dev, info.st_ino, info.st_mode, info.st_size,
+                    info.st_mtime_ns, info.st_ctime_ns)
+
+        _require(identity(first) == identity(last) == identity(named))
+        return bytes(content) if content is not None else b"", digest.hexdigest()
+    finally:
+        os.close(fd)
+
+
 def _profile() -> str:
     """Fail closed on a disabled observer, altered contract or unbound source path."""
     _require(os.environ.get("OMNIGENIS_TYPED_PDF_OBSERVATION_DISABLED") != "1")
-    raw = _PROFILE_FILE.read_bytes()
+    raw, _ = _bounded_profile_file(_PROFILE_FILE, 65536, retain=True)
     _require(len(raw) <= 65536 and not _PROFILE_FILE.is_symlink())
     profile = _loads(raw.decode("ascii"))
     _require(type(profile) is dict and set(profile) == set(_profile_contract()) | {"source_sha256"})
@@ -144,7 +173,7 @@ def _profile() -> str:
         _require(type(digest) is str and _DIGEST.fullmatch(digest) is not None)
         path = ROOT / name
         _require(not path.is_symlink() and path.resolve().is_relative_to(ROOT)
-                 and sha256(path.read_bytes()).hexdigest() == digest)
+                 and _bounded_profile_file(path, 262144)[1] == digest)
     return sha256(_canonical(profile)).hexdigest()
 
 

@@ -165,7 +165,7 @@
   },
   "reused_source_sha256": {
     "reporting/_pdf_bounded_scratch.py": "95111731e32caf9ebdcf8f58062ec82f86df6d78f13a2fc1e0c378d94df4475a",
-    "reporting/_pdf_process_lifecycle.py": "6f7e39dd83d5f1d2f3726527c83d282b11f064222e3d1c46cbf0c369d297f465",
+    "reporting/_pdf_process_lifecycle.py": "e3da8ad54736b891ff2c2eb1c9a65e384114307e775da49b42518c07768f7b2f",
     "reporting/_pdf_process_sandbox.py": "76a4648556ecd3d3c39c1ac33122c027ab90769b5e5e9c244b79657454635a3f",
     "reporting/_pdf_raster_child_observation.py": "f88121100fc11705fb4b6be38e524740bb3975699de84dfbf0313ae55e47e79c",
     "reporting/_pdf_raster_executor.py": "5062b2cc9740a8063e3fcc2f063b5baaa95b0e3a22bf803f17d20701c2df899e",

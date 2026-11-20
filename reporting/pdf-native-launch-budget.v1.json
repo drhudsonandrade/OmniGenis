@@ -86,7 +86,7 @@
   },
   "schema_version": "1.0.0",
   "source_sha256": {
-    "reporting/_pdf_native_launch_budget.py": "2260127303a9cc07a3c3c6a2757d9205db7a068dfac0550ecc99778472cb9c42",
+    "reporting/_pdf_native_launch_budget.py": "05a6d31720f5aec478230c14f1aa2ad426f3e386e473db7c04d47ab179853bd0",
     "reporting/_pdf_raster_job_observation.py": "f69628c645a69ff2ac25ad24362ede4c9a29ec472503e1e7e0fb313945f3813e",
     "reporting/_pdf_raster_launch_budget.py": "3cd8cea2696b99e443d558373d05ad8bf72d9e932c8ced68a944516cf23c4367",
     "reporting/_pdf_raster_probe.py": "72fcd2820decd6524c7c5afdefe2bdd04f73876092be7125547f70b7880fd073",

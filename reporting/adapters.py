@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from contextlib import ExitStack
 from dataclasses import dataclass
 from html import escape
 import hashlib
@@ -212,29 +213,37 @@ def _validate_pdf_structure(pdf: bytes, *, expected_language: str) -> None:
 
 
 def _start_pdf_render_worker(
-    command: list[str], *, env: dict[str, str], pass_fds: tuple[int, ...] = ()
+    command: list[str], *, env: dict[str, str], pass_fds: tuple[int, ...] = (),
+    before_spawn=None,
 ) -> subprocess.Popen:
-    """Start one renderer in a fresh process group without captured streams."""
-    return subprocess.Popen(
-        command,
-        cwd=Path(__file__).resolve().parents[1],
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        env=env,
-        start_new_session=True,
-        close_fds=True,
-        pass_fds=pass_fds,
-    )
+    """Prepare selected stdio before arming custody, then start one owned group."""
+    cwd = Path(__file__).resolve().parents[1]
+    with ExitStack() as stack:
+        stdio = subprocess.DEVNULL
+        if before_spawn is not None:
+            stdio = stack.enter_context(open(os.devnull, "r+b", buffering=0)).fileno()
+            before_spawn()
+        return subprocess.Popen(
+            command,
+            cwd=cwd,
+            stdin=stdio,
+            stdout=stdio,
+            stderr=stdio,
+            env=env,
+            start_new_session=True,
+            close_fds=True,
+            pass_fds=pass_fds,
+        )
 
 
 def _wait_pdf_render_worker(
-    process: subprocess.Popen, *, wall_seconds: float = 30
+    process: subprocess.Popen, *, wall_seconds: float = 30, cleanup_observer=None,
 ) -> int:
-    """Retain renderer ownership through its five-second group cleanup budget."""
+    """Retain ownership and distinguish confirmed cleanup from render success."""
+    options = {} if cleanup_observer is None else {"cleanup_observer": cleanup_observer}
     try:
         return wait_owned_process_group(
-            process, wall_seconds=wall_seconds, cleanup_seconds=5
+            process, wall_seconds=wall_seconds, cleanup_seconds=5, **options
         )
     except (OSError, subprocess.TimeoutExpired, AttributeError, ValueError) as exc:
         raise RuntimeError("pdf_render_failed") from exc
