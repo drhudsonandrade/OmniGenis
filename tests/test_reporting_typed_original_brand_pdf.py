@@ -281,12 +281,25 @@ class TypedOriginalBrandPdfTests(unittest.TestCase):
             observations.append(raw)
             return raw
 
-        with patch.object(qa, "_run_worker", side_effect=retain_observation) as inspected:
-            receipt = qa.validate_typed_original_brand_candidate(
-                **args, expected_source_expectation_sha256=expectation.expectation_sha256,
-                pdf_bytes=candidate.pdf_bytes, expected_pdf_sha256=candidate.pdf_sha256,
-                expected_profile_sha256=qa.profile_sha256()).to_dict()
-            inspected.assert_called_once_with(candidate.pdf_bytes, candidate.pdf_sha256)
+        before_flags = {name: os.environ.get(name) for name in qa.DISABLE_FLAGS}
+        inherited_flags = dict.fromkeys(qa.DISABLE_FLAGS, "1")
+        with patch.dict(os.environ, inherited_flags):
+            with (patch.dict(os.environ, dict.fromkeys(qa.DISABLE_FLAGS, "")),
+                  patch.object(qa, "_run_worker", side_effect=retain_observation) as inspected):
+                try:
+                    receipt = qa.validate_typed_original_brand_candidate(
+                        **args, expected_source_expectation_sha256=expectation.expectation_sha256,
+                        pdf_bytes=candidate.pdf_bytes, expected_pdf_sha256=candidate.pdf_sha256,
+                        expected_profile_sha256=qa.profile_sha256()).to_dict()
+                except ValueError as error:
+                    self.assertIn(str(error), (
+                        "typed physical observation refused",
+                        "typed_original_brand_qa_refused"))
+                    inspected.assert_not_called()
+                    self.fail("positive QA validation must isolate inherited disable flags")
+                inspected.assert_called_once_with(candidate.pdf_bytes, candidate.pdf_sha256)
+            self.assertEqual({name: os.environ.get(name) for name in qa.DISABLE_FLAGS}, inherited_flags)
+        self.assertEqual({name: os.environ.get(name) for name in qa.DISABLE_FLAGS}, before_flags)
         self.assertEqual(len(observations), 1)
         self.assertEqual(receipt["pdf_sha256"], candidate.pdf_sha256)
         self.assertEqual(receipt["native_observation_sha256"], sha256(observations[0]).hexdigest())

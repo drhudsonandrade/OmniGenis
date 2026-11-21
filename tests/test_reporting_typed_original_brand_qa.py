@@ -2544,6 +2544,45 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             coverage["operations"] = self.operation_floor(value)
             return value
 
+        # Two remaining body units are either two paragraphs or a caption
+        # and one table header. The matcher always requires the empty TBody.
+        for pages, mcids, nodes, shape in (
+                (2, 9, 18, "two-paragraphs"), (2, 9, 22, "empty-one-column-table"),
+                (3, 10, 20, "paragraph-continuation"), (5, 9, 22, "table-page-cap")):
+            exact = navigation_boundary(1, pages, 1, source_units=4, text_mcids=mcids)
+            coverage = exact["coverage"]
+            coverage["projected_nodes"] = nodes
+            coverage["native_nodes"] = nodes + coverage["accounted_brand_wrapper_nodes"] + 1
+            self.m._schema(exact)
+            with self.subTest(two_body_units=shape):
+                self.assertEqual(self.m.TypedOriginalBrandQA(self.m.canonical(exact)).to_dict(), exact)
+        valid = navigation_boundary(1, 2, 1, source_units=4, text_mcids=9)
+        self.assertEqual(valid["coverage"]["projected_nodes"], 18)
+        for pages, nodes, shape in ((2, 19, "unsupported-extra-container"),
+                                    (2, 21, "missing-table-body"), (6, 22, "table-page-surplus")):
+            bad = navigation_boundary(1, pages, 1, source_units=4, text_mcids=9)
+            coverage = bad["coverage"]
+            coverage["projected_nodes"] = nodes
+            coverage["native_nodes"] = nodes + coverage["accounted_brand_wrapper_nodes"] + 1
+            units = bad["source_units"] + bad["brand_text_units"] + 1 + bad["navigation_entries"]
+            self.assertEqual(units, 8)
+            self.assertGreaterEqual(coverage["text_mcids"], max(units + 1, pages + 3))
+            self.assertGreaterEqual(nodes, coverage["text_mcids"] + max(units, pages + 2) + 1)
+            self.assertLessEqual(nodes, 1 + 6 * coverage["text_mcids"])
+            self.assertLessEqual(2 * coverage["native_nodes"] - 1
+                                 + coverage["native_mcids"], self.m.prior.MAX_VISITS)
+            self.assertEqual(coverage["native_mcids"], coverage["text_mcids"] + coverage["figure_count"])
+            self.assertEqual(coverage["operations"], self.operation_floor(bad))
+            self.m._schema(bad)
+            payload = self.m.canonical(bad)
+            with self.subTest(two_body_units=shape, boundary="constructor"), self.assertRaises(ValueError):
+                self.m.TypedOriginalBrandQA(payload)
+            receipt = self.m.TypedOriginalBrandQA(self.m.canonical(valid))
+            object.__setattr__(receipt, "_payload", payload)
+            object.__setattr__(receipt, "_sealed_sha256", sha256(payload).hexdigest())
+            with self.subTest(two_body_units=shape, boundary="resealed-to-dict"), self.assertRaises(ValueError):
+                receipt.to_dict()
+
         # One extra source unit cannot form a table: its caption and first
         # header need two units. The paragraph can have one container on the
         # last contents page and each later page, with one Span per fragment.
@@ -2564,13 +2603,22 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             with self.subTest(fragments=fragments, pages=pages, paragraph_nodes="exact"):
                 self.assertEqual(self.m.TypedOriginalBrandQA(self.m.canonical(exact)).to_dict(), exact)
             bad = deepcopy(exact)
-            bad["coverage"]["projected_nodes"] += 1
-            bad["coverage"]["native_nodes"] += 1
-            self.assertEqual(bad["coverage"]["projected_nodes"], maximum + 1)
-            self.assertLessEqual(bad["coverage"]["projected_nodes"], 1 + 6 * text_mcids)
-            self.assertLessEqual(2 * bad["coverage"]["native_nodes"] - 1
-                                 + bad["coverage"]["native_mcids"], self.m.prior.MAX_VISITS)
-            self.assertEqual(bad["coverage"]["operations"], self.operation_floor(bad))
+            bad_coverage = bad["coverage"]
+            bad_coverage["text_mcids"] += 1
+            bad_coverage["native_mcids"] += 1
+            bad_coverage["projected_nodes"] += 2
+            bad_coverage["native_nodes"] += 2
+            bad_coverage["operations"] = self.operation_floor(bad)
+            self.assertEqual(bad_coverage["projected_nodes"], maximum + 2)
+            # Supply the extra container's Span so only the page cap refuses.
+            self.assertEqual(bad_coverage["projected_nodes"] - bad_coverage["text_mcids"] - 1,
+                             bad_coverage["text_mcids"] - entries)
+            self.assertEqual(bad_coverage["projected_nodes"],
+                             bad_coverage["text_mcids"] + units + pages - fragments + 1)
+            self.assertLessEqual(bad_coverage["projected_nodes"], 1 + 6 * bad_coverage["text_mcids"])
+            self.assertLessEqual(2 * bad_coverage["native_nodes"] - 1
+                                 + bad_coverage["native_mcids"], self.m.prior.MAX_VISITS)
+            self.assertEqual(bad_coverage["operations"], self.operation_floor(bad))
             self.m._schema(bad)
             payload = self.m.canonical(bad)
             with self.subTest(fragments=fragments, pages=pages,

@@ -44,6 +44,7 @@ ENGINES = {
     "weasyprint/layout/absolute.py": "240e268cec1e66dda1f87aec6bdd671e7bf36439c5fa09de32965f717893ba07",
     "weasyprint/layout/block.py": "9457dca0528c378f3ff6dd2ca5126d04ca017542de2fb77b1db48c3073401085",
     "weasyprint/layout/inline.py": "0e7c1569330f54734ed61b568789c4f279ba103c0385115efa6444f3c43b96b4",
+    "weasyprint/layout/page.py": "d99c5aceb36d458619a9cecb466a09df8827b9160fafacab7b4972a0d354dcca",
 }
 CONTRACT = {
     "schema_version": "1.0.0", "profile_id": PROFILE_ID, "mode": MODE, "protocol_version": 3,

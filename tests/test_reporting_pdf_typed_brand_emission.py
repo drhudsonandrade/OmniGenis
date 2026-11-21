@@ -687,33 +687,34 @@ class TypedBrandRouteTests(unittest.TestCase):
         from unittest.mock import patch
         from reporting import adapters, _pdf_typed_brand_emission as core
 
-        name = "weasyprint/layout/inline.py"
         original_distribution = core.distribution
-        engine = Path(original_distribution("weasyprint").locate_file(name))
-        original = engine.read_bytes()
-        with tempfile.TemporaryDirectory() as directory:
-            replacement = Path(directory) / "inline.py"
-            replacement.write_bytes(original)
+        for name in ("weasyprint/layout/inline.py", "weasyprint/layout/page.py"):
+            with self.subTest(engine=name):
+                engine = Path(original_distribution("weasyprint").locate_file(name))
+                original = engine.read_bytes()
+                with tempfile.TemporaryDirectory() as directory:
+                    replacement = Path(directory) / Path(name).name
+                    replacement.write_bytes(original)
 
-            def redirected_distribution(package):
-                dist = original_distribution(package)
-                if package != "weasyprint":
-                    return dist
+                    def redirected_distribution(package):
+                        dist = original_distribution(package)
+                        if package != "weasyprint":
+                            return dist
 
-                def locate_file(relative):
-                    return replacement if relative == name else dist.locate_file(relative)
+                        def locate_file(relative):
+                            return replacement if relative == name else dist.locate_file(relative)
 
-                return SimpleNamespace(version=dist.version, locate_file=locate_file)
+                        return SimpleNamespace(version=dist.version, locate_file=locate_file)
 
-            with patch.object(core, "distribution", side_effect=redirected_distribution):
-                self.assertEqual(core.profile_sha256(), self.profile)
-                replacement.write_bytes(original + b"\n# Synthetic inline source drift.\n")
-                with self.assertRaisesRegex(ValueError, "^typed brand emission refused$"):
-                    core.require_source_manifest()
-                with (patch.object(adapters, "_start_pdf_render_worker") as launch,
-                      self.assertRaisesRegex(ValueError, "^typed_brand_render_refused$")):
-                    self.route.render_typed_brand_pdf(**self.args)
-                launch.assert_not_called()
+                    with patch.object(core, "distribution", side_effect=redirected_distribution):
+                        self.assertEqual(core.profile_sha256(), self.profile)
+                        replacement.write_bytes(original + b"\n# Synthetic layout source drift.\n")
+                        with self.assertRaisesRegex(ValueError, "^typed brand emission refused$"):
+                            core.require_source_manifest()
+                        with (patch.object(adapters, "_start_pdf_render_worker") as launch,
+                              self.assertRaisesRegex(ValueError, "^typed_brand_render_refused$")):
+                            self.route.render_typed_brand_pdf(**self.args)
+                        launch.assert_not_called()
 
     def test_profile_sources_use_bounded_descriptor_reads(self):
         from pathlib import Path

@@ -690,6 +690,18 @@ def _validate_receipt(data: dict) -> None:
                                                  + data["page_count"] - fragment_count)
                 and coverage["projected_nodes"] - coverage["text_mcids"] - 1
                 <= coverage["text_mcids"] - data["navigation_entries"])
+    elif findings == 0 and data["source_units"] == 3 + data["navigation_entries"]:
+        # Two remaining units are two paragraphs or one caption/header table.
+        # Ordered paragraphs share the available page-boundary crossings and
+        # each continued container needs a Span beyond the navigation suffixes.
+        extra_nodes = coverage["projected_nodes"] - coverage["text_mcids"] - text_units - 1
+        paragraph_continuations = min(data["page_count"] - fragment_count - 1,
+                                      coverage["text_mcids"] - text_units - data["navigation_entries"])
+        # An empty one-column table occupies one page and has exactly Table,
+        # THead, header TR and mandatory empty TBody beyond its text containers.
+        require(0 <= extra_nodes <= paragraph_continuations
+                or (extra_nodes == 4
+                    and data["page_count"] <= fragment_count + data["navigation_entries"] + 3))
     # Each finding needs a body TR, plus Table/THead/TBody/header TR.
     table_nodes = findings + 4 if findings else 0
     # Matched grammar has at most five non-root nodes per Span, plus one
