@@ -669,6 +669,7 @@ def _validate_receipt(data: dict) -> None:
             and coverage["pagination_blocks"] == data["pagination_pages"] == data["page_count"])
     findings = data["represented_findings"]
     text_units = data["source_units"] + data["brand_text_units"] + 1 + data["navigation_entries"]
+    fragment_count = coverage["accounted_brand_wrapper_nodes"] - 5
     # Each finding needs a body TR, plus Table/THead/TBody/header TR.
     table_nodes = findings + 4 if findings else 0
     # Matched grammar has at most five non-root nodes per Span, plus one
@@ -676,6 +677,9 @@ def _validate_receipt(data: dict) -> None:
     require(data["source_units"] >= (findings + 3 if findings else 1) + data["navigation_entries"]
             and data["pdf_byte_count"] >= len(b"%PDF-1.7")
             and coverage["text_mcids"] >= text_units + data["navigation_entries"]
+            # Contents and final credit runs add to the per-page text floor.
+            and coverage["text_mcids"] >= (data["page_count"]
+                                            + 2 * data["navigation_entries"] + 2 - fragment_count)
             and coverage["projected_nodes"] >= (coverage["text_mcids"] + text_units
                                                 + 1 + table_nodes)
             and coverage["projected_nodes"] <= 1 + 6 * coverage["text_mcids"]

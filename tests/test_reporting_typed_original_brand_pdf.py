@@ -113,7 +113,7 @@ class TypedOriginalBrandPdfTests(unittest.TestCase):
 
     def test_section_heading_explicit_breaks_refuse_before_candidate(self):
         labels = ("Findings\nSummary", "Findings\rSummary", "Findings\r\nSummary",
-                  "\n".join(["Explicit navigation line"] * 128))
+                  "Findings\tSummary", "\n".join(["Explicit navigation line"] * 128))
         for label in labels:
             with self.subTest(label=repr(label)):
                 source = self._source_with_cover_title("Technical report", heading_text=label)

@@ -2430,11 +2430,12 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                     with self.assertRaises(ValueError):
                         receipt.to_dict()
 
-        def navigation_boundary(fragment_count, page_count, entries):
+        def navigation_boundary(fragment_count, page_count, entries, *,
+                                source_units=None, text_mcids=None):
             value = deepcopy(source)
             value["represented_findings"] = 0
             value["navigation_entries"] = entries
-            value["source_units"] = 1 + entries
+            value["source_units"] = 1 + entries if source_units is None else source_units
             value["page_count"] = value["raster_inspected_pages"] = value["pagination_pages"] = page_count
             value["raster_window_count"] = (page_count + self.m.RASTER_PAGES_PER_WINDOW - 1) // self.m.RASTER_PAGES_PER_WINDOW
             coverage = value["coverage"]
@@ -2442,7 +2443,8 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             coverage["accounted_navigation_wrapper_nodes"] = entries
             coverage["pagination_blocks"] = page_count
             units = value["source_units"] + value["brand_text_units"] + 1 + entries
-            coverage["text_mcids"] = max(units + entries, page_count)
+            coverage["text_mcids"] = (
+                max(units + entries, page_count) if text_mcids is None else text_mcids)
             coverage["native_mcids"] = coverage["text_mcids"] + coverage["figure_count"]
             coverage["projected_nodes"] = coverage["text_mcids"] + units + 1
             coverage["native_nodes"] = (coverage["projected_nodes"]
@@ -2455,6 +2457,34 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             self.m._schema(exact)
             with self.subTest(fragment_count=fragments, boundary="exact"):
                 self.assertEqual(self.m.TypedOriginalBrandQA(self.m.canonical(exact)).to_dict(), exact)
+        # Sparse controls isolate page/navigation obligations from the
+        # independent source-unit floor, including two contents fragments.
+        for fragments, pages, entries, source_units, minimum in (
+                (1, 8, 1, 3, 11), (2, 8, 2, 4, 12)):
+            exact = navigation_boundary(
+                fragments, pages, entries, source_units=source_units, text_mcids=minimum)
+            units = source_units + exact["brand_text_units"] + 1 + entries
+            self.assertGreater(minimum, units + entries)
+            self.assertGreater(minimum, pages)
+            self.m._schema(exact)
+            with self.subTest(fragment_count=fragments, text_mcid_bound="exact"):
+                self.assertEqual(self.m.TypedOriginalBrandQA(
+                    self.m.canonical(exact)).to_dict(), exact)
+            bad = navigation_boundary(
+                fragments, pages, entries, source_units=source_units, text_mcids=minimum - 1)
+            self.assertGreaterEqual(bad["coverage"]["text_mcids"], units + entries)
+            self.assertGreaterEqual(bad["coverage"]["text_mcids"], pages)
+            self.m._schema(bad)
+            payload = self.m.canonical(bad)
+            with self.subTest(fragment_count=fragments, text_mcid_bound="one-below",
+                              boundary="constructor"), self.assertRaises(ValueError):
+                self.m.TypedOriginalBrandQA(payload)
+            receipt = self.m.TypedOriginalBrandQA(self.m.canonical(exact))
+            object.__setattr__(receipt, "_payload", payload)
+            object.__setattr__(receipt, "_sealed_sha256", sha256(payload).hexdigest())
+            with self.subTest(fragment_count=fragments, text_mcid_bound="one-below",
+                              boundary="resealed-to-dict"), self.assertRaises(ValueError):
+                receipt.to_dict()
         for mode, parameters in (("pages", (2, 3, 3)), ("entries", (1, 3, 1))):
             exact = navigation_boundary(*parameters)
             self.assertEqual(self.m.TypedOriginalBrandQA(self.m.canonical(exact)).to_dict(), exact)

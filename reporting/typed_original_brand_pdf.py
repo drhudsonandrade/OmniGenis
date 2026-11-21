@@ -78,7 +78,8 @@ def _navigation(doc: dict, ir_sha256: str) -> tuple[str, dict]:
     headings = [component for component in doc["components"]
                 if component["component_type"] == "section_heading"]
     _require(bool(headings) and all("\n" not in heading["text"]
-             and "\r" not in heading["text"] for heading in headings))
+             and "\r" not in heading["text"] and "\t" not in heading["text"]
+             for heading in headings))
     intents = tuple(NavigationIntent(doc["components"][0]["component_id"],
                                     "section", heading["section_id"])
                     for heading in headings)
