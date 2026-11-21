@@ -680,7 +680,9 @@ def _validate_receipt(data: dict) -> None:
             # Contents and final credit runs add to the per-page text floor.
             and coverage["text_mcids"] >= (data["page_count"]
                                             + 2 * data["navigation_entries"] + 2 - fragment_count)
-            and coverage["projected_nodes"] >= (coverage["text_mcids"] + text_units
+            # A page-local text container cannot cover two physical pages.
+            and coverage["projected_nodes"] >= (coverage["text_mcids"]
+                                                + max(text_units, data["page_count"])
                                                 + 1 + table_nodes)
             and coverage["projected_nodes"] <= 1 + 6 * coverage["text_mcids"]
             and coverage["text_mcids"] >= data["page_count"]

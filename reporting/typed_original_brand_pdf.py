@@ -6,8 +6,10 @@ preloaded-raster worker performs the only rendering. No default delivery,
 clinical/scientific claims, new executor, PDF/UA or visual parity is established.
 
 This original-brand editorial profile requires at least one section heading with
-an unambiguous source section anchor for its printed contents. Carriage returns and line feeds in section headings are refused before staging:
-the exact literal association profile does not represent those explicit breaks.
+an unambiguous source section anchor for its printed contents. Carriage returns,
+line feeds, tabs and Unicode paragraph separators (U+2029) in section headings
+are refused before staging: the exact literal association profile does not
+represent those explicit breaks or tab spacing.
 Natural line wrapping remains supported. The generic typed component contract
 remains unchanged. The complete source title must fit the
 cover area beside the DNA and below the logo in the actual fixed-font layout.
@@ -79,7 +81,7 @@ def _navigation(doc: dict, ir_sha256: str) -> tuple[str, dict]:
                 if component["component_type"] == "section_heading"]
     _require(bool(headings) and all("\n" not in heading["text"]
              and "\r" not in heading["text"] and "\t" not in heading["text"]
-             for heading in headings))
+             and "\u2029" not in heading["text"] for heading in headings))
     intents = tuple(NavigationIntent(doc["components"][0]["component_id"],
                                     "section", heading["section_id"])
                     for heading in headings)

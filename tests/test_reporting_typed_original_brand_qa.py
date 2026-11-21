@@ -2446,7 +2446,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             coverage["text_mcids"] = (
                 max(units + entries, page_count) if text_mcids is None else text_mcids)
             coverage["native_mcids"] = coverage["text_mcids"] + coverage["figure_count"]
-            coverage["projected_nodes"] = coverage["text_mcids"] + units + 1
+            coverage["projected_nodes"] = coverage["text_mcids"] + max(units, page_count) + 1
             coverage["native_nodes"] = (coverage["projected_nodes"]
                                         + coverage["accounted_brand_wrapper_nodes"] + entries)
             coverage["operations"] = self.operation_floor(value)
@@ -2485,6 +2485,42 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             with self.subTest(fragment_count=fragments, text_mcid_bound="one-below",
                               boundary="resealed-to-dict"), self.assertRaises(ValueError):
                 receipt.to_dict()
+        # Eight pages require eight page-local containers even with only
+        # seven logical text units. Eleven valid MCIDs plus Document make twenty.
+        page_bound = navigation_boundary(1, 8, 1, source_units=3, text_mcids=11)
+        coverage = page_bound["coverage"]
+        units = (page_bound["source_units"] + page_bound["brand_text_units"]
+                 + 1 + page_bound["navigation_entries"])
+        self.assertEqual((page_bound["page_count"], units, coverage["text_mcids"],
+                          coverage["projected_nodes"]), (8, 7, 11, 20))
+        self.m._schema(page_bound)
+        self.assertEqual(self.m.TypedOriginalBrandQA(
+            self.m.canonical(page_bound)).to_dict(), page_bound)
+        bad = deepcopy(page_bound)
+        coverage = bad["coverage"]
+        coverage["projected_nodes"] -= 1
+        coverage["native_nodes"] -= 1
+        self.assertEqual(coverage["projected_nodes"], 19)
+        self.assertEqual(coverage["native_nodes"], coverage["projected_nodes"]
+                         + coverage["accounted_brand_wrapper_nodes"]
+                         + coverage["accounted_navigation_wrapper_nodes"])
+        self.assertEqual(coverage["native_mcids"], coverage["text_mcids"]
+                         + coverage["figure_count"])
+        self.assertEqual(coverage["text_mcids"], 11)
+        self.assertGreaterEqual(coverage["text_mcids"], units + bad["navigation_entries"])
+        self.assertGreaterEqual(coverage["text_mcids"], bad["page_count"])
+        self.assertGreaterEqual(coverage["operations"], self.operation_floor(bad))
+        self.m._schema(bad)
+        payload = self.m.canonical(bad)
+        with self.subTest(page_container_bound="nineteen", boundary="constructor"), \
+                self.assertRaises(ValueError):
+            self.m.TypedOriginalBrandQA(payload)
+        receipt = self.m.TypedOriginalBrandQA(self.m.canonical(page_bound))
+        object.__setattr__(receipt, "_payload", payload)
+        object.__setattr__(receipt, "_sealed_sha256", sha256(payload).hexdigest())
+        with self.subTest(page_container_bound="nineteen", boundary="resealed-to-dict"), \
+                self.assertRaises(ValueError):
+            receipt.to_dict()
         for mode, parameters in (("pages", (2, 3, 3)), ("entries", (1, 3, 1))):
             exact = navigation_boundary(*parameters)
             self.assertEqual(self.m.TypedOriginalBrandQA(self.m.canonical(exact)).to_dict(), exact)
