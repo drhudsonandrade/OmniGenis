@@ -111,27 +111,44 @@ class TypedOriginalBrandPdfTests(unittest.TestCase):
                         self.m.TypedOriginalBrandError, "^typed_original_brand_pdf_unavailable$"):
                     self.m.render_typed_original_brand_pdf(**args)
 
-    def test_oversized_navigation_entry_stages_but_refuses_render(self):
-        labels = ("\n".join(["Explicit navigation line"] * 128),
-                  "Wrapped navigation label " * 512)
-        self.assertNotIn("\n", labels[1])
+    def test_section_heading_explicit_breaks_refuse_before_candidate(self):
+        labels = ("Findings\nSummary", "Findings\rSummary", "Findings\r\nSummary",
+                  "\n".join(["Explicit navigation line"] * 128))
         for label in labels:
-            with self.subTest(explicit_lines="\n" in label):
+            with self.subTest(label=repr(label)):
                 source = self._source_with_cover_title("Technical report", heading_text=label)
                 args = self.arguments() | {
                     "presentation_ir": source, "expected_ir_sha256": digest(source)}
-                html, _, staged = self.m.prepare_typed_original_brand_pdf(**args)
-                self.assertEqual(staged["status"], "STAGED_TYPED_ORIGINAL_BRAND_CANDIDATE")
-                self.assertEqual(staged["source_ir_sha256"], args["expected_ir_sha256"])
-                self.assertEqual(staged["html_sha256"], sha256(html.encode("utf-8")).hexdigest())
-                self.assertEqual(staged["navigation_entry_count"], 1)
-                self.assertIn('<p data-editorial-nav-target="#heading">' + label + '</p>', html)
-                with patch.object(self.m, "render_typed_brand_pdf",
-                                  wraps=self.m.render_typed_brand_pdf) as render:
-                    with self.assertRaisesRegex(
-                            self.m.TypedOriginalBrandError, "^typed_original_brand_pdf_unavailable$"):
-                        self.m.render_typed_original_brand_pdf(**args)
-                    render.assert_called_once()
+                _, generic = prepare_editorial_typed_html(
+                    presentation_ir=source, expected_ir_sha256=args["expected_ir_sha256"])
+                self.assertEqual(generic["source_ir_sha256"], args["expected_ir_sha256"])
+                with patch.object(self.m, "render_typed_brand_pdf") as render:
+                    for operation in (self.m.prepare_typed_original_brand_pdf,
+                                      self.m.render_typed_original_brand_pdf):
+                        with self.assertRaisesRegex(
+                                self.m.TypedOriginalBrandError,
+                                "^typed_original_brand_pdf_unavailable$"):
+                            operation(**args)
+                    render.assert_not_called()
+
+    def test_oversized_navigation_entry_stages_but_refuses_render(self):
+        label = "Wrapped navigation label " * 512
+        self.assertNotIn("\n", label)
+        source = self._source_with_cover_title("Technical report", heading_text=label)
+        args = self.arguments() | {
+            "presentation_ir": source, "expected_ir_sha256": digest(source)}
+        html, _, staged = self.m.prepare_typed_original_brand_pdf(**args)
+        self.assertEqual(staged["status"], "STAGED_TYPED_ORIGINAL_BRAND_CANDIDATE")
+        self.assertEqual(staged["source_ir_sha256"], args["expected_ir_sha256"])
+        self.assertEqual(staged["html_sha256"], sha256(html.encode("utf-8")).hexdigest())
+        self.assertEqual(staged["navigation_entry_count"], 1)
+        self.assertIn('<p data-editorial-nav-target="#heading">' + label + '</p>', html)
+        with patch.object(self.m, "render_typed_brand_pdf",
+                          wraps=self.m.render_typed_brand_pdf) as render:
+            with self.assertRaisesRegex(
+                    self.m.TypedOriginalBrandError, "^typed_original_brand_pdf_unavailable$"):
+                self.m.render_typed_original_brand_pdf(**args)
+            render.assert_called_once()
 
     def test_heading_free_generic_source_refuses_before_original_brand_render(self):
         source = self._source_with_cover_title("Technical report", heading=False)

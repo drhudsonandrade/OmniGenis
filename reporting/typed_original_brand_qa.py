@@ -387,6 +387,8 @@ def _pagination_text(page: dict, block: dict, fonts: dict) -> str:
             and states[gs[0]]["fill_alpha"] is not None
             and prior._num(states[gs[0]]["fill_alpha"]) == 1
             and len(color) == 3 and all(0 <= prior._num(v) <= 1 for v in color)
+            # The pinned producer serializes #455D73 as these PDF RGB operands.
+            and tuple(prior._num(v) for v in color) == (0.270588, 0.364706, 0.45098)
             and not begin and not end and len(matrix) == 6)
     values = [prior._num(v) for v in matrix]
     require(values[0] * values[3] - values[1] * values[2] != 0
@@ -632,6 +634,13 @@ def _associate(manifest: dict, physical: dict, document: dict) -> dict:
         require(actual["page_index"] == item["target_page_index"]
                 and actual["container_reference"] == item["target_container_reference"]
                 and nav["container_reference"] == item["navigation_container_reference"])
+        # Projection preserves the final suffix Span after removing its wrapper.
+        page_reference = tuple(nav["page_reference"])
+        runs = [matcher.runs[(page_reference, fragment["mcid"])]
+                for fragment in nav["fragments"]]
+        require(len(runs) >= 2
+                and "".join(run["text"] for run in runs[:-1]) == headings[index]["text"]
+                and runs[-1]["text"] == " | " + str(item["printed_page"]))
         item["navigation_page_index"] = nav["page_index"]
     result = {"counts": matcher.counts(), "units": matcher.units,
               "table_segments": matcher.table_segments, "row_segments": matcher.row_segments,
@@ -666,7 +675,7 @@ def _validate_receipt(data: dict) -> None:
     # potentially empty TBody per table; every matched table has a Span.
     require(data["source_units"] >= (findings + 3 if findings else 1) + data["navigation_entries"]
             and data["pdf_byte_count"] >= len(b"%PDF-1.7")
-            and coverage["text_mcids"] >= text_units
+            and coverage["text_mcids"] >= text_units + data["navigation_entries"]
             and coverage["projected_nodes"] >= (coverage["text_mcids"] + text_units
                                                 + 1 + table_nodes)
             and coverage["projected_nodes"] <= 1 + 6 * coverage["text_mcids"]
