@@ -2468,6 +2468,24 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             self.assertEqual(maximum, fragments + entries + 2)
             with self.subTest(fragments=fragments, minimum_source_page_cap="exact"):
                 self.assertEqual(self.m.TypedOriginalBrandQA(self.m.canonical(exact)).to_dict(), exact)
+            extra = deepcopy(exact)
+            extra["coverage"]["projected_nodes"] += 1
+            extra["coverage"]["native_nodes"] += 1
+            self.m._schema(extra)
+            if entries == 1:
+                self.assertEqual((exact["coverage"]["text_mcids"],
+                                  exact["coverage"]["projected_nodes"],
+                                  exact["coverage"]["native_nodes"]), (7, 14, 21))
+                self.assertEqual((extra["coverage"]["projected_nodes"],
+                                  extra["coverage"]["native_nodes"]), (15, 22))
+            payload = self.m.canonical(extra)
+            with self.subTest(fragments=fragments, surplus_node="constructor"), self.assertRaises(ValueError):
+                self.m.TypedOriginalBrandQA(payload)
+            receipt = self.m.TypedOriginalBrandQA(self.m.canonical(exact))
+            object.__setattr__(receipt, "_payload", payload)
+            object.__setattr__(receipt, "_sealed_sha256", sha256(payload).hexdigest())
+            with self.subTest(fragments=fragments, surplus_node="resealed-to-dict"), self.assertRaises(ValueError):
+                receipt.to_dict()
             bad = navigation_boundary(fragments, overflow_pages, entries, text_mcids=overflow_mcids)
             coverage = bad["coverage"]
             units = bad["source_units"] + bad["brand_text_units"] + 1 + entries

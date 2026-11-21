@@ -674,7 +674,10 @@ def _validate_receipt(data: dict) -> None:
         # The title and destination headings exhaust the source units. With no
         # continuing paragraph/table, page-local cover, contents fragments,
         # headings and final credit can occupy at most this many pages.
-        require(data["page_count"] <= fragment_count + data["navigation_entries"] + 2)
+        # Each text MCID contributes one Span; each text unit contributes one
+        # container. Only the Document remains, with no extra table/paragraph.
+        require(data["page_count"] <= fragment_count + data["navigation_entries"] + 2
+                and coverage["projected_nodes"] == coverage["text_mcids"] + text_units + 1)
     # Each finding needs a body TR, plus Table/THead/TBody/header TR.
     table_nodes = findings + 4 if findings else 0
     # Matched grammar has at most five non-root nodes per Span, plus one

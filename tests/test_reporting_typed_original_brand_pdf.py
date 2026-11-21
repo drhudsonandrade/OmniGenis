@@ -140,7 +140,9 @@ class TypedOriginalBrandPdfTests(unittest.TestCase):
 
         for name, label in (
                 ("oversized-contents", "Wrapped navigation label " * 512),
-                ("oversized-destination", ("Wrapped destination " * 192).rstrip())):
+                ("oversized-destination", ("Wrapped destination " * 192).rstrip()),
+                ("unbroken-destination", "W" * 96),
+                ("unbroken-destination-spaces", "W" * 96 + " ")):
             with self.subTest(case=name):
                 self.assertNotIn("\n", label)
                 source = self._source_with_cover_title("Technical report", heading_text=label)
@@ -153,7 +155,8 @@ class TypedOriginalBrandPdfTests(unittest.TestCase):
                 self.assertEqual(staged["navigation_entry_count"], 1)
                 contents = '<p data-editorial-nav-target="#heading">' + label + '</p>'
                 self.assertIn(contents, html)
-                if name == "oversized-destination":
+                if name in ("oversized-destination", "unbroken-destination",
+                            "unbroken-destination-spaces"):
                     # A bounded native layout control keeps this exact contents
                     # paragraph and shortens only the source H2 in test HTML.
                     # Its success proves the contents row itself fits; it is

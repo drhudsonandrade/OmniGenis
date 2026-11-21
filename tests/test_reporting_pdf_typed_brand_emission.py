@@ -1756,6 +1756,59 @@ class EditorialBrandEmissionTests(unittest.TestCase):
                         with self.assertRaises(ValueError):
                             check(page, row)
 
+    def test_navigation_line_and_text_bounds_with_fitting_container(self):
+        from xml.etree.ElementTree import Element
+        from weasyprint.formatting_structure import boxes
+        from reporting._pdf_typed_brand_emission import (
+            _editorial_navigation_heading, _editorial_navigation_row,
+        )
+
+        def geometry(box, bounds):
+            box.position_x, box.position_y, box.width, box.height = bounds
+            for side in ("left", "right", "top", "bottom"):
+                setattr(box, "margin_" + side, 0)
+                setattr(box, "padding_" + side, 0)
+                setattr(box, "border_" + side + "_width", 0)
+            return box
+
+        cases = (
+            ("normal", (100, 100, 600, 30), True),
+            ("exact-page-boundary", (50, 50, 800, 1100), True),
+            ("safe-container-overhang", (75, 100, 750, 30), True),
+            ("outside-left", (49, 100, 600, 30), False),
+            ("outside-top", (100, 49, 600, 30), False),
+            ("outside-right", (100, 100, 751, 30), False),
+            ("outside-bottom", (100, 1121, 600, 30), False),
+        )
+        for tag, attributes, check in (
+                ("p", {"data-editorial-nav-target": "#heading"}, _editorial_navigation_row),
+                ("h2", {"id": "heading", "data-section": "findings"},
+                 _editorial_navigation_heading)):
+            for target in ("line", "text"):
+                for name, bounds, admitted in cases:
+                    with self.subTest(tag=tag, target=target, case=name):
+                        page = geometry(boxes.Box("page", {}, None), (50, 50, 800, 1100))
+                        element = Element(tag, attributes)
+                        text = geometry(boxes.TextBox(tag, {}, element, "Destination"),
+                                        bounds if target == "text" else (100, 100, 600, 30))
+                        inline = geometry(boxes.InlineBox(tag, {}, element, [text]),
+                                          (100, 100, 600, 30))
+                        line = geometry(boxes.LineBox(tag, {}, element, [inline]),
+                                        bounds if target == "line" else (100, 100, 600, 30))
+                        second_text = geometry(boxes.TextBox(tag, {}, element, "Wrapped line"),
+                                               (100, 150, 600, 30))
+                        second_line = geometry(boxes.LineBox(tag, {}, element, [second_text]),
+                                               (100, 150, 600, 30))
+                        row = geometry(boxes.BlockBox(tag, {"box_decoration_break": "slice"},
+                                                       element, [line, second_line]),
+                                       (100, 100, 700, 240))
+                        row.remove_decoration_sides = set()
+                        if admitted:
+                            check(page, row)
+                        else:
+                            with self.assertRaises(ValueError):
+                                check(page, row)
+
     def test_exact_footer_admits_only_one_generated_text_leaf(self):
         from reporting._pdf_typed_brand_emission import _editorial_footer
         page, margin, _, text, expected = self.footer_page()

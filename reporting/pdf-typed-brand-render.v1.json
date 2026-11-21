@@ -46,7 +46,7 @@
     "reporting/_pdf_process_lifecycle.py": "e3da8ad54736b891ff2c2eb1c9a65e384114307e775da49b42518c07768f7b2f",
     "reporting/_pdf_process_sandbox.py": "76a4648556ecd3d3c39c1ac33122c027ab90769b5e5e9c244b79657454635a3f",
     "reporting/_pdf_render_worker.py": "30b6454c7cd9b1b83d5713c406e135de91ccf127116a8bd42a13d17036cbd5ce",
-    "reporting/_pdf_typed_brand_emission.py": "15cf70f05558e0baaad4fbdc837db2f8b21fa2f821dfbf60689aabc7f56b78f1",
+    "reporting/_pdf_typed_brand_emission.py": "47d499f713f59b215c67be962407f04228b30fb5a9f855779f0a8a3895299c00",
     "reporting/_pdf_typed_brand_render_worker.py": "6054dab7dc6c8e2d342ef7ce4a313bf2d39dc8f9472b16e25a2c9622e1abf4d5",
     "reporting/adapters.py": "4617038aea9465db76aa0f4049f458dc6b7de7686f56addc21a45f5f2bf6bba0",
     "reporting/bindings.py": "bdbc232cb0cfd507001731075ea9856cd421b60202f2871511d406aead09eb38",

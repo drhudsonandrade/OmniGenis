@@ -459,7 +459,10 @@ def _editorial_navigation_heading(page_box, heading):
 
 
 def _editorial_complete_page_box(page_box, row):
-    """Check the same finite fragment and page bounds for admitted text blocks."""
+    """Check complete fragments and final text bounds before painting."""
+    from weasyprint.formatting_structure import boxes
+    from weasyprint.text.ffi import FROM_UNITS, ffi, pango
+
     # The pinned layout marks both incomplete and continued slice edges, even
     # when an oversized break-inside:avoid block's partial box fits a page.
     require(row.style["box_decoration_break"] == "slice" and not row.remove_decoration_sides)
@@ -469,12 +472,59 @@ def _editorial_complete_page_box(page_box, row):
         require(w >= 0 and h >= 0)
         return x0, y0, _numeric(x + width), _numeric(y + height)
 
+    def border(box):
+        return rectangle(box.border_box_x(), box.border_box_y(),
+                         box.border_width(), box.border_height())
+
     page = rectangle(page_box.content_box_x(), page_box.content_box_y(),
                      page_box.width, page_box.height)
-    bounds = rectangle(row.border_box_x(), row.border_box_y(),
-                       row.border_width(), row.border_height())
-    require(page[0] <= bounds[0] <= bounds[2] <= page[2]
-            and page[1] <= bounds[1] <= bounds[3] <= page[3])
+
+    def inside(bounds):
+        return (page[0] <= bounds[0] <= bounds[2] <= page[2]
+                and page[1] <= bounds[1] <= bounds[3] <= page[3])
+
+    # A fitting block does not bound an unbroken line or its text descendants.
+    # Include generated contents suffixes in this finite final-layout walk.
+    for charge, box in enumerate(row.descendants(), 1):
+        require(charge <= CONTRACT["limits"]["structure_charge"])
+        bounds = border(box)
+        if inside(bounds):
+            continue
+        # pre-wrap may hang preserved trailing spaces beyond the right edge.
+        # Admit only that exact line/text shape, with all actual glyph ink in
+        # the page. Do not add a tolerance or ignore an overflowing word.
+        require(type(box) in (boxes.LineBox, boxes.TextBox)
+                and box.style.get("white_space") == "pre-wrap"
+                and page[0] <= bounds[0] <= page[2] < bounds[2]
+                and page[1] <= bounds[1] <= bounds[3] <= page[3])
+        if type(box) is boxes.LineBox:
+            require(len(box.children) == 1 and type(box.children[0]) is boxes.TextBox)
+            text = box.children[0]
+            text_bounds = border(text)
+            require(text_bounds[0] == bounds[0] and text_bounds[2] == bounds[2])
+        else:
+            text = box
+        require(text.style.get("white_space") == "pre-wrap"
+                and type(text.text) is str and text.text.endswith(" ")
+                and not text.children and getattr(text, "pango_layout", None) is not None)
+        layout = text.pango_layout
+        layout.reactivate(text.style)
+        try:
+            # Use the same final Pango line and baseline as draw_text.
+            pango.pango_layout_set_single_paragraph_mode(layout.layout, True)
+            first_line, next_line = layout.get_first_line()
+            require(first_line != ffi.NULL and next_line is None)
+            ink = ffi.new("PangoRectangle *")
+            try:
+                pango.pango_layout_line_get_extents(first_line, ink, ffi.NULL)
+                require(inside(rectangle(
+                    text.position_x + ink.x * FROM_UNITS,
+                    text.position_y + text.baseline + ink.y * FROM_UNITS,
+                    ink.width * FROM_UNITS, ink.height * FROM_UNITS)))
+            finally:
+                ffi.release(ink)
+        finally:
+            layout.deactivate()
 
 
 def _editorial_footer(page_box, expected):
