@@ -523,6 +523,7 @@ def _footer_declared_geometry(block, resources, reader, ctm, media):
             require(type(value) is NumberObject)
             widths[first + index] = Decimal(int(value))
     pen, glyphs, points, maximum_extent = Decimal(0), 0, [], Decimal(0)
+    previous_origin = None
     shown = block[5][0][0]
     for item in shown:
         if type(item) is NumberObject:
@@ -536,6 +537,10 @@ def _footer_declared_geometry(block, resources, reader, ctm, media):
             require(glyphs <= 64)
             code = int.from_bytes(data[offset:offset + 2], "big")
             require(code in widths)
+            # Kerning may tighten spacing, but fixed ASCII footer origins must
+            # advance even when later TJ adjustments restore the final pen.
+            require(previous_origin is None or pen > previous_origin)
+            previous_origin = pen
             width = widths[code]
             points.extend(_rectangle(
                 (pen * size / 1000, descent * size / 1000,

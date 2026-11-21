@@ -684,8 +684,12 @@ def _validate_receipt(data: dict) -> None:
         # cannot precede the last fragment, and a paragraph continues once per
         # successive page, so at most page_count - fragment_count - 1 extra
         # containers can follow its first container already in text_units.
+        # Every text container, including a continuation, needs a Span. Each
+        # navigation entry additionally needs its separate suffix Span.
         require(coverage["projected_nodes"] <= (coverage["text_mcids"] + text_units
-                                                 + data["page_count"] - fragment_count))
+                                                 + data["page_count"] - fragment_count)
+                and coverage["projected_nodes"] - coverage["text_mcids"] - 1
+                <= coverage["text_mcids"] - data["navigation_entries"])
     # Each finding needs a body TR, plus Table/THead/TBody/header TR.
     table_nodes = findings + 4 if findings else 0
     # Matched grammar has at most five non-root nodes per Span, plus one

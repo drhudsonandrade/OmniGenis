@@ -1344,6 +1344,80 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                     self.assertFalse(worker._contains(clip, footer[-1:]))
                 self.refuse(args)
 
+    def test_footer_compensated_overlap_refuses_with_kerning_control(self):
+        """Keep text, outer bounds and final advance while changing one origin."""
+        def change(writer, collapse):
+            page = writer.pages[-1]
+
+            def alter(ops):
+                start, end = self.footer_range(ops)
+                shown = next(args[0] for args, op in ops[start + 1:end] if op == b"TJ")
+                font_name = next(args[0] for args, op in ops[start + 1:end] if op == b"Tf")
+                font = page["/Resources"]["/Font"][font_name]
+                declared = font["/DescendantFonts"][0].get_object()["/W"]
+                widths = {int(declared[offset]) + index: int(value)
+                          for offset in range(0, len(declared), 2)
+                          for index, value in enumerate(declared[offset + 1])}
+
+                def measure(items):
+                    pen, codes, placements = 0, bytearray(), []
+                    for item in items:
+                        if type(item) is NumberObject:
+                            pen -= int(item)
+                            continue
+                        self.assertIs(type(item), ByteStringObject)
+                        raw = bytes(item)
+                        self.assertTrue(raw and len(raw) % 2 == 0)
+                        codes.extend(raw)
+                        for offset in range(0, len(raw), 2):
+                            width = widths[int.from_bytes(raw[offset:offset + 2], "big")]
+                            placements.append((pen, width))
+                            pen += width
+                    self.assertGreater(len(placements), 3)
+                    bounds = (min(origin for origin, _ in placements),
+                              max(origin + width for origin, width in placements))
+                    return bytes(codes), pen, bounds, [origin for origin, _ in placements]
+
+                codes, advance, bounds, origins = measure(shown)
+                self.assertTrue(all(right > left for left, right in zip(origins, origins[1:])))
+                delta = origins[2] - origins[1]
+                self.assertGreater(delta, 1)
+                adjustment = delta if collapse else min(20, delta - 1)
+                replacement, glyph = ArrayObject(), 0
+                for item in shown:
+                    if type(item) is NumberObject:
+                        replacement.append(item)
+                        continue
+                    raw = bytes(item)
+                    for offset in range(0, len(raw), 2):
+                        if glyph == 2:
+                            replacement.append(NumberObject(adjustment))
+                        replacement.append(ByteStringObject(raw[offset:offset + 2]))
+                        if glyph == 2:
+                            # Restore before any later glyph or original adjustment.
+                            replacement.append(NumberObject(-adjustment))
+                        glyph += 1
+                changed_codes, changed_advance, changed_bounds, changed = measure(replacement)
+                self.assertEqual((changed_codes, changed_advance, changed_bounds),
+                                 (codes, advance, bounds))
+                self.assertEqual(changed[:2], origins[:2])
+                self.assertEqual(changed[3:], origins[3:])
+                self.assertEqual(changed[2], origins[2] - adjustment)
+                if collapse:
+                    self.assertEqual(changed[2], changed[1])
+                else:
+                    self.assertGreater(adjustment, 0)
+                    self.assertTrue(all(right > left for left, right in zip(changed, changed[1:])))
+                shown[:] = replacement
+            self.edit_page(writer, -1, alter)
+
+        control = self.rewritten(lambda writer: change(writer, False))
+        receipt = self.run_qa(control).to_dict()
+        self.assertEqual(receipt["pdf_sha256"], control["expected_pdf_sha256"])
+        self.assertIs(receipt["complete_literal_source_accounting"], True)
+        self.assertEqual(set(receipt["stages"].values()), {"PASS"})
+        self.refuse(self.rewritten(lambda writer: change(writer, True)))
+
     def test_footers_require_exact_identity_once_on_each_physical_page(self):
         args = self.arguments()
         original = self.native_record()
@@ -2508,6 +2582,41 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             with self.subTest(fragments=fragments, pages=pages,
                               paragraph_nodes="surplus-resealed-to-dict"), self.assertRaises(ValueError):
                 receipt.to_dict()
+            if continuation_containers:
+                # Keep the page-based container cap feasible, but remove one
+                # Span/MCID needed by these nonempty paragraph containers.
+                missing = deepcopy(exact)
+                coverage = missing["coverage"]
+                coverage["text_mcids"] -= 1
+                coverage["native_mcids"] -= 1
+                coverage["projected_nodes"] -= 1
+                coverage["native_nodes"] -= 1
+                coverage["operations"] = self.operation_floor(missing)
+                containers = coverage["projected_nodes"] - coverage["text_mcids"] - 1
+                self.assertEqual((coverage["text_mcids"], coverage["projected_nodes"]),
+                                 (8, 17) if entries == 1 else (11, 22))
+                self.assertEqual(containers, coverage["text_mcids"] - entries + 1)
+                self.assertLessEqual(coverage["projected_nodes"],
+                                     coverage["text_mcids"] + units + pages - fragments)
+                self.assertGreaterEqual(coverage["text_mcids"],
+                                        max(units + entries, pages + 2 * entries + 2 - fragments))
+                self.assertGreaterEqual(coverage["projected_nodes"], coverage["text_mcids"]
+                                        + max(units, pages + entries + 2 - fragments) + 1)
+                self.assertEqual(coverage["native_nodes"], coverage["projected_nodes"]
+                                 + coverage["accounted_brand_wrapper_nodes"] + entries)
+                self.assertEqual(coverage["native_mcids"], coverage["text_mcids"]
+                                 + coverage["figure_count"])
+                self.m._schema(missing)
+                payload = self.m.canonical(missing)
+                with self.subTest(fragments=fragments, pages=pages,
+                                  paragraph_spans="one-below-constructor"), self.assertRaises(ValueError):
+                    self.m.TypedOriginalBrandQA(payload)
+                receipt = self.m.TypedOriginalBrandQA(self.m.canonical(exact))
+                object.__setattr__(receipt, "_payload", payload)
+                object.__setattr__(receipt, "_sealed_sha256", sha256(payload).hexdigest())
+                with self.subTest(fragments=fragments, pages=pages,
+                                  paragraph_spans="one-below-resealed-to-dict"), self.assertRaises(ValueError):
+                    receipt.to_dict()
 
         # With only the title and destination headings, no source paragraph or
         # table remains to continue beyond the cover/contents/headings/credit.
