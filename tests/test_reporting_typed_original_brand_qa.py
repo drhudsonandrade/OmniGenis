@@ -2375,6 +2375,14 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             missing_coverage = missing_suffix["coverage"]
             missing_coverage["text_mcids"] -= 1
             missing_coverage["native_mcids"] -= 1
+            if findings == 0:
+                missing_coverage["projected_nodes"] -= 1
+                missing_coverage["native_nodes"] -= 1
+                self.assertEqual((missing_coverage["text_mcids"],
+                                  missing_coverage["projected_nodes"],
+                                  missing_coverage["native_nodes"]), (6, 13, 20))
+                self.assertEqual(missing_coverage["projected_nodes"],
+                                 missing_coverage["text_mcids"] + text_units + 1)
             self.assertEqual(missing_coverage["text_mcids"],
                              text_units + missing_suffix["navigation_entries"] - 1)
             self.assertGreaterEqual(missing_coverage["text_mcids"], text_units)
@@ -2385,6 +2393,9 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             self.assertLessEqual(missing_coverage["projected_nodes"],
                                  1 + 6 * missing_coverage["text_mcids"])
             self.assertGreaterEqual(missing_coverage["text_mcids"], missing_suffix["page_count"])
+            self.assertGreaterEqual(missing_coverage["text_mcids"],
+                                    missing_suffix["page_count"] + 2 * missing_suffix["navigation_entries"]
+                                    + 2 - (missing_coverage["accounted_brand_wrapper_nodes"] - 5))
             self.assertGreaterEqual(missing_coverage["operations"], self.operation_floor(missing_suffix))
             self.m._schema(missing_suffix)
             payload = self.m.canonical(missing_suffix)
@@ -2458,6 +2469,45 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                                         + coverage["accounted_brand_wrapper_nodes"] + entries)
             coverage["operations"] = self.operation_floor(value)
             return value
+
+        # One extra source unit cannot form a table: its caption and first
+        # header need two units. The paragraph can have one container on the
+        # last contents page and each later page, with one Span per fragment.
+        for fragments, pages, entries, text_mcids, maximum in (
+                (1, 2, 1, 8, 16), (1, 3, 1, 9, 18),
+                (2, 3, 2, 11, 21), (2, 4, 2, 12, 23)):
+            exact = navigation_boundary(
+                fragments, pages, entries, source_units=2 + entries, text_mcids=text_mcids)
+            coverage = exact["coverage"]
+            units = exact["source_units"] + exact["brand_text_units"] + 1 + entries
+            continuation_containers = pages - fragments - 1
+            coverage["projected_nodes"] = text_mcids + units + 1 + continuation_containers
+            coverage["native_nodes"] = (coverage["projected_nodes"]
+                                        + coverage["accounted_brand_wrapper_nodes"] + entries)
+            self.assertEqual(coverage["projected_nodes"], maximum)
+            self.assertEqual(text_mcids, units + entries + continuation_containers)
+            self.m._schema(exact)
+            with self.subTest(fragments=fragments, pages=pages, paragraph_nodes="exact"):
+                self.assertEqual(self.m.TypedOriginalBrandQA(self.m.canonical(exact)).to_dict(), exact)
+            bad = deepcopy(exact)
+            bad["coverage"]["projected_nodes"] += 1
+            bad["coverage"]["native_nodes"] += 1
+            self.assertEqual(bad["coverage"]["projected_nodes"], maximum + 1)
+            self.assertLessEqual(bad["coverage"]["projected_nodes"], 1 + 6 * text_mcids)
+            self.assertLessEqual(2 * bad["coverage"]["native_nodes"] - 1
+                                 + bad["coverage"]["native_mcids"], self.m.prior.MAX_VISITS)
+            self.assertEqual(bad["coverage"]["operations"], self.operation_floor(bad))
+            self.m._schema(bad)
+            payload = self.m.canonical(bad)
+            with self.subTest(fragments=fragments, pages=pages,
+                              paragraph_nodes="surplus-constructor"), self.assertRaises(ValueError):
+                self.m.TypedOriginalBrandQA(payload)
+            receipt = self.m.TypedOriginalBrandQA(self.m.canonical(exact))
+            object.__setattr__(receipt, "_payload", payload)
+            object.__setattr__(receipt, "_sealed_sha256", sha256(payload).hexdigest())
+            with self.subTest(fragments=fragments, pages=pages,
+                              paragraph_nodes="surplus-resealed-to-dict"), self.assertRaises(ValueError):
+                receipt.to_dict()
 
         # With only the title and destination headings, no source paragraph or
         # table remains to continue beyond the cover/contents/headings/credit.

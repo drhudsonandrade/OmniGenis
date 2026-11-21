@@ -15,7 +15,7 @@
   "sources": {
     "reporting/_pdf_original_dna_png_admission.py": "3f1a849a98b32cecaf73c09b5f289b5ab7bcb04cc50f01400bfb0fa81adc4a4a",
     "reporting/_pdf_original_svg_layout_worker.py": "bdfd7b79d7445d3d68351cde7e0cd63777a8339f903a4ac3ae72f421ec211f76",
-    "reporting/_pdf_typed_brand_emission.py": "47d499f713f59b215c67be962407f04228b30fb5a9f855779f0a8a3895299c00",
+    "reporting/_pdf_typed_brand_emission.py": "f361f627736f5ec3e9cbbc0db7b5f9920cc295e2dc7c6a5d089747c68df71438",
     "reporting/_pdf_typed_brand_render_worker.py": "6054dab7dc6c8e2d342ef7ce4a313bf2d39dc8f9472b16e25a2c9622e1abf4d5",
     "reporting/_pdf_typed_original_brand_qa_worker.py": "36d3ca97cf9933062382eafe03c1b40d483bd204dd58396352e261aef25e1303",
     "reporting/assets/brand-permission.md": "14a5170bec0e347ec274312f1b915aa9a9d94de61ad32260fc8305f1eb9ddeab",
@@ -24,16 +24,16 @@
     "reporting/brand_assets.py": "400045ee7f8eca94a938608566695d03b276e322f8aa3bcd78485b7abb1b4649",
     "reporting/editorial_typed_pdf.py": "0e2a2266b49f18e4742850b484227dceebc90f6ffdaeea98cd33eea2cb037dc8",
     "reporting/internal_navigation.py": "f8e6edd6847a456eb9e8d6c0b1cfbad50fbe05eb1d74028a4693a4e425884c28",
-    "reporting/pdf-typed-brand-render.v1.json": "ae663efe7104bdc933f9f7233985930f391b6d355f0bc65ed1301375a8319525",
+    "reporting/pdf-typed-brand-render.v1.json": "a4f71249114a3ca17835e63f058f1ed324b603974de5a1b4a14dd2aed2cb1f45",
     "reporting/pdf-typed-observation.v1.json": "6d7c541dcf25d3be19fe3a7391239e5c7ffed5b29be092c062c03e3e5d744490",
     "reporting/pdf_original_brand_inclusion.py": "8e3e00eed71d7b51e247bae8a6e952248ecf8a9119d03ef7fa4113d7e12b3660",
     "reporting/pdf_typed_brand_render.py": "280f66326f4c12e4c9fc739f55e4e3f5a0d91aa99bb380def85bd5f68fe719da",
     "reporting/typed_original_brand_pdf.py": "a73ffb54b7ad9fd2e49cc543a333b013233f889045582153edcb6fbfa057000d",
-    "reporting/typed_original_brand_qa.py": "b2954f00184d565ffaead7dff115826c0cf0ee3da468b25996d2c6a2ef26a773",
+    "reporting/typed_original_brand_qa.py": "928c0899692e6b6a4930e52fff9a7e91a2064d543f378a468e068309abe84182",
     "reporting/typed_pdf_association.py": "0b6f4be7d81dc5624aaa3b7e11ed3cfbca0d7d9222272f6c24ba07ee617b3a63",
     "reporting/typed_pdf_source.py": "ace530cd727eaf513bffb9070c1b412db166ca4b966d390e710b853ec8676c59",
     "schemas/report-typed-original-brand-qa.v1.schema.json": "f09fedbf5b37234ef5732cfe3081500cc036ca5d57ce7f26c4481b00b6d297ee",
-    "tests/test_reporting_typed_original_brand_qa.py": "0f1a9b363a89fdb69ce47ee7055e1ab62975caabb0529c36a80bbd5c7fbe0bcd"
+    "tests/test_reporting_typed_original_brand_qa.py": "9e9d3337eb10195b810148f6dfcb56761b52526c1453684ed08271985e26fe73"
   },
   "structure_id_tree_policy": "FLAT_NAMES_EXACT_ORIGINAL_BYTE_ID_MAP",
   "table_identifier_policy": "PYPDF_TEXTSTRINGOBJECT_ONLY_ORIGINAL_BYTES_1_TO_128",

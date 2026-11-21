@@ -678,6 +678,14 @@ def _validate_receipt(data: dict) -> None:
         # container. Only the Document remains, with no extra table/paragraph.
         require(data["page_count"] <= fragment_count + data["navigation_entries"] + 2
                 and coverage["projected_nodes"] == coverage["text_mcids"] + text_units + 1)
+    elif findings == 0 and data["source_units"] == 2 + data["navigation_entries"]:
+        # One extra unit is a paragraph: a table needs a caption and header.
+        # Contents fragments occupy distinct pages after the cover. The body
+        # cannot precede the last fragment, and a paragraph continues once per
+        # successive page, so at most page_count - fragment_count - 1 extra
+        # containers can follow its first container already in text_units.
+        require(coverage["projected_nodes"] <= (coverage["text_mcids"] + text_units
+                                                 + data["page_count"] - fragment_count))
     # Each finding needs a body TR, plus Table/THead/TBody/header TR.
     table_nodes = findings + 4 if findings else 0
     # Matched grammar has at most five non-root nodes per Span, plus one
