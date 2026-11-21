@@ -688,7 +688,8 @@ class TypedBrandRouteTests(unittest.TestCase):
         from reporting import adapters, _pdf_typed_brand_emission as core
 
         original_distribution = core.distribution
-        for name in ("weasyprint/layout/inline.py", "weasyprint/layout/page.py"):
+        for name in ("weasyprint/layout/inline.py", "weasyprint/layout/page.py",
+                     "weasyprint/layout/__init__.py"):
             with self.subTest(engine=name):
                 engine = Path(original_distribution("weasyprint").locate_file(name))
                 original = engine.read_bytes()

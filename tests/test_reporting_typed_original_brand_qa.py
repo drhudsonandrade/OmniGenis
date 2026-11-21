@@ -2730,7 +2730,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         # Sparse controls isolate page/navigation obligations from the
         # independent source-unit floor, including two contents fragments.
         for fragments, pages, entries, source_units, minimum in (
-                (1, 8, 1, 3, 11), (2, 8, 2, 4, 12)):
+                (1, 8, 1, 5, 11), (2, 10, 2, 6, 14)):
             exact = navigation_boundary(
                 fragments, pages, entries, source_units=source_units, text_mcids=minimum)
             units = source_units + exact["brand_text_units"] + 1 + entries
@@ -2744,6 +2744,23 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 fragments, pages, entries, source_units=source_units, text_mcids=minimum - 1)
             self.assertGreaterEqual(bad["coverage"]["text_mcids"], units + entries)
             self.assertGreaterEqual(bad["coverage"]["text_mcids"], pages)
+            self.assertTrue(source_units > 3 + entries,
+                            "sparse MCID floor cases must bypass small-body branches")
+            coverage = bad["coverage"]
+            self.assertEqual(minimum, pages + 2 * entries + 2 - fragments)
+            self.assertEqual(coverage["text_mcids"], minimum - 1)
+            self.assertEqual(coverage["native_nodes"], coverage["projected_nodes"]
+                             + coverage["accounted_brand_wrapper_nodes"]
+                             + coverage["accounted_navigation_wrapper_nodes"])
+            self.assertEqual(coverage["native_mcids"], coverage["text_mcids"]
+                             + coverage["figure_count"])
+            self.assertEqual(coverage["accounted_navigation_wrapper_nodes"], entries)
+            self.assertGreaterEqual(coverage["projected_nodes"], coverage["text_mcids"]
+                                    + max(units, pages + entries + 2 - fragments) + 1)
+            self.assertLessEqual(coverage["projected_nodes"], 1 + 6 * coverage["text_mcids"])
+            self.assertGreaterEqual(coverage["operations"], self.operation_floor(bad))
+            self.assertLessEqual(2 * coverage["native_nodes"] - 1 + coverage["native_mcids"],
+                                 self.m.prior.MAX_VISITS)
             self.m._schema(bad)
             payload = self.m.canonical(bad)
             with self.subTest(fragment_count=fragments, text_mcid_bound="one-below",
@@ -3009,6 +3026,20 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         for counter in ("native_nodes", "native_mcids", "accounted_navigation_wrapper_nodes", "pagination_blocks"):
             bad = deepcopy(source)
             bad["coverage"][counter] += 1
+            if counter == "accounted_navigation_wrapper_nodes":
+                bad["coverage"]["native_nodes"] += 1
+                coverage = bad["coverage"]
+                self.assertTrue(coverage["native_nodes"] == coverage["projected_nodes"]
+                                + coverage["accounted_brand_wrapper_nodes"]
+                                + coverage["accounted_navigation_wrapper_nodes"],
+                                "navigation wrapper case must preserve native node accounting")
+                self.assertEqual(coverage["accounted_navigation_wrapper_nodes"],
+                                 bad["navigation_entries"] + 1)
+                changed = {"native_nodes", "accounted_navigation_wrapper_nodes"}
+                self.assertEqual({key: value for key, value in coverage.items() if key not in changed},
+                                 {key: value for key, value in source["coverage"].items() if key not in changed})
+                self.assertLessEqual(2 * coverage["native_nodes"] - 1 + coverage["native_mcids"],
+                                     self.m.prior.MAX_VISITS)
             self.m._schema(bad)
             payload = self.m.canonical(bad)
             with self.subTest(coverage=counter, operation="constructor"):

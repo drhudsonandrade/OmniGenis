@@ -15,7 +15,7 @@
   "sources": {
     "reporting/_pdf_original_dna_png_admission.py": "3f1a849a98b32cecaf73c09b5f289b5ab7bcb04cc50f01400bfb0fa81adc4a4a",
     "reporting/_pdf_original_svg_layout_worker.py": "bdfd7b79d7445d3d68351cde7e0cd63777a8339f903a4ac3ae72f421ec211f76",
-    "reporting/_pdf_typed_brand_emission.py": "ff2f9dac6cd115427d986d752634b18d7508a033f41086c73e317cab4f4e28d1",
+    "reporting/_pdf_typed_brand_emission.py": "4d2cd70de6d5de610ef9d5089fca49f6baa55f82e1389d8686052cab9e51ab68",
     "reporting/_pdf_typed_brand_render_worker.py": "6054dab7dc6c8e2d342ef7ce4a313bf2d39dc8f9472b16e25a2c9622e1abf4d5",
     "reporting/_pdf_typed_original_brand_qa_worker.py": "7a950228721eb312308e84204cfc3bf9a8c2a4a2becb07c8ff4a6dff9d4a205e",
     "reporting/assets/brand-permission.md": "14a5170bec0e347ec274312f1b915aa9a9d94de61ad32260fc8305f1eb9ddeab",
@@ -24,7 +24,7 @@
     "reporting/brand_assets.py": "400045ee7f8eca94a938608566695d03b276e322f8aa3bcd78485b7abb1b4649",
     "reporting/editorial_typed_pdf.py": "0e2a2266b49f18e4742850b484227dceebc90f6ffdaeea98cd33eea2cb037dc8",
     "reporting/internal_navigation.py": "f8e6edd6847a456eb9e8d6c0b1cfbad50fbe05eb1d74028a4693a4e425884c28",
-    "reporting/pdf-typed-brand-render.v1.json": "7f803d98c1b9fd24d101cec8178d7865972669dce1d3a2c47ea18e6d22d152c3",
+    "reporting/pdf-typed-brand-render.v1.json": "c0e7712b0d8407def4da3344322d6f3445427d57d6f8c5d509622575b0e43d44",
     "reporting/pdf-typed-observation.v1.json": "6d7c541dcf25d3be19fe3a7391239e5c7ffed5b29be092c062c03e3e5d744490",
     "reporting/pdf_original_brand_inclusion.py": "8e3e00eed71d7b51e247bae8a6e952248ecf8a9119d03ef7fa4113d7e12b3660",
     "reporting/pdf_typed_brand_render.py": "280f66326f4c12e4c9fc739f55e4e3f5a0d91aa99bb380def85bd5f68fe719da",
@@ -33,7 +33,7 @@
     "reporting/typed_pdf_association.py": "0b6f4be7d81dc5624aaa3b7e11ed3cfbca0d7d9222272f6c24ba07ee617b3a63",
     "reporting/typed_pdf_source.py": "ace530cd727eaf513bffb9070c1b412db166ca4b966d390e710b853ec8676c59",
     "schemas/report-typed-original-brand-qa.v1.schema.json": "f09fedbf5b37234ef5732cfe3081500cc036ca5d57ce7f26c4481b00b6d297ee",
-    "tests/test_reporting_typed_original_brand_qa.py": "69be161b0d3190894b0702d13ee3e84c031f1b8666e7f6394c655fbb3cf904a4"
+    "tests/test_reporting_typed_original_brand_qa.py": "4132563693fd56e93a05f124c548285cbbefc8fab4525fc653ec6d92370739ed"
   },
   "structure_id_tree_policy": "FLAT_NAMES_EXACT_ORIGINAL_BYTE_ID_MAP",
   "table_identifier_policy": "PYPDF_TEXTSTRINGOBJECT_ONLY_ORIGINAL_BYTES_1_TO_128",
