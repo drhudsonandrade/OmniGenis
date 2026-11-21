@@ -17,11 +17,12 @@ cover area beside the DNA and below the logo in the actual fixed-font layout.
 Title boxes or glyph ink outside that area refuse rendering before the first
 page is painted. The existing gaps allow safe ink overhang. Text is never shortened.
 
-Each generated contents entry, including its printed page suffix, must occupy one
-complete paragraph box inside a physical page's content area. Entries may wrap
-within that page and the contents section may continue between entries. The
-worker refuses fragmented or out-of-page entry boxes before painting that page
-or returning a PDF candidate. Staging establishes source identity, not layout fit.
+Each generated contents entry, including its printed page suffix, and its source
+destination heading must occupy a complete box inside one physical page's content
+area. Entries and headings may wrap within that page; the contents section may
+continue between entries. The worker refuses fragmented or out-of-page entry or
+destination-heading boxes before painting the affected page or returning a PDF
+candidate. Staging establishes source identity, not layout fit.
 """
 from __future__ import annotations
 
@@ -66,6 +67,7 @@ _COVER_CSS = (
     'width:279.27559pt;margin:0;overflow-wrap:anywhere}'
     'section[data-editorial-navigation]{margin:0 0 18pt;break-inside:avoid}'
     'p[data-editorial-nav-target]{margin:5pt 0;break-inside:avoid}'
+    'body>h2[id][data-section]{break-inside:avoid}'
     'p[data-editorial-nav-target]::after{white-space:pre;content:" | " '
     'target-counter(attr(data-editorial-nav-target),page)}'
 )
@@ -167,9 +169,9 @@ def prepare_typed_original_brand_pdf(
 ) -> tuple[str, RasterBundle, dict]:
     """Stage this profile's exact source, including one or more section headings.
 
-    Title and contents-entry fit are decided from the actual layout in the
+    Title, contents-entry and destination-heading fit use the actual layout in the
     existing render worker. Preparation alone establishes neither cover fit nor
-    the one-page admission of a complete navigation paragraph.
+    the one-page admission of a complete navigation paragraph or source heading.
     """
     try:
         _ready(assets, expected_brand_bundle_sha256)

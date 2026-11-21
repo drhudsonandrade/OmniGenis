@@ -1683,7 +1683,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         self.assertEqual(len(targets), len(labels))
         links = associations[0]["editorial_navigation"]
         self.assertEqual(len(links), len(labels))
-        wrapped = 0
+        wrapped = wrapped_targets = 0
         for index, (label, entry, target, link) in enumerate(zip(
                 labels, entries, targets, links, strict=True)):
             spans = children(entry)
@@ -1696,6 +1696,11 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             wrapped += len(spans[:-1]) > 1
             self.assertEqual("".join(literal(span) for span in spans[:-1]), label)
             self.assertEqual(literal(target), label)
+            target_spans = children(target)
+            self.assertTrue(all(span["role"] == "/Span"
+                                and span["page_reference"] == target["page_reference"]
+                                for span in target_spans))
+            wrapped_targets += len(target_spans) > 1
             target_page = pages[tuple(target["page_reference"])]["index"]
             printed = label + " | " + str(target_page + 1)
             self.assertEqual(literal(suffix[0]), " | " + str(target_page + 1))
@@ -1708,6 +1713,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             self.assertEqual(link["navigation_container_reference"], entry["reference"])
             self.assertEqual(link["printed_reference_sha256"], sha256(printed.encode()).hexdigest())
         self.assertGreater(wrapped, 0)
+        self.assertGreater(wrapped_targets, 0)
 
         for mode in ("section-page", "continuation-page", "cross-page-span",
                      "backward-fragment-order", "continuation-heading"):
@@ -2452,6 +2458,44 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                                         + coverage["accounted_brand_wrapper_nodes"] + entries)
             coverage["operations"] = self.operation_floor(value)
             return value
+
+        # With only the title and destination headings, no source paragraph or
+        # table remains to continue beyond the cover/contents/headings/credit.
+        for fragments, entries, maximum, cap_mcids, overflow_pages, overflow_mcids in (
+                (1, 1, 4, 7, 5, 8), (1, 1, 4, 7, 8, 11), (2, 2, 6, 10, 7, 11)):
+            exact = navigation_boundary(fragments, maximum, entries, text_mcids=cap_mcids)
+            self.assertEqual(exact["source_units"], 1 + entries)
+            self.assertEqual(maximum, fragments + entries + 2)
+            with self.subTest(fragments=fragments, minimum_source_page_cap="exact"):
+                self.assertEqual(self.m.TypedOriginalBrandQA(self.m.canonical(exact)).to_dict(), exact)
+            bad = navigation_boundary(fragments, overflow_pages, entries, text_mcids=overflow_mcids)
+            coverage = bad["coverage"]
+            units = bad["source_units"] + bad["brand_text_units"] + 1 + entries
+            self.assertEqual(bad["represented_findings"], 0)
+            self.assertEqual(bad["source_units"], 1 + entries)
+            self.assertGreater(overflow_pages, maximum)
+            self.assertGreaterEqual(coverage["text_mcids"], max(
+                units + entries, overflow_pages + 2 * entries + 2 - fragments))
+            self.assertGreaterEqual(coverage["projected_nodes"], overflow_mcids + max(
+                units, overflow_pages + entries + 2 - fragments) + 1)
+            self.assertLessEqual(coverage["projected_nodes"], 1 + 6 * overflow_mcids)
+            self.assertLessEqual(2 * coverage["native_nodes"] - 1
+                                 + coverage["native_mcids"], self.m.prior.MAX_VISITS)
+            self.assertEqual(coverage["operations"], self.operation_floor(bad))
+            if (fragments, entries, overflow_pages) == (1, 1, 8):
+                self.assertEqual((bad["source_units"], coverage["text_mcids"],
+                                  coverage["projected_nodes"]), (2, 11, 22))
+            self.m._schema(bad)
+            payload = self.m.canonical(bad)
+            with self.subTest(fragments=fragments, pages=overflow_pages,
+                              boundary="constructor"), self.assertRaises(ValueError):
+                self.m.TypedOriginalBrandQA(payload)
+            receipt = self.m.TypedOriginalBrandQA(self.m.canonical(exact))
+            object.__setattr__(receipt, "_payload", payload)
+            object.__setattr__(receipt, "_sealed_sha256", sha256(payload).hexdigest())
+            with self.subTest(fragments=fragments, pages=overflow_pages,
+                              boundary="resealed-to-dict"), self.assertRaises(ValueError):
+                receipt.to_dict()
 
         for fragments, page_count, entries in ((1, 2, 1), (2, 3, 2), (63, 64, 63)):
             exact = navigation_boundary(fragments, page_count, entries)

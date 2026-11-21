@@ -1713,7 +1713,9 @@ class EditorialBrandEmissionTests(unittest.TestCase):
     def test_navigation_row_requires_complete_in_page_layout(self):
         from xml.etree.ElementTree import Element
         from weasyprint.formatting_structure import boxes
-        from reporting._pdf_typed_brand_emission import _editorial_navigation_row
+        from reporting._pdf_typed_brand_emission import (
+            _editorial_navigation_heading, _editorial_navigation_row,
+        )
 
         def geometry(box, x, y, width, height):
             box.position_x, box.position_y = x, y
@@ -1737,18 +1739,22 @@ class EditorialBrandEmissionTests(unittest.TestCase):
             ("outside-bottom", (100, 1100, 700, 51), set(), "slice", False),
             ("unadmitted-cloned-decoration", (100, 100, 700, 40), set(), "clone", False),
         )
-        for name, bounds, removed, decoration, admitted in cases:
-            with self.subTest(case=name):
-                page = geometry(boxes.Box("page", {}, None), 50, 50, 800, 1100)
-                element = Element("p", {"data-editorial-nav-target": "#heading"})
-                row = geometry(boxes.BlockBox("p", {"box_decoration_break": decoration},
-                                               element, []), *bounds)
-                row.remove_decoration_sides = removed
-                if admitted:
-                    _editorial_navigation_row(page, row)
-                else:
-                    with self.assertRaises(ValueError):
-                        _editorial_navigation_row(page, row)
+        for tag, attributes, check in (
+                ("p", {"data-editorial-nav-target": "#heading"}, _editorial_navigation_row),
+                ("h2", {"id": "heading", "data-section": "findings"},
+                 _editorial_navigation_heading)):
+            for name, bounds, removed, decoration, admitted in cases:
+                with self.subTest(tag=tag, case=name):
+                    page = geometry(boxes.Box("page", {}, None), 50, 50, 800, 1100)
+                    element = Element(tag, attributes)
+                    row = geometry(boxes.BlockBox(tag, {"box_decoration_break": decoration},
+                                                   element, []), *bounds)
+                    row.remove_decoration_sides = removed
+                    if admitted:
+                        check(page, row)
+                    else:
+                        with self.assertRaises(ValueError):
+                            check(page, row)
 
     def test_exact_footer_admits_only_one_generated_text_leaf(self):
         from reporting._pdf_typed_brand_emission import _editorial_footer

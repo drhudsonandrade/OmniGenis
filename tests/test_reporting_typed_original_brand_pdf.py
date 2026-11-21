@@ -134,23 +134,78 @@ class TypedOriginalBrandPdfTests(unittest.TestCase):
                     render.assert_not_called()
 
     def test_oversized_navigation_entry_stages_but_refuses_render(self):
-        label = "Wrapped navigation label " * 512
-        self.assertNotIn("\n", label)
-        source = self._source_with_cover_title("Technical report", heading_text=label)
-        args = self.arguments() | {
-            "presentation_ir": source, "expected_ir_sha256": digest(source)}
-        html, _, staged = self.m.prepare_typed_original_brand_pdf(**args)
-        self.assertEqual(staged["status"], "STAGED_TYPED_ORIGINAL_BRAND_CANDIDATE")
-        self.assertEqual(staged["source_ir_sha256"], args["expected_ir_sha256"])
-        self.assertEqual(staged["html_sha256"], sha256(html.encode("utf-8")).hexdigest())
-        self.assertEqual(staged["navigation_entry_count"], 1)
-        self.assertIn('<p data-editorial-nav-target="#heading">' + label + '</p>', html)
-        with patch.object(self.m, "render_typed_brand_pdf",
-                          wraps=self.m.render_typed_brand_pdf) as render:
-            with self.assertRaisesRegex(
-                    self.m.TypedOriginalBrandError, "^typed_original_brand_pdf_unavailable$"):
-                self.m.render_typed_original_brand_pdf(**args)
-            render.assert_called_once()
+        import json
+        from reporting import adapters, _pdf_render_worker as worker
+        from reporting import _pdf_typed_brand_emission as emission
+
+        for name, label in (
+                ("oversized-contents", "Wrapped navigation label " * 512),
+                ("oversized-destination", ("Wrapped destination " * 192).rstrip())):
+            with self.subTest(case=name):
+                self.assertNotIn("\n", label)
+                source = self._source_with_cover_title("Technical report", heading_text=label)
+                args = self.arguments() | {
+                    "presentation_ir": source, "expected_ir_sha256": digest(source)}
+                html, resources, staged = self.m.prepare_typed_original_brand_pdf(**args)
+                self.assertEqual(staged["status"], "STAGED_TYPED_ORIGINAL_BRAND_CANDIDATE")
+                self.assertEqual(staged["source_ir_sha256"], args["expected_ir_sha256"])
+                self.assertEqual(staged["html_sha256"], sha256(html.encode("utf-8")).hexdigest())
+                self.assertEqual(staged["navigation_entry_count"], 1)
+                contents = '<p data-editorial-nav-target="#heading">' + label + '</p>'
+                self.assertIn(contents, html)
+                if name == "oversized-destination":
+                    # A bounded native layout control keeps this exact contents
+                    # paragraph and shortens only the source H2 in test HTML.
+                    # Its success proves the contents row itself fits; it is
+                    # not presented as an IR-matched original-brand candidate.
+                    heading = '<h2 id="heading" data-section="findings">' + label + '</h2>'
+                    self.assertEqual(html.count(heading), 1)
+                    control = html.replace(heading,
+                        '<h2 id="heading" data-section="findings">Short destination</h2>')
+                    self.assertIn(contents, control)
+                    admitted = self.m.render_typed_brand_pdf(
+                        html=control, expected_html_sha256=sha256(control.encode()).hexdigest(),
+                        resources=resources, expected_resources_sha256=staged["resources_sha256"])
+                    self.assertTrue(admitted.pdf_bytes.startswith(b"%PDF-1.7"))
+
+                descriptors, processes = [], []
+                start = adapters._start_pdf_render_worker
+
+                def retain_output_descriptors(command, **kwargs):
+                    fds = kwargs["pass_fds"]
+                    self.assertEqual(len(fds), 4)
+                    for fd in fds[1:3]:
+                        self.assertEqual(os.fstat(fd).st_size, 0)
+                        descriptors.append(os.dup(fd))
+                    # Forward the original descriptors and before_spawn hook;
+                    # the real waiter and cleanup custody remain untouched.
+                    process = start(command, **kwargs)
+                    processes.append(process)
+                    return process
+
+                try:
+                    with patch.object(adapters, "_start_pdf_render_worker",
+                                      side_effect=retain_output_descriptors), \
+                            patch.object(self.m, "render_typed_brand_pdf",
+                                         wraps=self.m.render_typed_brand_pdf) as render:
+                        with self.assertRaisesRegex(
+                                self.m.TypedOriginalBrandError,
+                                "^typed_original_brand_pdf_unavailable$"):
+                            self.m.render_typed_original_brand_pdf(**args)
+                        render.assert_called_once()
+                    self.assertEqual(len(processes), 1)
+                    self.assertEqual(processes[0].returncode, 0)
+                    self.assertEqual(len(descriptors), 2)
+                    self.assertEqual(os.fstat(descriptors[0]).st_size, 0)
+                    raw = os.pread(descriptors[1], worker.RESULT_BYTES + 1, 0)
+                    self.assertLessEqual(len(raw), worker.RESULT_BYTES)
+                    result = json.loads(raw.decode("ascii"))
+                    self.assertEqual((result["protocol_version"], result["status"], result["error"]),
+                                     (3, "FAIL", "pdf_render_failed"))
+                    self.assertEqual(result["profile_sha256"], emission.profile_sha256())
+                finally:
+                    for fd in descriptors:
+                        os.close(fd)
 
     def test_heading_free_generic_source_refuses_before_original_brand_render(self):
         source = self._source_with_cover_title("Technical report", heading=False)
@@ -199,6 +254,64 @@ class TypedOriginalBrandPdfTests(unittest.TestCase):
         entries = [line.strip() for page in reader.pages for line in page.extract_text().splitlines()
                    if line.strip().startswith("Declared findings | ")]
         self.assertEqual(entries, ["Declared findings | " + str(number)])
+        self.assertTrue(all("/Annots" not in page for page in reader.pages))
+
+        # This fixed-font source heading fits a page, while its text and the
+        # preceding contents text cannot share one page. Inspect the actual
+        # moved heading and the same-artifact combined association.
+        import json
+        from reporting import typed_original_brand_qa as qa
+        from reporting.typed_pdf_source import prepare_typed_pdf_source
+
+        label = ("Wrapped destination " * 96).rstrip()
+        source = self._source_with_cover_title("Technical report", heading_text=label)
+        args = self.arguments() | {
+            "presentation_ir": source, "expected_ir_sha256": digest(source)}
+        expectation = prepare_typed_pdf_source(
+            presentation_ir=source, expected_ir_sha256=args["expected_ir_sha256"])
+        candidate, _ = self.m.render_typed_original_brand_pdf(**args)
+        observations = []
+        inspect_native = qa._run_worker
+
+        def retain_observation(pdf_bytes, pdf_sha256):
+            raw = inspect_native(pdf_bytes, pdf_sha256)
+            observations.append(raw)
+            return raw
+
+        with patch.object(qa, "_run_worker", side_effect=retain_observation) as inspected:
+            receipt = qa.validate_typed_original_brand_candidate(
+                **args, expected_source_expectation_sha256=expectation.expectation_sha256,
+                pdf_bytes=candidate.pdf_bytes, expected_pdf_sha256=candidate.pdf_sha256,
+                expected_profile_sha256=qa.profile_sha256()).to_dict()
+            inspected.assert_called_once_with(candidate.pdf_bytes, candidate.pdf_sha256)
+        self.assertEqual(len(observations), 1)
+        self.assertEqual(receipt["pdf_sha256"], candidate.pdf_sha256)
+        self.assertEqual(receipt["native_observation_sha256"], sha256(observations[0]).hexdigest())
+        trace = json.loads(observations[0])["trace"]
+        nodes = {tuple(node["reference"]): node for node in trace["nodes"]}
+        pages = {tuple(page["reference"]): page for page in trace["pages"]}
+        targets = [node for node in nodes.values() if node["role"] == "/H2" and literal(node) == label]
+        self.assertEqual(len(targets), 1)
+        target = targets[0]
+        target_page = pages[tuple(target["page_reference"])]["index"]
+        entries = [node for node in nodes.values() if node["role"] == "/P"
+                   and literal(node) == label + " | " + str(target_page + 1)]
+        self.assertEqual(len(entries), 1)
+        entry = entries[0]
+        self.assertEqual(pages[tuple(entry["page_reference"])]["index"], 1)
+        self.assertEqual(target_page, 2)
+        target_spans = [nodes[tuple(child["reference"])] for child in target["children"]]
+        entry_spans = [nodes[tuple(child["reference"])] for child in entry["children"]
+                       if nodes[tuple(child["reference"])]["role"] == "/Span"]
+        self.assertGreater(len(target_spans), 1)
+        self.assertTrue(all(span["role"] == "/Span"
+                            and span["page_reference"] == target["page_reference"]
+                            for span in target_spans))
+        # Each plain fixed-font line has one Span. Even omitting all margins
+        # and the Contents heading, their line boxes exceed the content height.
+        self.assertGreater(20 * len(target_spans) + 15.3 * len(entry_spans), 753.88976)
+        self.assertLessEqual(20 * len(target_spans), 753.88976)
+        reader = PdfReader(BytesIO(candidate.pdf_bytes), strict=True)
         self.assertTrue(all("/Annots" not in page for page in reader.pages))
 
     def test_exact_original_asset_bytes_and_one_credit_are_in_prepared_markup(self):

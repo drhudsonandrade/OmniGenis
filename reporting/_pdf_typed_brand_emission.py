@@ -445,8 +445,23 @@ def _editorial_navigation_row(page_box, row):
 
     require(type(row) is boxes.BlockBox and row.element_tag == "p"
             and row.element is not None and row.element.get("data-editorial-nav-target"))
+    _editorial_complete_page_box(page_box, row)
+
+
+def _editorial_navigation_heading(page_box, heading):
+    """Require an admitted source destination heading to remain on one page."""
+    from weasyprint.formatting_structure import boxes
+
+    require(type(heading) is boxes.BlockBox and heading.element_tag == "h2"
+            and heading.element is not None and heading.element.get("id")
+            and heading.element.get("data-section"))
+    _editorial_complete_page_box(page_box, heading)
+
+
+def _editorial_complete_page_box(page_box, row):
+    """Check the same finite fragment and page bounds for admitted text blocks."""
     # The pinned layout marks both incomplete and continued slice edges, even
-    # when an oversized break-inside:avoid paragraph's partial box fits a page.
+    # when an oversized break-inside:avoid block's partial box fits a page.
     require(row.style["box_decoration_break"] == "slice" and not row.remove_decoration_sides)
 
     def rectangle(x, y, width, height):
@@ -494,13 +509,22 @@ def _install_editorial_after_font_bootstrap():
     require(not getattr(original_draw, "_typed_brand_editorial", False))
     pages, margins, texts = [], {}, {}
     source_root, source_cover, source_ir = None, None, None
+    source_headings = frozenset()
 
     def draw_page(page_box, stream):
-        nonlocal source_root, source_cover, source_ir
+        nonlocal source_root, source_cover, source_ir, source_headings
         html, cover, ir = _editorial_source(page_box)
         if not pages:
             source_root = html.element if html is not None else None
             source_cover, source_ir = cover, ir
+            if ir is not None:
+                # _editorial_source has already bounded the source tree and
+                # identified its sole body. Match only the direct typed H2s;
+                # generated contents/credit headings remain outside this set.
+                body = next(element for element in source_root if element.tag == "body")
+                source_headings = frozenset(
+                    element for element in body if element.tag == "h2"
+                    and element.get("id") and element.get("data-section"))
         else:
             require(ir == source_ir)
         page_index = len(pages)
@@ -519,6 +543,8 @@ def _install_editorial_after_font_bootstrap():
                     and box.element is not None
                     and box.element.get("data-editorial-nav-target") is not None):
                 _editorial_navigation_row(page_box, box)
+            if type(box) is boxes.BlockBox and box.element in source_headings:
+                _editorial_navigation_heading(page_box, box)
         if page_index == 0:
             bodies = [box for box in html.children if box.element_tag == "body"]
             require(len(bodies) == 1 and bool(bodies[0].children) and cover_present
