@@ -3112,6 +3112,8 @@ class TypedOriginalBrandQATests(unittest.TestCase):
 
     def test_receipt_projected_nodes_are_bounded_by_matched_span_grammar(self):
         genuine = self.run_qa(self.arguments(0)).to_dict()
+        self.assertEqual((genuine["represented_findings"], genuine["source_units"],
+                          genuine["navigation_entries"]), (0, 6, 1))
         self.assertEqual(self.m.TypedOriginalBrandQA(
             self.m.canonical(genuine)).to_dict(), genuine)
         self.assertLessEqual(genuine["coverage"]["projected_nodes"],
@@ -3119,8 +3121,22 @@ class TypedOriginalBrandQATests(unittest.TestCase):
 
         # These counter controls test necessary receipt invariants; they are not
         # newly observed PDF results or proof of worker-result authentication.
+        # Preserve the actual empty-table witness above. Isolate the generic
+        # bound with a findings-bearing counter control that leaves a spare
+        # source unit, so neither tighter shape-specific branch applies.
         boundary = deepcopy(genuine)
+        boundary["represented_findings"] = 1
         coverage = boundary["coverage"]
+        entries = boundary["navigation_entries"]
+        fragments = coverage["accounted_brand_wrapper_nodes"] - 5
+        text_units = boundary["source_units"] + boundary["brand_text_units"] + 1 + entries
+        self.assertEqual(fragments, 1)
+        self.assertGreater(boundary["source_units"],
+                           boundary["represented_findings"] + 3 + entries)
+        coverage["text_mcids"] = max(text_units + entries,
+                                     boundary["page_count"] + 2 * entries + 4 - fragments)
+        coverage["native_mcids"] = coverage["text_mcids"] + coverage["figure_count"]
+        coverage["operations"] = self.operation_floor(boundary)
         maximum = 1 + 6 * coverage["text_mcids"]
         coverage["projected_nodes"] = maximum
         coverage["native_nodes"] = maximum + coverage["accounted_brand_wrapper_nodes"] + coverage["accounted_navigation_wrapper_nodes"]
@@ -3142,8 +3158,12 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         text_units = bad["source_units"] + bad["brand_text_units"] + 1 + bad["navigation_entries"]
         table_nodes = bad["represented_findings"] + 4 if bad["represented_findings"] else 0
         self.assertGreaterEqual(coverage["projected_nodes"],
-                                coverage["text_mcids"] + text_units + 1 + table_nodes)
+                                coverage["text_mcids"]
+                                + max(text_units, bad["page_count"] + entries + 4 - fragments)
+                                + 1 + table_nodes)
         self.assertGreaterEqual(coverage["text_mcids"], text_units + bad["navigation_entries"])
+        self.assertGreaterEqual(coverage["text_mcids"],
+                                bad["page_count"] + 2 * entries + 4 - fragments)
         self.assertGreaterEqual(coverage["text_mcids"], bad["page_count"])
         self.assertGreaterEqual(coverage["operations"], self.operation_floor(bad))
         self.m._schema(bad)
