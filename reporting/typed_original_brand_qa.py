@@ -696,11 +696,12 @@ def _validate_receipt(data: dict) -> None:
         table_segments = max(1, data["page_count"] - fragment_count
                              - data["navigation_entries"] - 2)
     spare_units = data["source_units"] - findings - 3 - data["navigation_entries"]
-    if findings and data["page_count"] == fragment_count + 1:
-        # One body page: D=4*K+Q for K tables and Q body rows. With R distinct
-        # findings and B body units, R<=Q<=R*K and 2*K+Q<=B. IDs may recur
-        # across tables; within each table they are unique. Text wrapping adds
-        # Spans, not continuation containers, on this single available page.
+    if findings and (data["page_count"] == fragment_count + 1
+                     or coverage["text_mcids"] == text_units + data["navigation_entries"]):
+        # Without continuations: D=4*K+Q for K tables and Q body rows. With R
+        # distinct findings and B body units, R<=Q<=R*K and 2*K+Q<=B; IDs may
+        # recur across tables but are unique within each table. One body page
+        # prevents continuations; the primary Span minimum leaves none spare.
         body_units = data["source_units"] - 1 - data["navigation_entries"]
         structural_nodes = coverage["projected_nodes"] - coverage["text_mcids"] - text_units - 1
         minimum_tables = max(

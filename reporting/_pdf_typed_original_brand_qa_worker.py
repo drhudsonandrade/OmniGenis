@@ -393,12 +393,13 @@ def _form(ref, reader, fonts, forms):
             and abs(second[0] - dna_height * Decimal(324) / Decimal(1154)) <= Decimal("0.000001")
             and len(ops[2][0]) == 1 and type(ops[2][0][0]) is NameObject
             and ops[2][0][0] == image_name)
-    image_bounds = _rectangle((Decimal(0), Decimal(0), Decimal(1), Decimal(1)),
-                              _ctm(second, _ctm(first, IDENTITY)))
-    form_bounds = _rectangle((coordinates[0], coordinates[1],
-                              coordinates[2] - coordinates[0],
-                              coordinates[3] - coordinates[1]), IDENTITY)
-    require(_contains(form_bounds, image_bounds))
+    with _exact_geometry():
+        image_bounds = _rectangle((Decimal(0), Decimal(0), Decimal(1), Decimal(1)),
+                                  _ctm(second, _ctm(first, IDENTITY)))
+        form_bounds = _rectangle((coordinates[0], coordinates[1],
+                                  coordinates[2] - coordinates[0],
+                                  coordinates[3] - coordinates[1]), IDENTITY)
+        require(_contains(form_bounds, image_bounds))
     forms[key] = {"image": native._ref(image_ref, reader), "sha256": sha256(data).hexdigest(),
                   "image_bounds": image_bounds}
 
