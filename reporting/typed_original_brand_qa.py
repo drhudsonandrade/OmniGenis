@@ -712,9 +712,13 @@ def _validate_receipt(data: dict) -> None:
             body_units = data["source_units"] - 1 - data["navigation_entries"] - paragraph_units
             structural_nodes = (coverage["projected_nodes"] - coverage["text_mcids"]
                                 - text_units - 1 - extra_nodes)
+            # The same K covers at most F+U+1+3*K-d+J pages;
+            # either admitted single continuation contributes J=1.
             minimum_tables = max(
                 1, (structural_nodes + findings + 3) // (findings + 4),
-                (structural_nodes - body_units + 1) // 2)
+                (structural_nodes - body_units + 1) // 2,
+                (data["page_count"] - fragment_count - data["source_units"]
+                 + structural_nodes + 1 - (extra_nodes != 0)) // 3)
             maximum_tables = min(
                 (structural_nodes - findings) // 4,
                 (body_units - findings) // 2)
