@@ -33,7 +33,7 @@
     "reporting/typed_pdf_association.py": "0b6f4be7d81dc5624aaa3b7e11ed3cfbca0d7d9222272f6c24ba07ee617b3a63",
     "reporting/typed_pdf_source.py": "ace530cd727eaf513bffb9070c1b412db166ca4b966d390e710b853ec8676c59",
     "schemas/report-typed-original-brand-qa.v1.schema.json": "f09fedbf5b37234ef5732cfe3081500cc036ca5d57ce7f26c4481b00b6d297ee",
-    "tests/test_reporting_typed_original_brand_qa.py": "e721652880dd1fa461a6bc7f35f71712ec3bd635157a0a9be302d1ba2d74410e"
+    "tests/test_reporting_typed_original_brand_qa.py": "8817a57304bcbe664f7ff04511fb26dc445d28dde0b870953b580ac2b514de01"
   },
   "structure_id_tree_policy": "FLAT_NAMES_EXACT_ORIGINAL_BYTE_ID_MAP",
   "table_identifier_policy": "PYPDF_TEXTSTRINGOBJECT_ONLY_ORIGINAL_BYTES_1_TO_128",

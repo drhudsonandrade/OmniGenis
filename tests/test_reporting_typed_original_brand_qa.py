@@ -3409,17 +3409,19 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         # These counter controls test necessary receipt invariants; they are not
         # newly observed PDF results or proof of worker-result authentication.
         # Preserve the actual empty-table witness above. Isolate the generic
-        # bound with a findings-bearing counter control that leaves a spare
-        # source unit, so neither tighter shape-specific branch applies.
+        # bound with a findings-bearing counter control that leaves two spare
+        # source units, outside the zero/one-spare-unit allocation branches.
         boundary = deepcopy(genuine)
         boundary["represented_findings"] = 1
+        boundary["source_units"] = (boundary["represented_findings"] + 3
+                                    + boundary["navigation_entries"] + 2)
         coverage = boundary["coverage"]
         entries = boundary["navigation_entries"]
         fragments = coverage["accounted_brand_wrapper_nodes"] - 5
         text_units = boundary["source_units"] + boundary["brand_text_units"] + 1 + entries
         self.assertEqual(fragments, 1)
-        self.assertGreater(boundary["source_units"],
-                           boundary["represented_findings"] + 3 + entries)
+        self.assertEqual(boundary["source_units"]
+                         - boundary["represented_findings"] - 3 - entries, 2)
         coverage["text_mcids"] = max(text_units + entries,
                                      boundary["page_count"] + 2 * entries + 4 - fragments)
         coverage["native_mcids"] = coverage["text_mcids"] + coverage["figure_count"]
