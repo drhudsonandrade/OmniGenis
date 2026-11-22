@@ -70,9 +70,9 @@ def _install_flat_id_tree(writer):
     if len({original for original, _, _ in pairs}) != len(pairs):
         raise ValueError("synthetic_id_tree_control_refused")
     names = ArrayObject([value for _, identifier, reference in pairs
-        for value in (identifier, reference)])
+    for value in (identifier, reference)])
     root[NameObject("/IDTree")] = writer._add_object(
-        DictionaryObject({NameObject("/Names"): names}))
+    DictionaryObject({NameObject("/Names"): names}))
 
 
 @contextmanager
@@ -114,7 +114,7 @@ def _observe_profile_file_reads(paths, *, after_read=None):
         path = Path(os.fsdecode(path))
         if path in paths:
             record = dict(path=path, flags=flags, requests=[], returned=[],
-        legacy=False, closed=False)
+    legacy=False, closed=False)
             records.append(record)
             opened[descriptor] = record
         return descriptor
@@ -140,7 +140,7 @@ def _observe_profile_file_reads(paths, *, after_read=None):
         data = real_read_bytes(path)
         if path in paths:
             record = dict(path=path, flags=None, requests=[-1], returned=[],
-        legacy=True, closed=True)
+    legacy=True, closed=True)
             records.append(record)
             if after_read is not None:
                 data = after_read(path, data)
@@ -148,7 +148,7 @@ def _observe_profile_file_reads(paths, *, after_read=None):
         return data
 
     with patch.object(os, "open", opened_file), patch.object(os, "read", read_file), \
-        patch.object(os, "close", closed_file), patch.object(Path, "read_bytes", read_path):
+    patch.object(os, "close", closed_file), patch.object(Path, "read_bytes", read_path):
         try:
             yield records
         finally:
@@ -161,16 +161,16 @@ class TypedOriginalBrandQATests(unittest.TestCase):
     def setUpClass(cls):
         asset = ROOT / "reporting/assets"
         cls.assets = BoundBrandAssets(
-        logo_svg=(asset / "omnigenis_logo.svg").read_bytes(),
-        dna_png=(asset / "dna_column.png").read_bytes(),
-        permission_notice=(asset / "brand-permission.md").read_bytes())
+    logo_svg=(asset / "omnigenis_logo.svg").read_bytes(),
+    dna_png=(asset / "dna_column.png").read_bytes(),
+    permission_notice=(asset / "brand-permission.md").read_bytes())
         cls.bundle = cls.assets.to_dict()["bundle_sha256"]
         cls.fixtures = {}
         cls.pristine_fixtures = {}
 
     def setUp(self):
         self.assertIsNotNone(importlib.util.find_spec("reporting.typed_original_brand_qa"),
-        "combined typed/original-brand same-PDF QA is missing")
+    "combined typed/original-brand same-PDF QA is missing")
         self.m = importlib.import_module("reporting.typed_original_brand_qa")
         mode = patch.dict(os.environ, FLAGS)
         mode.start()
@@ -181,8 +181,8 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         if key not in self.fixtures:
             source = self.navigation_source(count) if navigation else document(count)
             rendered, _ = render_typed_original_brand_pdf(
-        presentation_ir=source, expected_ir_sha256=digest(source),
-        assets=self.assets, expected_brand_bundle_sha256=self.bundle)
+    presentation_ir=source, expected_ir_sha256=digest(source),
+    assets=self.assets, expected_brand_bundle_sha256=self.bundle)
             pristine = rendered.pdf_bytes
             self.pristine_fixtures[key] = source, pristine
             self.fixtures[key] = source, pristine
@@ -193,41 +193,41 @@ class TypedOriginalBrandQATests(unittest.TestCase):
     def navigation_source(count):
         """Bind two real section headings separated by content-driven layout."""
         from reporting.components import (
-        FindingRow, FindingsTable, TableColumn, TextComponent,
-        build_typed_report_projection, component_content_sha256,
-        )
+    FindingRow, FindingsTable, TableColumn, TextComponent,
+    build_typed_report_projection, component_content_sha256,
+    )
         request, ledger = context(count)
         parts = (
-        TextComponent("title", "identity", "document_title", "Technical report"),
-        TextComponent("identity-heading", "identity", "section_heading", "Record identity"),
-        TextComponent("identity-text", "identity", "paragraph",
-        " ".join(["Synthetic identity context only."] * 160)),
-        TextComponent("heading", "findings", "section_heading", "Declared findings"),
-        TextComponent("intro", "findings", "paragraph", "Synthetic values only."),
-        FindingsTable("table", "findings", "All declared synthetic findings",
-        (TableColumn("variant", "Variant"), TableColumn("value", "Value")),
-        tuple(FindingRow(f, (f"NM_000001.1:c.{i + 1}A>G", "0.12345678901234567890"))
-        for i, f in enumerate(request.plan.expected_finding_ids))),
-        )
+    TextComponent("title", "identity", "document_title", "Technical report"),
+    TextComponent("identity-heading", "identity", "section_heading", "Record identity"),
+    TextComponent("identity-text", "identity", "paragraph",
+    " ".join(["Synthetic identity context only."] * 160)),
+    TextComponent("heading", "findings", "section_heading", "Declared findings"),
+    TextComponent("intro", "findings", "paragraph", "Synthetic values only."),
+    FindingsTable("table", "findings", "All declared synthetic findings",
+    (TableColumn("variant", "Variant"), TableColumn("value", "Value")),
+    tuple(FindingRow(f, (f"NM_000001.1:c.{i + 1}A>G", "0.12345678901234567890"))
+    for i, f in enumerate(request.plan.expected_finding_ids))),
+    )
         return build_typed_report_projection(
-        request=request, ledger=ledger,
-        projection_request_sha256=request.request.request_sha256,
-        expected_content_sha256=component_content_sha256(parts), components=parts).to_dict()
+    request=request, ledger=ledger,
+    projection_request_sha256=request.request.request_sha256,
+    expected_content_sha256=component_content_sha256(parts), components=parts).to_dict()
 
     def arguments(self, count=2, *, navigation=False):
         source, pdf = self.fixture(count, navigation=navigation)
         expectation = prepare_typed_pdf_source(
-        presentation_ir=source, expected_ir_sha256=digest(source))
+    presentation_ir=source, expected_ir_sha256=digest(source))
         return dict(
-        presentation_ir=source, expected_ir_sha256=digest(source),
-        expected_source_expectation_sha256=expectation.expectation_sha256,
-        assets=self.assets, expected_brand_bundle_sha256=self.bundle,
-        pdf_bytes=pdf, expected_pdf_sha256=sha256(pdf).hexdigest(),
-        expected_profile_sha256=self.m.profile_sha256())
+    presentation_ir=source, expected_ir_sha256=digest(source),
+    expected_source_expectation_sha256=expectation.expectation_sha256,
+    assets=self.assets, expected_brand_bundle_sha256=self.bundle,
+    pdf_bytes=pdf, expected_pdf_sha256=sha256(pdf).hexdigest(),
+    expected_profile_sha256=self.m.profile_sha256())
 
     def run_qa(self, args=None):
         return self.m.validate_typed_original_brand_candidate(
-        **(self.arguments() if args is None else args))
+    **(self.arguments() if args is None else args))
 
     def test_untouched_producer_indexes_headers_and_emits_logo_in_page_space(self):
         _, pdf = self.fixture()
@@ -237,47 +237,47 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             self.assertIn("/IDTree", root)
         page = reader.pages[0]
         figure = next(node for node in self.nodes(SimpleNamespace(_root_object=reader.root_object))
-        if node["/S"] == "/Figure")
+    if node["/S"] == "/Figure")
         box = figure["/A"]["/BBox"]
         transform = ContentStream(page.raw_get("/Contents"), reader).operations[0][0]
         with self.subTest(obligation="page-space-logo"):
             self.assertGreater(float(box[1]), float(transform[-1]) / 2)
         with self.subTest(obligation="same-artifact-qa"):
             self.assertEqual(self.run_qa(self.arguments()).to_dict()["pdf_sha256"],
-        sha256(pdf).hexdigest())
+    sha256(pdf).hexdigest())
 
     def test_wrapped_cover_title_preserves_every_source_space(self):
         """Bind one wrapped title to real PDF runs without inventing whitespace."""
         from reporting.components import (
-        FindingRow, FindingsTable, TableColumn, TextComponent,
-        build_typed_report_projection, component_content_sha256,
-        )
+    FindingRow, FindingsTable, TableColumn, TextComponent,
+    build_typed_report_projection, component_content_sha256,
+    )
         title = "A demonstration report that preserves every literal space in a wrapped title"
         request, ledger = context(1)
         parts = (
-        TextComponent("title", "identity", "document_title", title),
-        TextComponent("heading", "findings", "section_heading", "Demonstration findings"),
-        TextComponent("intro", "findings", "paragraph", "Demonstration values only."),
-        FindingsTable(
-        "table", "findings", "Declared demonstration findings",
-        (TableColumn("identifier", "Identifier"), TableColumn("value", "Value")),
-        (FindingRow(request.plan.expected_finding_ids[0], ("DEMO-001", "0.1")),)),
-        )
+    TextComponent("title", "identity", "document_title", title),
+    TextComponent("heading", "findings", "section_heading", "Demonstration findings"),
+    TextComponent("intro", "findings", "paragraph", "Demonstration values only."),
+    FindingsTable(
+    "table", "findings", "Declared demonstration findings",
+    (TableColumn("identifier", "Identifier"), TableColumn("value", "Value")),
+    (FindingRow(request.plan.expected_finding_ids[0], ("DEMO-001", "0.1")),)),
+    )
         source = build_typed_report_projection(
-        request=request, ledger=ledger,
-        projection_request_sha256=request.request.request_sha256,
-        expected_content_sha256=component_content_sha256(parts),
-        components=parts).to_dict()
+    request=request, ledger=ledger,
+    projection_request_sha256=request.request.request_sha256,
+    expected_content_sha256=component_content_sha256(parts),
+    components=parts).to_dict()
         ir_sha = digest(source)
         expectation = prepare_typed_pdf_source(
-        presentation_ir=source, expected_ir_sha256=ir_sha)
+    presentation_ir=source, expected_ir_sha256=ir_sha)
         title_unit = expectation.to_dict()["units"][0]
         self.assertEqual(title_unit["kind"], "document_title")
         self.assertEqual(title_unit["utf8_bytes"], len(title.encode("utf-8")))
         self.assertEqual(title_unit["text_sha256"], sha256(title.encode("utf-8")).hexdigest())
         rendered, _ = render_typed_original_brand_pdf(
-        presentation_ir=source, expected_ir_sha256=ir_sha,
-        assets=self.assets, expected_brand_bundle_sha256=self.bundle)
+    presentation_ir=source, expected_ir_sha256=ir_sha,
+    assets=self.assets, expected_brand_bundle_sha256=self.bundle)
         pdf, pdf_sha = rendered.pdf_bytes, rendered.pdf_sha256
         observations = []
         original_worker = self.m._run_worker
@@ -291,11 +291,11 @@ class TypedOriginalBrandQATests(unittest.TestCase):
 
         with patch.object(self.m, "_run_worker", side_effect=retain_observation):
             result = self.run_qa(dict(
-        presentation_ir=source, expected_ir_sha256=ir_sha,
-        expected_source_expectation_sha256=expectation.expectation_sha256,
-        assets=self.assets, expected_brand_bundle_sha256=self.bundle,
-        pdf_bytes=pdf, expected_pdf_sha256=pdf_sha,
-        expected_profile_sha256=self.m.profile_sha256())).to_dict()
+    presentation_ir=source, expected_ir_sha256=ir_sha,
+    expected_source_expectation_sha256=expectation.expectation_sha256,
+    assets=self.assets, expected_brand_bundle_sha256=self.bundle,
+    pdf_bytes=pdf, expected_pdf_sha256=pdf_sha,
+    expected_profile_sha256=self.m.profile_sha256())).to_dict()
         self.assertEqual(len(observations), 1)
         self.assertEqual(result["pdf_sha256"], pdf_sha)
         self.assertEqual(result["ir_sha256"], ir_sha)
@@ -306,7 +306,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         self.assertEqual(len(headings), 1)
         heading = headings[0]
         page = next(page for page in trace["pages"]
-        if page["reference"] == heading["page_reference"])
+    if page["reference"] == heading["page_reference"])
         runs = {run["mcid"]: run for run in page["runs"]}
         fragments = []
         for child in heading["children"]:
@@ -327,32 +327,32 @@ class TypedOriginalBrandQATests(unittest.TestCase):
     def test_generated_editorial_ids_do_not_reserve_source_component_ids(self):
         from dataclasses import replace
         from reporting.components import (
-        FindingRow, FindingsTable, TableColumn, TextComponent,
-        build_typed_report_projection, component_content_sha256,
-        )
+    FindingRow, FindingsTable, TableColumn, TextComponent,
+    build_typed_report_projection, component_content_sha256,
+    )
         request, ledger = context(1)
         parts = (
-        TextComponent("fixed-navigation-title", "identity", "document_title", "Technical report"),
-        TextComponent("fixed-navigation-0", "findings", "section_heading", "Declared findings"),
-        TextComponent("fixed-brand-0", "findings", "paragraph", "Synthetic values only."),
-        FindingsTable(
-        "fixed-brand-1", "findings", "Declared synthetic findings",
-        (TableColumn("identifier", "Identifier"), TableColumn("value", "Value")),
-        (FindingRow(request.plan.expected_finding_ids[0], ("SYNTHETIC-001", "0.1")),)),
-        )
+    TextComponent("fixed-navigation-title", "identity", "document_title", "Technical report"),
+    TextComponent("fixed-navigation-0", "findings", "section_heading", "Declared findings"),
+    TextComponent("fixed-brand-0", "findings", "paragraph", "Synthetic values only."),
+    FindingsTable(
+    "fixed-brand-1", "findings", "Declared synthetic findings",
+    (TableColumn("identifier", "Identifier"), TableColumn("value", "Value")),
+    (FindingRow(request.plan.expected_finding_ids[0], ("SYNTHETIC-001", "0.1")),)),
+    )
         ledger = replace(ledger, represented=tuple(
-        replace(finding, component_ids=(parts[-1].component_id,))
-        for finding in ledger.represented))
+    replace(finding, component_ids=(parts[-1].component_id,))
+    for finding in ledger.represented))
         source = build_typed_report_projection(
-        request=request, ledger=ledger,
-        projection_request_sha256=request.request.request_sha256,
-        expected_content_sha256=component_content_sha256(parts), components=parts).to_dict()
+    request=request, ledger=ledger,
+    projection_request_sha256=request.request.request_sha256,
+    expected_content_sha256=component_content_sha256(parts), components=parts).to_dict()
         ir_sha = digest(source)
         expectation = prepare_typed_pdf_source(
-        presentation_ir=source, expected_ir_sha256=ir_sha)
+    presentation_ir=source, expected_ir_sha256=ir_sha)
         rendered, _ = render_typed_original_brand_pdf(
-        presentation_ir=source, expected_ir_sha256=ir_sha,
-        assets=self.assets, expected_brand_bundle_sha256=self.bundle)
+    presentation_ir=source, expected_ir_sha256=ir_sha,
+    assets=self.assets, expected_brand_bundle_sha256=self.bundle)
         associations = []
         associate = self.m._associate
 
@@ -363,11 +363,11 @@ class TypedOriginalBrandQATests(unittest.TestCase):
 
         with patch.object(self.m, "_associate", side_effect=retain_association):
             receipt = self.run_qa(dict(
-        presentation_ir=source, expected_ir_sha256=ir_sha,
-        expected_source_expectation_sha256=expectation.expectation_sha256,
-        assets=self.assets, expected_brand_bundle_sha256=self.bundle,
-        pdf_bytes=rendered.pdf_bytes, expected_pdf_sha256=rendered.pdf_sha256,
-        expected_profile_sha256=self.m.profile_sha256())).to_dict()
+    presentation_ir=source, expected_ir_sha256=ir_sha,
+    expected_source_expectation_sha256=expectation.expectation_sha256,
+    assets=self.assets, expected_brand_bundle_sha256=self.bundle,
+    pdf_bytes=rendered.pdf_bytes, expected_pdf_sha256=rendered.pdf_sha256,
+    expected_profile_sha256=self.m.profile_sha256())).to_dict()
         self.assertEqual(receipt["ir_sha256"], ir_sha)
         self.assertEqual(receipt["source_expectation_sha256"], expectation.expectation_sha256)
         self.assertEqual(receipt["pdf_sha256"], rendered.pdf_sha256)
@@ -404,13 +404,13 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         self.assertTrue(result["complete_literal_source_accounting"])
         self.assertTrue(result["complete_native_structure_accounting"])
         for key in ("visual_semantic_parity_verified", "human_assistive_accessibility_verified",
-        "whole_job_resources_qualified", "pdf_ua_certified",
-        "source_asset_bytes_authenticated_from_pdf", "release_authorized"):
+    "whole_job_resources_qualified", "pdf_ua_certified",
+    "source_asset_bytes_authenticated_from_pdf", "release_authorized"):
             self.assertIs(result[key], False)
 
     def refuse(self, args):
         with self.assertRaisesRegex(self.m.TypedOriginalBrandQAError,
-        "^typed_original_brand_qa_refused$"):
+    "^typed_original_brand_qa_refused$"):
             self.run_qa(args)
 
     def rewritten(self, mutate=lambda writer: None, count=2, *, navigation=False):
@@ -452,20 +452,20 @@ class TypedOriginalBrandQATests(unittest.TestCase):
     def footer_range(self, operations):
         """Locate the exact admitted footer, not the final arbitrary TJ."""
         starts = [i for i, (args, op) in enumerate(operations)
-        if op == b"BDC" and len(args) == 2 and args[0] == "/Artifact"
-        and isinstance(args[1], DictionaryObject)
-        and args[1].get("/Type") == "/Pagination"
-        and args[1].get("/Subtype") == "/Footer"]
+    if op == b"BDC" and len(args) == 2 and args[0] == "/Artifact"
+    and isinstance(args[1], DictionaryObject)
+    and args[1].get("/Type") == "/Pagination"
+    and args[1].get("/Subtype") == "/Footer"]
         self.assertEqual(len(starts), 1)
         start = starts[0]
         end = next(i for i in range(start + 1, len(operations))
-        if operations[i][1] == b"EMC")
+    if operations[i][1] == b"EMC")
         return start, end
 
     def text_slots(self, writer, node):
         """Resolve a named structural subtree to its actual page/Span MCIDs."""
         pages = {(page.indirect_reference.idnum, page.indirect_reference.generation): index
-        for index, page in enumerate(writer.pages)}
+    for index, page in enumerate(writer.pages)}
         slots = []
         def visit(value):
             value = value.get_object()
@@ -489,12 +489,12 @@ class TypedOriginalBrandQATests(unittest.TestCase):
 
     def span_range(self, operations, mcid):
         starts = [i for i, (args, op) in enumerate(operations)
-        if op == b"BDC" and args[0] == "/Span"
-        and args[1].get("/MCID") == mcid]
+    if op == b"BDC" and args[0] == "/Span"
+    and args[1].get("/MCID") == mcid]
         self.assertEqual(len(starts), 1)
         start = starts[0]
         end = next(i for i in range(start + 1, len(operations))
-        if operations[i][1] == b"EMC")
+    if operations[i][1] == b"EMC")
         return start, end
 
     @staticmethod
@@ -505,14 +505,14 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         """Change an actual CID, preserving the TJ container and byte length."""
         parts = operands[0]
         strings = [(index, bytes(value)) for index, value in enumerate(parts)
-        if type(value) is ByteStringObject and len(value) >= 2]
+    if type(value) is ByteStringObject and len(value) >= 2]
         self.assertTrue(strings)
         index, raw = strings[0]
         self.assertEqual(len(raw) % 2, 0)
         if replacement is None:
             replacement = next(value[offset:offset + 2] for _, value in strings
-        for offset in range(0, len(value), 2)
-        if value[offset:offset + 2] != raw[:2])
+    for offset in range(0, len(value), 2)
+    if value[offset:offset + 2] != raw[:2])
         self.assertEqual(len(replacement), 2)
         self.assertNotEqual(replacement, raw[:2])
         parts[index] = ByteStringObject(replacement + raw[2:])
@@ -520,7 +520,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
     def page_with_multiple_spans(self, writer):
         for index, page in enumerate(writer.pages):
             operations = ContentStream(page.raw_get("/Contents"), writer,
-        forced_encoding="bytes").operations
+    forced_encoding="bytes").operations
             if sum(op == b"BDC" and args[0] == "/Span" for args, op in operations) >= 2:
                 return index
         self.fail("fixture needs an actual page with at least two source spans")
@@ -570,11 +570,11 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             pass
         wrong = ("0" if expected[0] != "0" else "1") + expected[1:]
         for case, value in (
-        ("equality-spoof", EqualToAnyDigest()), ("str-subclass", DigestString(expected)),
-        ("malformed", "not-a-digest"), ("wrong-value", wrong)):
+    ("equality-spoof", EqualToAnyDigest()), ("str-subclass", DigestString(expected)),
+    ("malformed", "not-a-digest"), ("wrong-value", wrong)):
             candidate = dict(args, expected_source_expectation_sha256=value)
             with self.subTest(case=case), patch.object(
-        self.m, "_run_worker", wraps=self.m._run_worker) as launch:
+    self.m, "_run_worker", wraps=self.m._run_worker) as launch:
                 self.refuse(candidate)
                 launch.assert_not_called()
                 if case == "equality-spoof":
@@ -582,29 +582,43 @@ class TypedOriginalBrandQATests(unittest.TestCase):
 
     def test_wrong_identity_and_disabled_mode_refuse_before_native_launch(self):
         for name in ("expected_ir_sha256", "expected_source_expectation_sha256",
-        "expected_brand_bundle_sha256", "expected_pdf_sha256",
-        "expected_profile_sha256"):
+    "expected_brand_bundle_sha256", "expected_pdf_sha256",
+    "expected_profile_sha256"):
             args = self.arguments()
             args[name] = "0" * 64
             with self.subTest(identity=name), patch.object(self.m, "_run_worker") as launch:
                 self.refuse(args)
                 launch.assert_not_called()
         for name, value in (("OMNIGENIS_PDF_QUALIFICATION_RECEIPT_MODE", ""),
-        ("OMNIGENIS_TYPED_ORIGINAL_BRAND_QA_DISABLED", "1")):
+    ("OMNIGENIS_TYPED_ORIGINAL_BRAND_QA_DISABLED", "1")):
             with self.subTest(flag=name), patch.dict(os.environ, {name: value}), \
-        patch.object(self.m, "_run_worker") as launch:
+    patch.object(self.m, "_run_worker") as launch:
                 self.refuse(self.arguments())
                 launch.assert_not_called()
 
     def test_freshly_sealed_changed_literal_and_missing_or_extra_findings_refuse(self):
+        control = self.arguments()
+        native = self.m.prior._loads(self.m._run_worker(
+            control["pdf_bytes"], control["expected_pdf_sha256"]).decode("ascii"))
+        trace, coverage = self.m._validate_native(
+            native, control["pdf_bytes"], control["expected_profile_sha256"])
+        physical = {"trace": trace, "page_count": native["page_count"],
+                    "navigation_entries": coverage["accounted_navigation_wrapper_nodes"]}
+        expectation = prepare_typed_pdf_source(
+            presentation_ir=control["presentation_ir"], expected_ir_sha256=control["expected_ir_sha256"])
+        associated = self.m._associate(expectation.to_dict(), physical, control["presentation_ir"])
+        self.assertEqual(associated["counts"]["represented_findings"], 2)
         for source in (document(2, paragraph="SYNTHETIC-SENTINEL-REJECT"),
         document(1), document(3)):
             args = self.arguments()
             args["presentation_ir"] = source
             args["expected_ir_sha256"] = digest(source)
-            args["expected_source_expectation_sha256"] = prepare_typed_pdf_source(
-        presentation_ir=source, expected_ir_sha256=digest(source)).expectation_sha256
+            expectation = prepare_typed_pdf_source(
+                presentation_ir=source, expected_ir_sha256=digest(source))
+            args["expected_source_expectation_sha256"] = expectation.expectation_sha256
             with self.subTest(source_sha256=args["expected_ir_sha256"]):
+                with self.assertRaises(ValueError):
+                    self.m._associate(expectation.to_dict(), physical, source)
                 self.refuse(args)
 
     def test_native_parent_tree_requires_ascending_key_pairs(self):
@@ -626,14 +640,14 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         def declared(reader):
             nodes = self.nodes(SimpleNamespace(_root_object=reader.root_object))
             return {node["/ID"].original_bytes:
-        (node.indirect_reference.idnum, node.indirect_reference.generation)
-        for node in nodes if "/ID" in node}
+    (node.indirect_reference.idnum, node.indirect_reference.generation)
+    for node in nodes if "/ID" in node}
         def parse_structure(args):
             reader = PdfReader(BytesIO(args["pdf_bytes"]), strict=True)
             trace, _, _ = worker._structure(reader, worker.native._page_tree(reader))
             self.assertEqual({node["native_id"].encode("latin-1"): tuple(node["reference"])
-        for node in trace["nodes"] if node["native_id"] is not None},
-        declared(reader))
+    for node in trace["nodes"] if node["native_id"] is not None},
+    declared(reader))
             return reader
         for indirect in (False, True):
             def container(writer):
@@ -644,7 +658,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 args = self.rewritten(container)
                 reader = parse_structure(args)
                 self.assertIs(type(reader.root_object["/StructTreeRoot"].raw_get("/IDTree")),
-        IndirectObject if indirect else DictionaryObject)
+    IndirectObject if indirect else DictionaryObject)
                 self.assertEqual(self.run_qa(args).to_dict()["represented_findings"], 2)
 
         baseline = PdfReader(BytesIO(self.arguments()["pdf_bytes"]), strict=True)
@@ -660,7 +674,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         foreign = PdfReader(BytesIO(self.arguments()["pdf_bytes"]), strict=True)
         with self.assertRaises(ValueError):
             worker._structure_id_tree(
-        baseline, foreign.root_object["/StructTreeRoot"].raw_get("/IDTree"), expected)
+    baseline, foreign.root_object["/StructTreeRoot"].raw_get("/IDTree"), expected)
 
         def corrupt(writer, mode):
             root = writer._root_object["/StructTreeRoot"]
@@ -687,8 +701,8 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             elif mode == "raw-byte-mismatch":
                 names[0] = ByteStringObject(b"\xfe\xff" + str(names[0]).encode("utf-16-be"))
                 pairs = sorted(zip(names[::2], names[1::2]),
-        key=lambda pair: bytes(pair[0]) if type(pair[0]) is ByteStringObject
-        else pair[0].original_bytes)
+    key=lambda pair: bytes(pair[0]) if type(pair[0]) is ByteStringObject
+    else pair[0].original_bytes)
                 names[:] = [value for pair in pairs for value in pair]
             elif mode == "names-type":
                 index[NameObject("/Names")] = DictionaryObject()
@@ -697,14 +711,14 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             elif mode == "kids-outside-profile":
                 index[NameObject("/Limits")] = ArrayObject([names[0], names[-2]])
                 root[NameObject("/IDTree")] = DictionaryObject({
-        NameObject("/Kids"): ArrayObject([root.raw_get("/IDTree")])})
+    NameObject("/Kids"): ArrayObject([root.raw_get("/IDTree")])})
             elif mode == "limits-outside-profile":
                 index[NameObject("/Limits")] = ArrayObject([names[0], names[-2]])
             else:
                 self.fail("unknown fixture index mutation")
         for mode in ("missing", "empty", "short", "extra", "duplicate", "unsorted",
-        "wrong-target", "page-target", "direct-target", "raw-byte-mismatch",
-        "names-type", "indirect-names", "kids-outside-profile", "limits-outside-profile"):
+    "wrong-target", "page-target", "direct-target", "raw-byte-mismatch",
+    "names-type", "indirect-names", "kids-outside-profile", "limits-outside-profile"):
             with self.subTest(invalid_index=mode):
                 args = self.rewritten(lambda writer: corrupt(writer, mode))
                 reader = PdfReader(BytesIO(args["pdf_bytes"]), strict=True)
@@ -720,7 +734,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             headers = [node for node in nodes if node["/S"] == "/TH"]
             self.assertEqual(len(headers), 2)
             replacements = {str(header["/ID"]): identifier for header, identifier in zip(
-        headers, (ByteStringObject(b"z"), ByteStringObject(b"\xfe\xff\x00a")), strict=True)}
+    headers, (ByteStringObject(b"z"), ByteStringObject(b"\xfe\xff\x00a")), strict=True)}
             for node in nodes:
                 if node["/S"] == "/TH":
                     node[NameObject("/ID")] = replacements[str(node["/ID"])]
@@ -754,7 +768,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                         node[NameObject("/ID")] = encoded(str(node["/ID"]) + "\u0100")
                     elif node["/S"] == "/TD":
                         node["/A"]["/Headers"][0] = encoded(
-        str(node["/A"]["/Headers"][0]) + "\u0100")
+    str(node["/A"]["/Headers"][0]) + "\u0100")
             elif mode == "matching-nontext-outside-profile":
                 header = next(n for n in nodes if n["/S"] == "/TH")
                 original_id = str(header["/ID"])
@@ -767,7 +781,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                                 references[index] = ByteStringObject(raw_identifier)
             _install_flat_id_tree(writer)
         for mode in ("ascii", "matching-utf16", "headers-only", "ids-only",
-        "matching-nontext-outside-profile"):
+    "matching-nontext-outside-profile"):
             args = self.rewritten(lambda writer: change(writer, mode))
             reader = PdfReader(BytesIO(args["pdf_bytes"]), strict=True)
             nodes = self.nodes(SimpleNamespace(_root_object=reader.root_object))
@@ -826,7 +840,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                         self.m._schema(native, "native")
                     else:
                         self.m._validate_native(
-        native, args["pdf_bytes"], args["expected_profile_sha256"])
+    native, args["pdf_bytes"], args["expected_profile_sha256"])
 
     def test_native_table_owner_and_figure_attribute_surface_refuse(self):
         def wrong_header(writer):
@@ -841,20 +855,20 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             figure["/A"][NameObject("/S")] = NameObject("/JavaScript")
         def catalog_action(writer):
             writer._root_object[NameObject("/OpenAction")] = DictionaryObject({
-        NameObject("/S"): NameObject("/JavaScript"),
-        NameObject("/JS"): TextStringObject("SYNTHETIC-SENTINEL-REJECT")})
+    NameObject("/S"): NameObject("/JavaScript"),
+    NameObject("/JS"): TextStringObject("SYNTHETIC-SENTINEL-REJECT")})
         def foreign_navigation_wrapper(writer):
             paragraph = next(n for n in self.nodes(writer) if n["/S"] == "/P"
-        and n["/P"]["/S"] == "/Document")
+    and n["/P"]["/S"] == "/Document")
             children = paragraph["/K"]
             self.assertTrue(all(child.get_object()["/S"] == "/Span" for child in children))
             wrapper = DictionaryObject({
-        NameObject("/Type"): NameObject("/StructElem"),
-        NameObject("/S"): NameObject("/NonStruct"),
-        NameObject("/P"): paragraph.indirect_reference,
-        NameObject("/Pg"): paragraph.raw_get("/Pg"),
-        NameObject("/K"): children,
-        })
+    NameObject("/Type"): NameObject("/StructElem"),
+    NameObject("/S"): NameObject("/NonStruct"),
+    NameObject("/P"): paragraph.indirect_reference,
+    NameObject("/Pg"): paragraph.raw_get("/Pg"),
+    NameObject("/K"): children,
+    })
             reference = writer._add_object(wrapper)
             for child in children:
                 child.get_object()[NameObject("/P")] = reference
@@ -863,10 +877,10 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             document_node = next(n for n in self.nodes(writer) if n["/S"] == "/Document")
             cover = document_node["/K"][0].get_object()
             self.assertEqual([child.get_object()["/S"] for child in cover["/K"]],
-        ["/Div", "/Div", "/H1"])
+    ["/Div", "/Div", "/H1"])
             cover["/K"][1], cover["/K"][2] = cover["/K"][2], cover["/K"][1]
         for mutate in (wrong_header, duplicate_owner, action_attribute, catalog_action,
-        foreign_navigation_wrapper, cover_title_order):
+    foreign_navigation_wrapper, cover_title_order):
             with self.subTest(mutation=mutate.__name__):
                 self.refuse(self.rewritten(mutate))
 
@@ -917,7 +931,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         index_only = self.rewritten(undersized_page_box)
         reader = PdfReader(BytesIO(index_only["pdf_bytes"]), strict=True)
         original_figure = next(n for n in self.nodes(
-        SimpleNamespace(_root_object=reader.root_object)) if n["/S"] == "/Figure")
+    SimpleNamespace(_root_object=reader.root_object)) if n["/S"] == "/Figure")
         producer_box = [float(v) for v in original_figure["/A"]["/BBox"]]
         pages = worker.native._page_tree(reader)
         trace, attributes, figures = worker._structure(reader, pages)
@@ -930,7 +944,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         with patch.object(worker, "_contains", wraps=worker._contains) as contains:
             with self.assertRaisesRegex(ValueError, "^typed original-brand QA refused$"):
                 worker._page(trace["pages"][0], pages[0][1], pages[0][2], reader,
-        {}, {}, roles, worker.contract.MAX_STREAM_BYTES)
+    {}, {}, roles, worker.contract.MAX_STREAM_BYTES)
             self.assertGreaterEqual(contains.call_count, 1)
             self.assertEqual(contains.call_args.args[0], declared_box)
         self.assertTrue(all(worker._contains(*call.args) for call in contains.call_args_list[:-1]))
@@ -966,7 +980,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         def paint(writer, case):
             def alter(ops):
                 start = next(i for i, (args, op) in enumerate(ops)
-        if op == b"BDC" and args[0] == "/Figure")
+    if op == b"BDC" and args[0] == "/Figure")
                 end = next(i for i in range(start + 1, len(ops)) if ops[i][1] == b"EMC")
                 if case == "translated-outside-page":
                     matrix = next(args for args, op in ops[start + 1:end] if op == b"cm")
@@ -975,15 +989,15 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 payload = [([], b"q")]
                 if case == "unknown-active-clip":
                     payload.extend([
-        ([NameObject("/Artifact")], b"BMC"),
-        ([NumberObject(0), NumberObject(0)], b"m"),
-        ([NumberObject(1), NumberObject(0)], b"l"),
-        ([NumberObject(0), NumberObject(1)], b"l"),
-        ([], b"W"), ([], b"n"), ([], b"EMC")])
+    ([NameObject("/Artifact")], b"BMC"),
+    ([NumberObject(0), NumberObject(0)], b"m"),
+    ([NumberObject(1), NumberObject(0)], b"l"),
+    ([NumberObject(0), NumberObject(1)], b"l"),
+    ([], b"W"), ([], b"n"), ([], b"EMC")])
                 else:
                     rectangle = (0, 0, 1200, 1600) if case == "containing" else (0, 0, 1, 1)
                     payload.extend([
-        ([NumberObject(v) for v in rectangle], b"re"), ([], b"W"), ([], b"n")])
+    ([NumberObject(v) for v in rectangle], b"re"), ([], b"W"), ([], b"n")])
                 if case == "restored":
                     payload.append(([], b"Q"))
                 else:
@@ -1011,28 +1025,28 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             tiny = ArrayObject([NumberObject(v) for v in (0, 0, 1, 1)])
             del first["/CropBox"]
             root[NameObject("/CropBox")] = deepcopy(
-        tiny if case in {"root-excludes", "leaf-overrides-root",
-        "nearest-overrides-root"} else full)
+    tiny if case in {"root-excludes", "leaf-overrides-root",
+    "nearest-overrides-root"} else full)
             if case == "leaf-overrides-root":
                 first[NameObject("/CropBox")] = full
             elif case in {"nearest-overrides-root", "nearest-excludes"}:
                 self.assertEqual(first.raw_get("/Parent"), root_ref)
                 first_ref = first.indirect_reference
                 nearest = DictionaryObject({
-        NameObject("/Type"): NameObject("/Pages"),
-        NameObject("/Parent"): root_ref,
-        NameObject("/Kids"): ArrayObject([first_ref]),
-        NameObject("/Count"): NumberObject(1),
-        NameObject("/CropBox"): deepcopy(
-        full if case == "nearest-overrides-root" else tiny),
-        })
+    NameObject("/Type"): NameObject("/Pages"),
+    NameObject("/Parent"): root_ref,
+    NameObject("/Kids"): ArrayObject([first_ref]),
+    NameObject("/Count"): NumberObject(1),
+    NameObject("/CropBox"): deepcopy(
+    full if case == "nearest-overrides-root" else tiny),
+    })
                 nearest_ref = writer._add_object(nearest)
                 kids = root.raw_get("/Kids")
                 position = next(i for i, child in enumerate(kids) if child == first_ref)
                 kids[position] = nearest_ref
                 first[NameObject("/Parent")] = nearest_ref
         for case in ("root-contains", "leaf-overrides-root", "nearest-overrides-root",
-        "root-excludes", "nearest-excludes"):
+    "root-excludes", "nearest-excludes"):
             args = self.rewritten(lambda writer: change(writer, case))
             reader = PdfReader(BytesIO(args["pdf_bytes"]), strict=True)
             pages = worker.native._page_tree(reader)
@@ -1044,7 +1058,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             full = list(leaf.raw_get("/MediaBox"))
             effective = leaf.raw_get("/CropBox") if "/CropBox" in leaf else parent.raw_get("/CropBox")
             self.assertEqual(list(effective),
-        [0, 0, 1, 1] if case in {"root-excludes", "nearest-excludes"} else full)
+    [0, 0, 1, 1] if case in {"root-excludes", "nearest-excludes"} else full)
             if case == "leaf-overrides-root":
                 self.assertEqual(list(parent.raw_get("/CropBox")), [0, 0, 1, 1])
             if case.startswith("nearest-"):
@@ -1052,7 +1066,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 self.assertEqual(len(parent["/Kids"]), 1)
                 ancestor = parent.raw_get("/Parent").get_object()
                 self.assertEqual(list(ancestor.raw_get("/CropBox")),
-        [0, 0, 1, 1] if case == "nearest-overrides-root" else full)
+    [0, 0, 1, 1] if case == "nearest-overrides-root" else full)
             with self.subTest(case=case):
                 if case in {"root-excludes", "nearest-excludes"}:
                     with self.assertRaises(ValueError):
@@ -1062,20 +1076,20 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                     native = self.m.prior._loads(raw.decode("ascii"))
                     self.assertEqual(native["page_count"], len(pages))
                     self.m._validate_native(
-        native, args["pdf_bytes"], args["expected_profile_sha256"])
+    native, args["pdf_bytes"], args["expected_profile_sha256"])
 
     def test_singular_logo_wrapper_and_outer_transforms_refuse(self):
         for context in ("wrapper-0", "wrapper-1", "wrapper-2", "outer"):
             def collapse(writer):
                 def alter(ops):
                     start = next(i for i, (args, op) in enumerate(ops)
-        if op == b"BDC" and args[0] == "/Figure")
+    if op == b"BDC" and args[0] == "/Figure")
                     end = next(i for i in range(start + 1, len(ops)) if ops[i][1] == b"EMC")
                     if context == "outer":
                         ops.insert(end + 1, ([], b"Q"))
                         ops[start:start] = [
-        ([], b"q"),
-        ([NumberObject(v) for v in (0, 0, 0, 1, 0, 0)], b"cm")]
+    ([], b"q"),
+    ([NumberObject(v) for v in (0, 0, 0, 1, 0, 0)], b"cm")]
                     else:
                         matrices = [args for args, op in ops[start + 1:end] if op == b"cm"]
                         self.assertEqual(len(matrices), 5)
@@ -1090,7 +1104,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
     def dna_block_range(ops):
         paint = next(i for i, (_, op) in enumerate(ops) if op == b"Do")
         start = max(i for i in range(paint) if ops[i][1] == b"BMC"
-        and ops[i][0] == ["/Artifact"])
+    and ops[i][0] == ["/Artifact"])
         end = next(i for i in range(paint + 1, len(ops)) if ops[i][1] == b"EMC")
         return start, end
 
@@ -1099,8 +1113,8 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             def alter(ops):
                 start, end = self.dna_block_range(ops)
                 payload = [
-        ([], b"q"), ([NumberObject(v) for v in rectangle], b"re"),
-        ([], b"W"), ([], b"n")]
+    ([], b"q"), ([NumberObject(v) for v in rectangle], b"re"),
+    ([], b"W"), ([], b"n")]
                 if restored:
                     payload.append(([], b"Q"))
                 else:
@@ -1114,7 +1128,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 control = self.rewritten(lambda writer: inherited(writer, rectangle, restored))
                 self.assertEqual(self.run_qa(control).to_dict()["dna_image_count"], 1)
         for case in ("empty-local", "excluding-local", "excluding-inherited",
-        "unknown-inherited", "clipping-form-bbox", "shifted-form-image"):
+    "unknown-inherited", "clipping-form-bbox", "shifted-form-image"):
             def clip(writer):
                 if case == "excluding-inherited":
                     inherited(writer, (0, 0, 1, 1))
@@ -1123,17 +1137,17 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                         start, end = self.dna_block_range(ops)
                         ops.insert(end + 1, ([], b"Q"))
                         ops[start:start] = [
-        ([], b"q"), ([NameObject("/Artifact")], b"BMC"),
-        ([NumberObject(0), NumberObject(0)], b"m"),
-        ([NumberObject(1), NumberObject(0)], b"l"),
-        ([NumberObject(0), NumberObject(1)], b"l"),
-        ([], b"W"), ([], b"n"), ([], b"EMC")]
+    ([], b"q"), ([NameObject("/Artifact")], b"BMC"),
+    ([NumberObject(0), NumberObject(0)], b"m"),
+    ([NumberObject(1), NumberObject(0)], b"l"),
+    ([NumberObject(0), NumberObject(1)], b"l"),
+    ([], b"W"), ([], b"n"), ([], b"EMC")]
                     self.edit_page(writer, 0, alter)
                 elif case in {"clipping-form-bbox", "shifted-form-image"}:
                     form = next(iter(writer.pages[0]["/Resources"]["/XObject"].values())).get_object()
                     if case == "clipping-form-bbox":
                         form[NameObject("/BBox")] = ArrayObject(
-        [NumberObject(v) for v in (0, 0, 1, 1)])
+    [NumberObject(v) for v in (0, 0, 1, 1)])
                     else:
                         content = ContentStream(form, writer, forced_encoding="bytes")
                         self.assertEqual([op for _, op in content.operations], [b"cm", b"cm", b"Do"])
@@ -1158,7 +1172,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         form_ref = next(iter(resources["/XObject"].values()))
         form = form_ref.get_object()
         fonts = {tuple(worker.native._ref(ref, reader)): None
-                 for ref in resources["/Font"].values()}
+    for ref in resources["/Font"].values()}
         original = form._data
         data = zlib.decompress(original)
         prefix = rb"^\s*(?:[+-]?(?:\d+(?:\.\d*)?|\.\d+)\s+){6}cm(?=\s|$)"
@@ -1177,20 +1191,20 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             self.assertEqual(len(genuine), 1)
             # The admitted aspect-ratio calculation intentionally sets its flags.
             ambient = (arithmetic.prec, arithmetic.rounding,
-                       dict(arithmetic.traps), dict(arithmetic.flags))
+    dict(arithmetic.traps), dict(arithmetic.flags))
             try:
                 form._data = zlib.compress(re.sub(
-                    prefix, b"1 0 0 1 0 0 cm", data, count=1))
+    prefix, b"1 0 0 1 0 0 cm", data, count=1))
                 zero = {}
                 worker._form(form_ref, reader, fonts, zero)
                 self.assertEqual(min(Fraction(y) for value in zero.values()
-                                     for _, y in value["image_bounds"]), 0)
+    for _, y in value["image_bounds"]), 0)
                 form._data = zlib.compress(re.sub(
-                    prefix, b"1 0 0 1 0 " + tiny + b" cm", data, count=1))
+    prefix, b"1 0 0 1 0 " + tiny + b" cm", data, count=1))
                 with self.assertRaisesRegex(ValueError, "^typed original-brand QA refused$"):
                     worker._form(form_ref, reader, fonts, {})
                 self.assertEqual((arithmetic.prec, arithmetic.rounding,
-                                  dict(arithmetic.traps), dict(arithmetic.flags)), ambient)
+    dict(arithmetic.traps), dict(arithmetic.flags)), ambient)
             finally:
                 form._data = original
 
@@ -1223,11 +1237,11 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         fonts, forms, decoded = {}, {}, 0
         for page, (_, obj, resources) in zip(trace["pages"], pages, strict=True):
             worker._page(page, obj, resources, reader, fonts, forms, roles,
-        worker.contract.MAX_STREAM_BYTES - decoded)
+    worker.contract.MAX_STREAM_BYTES - decoded)
             decoded += page["decoded_stream_bytes"]
         paints = [(page["reference"], block["dna_paints"])
-        for page in trace["pages"] for block in page["graphic_blocks"]
-        if block["dna_paints"]]
+    for page in trace["pages"] for block in page["graphic_blocks"]
+    if block["dna_paints"]]
         self.assertEqual(len(trace["pages"]), len(pages))
         self.assertEqual(sum(count for _, count in paints), 1)
         self.assertEqual(paints[0][0], trace["pages"][-1]["reference"])
@@ -1283,7 +1297,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         from reporting import _pdf_typed_original_brand_qa_worker as worker
 
         region = worker._rectangle(
-        tuple(map(Decimal, (44, 0, "507.524976686015625", 44))), worker.IDENTITY)
+    tuple(map(Decimal, (44, 0, "507.524976686015625", 44))), worker.IDENTITY)
         with worker._exact_geometry():
             self.assertTrue(worker._contains(region, ((Decimal(100), Decimal("20.168335255")),)))
 
@@ -1310,8 +1324,8 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                     font = page["/Resources"]["/Font"][font_name]
                     widths = font["/DescendantFonts"][0].get_object()["/W"]
                     widths = {int(widths[offset]) + index: int(value)
-        for offset in range(0, len(widths), 2)
-        for index, value in enumerate(widths[offset + 1])}
+    for offset in range(0, len(widths), 2)
+    for index, value in enumerate(widths[offset + 1])}
                     pen = rightmost = 0
                     for item in shown:
                         if type(item) is NumberObject:
@@ -1324,7 +1338,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                     shown.append(NumberObject(pen - rightmost - 1))
                     units = Decimal(2) if case == "endpoint-containing-clip" else Decimal("0.5")
                     endpoint_clip = (Decimal(str(matrix[4]))
-        + Decimal(str(size)) * (rightmost + units) / 1000)
+    + Decimal(str(size)) * (rightmost + units) / 1000)
                 if case == "tm-left":
                     matrix[4] = FloatObject(float(matrix[4]) - 100)
                 elif case == "tm-body":
@@ -1344,9 +1358,9 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                         if endpoint_clip is not None:
                             rectangle = (0, 0, endpoint_clip, 1600)
                         payload.extend([
-        ([NumberObject(value) if type(value) is int else FloatObject(value)
-        for value in rectangle], b"re"),
-        ([], b"W"), ([], b"n")])
+    ([NumberObject(value) if type(value) is int else FloatObject(value)
+    for value in rectangle], b"re"),
+    ([], b"W"), ([], b"n")])
                     if case == "restored-clip":
                         payload.append(([], b"Q"))
                     else:
@@ -1355,7 +1369,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 first, last = self.footer_range(ops)
                 current = next(args[0] for args, op in ops[first + 1:last] if op == b"TJ")
                 self.assertEqual([bytes(item) for item in current if type(item) is ByteStringObject],
-        original_codes)
+    original_codes)
             self.edit_page(writer, -1, alter)
 
         for case in ("containing-clip", "restored-clip", "endpoint-containing-clip"):
@@ -1363,7 +1377,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 receipt = self.run_qa(self.rewritten(lambda writer: change(writer, case))).to_dict()
                 self.assertIs(receipt["complete_literal_source_accounting"], True)
         for case in ("tm-left", "tm-body", "outside-page", "outer-translation", "outer-shear",
-        "excluding-clip", "crop", "media", "tj-displaced", "endpoint-excluding-clip"):
+    "excluding-clip", "crop", "media", "tj-displaced", "endpoint-excluding-clip"):
             with self.subTest(refusal=case):
                 args = self.rewritten(lambda writer: change(writer, case))
                 if case == "endpoint-excluding-clip":
@@ -1375,9 +1389,9 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                     with patch.object(worker, "_contains", wraps=worker._contains) as contains:
                         with self.assertRaisesRegex(ValueError, "^typed original-brand QA refused$"):
                             worker._page(trace["pages"][-1], pages[-1][1], pages[-1][2], reader,
-        {}, {}, roles, worker.contract.MAX_STREAM_BYTES)
+    {}, {}, roles, worker.contract.MAX_STREAM_BYTES)
                     self.assertTrue(all(worker._contains(*call.args)
-        for call in contains.call_args_list[:-1]))
+    for call in contains.call_args_list[:-1]))
                     clip, footer = contains.call_args.args
                     self.assertEqual(len(footer), 5)
                     self.assertTrue(worker._contains(clip, footer[:4]))
@@ -1394,7 +1408,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         forms = {image_key: {"image_bounds": unit}}
         figures = {0: (unit, tuple(Decimal(str(value)) for value in page.raw_get("/MediaBox")))}
         footer = tuple((Decimal(x), Decimal(y)) for x, y in
-        ((100, 20), (220, 20), (220, 30), (100, 30), (220, 25)))
+    ((100, 20), (220, 20), (220, 30), (100, 30), (220, 25)))
         actual = ContentStream(page.raw_get("/Contents"), reader, forced_encoding="bytes").operations
         first, last = self.footer_range(actual)
         footer_ops = [([], b"q"), *deepcopy(actual[first:last + 1]), ([], b"Q")]
@@ -1408,63 +1422,63 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         def image_or_figure(kind, y):
             if kind == "image":
                 block = artifact((numbers(0, 0, 1, 1), b"re"), ([], b"W"), ([], b"n"),
-        ([image_name], b"Do"))
+    ([image_name], b"Do"))
             else:
                 block = [([NameObject("/Figure"), DictionaryObject({
-        NameObject("/MCID"): NumberObject(0)})], b"BDC"), ([], b"EMC")]
+    NameObject("/MCID"): NumberObject(0)})], b"BDC"), ([], b"EMC")]
             return [([], b"q"), (numbers(120, 0, 0, 10, 100, y), b"cm"), *block, ([], b"Q")]
 
         def filled(kind, y):
             if kind == "rectangle":
                 return artifact((numbers(100, y, 120, 10), b"re"), ([], b"f"))
             return artifact((numbers(100, y), b"m"), (numbers(220, y), b"l"),
-        (numbers(160, y + 10), b"l"), ([], b"f*"))
+    (numbers(160, y + 10), b"l"), ([], b"f*"))
 
         def stroked(kind, y):
             if kind == "scaled":
                 return [([], b"q"), (numbers(20, 0, 0, 20, 0, 0), b"cm"),
-        *artifact((numbers(5), b"w"), (numbers(6, y), b"m"),
-        (numbers(10, y), b"l"), ([], b"S")), ([], b"Q")]
+    *artifact((numbers(5), b"w"), (numbers(6, y), b"m"),
+    (numbers(10, y), b"l"), ([], b"S")), ([], b"Q")]
             return artifact((numbers(20), b"w"), ([], b"q"), (numbers(1), b"w"), ([], b"Q"),
-        (numbers(120, y), b"m"), (numbers(200, y), b"l"), ([], b"S"))
+    (numbers(120, y), b"m"), (numbers(200, y), b"l"), ([], b"S"))
 
         def geometry(operations, declared_footer=footer):
             with patch.object(worker, "_footer_declared_geometry", return_value=declared_footer):
                 worker._paint_geometry(operations, page, reader, forms, xobjects, figures, resources)
 
         later_paints = (
-        ("image-overlap", image_or_figure("image", 20)),
-        ("image-touch", image_or_figure("image", 30)),
-        ("figure-overlap", image_or_figure("figure", 20)),
-        ("figure-touch", image_or_figure("figure", 30)),
-        ("rectangle-fill", filled("rectangle", 20)),
-        ("polygon-fill", filled("polygon", 20)),
-        ("scaled-stroke", stroked("scaled", 3)),
-        ("restored-stroke", stroked("restored", 14)),
-        )
+    ("image-overlap", image_or_figure("image", 20)),
+    ("image-touch", image_or_figure("image", 30)),
+    ("figure-overlap", image_or_figure("figure", 20)),
+    ("figure-touch", image_or_figure("figure", 30)),
+    ("rectangle-fill", filled("rectangle", 20)),
+    ("polygon-fill", filled("polygon", 20)),
+    ("scaled-stroke", stroked("scaled", 3)),
+    ("restored-stroke", stroked("restored", 14)),
+    )
         for case, paint in later_paints:
             with self.subTest(earlier_graphic=case):
                 geometry(paint + footer_ops)
             with self.subTest(later_graphic=case):
                 with self.assertRaisesRegex(ValueError, "^typed original-brand QA refused$",
-        msg="later_graphic_obscures_validated_footer"):
+    msg="later_graphic_obscures_validated_footer"):
                     geometry(footer_ops + paint)
         for case, paint in (
-        ("image", image_or_figure("image", 60)),
-        ("figure", image_or_figure("figure", 60)),
-        ("rectangle", filled("rectangle", 60)),
-        ("polygon", filled("polygon", 60)),
-        ("scaled-stroke", stroked("scaled", 30)),
-        ("restored-stroke", stroked("restored", 160)),
-        ):
+    ("image", image_or_figure("image", 60)),
+    ("figure", image_or_figure("figure", 60)),
+    ("rectangle", filled("rectangle", 60)),
+    ("polygon", filled("polygon", 60)),
+    ("scaled-stroke", stroked("scaled", 30)),
+    ("restored-stroke", stroked("restored", 160)),
+    ):
             with self.subTest(separated_graphic=case):
                 geometry(footer_ops + paint)
 
 
         span_start = next(i for i, (args, op) in enumerate(actual)
-        if op == b"BDC" and args[0] == "/Span")
+    if op == b"BDC" and args[0] == "/Span")
         span_end = next(i for i in range(span_start + 1, len(actual))
-        if actual[i][1] == b"EMC")
+    if actual[i][1] == b"EMC")
         span = deepcopy(actual[span_start:span_end + 1])
         context, saved = [], []
         for args, op in actual[:span_start]:
@@ -1481,9 +1495,9 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         cid = resources["/Font"][font_name]["/DescendantFonts"][0].get_object()
         descriptor, declared = cid["/FontDescriptor"], cid["/W"]
         ascent, descent = (Decimal(worker.native._number(descriptor[key]))
-        for key in ("/Ascent", "/Descent"))
+    for key in ("/Ascent", "/Descent"))
         widths = {int(declared[i]) + j: Decimal(int(value))
-        for i in range(0, len(declared), 2) for j, value in enumerate(declared[i + 1])}
+    for i in range(0, len(declared), 2) for j, value in enumerate(declared[i + 1])}
         size = Decimal(worker.native._number(size_value))
         pieces, cells, pen = [], [], Decimal(0)
         for item in next(args[0] for args, op in span if op == b"TJ"):
@@ -1505,16 +1519,16 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         def text_span(x, y, shown=None, font_size=size_value):
             value = deepcopy(span)
             next(args for args, op in value if op == b"Tm")[:] = [
-        FloatObject(v) for v in (1, 0, 0, 1, x, y)]
+    FloatObject(v) for v in (1, 0, 0, 1, x, y)]
             next(args for args, op in value if op == b"Tf")[1] = font_size
             next(args for args, op in value if op == b"TJ")[0] = ArrayObject(
-        deepcopy(pieces if shown is None else shown))
+    deepcopy(pieces if shown is None else shown))
             return value
 
         def box(value, ctm=worker.IDENTITY):
             matrix = next(args for args, op in value if op == b"Tm")
             effective = worker._ctm(tuple(Fraction(worker.native._number(v)) for v in matrix),
-        tuple(map(Fraction, ctm)))
+    tuple(map(Fraction, ctm)))
             scale = Fraction(worker.native._number(next(args[1] for args, op in value if op == b"Tf"))) / 1000
             points, advance = [], Fraction(0)
             for item in next(args[0] for args, op in value if op == b"TJ"):
@@ -1522,13 +1536,13 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                     for offset in range(0, len(item), 2):
                         w = Fraction(widths[int.from_bytes(item[offset:offset + 2], "big")])
                         points.extend(worker._rectangle(
-        (advance * scale, Fraction(descent) * scale, w * scale,
-        (Fraction(ascent) - Fraction(descent)) * scale), effective))
+    (advance * scale, Fraction(descent) * scale, w * scale,
+    (Fraction(ascent) - Fraction(descent)) * scale), effective))
                         advance += w
                 else:
                     advance -= Fraction(worker.native._number(item))
             return (min(p[0] for p in points), min(p[1] for p in points),
-        max(p[0] for p in points), max(p[1] for p in points)), advance
+    max(p[0] for p in points), max(p[1] for p in points)), advance
 
         def overlaps(box):
             return not (box[2] < 100 or box[0] > 220 or box[3] < 20 or box[1] > 30)
@@ -1546,14 +1560,14 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         float_outside = text_span(219.75, fy, [FloatObject(-0.5), glyph, FloatObject(0.5)], large)
         float_overlap = text_span(220.25, fy, [FloatObject(0.5), glyph, FloatObject(-0.5)], large)
         lost_edge = text_span(160, fy, [
-        NumberObject(2 * 10**32), glyph, NumberObject(-2 * 10**32), glyph], large)
+    NumberObject(2 * 10**32), glyph, NumberObject(-2 * 10**32), glyph], large)
         lost_pen = text_span(220.5, fy, [NumberObject(2 * 10**32 + 1),
-        NumberObject(-2 * 10**32), glyph], large)
+    NumberObject(-2 * 10**32), glyph], large)
         touch = text_span(100, -descent, [pieces[index]], NumberObject(1000))
         up = tuple(map(Decimal, (1, 0, 0, 1, 0, 30)))
         touch_paint = [([], b"q"), (numbers(1, 0, 0, 1, 0, 30), b"cm"), *touch, ([], b"Q")]
         shear = tuple(Decimal(worker.native._number(FloatObject(v))) for v in (
-        1, 0, 1, 1, 160 - x - (origin + width / 2) * size / 1000 - 25, 0))
+    1, 0, 1, 1, 160 - x - (origin + width / 2) * size / 1000 - 25, 0))
         affine = [([], b"q"), ([FloatObject(v) for v in shear], b"cm"), *outside, ([], b"Q")]
         self.assertFalse(overlaps(box(span, ctm)[0]))
         self.assertFalse(overlaps(box(outside)[0]))
@@ -1567,63 +1581,63 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         self.assertTrue(overlaps(box(outside, shear)[0]))
         for value in (overlap, shifted):
             self.assertEqual(b"".join(bytes(item) for item in next(
-        args[0] for args, op in value if op == b"TJ") if type(item) is ByteStringObject), codes)
+    args[0] for args, op in value if op == b"TJ") if type(item) is ByteStringObject), codes)
             self.assertEqual(box(value)[1], pen)
         self.assertTrue(overlaps(box(overlap)[0]))
         self.assertTrue(overlaps(box(shifted)[0]))
         for label, operations in (
-        ("later-text-outside", footer_ops + [([], b"q"), *context, *span, ([], b"Q")]),
-        ("later-text-float-kerning-outside", footer_ops + float_outside),
-        ("earlier-text-overlap", overlap + footer_ops)):
+    ("later-text-outside", footer_ops + [([], b"q"), *context, *span, ([], b"Q")]),
+    ("later-text-float-kerning-outside", footer_ops + float_outside),
+    ("earlier-text-overlap", overlap + footer_ops)):
             with self.subTest(text_control=label):
                 geometry(operations)
         for label, value in (("later-text-pen-cancellation", lost_pen),
-        ("later-text-extrema-cancellation", lost_edge),
-        ("later-text-float-kerning-overlap", float_overlap),
-        ("later-text-tm-overlap", overlap),
-        ("later-text-tj-compensated-overlap", shifted),
-        ("later-text-touch", touch_paint), ("later-text-affine-overlap", affine)):
+    ("later-text-extrema-cancellation", lost_edge),
+    ("later-text-float-kerning-overlap", float_overlap),
+    ("later-text-tm-overlap", overlap),
+    ("later-text-tj-compensated-overlap", shifted),
+    ("later-text-touch", touch_paint), ("later-text-affine-overlap", affine)):
             with self.subTest(text_refusal=label), self.assertRaisesRegex(
-        ValueError, "^typed original-brand QA refused$"):
+    ValueError, "^typed original-brand QA refused$"):
                 geometry(footer_ops + value)
 
 
         h = 10**27
         corner = next(((i, w, s, Fraction(w) * s / 1000)
-        for i, _, w in positive for s in (1001, 999)
-        if Fraction(1, 4) <= Fraction(w) * s / 1000
-        - round(Fraction(w) * s / 1000) <= Fraction(1, 2)), None)
+    for i, _, w in positive for s in (1001, 999)
+    if Fraction(1, 4) <= Fraction(w) * s / 1000
+    - round(Fraction(w) * s / 1000) <= Fraction(1, 2)), None)
         self.assertIsNotNone(corner, "genuine glyph for exact corner control")
         ci, cw, cs, cell_width = corner
         cases = (
-        ("scale", h + 3, pieces[index], 1234, 4, 0,
-        205 - 4 * 1234 * 10**24, (), Fraction(100)),
-        ("corner", 2 * h, pieces[ci], cs, 4, 0,
-        99 - 4 * (2 * h * cs // 1000 + round(cell_width)), (), Fraction(100)),
-        ("point", 2 * h, pieces[index], 1000, 1, "0.0001",
-        100 - 2 * h - int(width), (), 100 + Fraction(ascent) / 20000),
-        ("ctm", 0, pieces[index], 1000, 1, 0, 0,
-        (2 * h, "0.25", -2 * h + 100 - int(width)), Fraction(801, 8)),
-        )
+    ("scale", h + 3, pieces[index], 1234, 4, 0,
+    205 - 4 * 1234 * 10**24, (), Fraction(100)),
+    ("corner", 2 * h, pieces[ci], cs, 4, 0,
+    99 - 4 * (2 * h * cs // 1000 + round(cell_width)), (), Fraction(100)),
+    ("point", 2 * h, pieces[index], 1000, 1, "0.0001",
+    100 - 2 * h - int(width), (), 100 + Fraction(ascent) / 20000),
+    ("ctm", 0, pieces[index], 1000, 1, 0, 0,
+    (2 * h, "0.25", -2 * h + 100 - int(width)), Fraction(801, 8)),
+    )
         for label, advance, glyph, fs, a, c, e, shifts, left in cases:
             with self.subTest(inexact_geometry=label):
                 value = text_span(0, 25 - (ascent + descent) * fs / 2000,
-        [NumberObject(-advance), glyph], NumberObject(fs))
+    [NumberObject(-advance), glyph], NumberObject(fs))
                 tm = next(args for args, op in value if op == b"Tm")
                 tm[0], tm[2], tm[4] = NumberObject(a), FloatObject(c), NumberObject(e)
                 exact_ctm = (1, 0, 0, 1, sum(map(Fraction, shifts)), 0)
                 exact, _ = box(value, exact_ctm)
                 self.assertTrue(exact[0] <= 220 and exact[2] >= left
-        and exact[1] < 30 and exact[3] > 20)
+    and exact[1] < 30 and exact[3] > 20)
                 edge = Decimal(left.numerator) / left.denominator
                 boundary = tuple((Decimal(x), Decimal(y)) for x, y in
-        ((edge, 20), (220, 20), (220, 30), (edge, 30), (220, 25)))
+    ((edge, 20), (220, 20), (220, 30), (edge, 30), (220, 25)))
                 transforms = [([NumberObject(1), NumberObject(0), NumberObject(0),
-        NumberObject(1), NumberObject(x) if type(x) is int
-        else FloatObject(x), NumberObject(0)], b"cm") for x in shifts]
+    NumberObject(1), NumberObject(x) if type(x) is int
+    else FloatObject(x), NumberObject(0)], b"cm") for x in shifts]
                 with self.assertRaisesRegex(ValueError, "^typed original-brand QA refused$"):
                     geometry(footer_ops + [([], b"q"), *transforms, *value, ([], b"Q")],
-        boundary)
+    boundary)
 
         form = xobjects.raw_get(image_name).get_object()
         image_resources = form["/Resources"]["/XObject"]
@@ -1648,8 +1662,8 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 font = page["/Resources"]["/Font"][font_name]
                 declared = font["/DescendantFonts"][0].get_object()["/W"]
                 widths = {int(declared[offset]) + index: int(value)
-        for offset in range(0, len(declared), 2)
-        for index, value in enumerate(declared[offset + 1])}
+    for offset in range(0, len(declared), 2)
+    for index, value in enumerate(declared[offset + 1])}
 
                 def measure(items):
                     pen, codes, placements = 0, bytearray(), []
@@ -1667,7 +1681,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                             pen += width
                     self.assertGreater(len(placements), 3)
                     bounds = (min(origin for origin, _ in placements),
-        max(origin + width for origin, width in placements))
+    max(origin + width for origin, width in placements))
                     return bytes(codes), pen, bounds, [origin for origin, _ in placements]
 
                 codes, advance, bounds, origins = measure(shown)
@@ -1690,7 +1704,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                         glyph += 1
                 changed_codes, changed_advance, changed_bounds, changed = measure(replacement)
                 self.assertEqual((changed_codes, changed_advance, changed_bounds),
-        (codes, advance, bounds))
+    (codes, advance, bounds))
                 self.assertEqual(changed[:2], origins[:2])
                 self.assertEqual(changed[3:], origins[3:])
                 self.assertEqual(changed[2], origins[2] - adjustment)
@@ -1746,7 +1760,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         font = page["/Resources"]["/Font"][source_block[4][0][0]]
         widths = font["/DescendantFonts"][0].get_object()["/W"]
         widths = {int(widths[i]) + j: int(w) for i in range(0, len(widths), 2)
-        for j, w in enumerate(widths[i + 1])}
+    for j, w in enumerate(widths[i + 1])}
         pen = extent = glyphs = 0
         for item in source_block[5][0][0]:
             if type(item) is NumberObject:
@@ -1767,16 +1781,16 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             block[5][0][0].insert(0, NumberObject(-offset))
             matrix = block[3][0]
             matrix[4] = FloatObject(Decimal(worker.native._number(matrix[4]))
-        - offset * size / 1000 - Decimal(distance) / Decimal("0.75"))
+    - offset * size / 1000 - Decimal(distance) / Decimal("0.75"))
             return block
 
         with self.subTest(footer_extent="boundary"):
             self.assertEqual(len(worker._footer_declared_geometry(
-        displaced(cap - extent), page["/Resources"], reader, ctm, media)), 5)
+    displaced(cap - extent), page["/Resources"], reader, ctm, media)), 5)
         for label, block in (("boundary-plus-one", displaced(cap - extent + 1)),
-        ("compensated-large-origin", displaced(10**12, 20))):
+    ("compensated-large-origin", displaced(10**12, 20))):
             with self.subTest(footer_extent=label), self.assertRaisesRegex(
-        ValueError, "^typed original-brand QA refused$"):
+    ValueError, "^typed original-brand QA refused$"):
                 worker._footer_declared_geometry(block, page["/Resources"], reader, ctm, media)
 
     def test_footers_require_exact_identity_once_on_each_physical_page(self):
@@ -1789,7 +1803,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         for mode in ("missing", "duplicate", "wrong-page", "wrong-identity"):
             def alter_footer(writer):
                 source = ContentStream(writer.pages[0].raw_get("/Contents"), writer,
-        forced_encoding="bytes").operations
+    forced_encoding="bytes").operations
                 first, last = self.footer_range(source)
                 donor = deepcopy(source[first:last + 1])
                 def alter(ops):
@@ -1811,8 +1825,8 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         def declared_widths(font):
             declared = font["/DescendantFonts"][0].get_object()["/W"]
             return {int(declared[offset]) + index: int(value)
-        for offset in range(0, len(declared), 2)
-        for index, value in enumerate(declared[offset + 1])}
+    for offset in range(0, len(declared), 2)
+    for index, value in enumerate(declared[offset + 1])}
 
         reader = PdfReader(BytesIO(args["pdf_bytes"]), strict=True)
         prefix_start, footer_fonts = len("OmniGenis | "), []
@@ -1820,7 +1834,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             events = page["pagination_blocks"][0]["events"]
             font_name = events[4]["operands"][0]
             reference = next(item["reference"] for item in page["font_resources"]
-        if item["name"] == font_name)
+    if item["name"] == font_name)
             mapping = dict(fonts[tuple(reference)]["mapping"])
             widths = declared_widths(reader.pages[page_index]["/Resources"]["/Font"][font_name])
             cursor, prefix = 0, {}
@@ -1837,7 +1851,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         selection = None
         for position, (_, old) in footer_fonts[0][2].items():
             replacements = sorted({text for text in footer_fonts[0][0].values()
-        if len(text) == 1 and text in "0123456789abcdef" and text != old})
+    if len(text) == 1 and text in "0123456789abcdef" and text != old})
             for replacement in replacements:
                 codes = []
                 for mapping, widths, prefix in footer_fonts:
@@ -1845,7 +1859,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                     if prior is None or prior[1] != old:
                         break
                     matches = [code for code, text in sorted(mapping.items())
-        if text == replacement and widths[int(code, 16)] == widths[int(prior[0], 16)]]
+    if text == replacement and widths[int(code, 16)] == widths[int(prior[0], 16)]]
                     if not matches:
                         break
                     codes.append(bytes.fromhex(matches[0]))
@@ -3124,6 +3138,8 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 ("minimum-spans-one-table", (1, 3, 1, 1, 7, 12, 29)),
                 ("minimum-spans-empty-table", (1, 3, 1, 1, 7, 12, 33)),
                 ("extra-span-paragraph-continues", (1, 3, 1, 1, 7, 13, 31)),
+                ("extra-span-empty-table", (1, 3, 1, 1, 7, 13, 34)),
+                ("extra-span-unsplit-table-continues", (1, 3, 1, 2, 6, 12, 34)),
                 ("same-page-multiline-paragraph", (1, 2, 1, 1, 7, 13, 30)),
                 ("same-page-extra-span-empty-table", (1, 2, 1, 1, 7, 13, 34)),
                 ("three-column-table", (1, 2, 1, 1, 9, 14, 33)),
@@ -3142,17 +3158,17 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 self.assertEqual(receipt.to_dict(), exact)
 
         # Counter-grammar controls; no rendered or native witness is claimed.
-        for pages, nodes in ((2, 34), (3, 32)):
-            bad = counter_receipt(1, pages, 1, 1, 7, 12, nodes)
+        for pages, mcids, nodes in ((2, 12, 34), (3, 12, 32), (3, 13, 32)):
+            bad = counter_receipt(1, pages, 1, 1, 7, mcids, nodes)
             payload = self.m.canonical(bad)
-            with self.subTest(pages=pages, boundary="constructor"), self.assertRaises(ValueError):
+            with self.subTest(pages=pages, mcids=mcids, boundary="constructor"), self.assertRaises(ValueError):
                 self.m.TypedOriginalBrandQA(payload)
             exact = counter_receipt(1, pages, 1, 1, 7, 12, 33)
             receipt = self.m.TypedOriginalBrandQA(self.m.canonical(exact))
             self.assertEqual(receipt.to_dict(), exact)
             object.__setattr__(receipt, "_payload", payload)
             object.__setattr__(receipt, "_sealed_sha256", sha256(payload).hexdigest())
-            with self.subTest(pages=pages, boundary="resealed"), self.assertRaises(ValueError):
+            with self.subTest(pages=pages, mcids=mcids, boundary="resealed"), self.assertRaises(ValueError):
                 receipt.to_dict()
 
         for label, parameters, extra_table_nodes in (
@@ -3721,7 +3737,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         self.assertEqual(fragments, 1)
         self.assertEqual(boundary["source_units"]
         - boundary["represented_findings"] - 3 - entries, 2)
-        coverage["text_mcids"] = max(text_units + entries + 1,
+        coverage["text_mcids"] = max(text_units + entries + 2,
         boundary["page_count"] + 2 * entries + 4 - fragments)
         coverage["native_mcids"] = coverage["text_mcids"] + coverage["figure_count"]
         coverage["operations"] = self.operation_floor(boundary)

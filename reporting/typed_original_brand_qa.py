@@ -696,21 +696,32 @@ def _validate_receipt(data: dict) -> None:
         table_segments = max(1, data["page_count"] - fragment_count
                              - data["navigation_entries"] - 2)
     spare_units = data["source_units"] - findings - 3 - data["navigation_entries"]
-    if findings and (data["page_count"] == fragment_count + 1
-                     or coverage["text_mcids"] == text_units + data["navigation_entries"]):
-        # Without continuations: D=4*K+Q for K tables and Q body rows. With R
-        # distinct findings and B body units, R<=Q<=R*K and 2*K+Q<=B; IDs may
-        # recur across tables but are unique within each table. One body page
-        # prevents continuations; the primary Span minimum leaves none spare.
-        body_units = data["source_units"] - 1 - data["navigation_entries"]
-        structural_nodes = coverage["projected_nodes"] - coverage["text_mcids"] - text_units - 1
-        minimum_tables = max(
-            1, (structural_nodes + findings + 3) // (findings + 4),
-            (structural_nodes - body_units + 1) // 2)
-        maximum_tables = min(
-            (structural_nodes - findings) // 4,
-            (body_units - findings) // 2)
-        require(minimum_tables <= maximum_tables)
+    spare_spans = coverage["text_mcids"] - text_units - data["navigation_entries"]
+    if findings and (data["page_count"] == fragment_count + 1 or spare_spans in (0, 1)):
+        # Without continuations D=4*K+Q, R<=Q<=R*K and 2*K+Q<=B.
+        # One spare Span can add a paragraph container, reserving one source
+        # unit, or one repeated single-column header plus four table nodes.
+        # The latter needs distinct unsplit rows; empty tables cannot continue.
+        allocations = ((0, 0),)
+        if data["page_count"] > fragment_count + 1 and spare_spans == 1:
+            allocations += ((1, 1),)
+            if findings >= 2:
+                allocations += ((5, 0),)
+        feasible = False
+        for extra_nodes, paragraph_units in allocations:
+            body_units = data["source_units"] - 1 - data["navigation_entries"] - paragraph_units
+            structural_nodes = (coverage["projected_nodes"] - coverage["text_mcids"]
+                                - text_units - 1 - extra_nodes)
+            minimum_tables = max(
+                1, (structural_nodes + findings + 3) // (findings + 4),
+                (structural_nodes - body_units + 1) // 2)
+            maximum_tables = min(
+                (structural_nodes - findings) // 4,
+                (body_units - findings) // 2)
+            if minimum_tables <= maximum_tables:
+                feasible = True
+                break
+        require(feasible)
     if findings and spare_units in (0, 1):
         # Exactly one one-column table, with at most one paragraph. For S table
         # segments, Q physical rows and C paragraph continuations, the exact

@@ -29,11 +29,11 @@
     "reporting/pdf_original_brand_inclusion.py": "8e3e00eed71d7b51e247bae8a6e952248ecf8a9119d03ef7fa4113d7e12b3660",
     "reporting/pdf_typed_brand_render.py": "280f66326f4c12e4c9fc739f55e4e3f5a0d91aa99bb380def85bd5f68fe719da",
     "reporting/typed_original_brand_pdf.py": "7ed222848fa3bf745a1baf97a67784c8fbfb908f675066cfc7e4f8c7646b539c",
-    "reporting/typed_original_brand_qa.py": "70a22ee287f37d80f0c20ef0e7bb6769c98ee14dc886dfe974576389d00d1d97",
+    "reporting/typed_original_brand_qa.py": "37078e6a37a3e98404fa40fad878c2e39a95e35b7455508af6fd8a08f4497345",
     "reporting/typed_pdf_association.py": "0b6f4be7d81dc5624aaa3b7e11ed3cfbca0d7d9222272f6c24ba07ee617b3a63",
     "reporting/typed_pdf_source.py": "ace530cd727eaf513bffb9070c1b412db166ca4b966d390e710b853ec8676c59",
     "schemas/report-typed-original-brand-qa.v1.schema.json": "f09fedbf5b37234ef5732cfe3081500cc036ca5d57ce7f26c4481b00b6d297ee",
-    "tests/test_reporting_typed_original_brand_qa.py": "22c8e3e891f2b52c50da1c96026c006167386c3c4fc20a8edbe96fe042b73f62"
+    "tests/test_reporting_typed_original_brand_qa.py": "f6fe18d1330623fd618bbaaad0497267d8cbcf327a09a9a42632ef2b4062ee0e"
   },
   "structure_id_tree_policy": "FLAT_NAMES_EXACT_ORIGINAL_BYTE_ID_MAP",
   "table_identifier_policy": "PYPDF_TEXTSTRINGOBJECT_ONLY_ORIGINAL_BYTES_1_TO_128",
