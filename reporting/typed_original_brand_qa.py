@@ -695,12 +695,32 @@ def _validate_receipt(data: dict) -> None:
         # occupy pages outside that table's successive nonempty segments.
         table_segments = max(1, data["page_count"] - fragment_count
                              - data["navigation_entries"] - 2)
-        if data["page_count"] == fragment_count + 1:
-            # All body units follow the distinct contents pages after the cover.
-            # Only the final page remains; this source budget has one table and
-            # no paragraph. Its text containers and R+4 table nodes are exact.
-            require(coverage["projected_nodes"] == coverage["text_mcids"]
-                    + text_units + 1 + 4 + findings)
+    spare_units = data["source_units"] - findings - 3 - data["navigation_entries"]
+    if findings and spare_units in (0, 1):
+        # Exactly one one-column table, with at most one paragraph. For S table
+        # segments, Q physical rows and C paragraph continuations, the exact
+        # projected total is M + T + 5*S + 2*Q - R + C. Only the final row of a
+        # segment can split; paragraph/table page crossings are disjoint.
+        body_pages = data["page_count"] - fragment_count
+        total = coverage["projected_nodes"] - coverage["text_mcids"] - text_units + findings
+        feasible = False
+        # The unchanged schema limits page_count to 64 and fragments to >=1.
+        for segments in range(1, body_pages + 1):
+            minimum_continuations = max(
+                0, body_pages - data["navigation_entries"] - spare_units - 2 - segments)
+            maximum_continuations = body_pages - segments if spare_units else 0
+            remainder = total - 5 * segments
+            minimum_rows = max(
+                findings, segments, -((maximum_continuations - remainder) // 2),
+                text_units + total - 4 * segments - findings - 1
+                + data["navigation_entries"] - coverage["text_mcids"])
+            maximum_rows = min(
+                findings + segments - 1, (remainder - minimum_continuations) // 2)
+            if (minimum_continuations <= maximum_continuations
+                    and minimum_rows <= maximum_rows):
+                feasible = True
+                break
+        require(feasible)
     row_segments = max(findings, table_segments)
     # Each segment has Table/THead/TBody/header TR and at least one body TR.
     # Distinct finding rows can span segments without requiring split rows.

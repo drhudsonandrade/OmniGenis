@@ -15,7 +15,7 @@
   "sources": {
     "reporting/_pdf_original_dna_png_admission.py": "3f1a849a98b32cecaf73c09b5f289b5ab7bcb04cc50f01400bfb0fa81adc4a4a",
     "reporting/_pdf_original_svg_layout_worker.py": "bdfd7b79d7445d3d68351cde7e0cd63777a8339f903a4ac3ae72f421ec211f76",
-    "reporting/_pdf_typed_brand_emission.py": "abd087c72a5ecca983868e417add6759ae535044a918fe7813bdcf0c36ab5a0d",
+    "reporting/_pdf_typed_brand_emission.py": "0133e89361649eaf9513f5f385ba0166d0af853226a042fcac5db514dba1cc05",
     "reporting/_pdf_typed_brand_render_worker.py": "6054dab7dc6c8e2d342ef7ce4a313bf2d39dc8f9472b16e25a2c9622e1abf4d5",
     "reporting/_pdf_typed_original_brand_qa_worker.py": "b81b60933c7407b9502d237421e61911b25c3171c95247f8cce02ea2f9397185",
     "reporting/assets/brand-permission.md": "14a5170bec0e347ec274312f1b915aa9a9d94de61ad32260fc8305f1eb9ddeab",
@@ -24,16 +24,16 @@
     "reporting/brand_assets.py": "400045ee7f8eca94a938608566695d03b276e322f8aa3bcd78485b7abb1b4649",
     "reporting/editorial_typed_pdf.py": "0e2a2266b49f18e4742850b484227dceebc90f6ffdaeea98cd33eea2cb037dc8",
     "reporting/internal_navigation.py": "f8e6edd6847a456eb9e8d6c0b1cfbad50fbe05eb1d74028a4693a4e425884c28",
-    "reporting/pdf-typed-brand-render.v1.json": "f4cdc6c1fa3bfb9472fc54f7a97511461844824dc1931476f45cc0b235b553c7",
+    "reporting/pdf-typed-brand-render.v1.json": "39db4bbca75fa2b4f58357987f56fe6bb368878c76d26e417986770e5b9325bd",
     "reporting/pdf-typed-observation.v1.json": "6d7c541dcf25d3be19fe3a7391239e5c7ffed5b29be092c062c03e3e5d744490",
     "reporting/pdf_original_brand_inclusion.py": "8e3e00eed71d7b51e247bae8a6e952248ecf8a9119d03ef7fa4113d7e12b3660",
     "reporting/pdf_typed_brand_render.py": "280f66326f4c12e4c9fc739f55e4e3f5a0d91aa99bb380def85bd5f68fe719da",
     "reporting/typed_original_brand_pdf.py": "7ed222848fa3bf745a1baf97a67784c8fbfb908f675066cfc7e4f8c7646b539c",
-    "reporting/typed_original_brand_qa.py": "4c99fc5240f75b565f590f96efc9c57b8d79cd677631868d33ab38747d84e1d1",
+    "reporting/typed_original_brand_qa.py": "c43216b08aa1e7075f47852c16bcd37f9a36c2567c906a235a6b3b274d9211a4",
     "reporting/typed_pdf_association.py": "0b6f4be7d81dc5624aaa3b7e11ed3cfbca0d7d9222272f6c24ba07ee617b3a63",
     "reporting/typed_pdf_source.py": "ace530cd727eaf513bffb9070c1b412db166ca4b966d390e710b853ec8676c59",
     "schemas/report-typed-original-brand-qa.v1.schema.json": "f09fedbf5b37234ef5732cfe3081500cc036ca5d57ce7f26c4481b00b6d297ee",
-    "tests/test_reporting_typed_original_brand_qa.py": "f7a2ef95234efaca7ff70958a9e6bc8482e7d4b688e20de3d0637c68a46a2252"
+    "tests/test_reporting_typed_original_brand_qa.py": "e721652880dd1fa461a6bc7f35f71712ec3bd635157a0a9be302d1ba2d74410e"
   },
   "structure_id_tree_policy": "FLAT_NAMES_EXACT_ORIGINAL_BYTE_ID_MAP",
   "table_identifier_policy": "PYPDF_TEXTSTRINGOBJECT_ONLY_ORIGINAL_BYTES_1_TO_128",

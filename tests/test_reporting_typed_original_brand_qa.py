@@ -2783,6 +2783,53 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             with self.subTest(single_table_segment=label, surplus="one-node", boundary="resealed-to-dict"), self.assertRaises(ValueError):
                 receipt.to_dict()
 
+        # Zero or one spare source unit still fixes one one-column table;
+        # the optional unit can only be a paragraph. Counts must admit a whole
+        # table/row/paragraph-fragment allocation, not merely a loose interval.
+        # These are receipt grammar controls, not new native PDF witnesses.
+        for label, parameters in (
+                ("one-spare-unit-one-body-page", (1, 2, 1, 1, 6, 11, 27)),
+                ("one-table-segment-with-extra-text", (1, 3, 1, 1, 5, 12, 27)),
+                ("two-table-segments-with-split-row", (1, 3, 1, 1, 5, 12, 34)),
+                ("one-paragraph-without-continuation", (1, 3, 1, 1, 6, 13, 29)),
+                ("one-paragraph-with-continuation", (1, 3, 1, 1, 6, 13, 30)),
+                ("paragraph-and-split-table-row", (1, 3, 1, 1, 6, 13, 36)),
+                ("two-rows-one-segment", (1, 3, 1, 2, 6, 13, 30)),
+                ("two-rows-separated-without-split", (1, 3, 1, 2, 6, 13, 35)),
+                ("two-rows-one-split", (1, 3, 1, 2, 6, 13, 37))):
+            exact = counter_receipt(*parameters)
+            payload = self.m.canonical(exact)
+            with self.subTest(finite_table_allocation=label, boundary="constructor"):
+                self.assertEqual(self.m.TypedOriginalBrandQA(payload).to_dict(), exact)
+            receipt = self.m.TypedOriginalBrandQA(self.m.canonical(source))
+            object.__setattr__(receipt, "_payload", payload)
+            object.__setattr__(receipt, "_sealed_sha256", sha256(payload).hexdigest())
+            with self.subTest(finite_table_allocation=label, boundary="resealed-to-dict"):
+                self.assertEqual(receipt.to_dict(), exact)
+
+        for label, parameters in (
+                ("one-spare-unit-surplus-node", (1, 2, 1, 1, 6, 11, 28)),
+                ("impossible-minimum-table-total", (1, 3, 1, 1, 5, 12, 28)),
+                ("impossible-paragraph-table-total", (1, 3, 1, 1, 6, 13, 31))):
+            bad = counter_receipt(*parameters)
+            fragments, pages, entries, findings, units, mcids, nodes = parameters
+            text_units = units + bad["brand_text_units"] + 1 + entries
+            self.assertIn(units - findings - 3 - entries, (0, 1))
+            self.assertGreaterEqual(mcids, text_units + entries)
+            self.assertGreaterEqual(nodes, mcids + max(
+                text_units, pages + findings + 1 + entries + 2 - fragments)
+                + 1 + 4 + findings)
+            self.assertGreaterEqual(mcids, pages + findings + 1 + 2 * entries + 2 - fragments)
+            self.assertEqual(bad["coverage"]["operations"], self.operation_floor(bad))
+            payload = self.m.canonical(bad)
+            with self.subTest(finite_table_allocation=label, boundary="constructor"), self.assertRaises(ValueError):
+                self.m.TypedOriginalBrandQA(payload)
+            receipt = self.m.TypedOriginalBrandQA(self.m.canonical(source))
+            object.__setattr__(receipt, "_payload", payload)
+            object.__setattr__(receipt, "_sealed_sha256", sha256(payload).hexdigest())
+            with self.subTest(finite_table_allocation=label, boundary="resealed-to-dict"), self.assertRaises(ValueError):
+                receipt.to_dict()
+
         # More physical pages can hold table or paragraph continuation. A wider
         # source budget can instead hold more columns or another empty table;
         # none of these shapes permits the minimum-source/single-page equality.

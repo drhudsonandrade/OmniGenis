@@ -689,7 +689,8 @@ class TypedBrandRouteTests(unittest.TestCase):
 
         original_distribution = core.distribution
         for name in ("weasyprint/layout/inline.py", "weasyprint/layout/page.py",
-                     "weasyprint/layout/__init__.py", "weasyprint/text/fonts.py"):
+                     "weasyprint/layout/__init__.py", "weasyprint/text/fonts.py",
+                     "weasyprint/text/constants.py"):
             with self.subTest(engine=name):
                 engine = Path(original_distribution("weasyprint").locate_file(name))
                 original = engine.read_bytes()

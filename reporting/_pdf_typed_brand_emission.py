@@ -39,6 +39,7 @@ ENGINES = {
     "weasyprint/formatting_structure/build.py": "335ad8b541295d6b9c5b71830d5184cd692f730d7b83ba5bac39fdb5aea23c87",
     "weasyprint/formatting_structure/boxes.py": "8ffd28ab74a149f0097208fcba6a80df0c8bb01e8fd4f9ced95d11b7e9807e23",
     "weasyprint/draw/text.py": "c9a450aa209277e760227e1fed2da492647bd28e5a5ebc4c9d8aaedecc400d77",
+    "weasyprint/text/constants.py": "82d0bdd876f3722d3defa8154dcb77ae854a2dc423356210338df3b8406a22e6",
     "weasyprint/text/fonts.py": "59d74d0c161349b8416f1d13466e16dd47c1161f0a397ff1e4ca70814eb36091",
     "weasyprint/text/line_break.py": "1f5a855ad992e0bebaf5512d2b806fd991090e0e91bf79d3d5a3a0176b22af97",
     "weasyprint/text/ffi.py": "530e83118f7841d2791678ece23d5e43a7a24150ee1ea64bb4ba70c70b3eb5da",

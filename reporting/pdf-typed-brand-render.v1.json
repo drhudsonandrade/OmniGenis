@@ -17,6 +17,7 @@
     "weasyprint/pdf/__init__.py": "426e0855db0473121bf70666b3c6c5fbd9ebfe832741d31a3689e8b10a14281f",
     "weasyprint/pdf/stream.py": "4faf9169d1970d4688b9cf41f733659ca6b1c4c098707c64f67c47a07309e81e",
     "weasyprint/pdf/tags.py": "fae488b773686ea7fb685967c78a5b011854b88b61377f426ffb4e9ec00d76d2",
+    "weasyprint/text/constants.py": "82d0bdd876f3722d3defa8154dcb77ae854a2dc423356210338df3b8406a22e6",
     "weasyprint/text/ffi.py": "530e83118f7841d2791678ece23d5e43a7a24150ee1ea64bb4ba70c70b3eb5da",
     "weasyprint/text/fonts.py": "59d74d0c161349b8416f1d13466e16dd47c1161f0a397ff1e4ca70814eb36091",
     "weasyprint/text/line_break.py": "1f5a855ad992e0bebaf5512d2b806fd991090e0e91bf79d3d5a3a0176b22af97"
@@ -50,7 +51,7 @@
     "reporting/_pdf_process_lifecycle.py": "e3da8ad54736b891ff2c2eb1c9a65e384114307e775da49b42518c07768f7b2f",
     "reporting/_pdf_process_sandbox.py": "76a4648556ecd3d3c39c1ac33122c027ab90769b5e5e9c244b79657454635a3f",
     "reporting/_pdf_render_worker.py": "30b6454c7cd9b1b83d5713c406e135de91ccf127116a8bd42a13d17036cbd5ce",
-    "reporting/_pdf_typed_brand_emission.py": "abd087c72a5ecca983868e417add6759ae535044a918fe7813bdcf0c36ab5a0d",
+    "reporting/_pdf_typed_brand_emission.py": "0133e89361649eaf9513f5f385ba0166d0af853226a042fcac5db514dba1cc05",
     "reporting/_pdf_typed_brand_render_worker.py": "6054dab7dc6c8e2d342ef7ce4a313bf2d39dc8f9472b16e25a2c9622e1abf4d5",
     "reporting/adapters.py": "4617038aea9465db76aa0f4049f458dc6b7de7686f56addc21a45f5f2bf6bba0",
     "reporting/bindings.py": "bdbc232cb0cfd507001731075ea9856cd421b60202f2871511d406aead09eb38",
