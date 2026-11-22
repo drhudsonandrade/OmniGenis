@@ -225,14 +225,25 @@ class TypedOriginalBrandPdfTests(unittest.TestCase):
             render.assert_not_called()
 
     def test_editorial_folios_bind_the_report_identity_and_every_physical_page(self):
-        candidate, _ = self.m.render_typed_original_brand_pdf(**self.arguments())
+        # This fixed synthetic source has a genuine ff-prefixed IR digest;
+        # no forged digest or native shaping mock is used.
+        paragraph = "Literal body ligature: \ufb00. Hash nonce 116."
+        source = document(2, paragraph=paragraph)
+        source_sha = digest(source)
+        self.assertTrue(source_sha.startswith("ff"), "folio_fixture_missing_ff_prefix")
+        candidate, _ = self.m.render_typed_original_brand_pdf(**(self.arguments() | {
+            "presentation_ir": source, "expected_ir_sha256": source_sha}))
         reader = PdfReader(BytesIO(candidate.pdf_bytes), strict=True)
         self.assertIn("/PageLabels", reader.root_object)
         self.assertEqual(reader.page_labels, [str(i) for i in range(1, len(reader.pages) + 1)])
+        body_lines = []
         for number, page in enumerate(reader.pages, 1):
-            folios = [line.strip() for line in page.extract_text().splitlines()
-                      if line.strip().startswith("OmniGenis | ")]
-            self.assertEqual(folios, ["OmniGenis | " + self.expected_ir_sha[:12] + " | " + str(number)])
+            lines = [line.strip() for line in page.extract_text().splitlines()]
+            folios = [line for line in lines if line.startswith("OmniGenis | ")]
+            self.assertEqual(folios, ["OmniGenis | " + source_sha[:12] + " | " + str(number)])
+            body_lines.extend(line for line in lines if line.startswith("Literal body ligature: "))
+        # The generated folio must preserve the later literal source character.
+        self.assertEqual(body_lines, [paragraph], "generated_folio_changed_literal_body_text")
 
     def test_editorial_navigation_matches_the_final_heading_page_without_annotations(self):
         _, observation, reader = self._editorial_native_fixture()

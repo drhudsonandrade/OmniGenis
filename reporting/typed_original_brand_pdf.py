@@ -206,9 +206,12 @@ def prepare_typed_original_brand_pdf(
                   '<h2>Visual asset credits</h2>'
                   '<p data-brand-credit="original" role="note">' + escape(
                       REQUIRED_CREDIT_EN, quote=True) + '</p></section>')
+        # Do not let an ASCII ff in the identity folio claim the Unicode mapping
+        # of the ligature glyph used by a later literal U+FB00 body character.
         folio_css = ('@page{@bottom-right{content:"OmniGenis | '
                      + expected_ir_sha256[:12] + ' | " counter(page);'
-                     'font-family:Lato;font-size:8.6pt;line-height:10pt;color:#455D73}}')
+                     'font-family:Lato;font-variant-ligatures:none;'
+                     'font-size:8.6pt;line-height:10pt;color:#455D73}}')
         style = _COVER_CSS + folio_css
         head = source.split("<body>", 1)[0]
         _require(head.count("</style>") == 1)

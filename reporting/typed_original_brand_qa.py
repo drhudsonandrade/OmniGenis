@@ -670,54 +670,51 @@ def _validate_receipt(data: dict) -> None:
     findings = data["represented_findings"]
     text_units = data["source_units"] + data["brand_text_units"] + 1 + data["navigation_entries"]
     fragment_count = coverage["accounted_brand_wrapper_nodes"] - 5
-    if findings == 0 and data["source_units"] == 1 + data["navigation_entries"]:
-        # The title and destination headings exhaust the source units. With no
-        # continuing paragraph/table, page-local cover, contents fragments,
-        # headings and final credit can occupy at most this many pages.
-        # Each text MCID contributes one Span; each text unit contributes one
-        # container. Only the Document remains, with no extra table/paragraph.
-        require(data["page_count"] <= fragment_count + data["navigation_entries"] + 2
-                and coverage["projected_nodes"] == coverage["text_mcids"] + text_units + 1)
-    elif findings == 0 and data["source_units"] == 2 + data["navigation_entries"]:
-        # One extra unit is a paragraph: a table needs a caption and header.
-        # Contents fragments occupy distinct pages after the cover. The body
-        # cannot precede the last fragment, and a paragraph continues once per
-        # successive page, so at most page_count - fragment_count - 1 extra
-        # containers can follow its first container already in text_units.
-        # Every text container, including a continuation, needs a Span. Each
-        # navigation entry additionally needs its separate suffix Span.
-        require(coverage["projected_nodes"] <= (coverage["text_mcids"] + text_units
-                                                 + data["page_count"] - fragment_count)
-                and coverage["projected_nodes"] - coverage["text_mcids"] - 1
-                <= coverage["text_mcids"] - data["navigation_entries"])
-    elif findings == 0 and data["source_units"] == 3 + data["navigation_entries"]:
-        # Two remaining units are two paragraphs or one caption/header table.
-        # Ordered paragraphs share the available page-boundary crossings and
-        # each continued container needs a Span beyond the navigation suffixes.
+    if findings == 0:
+        # Every table is empty: source admission counts every body-row finding.
+        # An empty table costs at least two source units, has four structural
+        # nodes, and never continues. For k tables and C paragraph continuations,
+        # extra_nodes = 4*k + C. Ordered paragraphs share the available page
+        # crossings, and each continuation needs an additional text Span.
+        spare_units = data["source_units"] - 1 - data["navigation_entries"]
         extra_nodes = coverage["projected_nodes"] - coverage["text_mcids"] - text_units - 1
-        paragraph_continuations = min(data["page_count"] - fragment_count - 1,
-                                      coverage["text_mcids"] - text_units - data["navigation_entries"])
-        # An empty one-column table occupies one page and has exactly Table,
-        # THead, header TR and mandatory empty TBody beyond its text containers.
-        require(0 <= extra_nodes <= paragraph_continuations
-                or (extra_nodes == 4
-                    and data["page_count"] <= fragment_count + data["navigation_entries"] + 3))
-    # Each finding needs a body TR, plus Table/THead/TBody/header TR.
-    table_nodes = findings + 4 if findings else 0
-    # The first nonempty table page has caption, header and body-cell text.
-    # Three distinct containers/Spans add two beyond its one-per-page baseline.
-    table_text_excess = 2 if findings else 0
+        continuations = min(data["page_count"] - fragment_count - 1,
+                            coverage["text_mcids"] - text_units - data["navigation_entries"])
+        minimum_tables = max(0, (extra_nodes - continuations + 3) // 4)
+        # At most spare_units-2*k paragraphs remain. Cover, contents, headings,
+        # credit, tables and paragraph fragments must cover every declared page.
+        maximum_tables = min(spare_units // 2, extra_nodes // 4,
+                             (fragment_count + data["navigation_entries"] + spare_units
+                              + extra_nodes + 2 - data["page_count"]) // 5)
+        require(0 <= extra_nodes and minimum_tables <= maximum_tables
+                and (2 * minimum_tables < spare_units or extra_nodes == 4 * minimum_tables))
+    table_segments = 1 if findings else 0
+    if findings and data["source_units"] == findings + 3 + data["navigation_entries"]:
+        # The exact minimum admits one one-column table and no paragraph.
+        # Only cover, contents, destination headings and final credit can
+        # occupy pages outside that table's successive nonempty segments.
+        table_segments = max(1, data["page_count"] - fragment_count
+                             - data["navigation_entries"] - 2)
+    row_segments = max(findings, table_segments)
+    # Each segment has Table/THead/TBody/header TR and at least one body TR.
+    # Distinct finding rows can span segments without requiring split rows.
+    table_nodes = 4 * table_segments + row_segments
+    repeated_table_units = max(0, table_segments - 1) + row_segments - findings
+    # Caption/header/cell add two beyond the first table page's text baseline;
+    # each continuation adds its header and cell, one beyond that page's baseline.
+    table_text_excess = table_segments + 1 if findings else 0
     # Matched grammar has at most five non-root nodes per Span, plus one
     # potentially empty TBody per table; every matched table has a Span.
     require(data["source_units"] >= (findings + 3 if findings else 1) + data["navigation_entries"]
             and data["pdf_byte_count"] >= len(b"%PDF-1.7")
-            and coverage["text_mcids"] >= text_units + data["navigation_entries"]
+            and coverage["text_mcids"] >= text_units + repeated_table_units + data["navigation_entries"]
             # Contents and final credit runs add to the per-page text floor.
             and coverage["text_mcids"] >= (data["page_count"] + table_text_excess
                                             + 2 * data["navigation_entries"] + 2 - fragment_count)
             # Contents and final credit containers add to the per-page floor.
             and coverage["projected_nodes"] >= (coverage["text_mcids"]
-                                                + max(text_units, data["page_count"] + table_text_excess
+                                                + max(text_units + repeated_table_units,
+                                                      data["page_count"] + table_text_excess
                                                       + data["navigation_entries"] + 2 - fragment_count)
                                                 + 1 + table_nodes)
             and coverage["projected_nodes"] <= 1 + 6 * coverage["text_mcids"]

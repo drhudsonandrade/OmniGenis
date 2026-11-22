@@ -2616,6 +2616,94 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             with self.subTest(table_page_floor=mode, boundary="resealed-to-dict"), self.assertRaises(ValueError):
                 receipt.to_dict()
 
+        def counter_receipt(fragments, pages, entries, findings, source_units, mcids, nodes):
+            value = navigation_boundary(
+                fragments, pages, entries, source_units=source_units, text_mcids=mcids)
+            value["represented_findings"] = findings
+            coverage = value["coverage"]
+            coverage["projected_nodes"] = nodes
+            coverage["native_nodes"] = (nodes + coverage["accounted_brand_wrapper_nodes"]
+                                        + coverage["accounted_navigation_wrapper_nodes"])
+            self.assertEqual(coverage["native_mcids"], mcids + coverage["figure_count"])
+            self.assertEqual(coverage["operations"], self.operation_floor(value))
+            self.assertLessEqual(nodes, 1 + 6 * mcids)
+            self.assertLessEqual(2 * coverage["native_nodes"] - 1 + coverage["native_mcids"],
+                                 self.m.prior.MAX_VISITS)
+            self.m._schema(value)
+            return value
+
+        # These are source-grammar counter controls, not newly rendered witnesses.
+        # Zero findings implies empty tables: body rows always carry a finding ID.
+        # Three spare units can be three paragraphs, an empty table + paragraph,
+        # or an empty two-column table. Only the paragraph can continue.
+        for label, parameters in (
+                ("three-paragraphs", (1, 2, 1, 0, 5, 10, 20)),
+                ("empty-table-plus-paragraph", (1, 2, 1, 0, 5, 10, 24)),
+                ("table-plus-paragraph-continuation", (1, 3, 1, 0, 5, 11, 26)),
+                ("two-empty-tables", (1, 2, 1, 0, 6, 11, 30)),
+                ("two-tables-plus-continuing-paragraph", (1, 3, 1, 0, 7, 13, 34)),
+                ("two-contents-fragments", (2, 4, 2, 0, 6, 14, 31)),
+                ("one-finding-row-has-five-table-nodes", (1, 2, 1, 1, 5, 10, 25))):
+            exact = counter_receipt(*parameters)
+            with self.subTest(empty_table_grammar=label):
+                self.assertEqual(self.m.TypedOriginalBrandQA(self.m.canonical(exact)).to_dict(), exact)
+        for label, parameters in (
+                ("no-finding-row-cannot-add-five-table-nodes", (1, 2, 1, 0, 5, 10, 25)),
+                ("one-above-table-paragraph-maximum", (1, 3, 1, 0, 5, 11, 27)),
+                ("insufficient-table-paragraph-page-coverage", (1, 8, 1, 0, 5, 11, 26)),
+                ("all-units-in-empty-tables-cannot-continue", (1, 3, 1, 0, 6, 12, 32)),
+                ("no-crossing-after-two-contents-fragments", (2, 3, 2, 0, 6, 14, 31))):
+            bad = counter_receipt(*parameters)
+            payload = self.m.canonical(bad)
+            with self.subTest(empty_table_grammar=label, boundary="constructor"), self.assertRaises(ValueError):
+                self.m.TypedOriginalBrandQA(payload)
+            receipt = self.m.TypedOriginalBrandQA(self.m.canonical(source))
+            object.__setattr__(receipt, "_payload", payload)
+            object.__setattr__(receipt, "_sealed_sha256", sha256(payload).hexdigest())
+            with self.subTest(empty_table_grammar=label, boundary="resealed-to-dict"), self.assertRaises(ValueError):
+                receipt.to_dict()
+
+        # Exact minimum source units admit one one-column table and no paragraph.
+        # Eight pages require four table segments: with one through four findings,
+        # these need 16 Spans, 15 text containers, 20 table nodes and one Document.
+        # More findings can occupy distinct rows without splitting every row.
+        for label, parameters in (
+                ("one-segment", (1, 5, 1, 1, 5, 10, 25)),
+                ("one-row-four-segments", (1, 8, 1, 1, 5, 16, 52)),
+                ("two-rows-four-segments", (1, 8, 1, 2, 6, 16, 52)),
+                ("four-rows-four-segments", (1, 8, 1, 4, 8, 16, 52)),
+                ("five-rows-four-segments", (1, 8, 1, 5, 9, 17, 55)),
+                ("two-contents-fragments", (2, 10, 2, 1, 6, 19, 57))):
+            exact = counter_receipt(*parameters)
+            with self.subTest(mandatory_table_segments=label):
+                self.assertEqual(self.m.TypedOriginalBrandQA(self.m.canonical(exact)).to_dict(), exact)
+        for label, mcids, nodes in (
+                ("reported-mcid-deficit", 13, 49),
+                ("one-below-mcid-floor", 15, 51),
+                ("reported-node-deficit", 16, 34),
+                ("missing-repeated-text-containers", 16, 49),
+                ("missing-repeated-table-structures", 16, 37),
+                ("one-below-node-floor", 16, 51)):
+            bad = counter_receipt(1, 8, 1, 1, 5, mcids, nodes)
+            self.assertEqual(bad["source_units"], bad["represented_findings"] + 3 + bad["navigation_entries"])
+            # The current first-page floor is 13 Spans and 12 text containers.
+            self.assertGreaterEqual(mcids, 13)
+            self.assertGreaterEqual(nodes, mcids + 12 + 1 + 5)
+            if "mcid" in label:
+                self.assertLess(mcids, 16)
+                self.assertEqual(nodes, mcids + 15 + 1 + 20)
+            else:
+                self.assertEqual(mcids, 16)
+                self.assertLess(nodes, 16 + 15 + 1 + 20)
+            payload = self.m.canonical(bad)
+            with self.subTest(mandatory_table_segments=label, boundary="constructor"), self.assertRaises(ValueError):
+                self.m.TypedOriginalBrandQA(payload)
+            receipt = self.m.TypedOriginalBrandQA(self.m.canonical(source))
+            object.__setattr__(receipt, "_payload", payload)
+            object.__setattr__(receipt, "_sealed_sha256", sha256(payload).hexdigest())
+            with self.subTest(mandatory_table_segments=label, boundary="resealed-to-dict"), self.assertRaises(ValueError):
+                receipt.to_dict()
+
         # Two remaining body units are either two paragraphs or a caption
         # and one table header. The matcher always requires the empty TBody.
         for pages, mcids, nodes, shape in (
@@ -2799,8 +2887,8 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             self.m._schema(exact)
             with self.subTest(fragment_count=fragments, boundary="exact"):
                 self.assertEqual(self.m.TypedOriginalBrandQA(self.m.canonical(exact)).to_dict(), exact)
-        # Sparse controls isolate page/navigation obligations from the
-        # independent source-unit floor, including two contents fragments.
+        # Sparse controls exercise the page/navigation obligations with
+        # three spare source units, including two contents fragments.
         for fragments, pages, entries, source_units, minimum in (
                 (1, 8, 1, 5, 11), (2, 10, 2, 6, 14)):
             exact = navigation_boundary(
@@ -2816,8 +2904,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 fragments, pages, entries, source_units=source_units, text_mcids=minimum - 1)
             self.assertGreaterEqual(bad["coverage"]["text_mcids"], units + entries)
             self.assertGreaterEqual(bad["coverage"]["text_mcids"], pages)
-            self.assertTrue(source_units > 3 + entries,
-                            "sparse MCID floor cases must bypass small-body branches")
+            self.assertEqual(source_units - 1 - entries, 3)
             coverage = bad["coverage"]
             self.assertEqual(minimum, pages + 2 * entries + 2 - fragments)
             self.assertEqual(coverage["text_mcids"], minimum - 1)
