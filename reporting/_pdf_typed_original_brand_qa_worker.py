@@ -834,8 +834,11 @@ def _logo_source():
                 cursor += 3
         color = path.attrib["fill"]
         require(re.fullmatch(r"#[0-9A-Fa-f]{6}", color) is not None)
-        paint = tuple((Decimal(int(color[i:i+2], 16)) / 255).quantize(Decimal("0.000001"))
-                      for i in (1, 3, 5))
+        # Pinned SVG colors use six-decimal RGB serialization.
+        with localcontext() as serialization:
+            serialization.traps[Inexact] = False
+            paint = tuple((Decimal(int(color[i:i+2], 16)) / 255).quantize(Decimal("0.000001"))
+                          for i in (1, 3, 5))
         group = parents[path]
         require(group in groups)
         rule = path.attrib.get("fill-rule", group.attrib.get("fill-rule", "nonzero"))
@@ -845,6 +848,7 @@ def _logo_source():
     return expected, matrices
 
 
+@_exact_geometry()
 def _figure(operations, states):
     from pypdf.generic import ArrayObject, NameObject, NumberObject
     expected, groups = _logo_source()

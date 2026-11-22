@@ -70,7 +70,7 @@ def _install_flat_id_tree(writer):
     if len({original for original, _, _ in pairs}) != len(pairs):
         raise ValueError("synthetic_id_tree_control_refused")
     names = ArrayObject([value for _, identifier, reference in pairs
-                         for value in (identifier, reference)])
+        for value in (identifier, reference)])
     root[NameObject("/IDTree")] = writer._add_object(
         DictionaryObject({NameObject("/Names"): names}))
 
@@ -114,7 +114,7 @@ def _observe_profile_file_reads(paths, *, after_read=None):
         path = Path(os.fsdecode(path))
         if path in paths:
             record = dict(path=path, flags=flags, requests=[], returned=[],
-                          legacy=False, closed=False)
+        legacy=False, closed=False)
             records.append(record)
             opened[descriptor] = record
         return descriptor
@@ -140,7 +140,7 @@ def _observe_profile_file_reads(paths, *, after_read=None):
         data = real_read_bytes(path)
         if path in paths:
             record = dict(path=path, flags=None, requests=[-1], returned=[],
-                          legacy=True, closed=True)
+        legacy=True, closed=True)
             records.append(record)
             if after_read is not None:
                 data = after_read(path, data)
@@ -170,7 +170,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
 
     def setUp(self):
         self.assertIsNotNone(importlib.util.find_spec("reporting.typed_original_brand_qa"),
-                             "combined typed/original-brand same-PDF QA is missing")
+        "combined typed/original-brand same-PDF QA is missing")
         self.m = importlib.import_module("reporting.typed_original_brand_qa")
         mode = patch.dict(os.environ, FLAGS)
         mode.start()
@@ -201,13 +201,13 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             TextComponent("title", "identity", "document_title", "Technical report"),
             TextComponent("identity-heading", "identity", "section_heading", "Record identity"),
             TextComponent("identity-text", "identity", "paragraph",
-                          " ".join(["Synthetic identity context only."] * 160)),
+        " ".join(["Synthetic identity context only."] * 160)),
             TextComponent("heading", "findings", "section_heading", "Declared findings"),
             TextComponent("intro", "findings", "paragraph", "Synthetic values only."),
             FindingsTable("table", "findings", "All declared synthetic findings",
                 (TableColumn("variant", "Variant"), TableColumn("value", "Value")),
                 tuple(FindingRow(f, (f"NM_000001.1:c.{i + 1}A>G", "0.12345678901234567890"))
-                      for i, f in enumerate(request.plan.expected_finding_ids))),
+        for i, f in enumerate(request.plan.expected_finding_ids))),
         )
         return build_typed_report_projection(
             request=request, ledger=ledger,
@@ -237,14 +237,14 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             self.assertIn("/IDTree", root)
         page = reader.pages[0]
         figure = next(node for node in self.nodes(SimpleNamespace(_root_object=reader.root_object))
-                      if node["/S"] == "/Figure")
+        if node["/S"] == "/Figure")
         box = figure["/A"]["/BBox"]
         transform = ContentStream(page.raw_get("/Contents"), reader).operations[0][0]
         with self.subTest(obligation="page-space-logo"):
             self.assertGreater(float(box[1]), float(transform[-1]) / 2)
         with self.subTest(obligation="same-artifact-qa"):
             self.assertEqual(self.run_qa(self.arguments()).to_dict()["pdf_sha256"],
-                             sha256(pdf).hexdigest())
+        sha256(pdf).hexdigest())
 
     def test_wrapped_cover_title_preserves_every_source_space(self):
         """Bind one wrapped title to real PDF runs without inventing whitespace."""
@@ -306,7 +306,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         self.assertEqual(len(headings), 1)
         heading = headings[0]
         page = next(page for page in trace["pages"]
-                    if page["reference"] == heading["page_reference"])
+        if page["reference"] == heading["page_reference"])
         runs = {run["mcid"]: run for run in page["runs"]}
         fragments = []
         for child in heading["children"]:
@@ -404,13 +404,13 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         self.assertTrue(result["complete_literal_source_accounting"])
         self.assertTrue(result["complete_native_structure_accounting"])
         for key in ("visual_semantic_parity_verified", "human_assistive_accessibility_verified",
-                    "whole_job_resources_qualified", "pdf_ua_certified",
-                    "source_asset_bytes_authenticated_from_pdf", "release_authorized"):
+        "whole_job_resources_qualified", "pdf_ua_certified",
+        "source_asset_bytes_authenticated_from_pdf", "release_authorized"):
             self.assertIs(result[key], False)
 
     def refuse(self, args):
         with self.assertRaisesRegex(self.m.TypedOriginalBrandQAError,
-                                    "^typed_original_brand_qa_refused$"):
+        "^typed_original_brand_qa_refused$"):
             self.run_qa(args)
 
     def rewritten(self, mutate=lambda writer: None, count=2, *, navigation=False):
@@ -511,8 +511,8 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         self.assertEqual(len(raw) % 2, 0)
         if replacement is None:
             replacement = next(value[offset:offset + 2] for _, value in strings
-                               for offset in range(0, len(value), 2)
-                               if value[offset:offset + 2] != raw[:2])
+        for offset in range(0, len(value), 2)
+        if value[offset:offset + 2] != raw[:2])
         self.assertEqual(len(replacement), 2)
         self.assertNotEqual(replacement, raw[:2])
         parts[index] = ByteStringObject(replacement + raw[2:])
@@ -520,7 +520,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
     def page_with_multiple_spans(self, writer):
         for index, page in enumerate(writer.pages):
             operations = ContentStream(page.raw_get("/Contents"), writer,
-                                       forced_encoding="bytes").operations
+        forced_encoding="bytes").operations
             if sum(op == b"BDC" and args[0] == "/Span" for args, op in operations) >= 2:
                 return index
         self.fail("fixture needs an actual page with at least two source spans")
@@ -574,7 +574,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 ("malformed", "not-a-digest"), ("wrong-value", wrong)):
             candidate = dict(args, expected_source_expectation_sha256=value)
             with self.subTest(case=case), patch.object(
-                    self.m, "_run_worker", wraps=self.m._run_worker) as launch:
+        self.m, "_run_worker", wraps=self.m._run_worker) as launch:
                 self.refuse(candidate)
                 launch.assert_not_called()
                 if case == "equality-spoof":
@@ -582,15 +582,15 @@ class TypedOriginalBrandQATests(unittest.TestCase):
 
     def test_wrong_identity_and_disabled_mode_refuse_before_native_launch(self):
         for name in ("expected_ir_sha256", "expected_source_expectation_sha256",
-                     "expected_brand_bundle_sha256", "expected_pdf_sha256",
-                     "expected_profile_sha256"):
+        "expected_brand_bundle_sha256", "expected_pdf_sha256",
+        "expected_profile_sha256"):
             args = self.arguments()
             args[name] = "0" * 64
             with self.subTest(identity=name), patch.object(self.m, "_run_worker") as launch:
                 self.refuse(args)
                 launch.assert_not_called()
         for name, value in (("OMNIGENIS_PDF_QUALIFICATION_RECEIPT_MODE", ""),
-                            ("OMNIGENIS_TYPED_ORIGINAL_BRAND_QA_DISABLED", "1")):
+        ("OMNIGENIS_TYPED_ORIGINAL_BRAND_QA_DISABLED", "1")):
             with self.subTest(flag=name), patch.dict(os.environ, {name: value}), \
                     patch.object(self.m, "_run_worker") as launch:
                 self.refuse(self.arguments())
@@ -598,7 +598,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
 
     def test_freshly_sealed_changed_literal_and_missing_or_extra_findings_refuse(self):
         for source in (document(2, paragraph="SYNTHETIC-SENTINEL-REJECT"),
-                       document(1), document(3)):
+        document(1), document(3)):
             args = self.arguments()
             args["presentation_ir"] = source
             args["expected_ir_sha256"] = digest(source)
@@ -626,14 +626,14 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         def declared(reader):
             nodes = self.nodes(SimpleNamespace(_root_object=reader.root_object))
             return {node["/ID"].original_bytes:
-                    (node.indirect_reference.idnum, node.indirect_reference.generation)
-                    for node in nodes if "/ID" in node}
+        (node.indirect_reference.idnum, node.indirect_reference.generation)
+        for node in nodes if "/ID" in node}
         def parse_structure(args):
             reader = PdfReader(BytesIO(args["pdf_bytes"]), strict=True)
             trace, _, _ = worker._structure(reader, worker.native._page_tree(reader))
             self.assertEqual({node["native_id"].encode("latin-1"): tuple(node["reference"])
-                              for node in trace["nodes"] if node["native_id"] is not None},
-                             declared(reader))
+        for node in trace["nodes"] if node["native_id"] is not None},
+        declared(reader))
             return reader
         for indirect in (False, True):
             def container(writer):
@@ -644,7 +644,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 args = self.rewritten(container)
                 reader = parse_structure(args)
                 self.assertIs(type(reader.root_object["/StructTreeRoot"].raw_get("/IDTree")),
-                              IndirectObject if indirect else DictionaryObject)
+        IndirectObject if indirect else DictionaryObject)
                 self.assertEqual(self.run_qa(args).to_dict()["represented_findings"], 2)
 
         baseline = PdfReader(BytesIO(self.arguments()["pdf_bytes"]), strict=True)
@@ -687,8 +687,8 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             elif mode == "raw-byte-mismatch":
                 names[0] = ByteStringObject(b"\xfe\xff" + str(names[0]).encode("utf-16-be"))
                 pairs = sorted(zip(names[::2], names[1::2]),
-                               key=lambda pair: bytes(pair[0]) if type(pair[0]) is ByteStringObject
-                               else pair[0].original_bytes)
+        key=lambda pair: bytes(pair[0]) if type(pair[0]) is ByteStringObject
+        else pair[0].original_bytes)
                 names[:] = [value for pair in pairs for value in pair]
             elif mode == "names-type":
                 index[NameObject("/Names")] = DictionaryObject()
@@ -697,14 +697,14 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             elif mode == "kids-outside-profile":
                 index[NameObject("/Limits")] = ArrayObject([names[0], names[-2]])
                 root[NameObject("/IDTree")] = DictionaryObject({
-                    NameObject("/Kids"): ArrayObject([root.raw_get("/IDTree")])})
+        NameObject("/Kids"): ArrayObject([root.raw_get("/IDTree")])})
             elif mode == "limits-outside-profile":
                 index[NameObject("/Limits")] = ArrayObject([names[0], names[-2]])
             else:
                 self.fail("unknown fixture index mutation")
         for mode in ("missing", "empty", "short", "extra", "duplicate", "unsorted",
-                     "wrong-target", "page-target", "direct-target", "raw-byte-mismatch",
-                     "names-type", "indirect-names", "kids-outside-profile", "limits-outside-profile"):
+        "wrong-target", "page-target", "direct-target", "raw-byte-mismatch",
+        "names-type", "indirect-names", "kids-outside-profile", "limits-outside-profile"):
             with self.subTest(invalid_index=mode):
                 args = self.rewritten(lambda writer: corrupt(writer, mode))
                 reader = PdfReader(BytesIO(args["pdf_bytes"]), strict=True)
@@ -754,7 +754,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                         node[NameObject("/ID")] = encoded(str(node["/ID"]) + "\u0100")
                     elif node["/S"] == "/TD":
                         node["/A"]["/Headers"][0] = encoded(
-                            str(node["/A"]["/Headers"][0]) + "\u0100")
+        str(node["/A"]["/Headers"][0]) + "\u0100")
             elif mode == "matching-nontext-outside-profile":
                 header = next(n for n in nodes if n["/S"] == "/TH")
                 original_id = str(header["/ID"])
@@ -767,7 +767,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                                 references[index] = ByteStringObject(raw_identifier)
             _install_flat_id_tree(writer)
         for mode in ("ascii", "matching-utf16", "headers-only", "ids-only",
-                     "matching-nontext-outside-profile"):
+        "matching-nontext-outside-profile"):
             args = self.rewritten(lambda writer: change(writer, mode))
             reader = PdfReader(BytesIO(args["pdf_bytes"]), strict=True)
             nodes = self.nodes(SimpleNamespace(_root_object=reader.root_object))
@@ -826,7 +826,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                         self.m._schema(native, "native")
                     else:
                         self.m._validate_native(
-                            native, args["pdf_bytes"], args["expected_profile_sha256"])
+        native, args["pdf_bytes"], args["expected_profile_sha256"])
 
     def test_native_table_owner_and_figure_attribute_surface_refuse(self):
         def wrong_header(writer):
@@ -845,7 +845,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 NameObject("/JS"): TextStringObject("SYNTHETIC-SENTINEL-REJECT")})
         def foreign_navigation_wrapper(writer):
             paragraph = next(n for n in self.nodes(writer) if n["/S"] == "/P"
-                             and n["/P"]["/S"] == "/Document")
+        and n["/P"]["/S"] == "/Document")
             children = paragraph["/K"]
             self.assertTrue(all(child.get_object()["/S"] == "/Span" for child in children))
             wrapper = DictionaryObject({
@@ -863,10 +863,10 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             document_node = next(n for n in self.nodes(writer) if n["/S"] == "/Document")
             cover = document_node["/K"][0].get_object()
             self.assertEqual([child.get_object()["/S"] for child in cover["/K"]],
-                             ["/Div", "/Div", "/H1"])
+        ["/Div", "/Div", "/H1"])
             cover["/K"][1], cover["/K"][2] = cover["/K"][2], cover["/K"][1]
         for mutate in (wrong_header, duplicate_owner, action_attribute, catalog_action,
-                       foreign_navigation_wrapper, cover_title_order):
+        foreign_navigation_wrapper, cover_title_order):
             with self.subTest(mutation=mutate.__name__):
                 self.refuse(self.rewritten(mutate))
 
@@ -930,7 +930,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         with patch.object(worker, "_contains", wraps=worker._contains) as contains:
             with self.assertRaisesRegex(ValueError, "^typed original-brand QA refused$"):
                 worker._page(trace["pages"][0], pages[0][1], pages[0][2], reader,
-                             {}, {}, roles, worker.contract.MAX_STREAM_BYTES)
+        {}, {}, roles, worker.contract.MAX_STREAM_BYTES)
             self.assertGreaterEqual(contains.call_count, 1)
             self.assertEqual(contains.call_args.args[0], declared_box)
         self.assertTrue(all(worker._contains(*call.args) for call in contains.call_args_list[:-1]))
@@ -966,7 +966,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         def paint(writer, case):
             def alter(ops):
                 start = next(i for i, (args, op) in enumerate(ops)
-                             if op == b"BDC" and args[0] == "/Figure")
+        if op == b"BDC" and args[0] == "/Figure")
                 end = next(i for i in range(start + 1, len(ops)) if ops[i][1] == b"EMC")
                 if case == "translated-outside-page":
                     matrix = next(args for args, op in ops[start + 1:end] if op == b"cm")
@@ -975,15 +975,15 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 payload = [([], b"q")]
                 if case == "unknown-active-clip":
                     payload.extend([
-                        ([NameObject("/Artifact")], b"BMC"),
-                        ([NumberObject(0), NumberObject(0)], b"m"),
-                        ([NumberObject(1), NumberObject(0)], b"l"),
-                        ([NumberObject(0), NumberObject(1)], b"l"),
-                        ([], b"W"), ([], b"n"), ([], b"EMC")])
+        ([NameObject("/Artifact")], b"BMC"),
+        ([NumberObject(0), NumberObject(0)], b"m"),
+        ([NumberObject(1), NumberObject(0)], b"l"),
+        ([NumberObject(0), NumberObject(1)], b"l"),
+        ([], b"W"), ([], b"n"), ([], b"EMC")])
                 else:
                     rectangle = (0, 0, 1200, 1600) if case == "containing" else (0, 0, 1, 1)
                     payload.extend([
-                        ([NumberObject(v) for v in rectangle], b"re"), ([], b"W"), ([], b"n")])
+        ([NumberObject(v) for v in rectangle], b"re"), ([], b"W"), ([], b"n")])
                 if case == "restored":
                     payload.append(([], b"Q"))
                 else:
@@ -1012,19 +1012,19 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             del first["/CropBox"]
             root[NameObject("/CropBox")] = deepcopy(
                 tiny if case in {"root-excludes", "leaf-overrides-root",
-                                 "nearest-overrides-root"} else full)
+        "nearest-overrides-root"} else full)
             if case == "leaf-overrides-root":
                 first[NameObject("/CropBox")] = full
             elif case in {"nearest-overrides-root", "nearest-excludes"}:
                 self.assertEqual(first.raw_get("/Parent"), root_ref)
                 first_ref = first.indirect_reference
                 nearest = DictionaryObject({
-                    NameObject("/Type"): NameObject("/Pages"),
-                    NameObject("/Parent"): root_ref,
-                    NameObject("/Kids"): ArrayObject([first_ref]),
-                    NameObject("/Count"): NumberObject(1),
-                    NameObject("/CropBox"): deepcopy(
-                        full if case == "nearest-overrides-root" else tiny),
+        NameObject("/Type"): NameObject("/Pages"),
+        NameObject("/Parent"): root_ref,
+        NameObject("/Kids"): ArrayObject([first_ref]),
+        NameObject("/Count"): NumberObject(1),
+        NameObject("/CropBox"): deepcopy(
+        full if case == "nearest-overrides-root" else tiny),
                 })
                 nearest_ref = writer._add_object(nearest)
                 kids = root.raw_get("/Kids")
@@ -1032,7 +1032,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 kids[position] = nearest_ref
                 first[NameObject("/Parent")] = nearest_ref
         for case in ("root-contains", "leaf-overrides-root", "nearest-overrides-root",
-                     "root-excludes", "nearest-excludes"):
+        "root-excludes", "nearest-excludes"):
             args = self.rewritten(lambda writer: change(writer, case))
             reader = PdfReader(BytesIO(args["pdf_bytes"]), strict=True)
             pages = worker.native._page_tree(reader)
@@ -1044,7 +1044,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             full = list(leaf.raw_get("/MediaBox"))
             effective = leaf.raw_get("/CropBox") if "/CropBox" in leaf else parent.raw_get("/CropBox")
             self.assertEqual(list(effective),
-                             [0, 0, 1, 1] if case in {"root-excludes", "nearest-excludes"} else full)
+        [0, 0, 1, 1] if case in {"root-excludes", "nearest-excludes"} else full)
             if case == "leaf-overrides-root":
                 self.assertEqual(list(parent.raw_get("/CropBox")), [0, 0, 1, 1])
             if case.startswith("nearest-"):
@@ -1052,7 +1052,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 self.assertEqual(len(parent["/Kids"]), 1)
                 ancestor = parent.raw_get("/Parent").get_object()
                 self.assertEqual(list(ancestor.raw_get("/CropBox")),
-                                 [0, 0, 1, 1] if case == "nearest-overrides-root" else full)
+        [0, 0, 1, 1] if case == "nearest-overrides-root" else full)
             with self.subTest(case=case):
                 if case in {"root-excludes", "nearest-excludes"}:
                     with self.assertRaises(ValueError):
@@ -1062,20 +1062,20 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                     native = self.m.prior._loads(raw.decode("ascii"))
                     self.assertEqual(native["page_count"], len(pages))
                     self.m._validate_native(
-                        native, args["pdf_bytes"], args["expected_profile_sha256"])
+        native, args["pdf_bytes"], args["expected_profile_sha256"])
 
     def test_singular_logo_wrapper_and_outer_transforms_refuse(self):
         for context in ("wrapper-0", "wrapper-1", "wrapper-2", "outer"):
             def collapse(writer):
                 def alter(ops):
                     start = next(i for i, (args, op) in enumerate(ops)
-                                 if op == b"BDC" and args[0] == "/Figure")
+        if op == b"BDC" and args[0] == "/Figure")
                     end = next(i for i in range(start + 1, len(ops)) if ops[i][1] == b"EMC")
                     if context == "outer":
                         ops.insert(end + 1, ([], b"Q"))
                         ops[start:start] = [
-                            ([], b"q"),
-                            ([NumberObject(v) for v in (0, 0, 0, 1, 0, 0)], b"cm")]
+        ([], b"q"),
+        ([NumberObject(v) for v in (0, 0, 0, 1, 0, 0)], b"cm")]
                     else:
                         matrices = [args for args, op in ops[start + 1:end] if op == b"cm"]
                         self.assertEqual(len(matrices), 5)
@@ -1090,7 +1090,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
     def dna_block_range(ops):
         paint = next(i for i, (_, op) in enumerate(ops) if op == b"Do")
         start = max(i for i in range(paint) if ops[i][1] == b"BMC"
-                    and ops[i][0] == ["/Artifact"])
+        and ops[i][0] == ["/Artifact"])
         end = next(i for i in range(paint + 1, len(ops)) if ops[i][1] == b"EMC")
         return start, end
 
@@ -1099,8 +1099,8 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             def alter(ops):
                 start, end = self.dna_block_range(ops)
                 payload = [
-                    ([], b"q"), ([NumberObject(v) for v in rectangle], b"re"),
-                    ([], b"W"), ([], b"n")]
+        ([], b"q"), ([NumberObject(v) for v in rectangle], b"re"),
+        ([], b"W"), ([], b"n")]
                 if restored:
                     payload.append(([], b"Q"))
                 else:
@@ -1114,7 +1114,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 control = self.rewritten(lambda writer: inherited(writer, rectangle, restored))
                 self.assertEqual(self.run_qa(control).to_dict()["dna_image_count"], 1)
         for case in ("empty-local", "excluding-local", "excluding-inherited",
-                     "unknown-inherited", "clipping-form-bbox", "shifted-form-image"):
+        "unknown-inherited", "clipping-form-bbox", "shifted-form-image"):
             def clip(writer):
                 if case == "excluding-inherited":
                     inherited(writer, (0, 0, 1, 1))
@@ -1123,17 +1123,17 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                         start, end = self.dna_block_range(ops)
                         ops.insert(end + 1, ([], b"Q"))
                         ops[start:start] = [
-                            ([], b"q"), ([NameObject("/Artifact")], b"BMC"),
-                            ([NumberObject(0), NumberObject(0)], b"m"),
-                            ([NumberObject(1), NumberObject(0)], b"l"),
-                            ([NumberObject(0), NumberObject(1)], b"l"),
-                            ([], b"W"), ([], b"n"), ([], b"EMC")]
+        ([], b"q"), ([NameObject("/Artifact")], b"BMC"),
+        ([NumberObject(0), NumberObject(0)], b"m"),
+        ([NumberObject(1), NumberObject(0)], b"l"),
+        ([NumberObject(0), NumberObject(1)], b"l"),
+        ([], b"W"), ([], b"n"), ([], b"EMC")]
                     self.edit_page(writer, 0, alter)
                 elif case in {"clipping-form-bbox", "shifted-form-image"}:
                     form = next(iter(writer.pages[0]["/Resources"]["/XObject"].values())).get_object()
                     if case == "clipping-form-bbox":
                         form[NameObject("/BBox")] = ArrayObject(
-                            [NumberObject(v) for v in (0, 0, 1, 1)])
+        [NumberObject(v) for v in (0, 0, 1, 1)])
                     else:
                         content = ContentStream(form, writer, forced_encoding="bytes")
                         self.assertEqual([op for _, op in content.operations], [b"cm", b"cm", b"Do"])
@@ -1178,7 +1178,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         fonts, forms, decoded = {}, {}, 0
         for page, (_, obj, resources) in zip(trace["pages"], pages, strict=True):
             worker._page(page, obj, resources, reader, fonts, forms, roles,
-                         worker.contract.MAX_STREAM_BYTES - decoded)
+        worker.contract.MAX_STREAM_BYTES - decoded)
             decoded += page["decoded_stream_bytes"]
         paints = [(page["reference"], block["dna_paints"])
                   for page in trace["pages"] for block in page["graphic_blocks"]
@@ -1265,8 +1265,8 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                     font = page["/Resources"]["/Font"][font_name]
                     widths = font["/DescendantFonts"][0].get_object()["/W"]
                     widths = {int(widths[offset]) + index: int(value)
-                        for offset in range(0, len(widths), 2)
-                        for index, value in enumerate(widths[offset + 1])}
+        for offset in range(0, len(widths), 2)
+        for index, value in enumerate(widths[offset + 1])}
                     pen = rightmost = 0
                     for item in shown:
                         if type(item) is NumberObject:
@@ -1279,7 +1279,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                     shown.append(NumberObject(pen - rightmost - 1))
                     units = Decimal(2) if case == "endpoint-containing-clip" else Decimal("0.5")
                     endpoint_clip = (Decimal(str(matrix[4]))
-                        + Decimal(str(size)) * (rightmost + units) / 1000)
+        + Decimal(str(size)) * (rightmost + units) / 1000)
                 if case == "tm-left":
                     matrix[4] = FloatObject(float(matrix[4]) - 100)
                 elif case == "tm-body":
@@ -1299,9 +1299,9 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                         if endpoint_clip is not None:
                             rectangle = (0, 0, endpoint_clip, 1600)
                         payload.extend([
-                            ([NumberObject(value) if type(value) is int else FloatObject(value)
-                              for value in rectangle], b"re"),
-                            ([], b"W"), ([], b"n")])
+        ([NumberObject(value) if type(value) is int else FloatObject(value)
+        for value in rectangle], b"re"),
+        ([], b"W"), ([], b"n")])
                     if case == "restored-clip":
                         payload.append(([], b"Q"))
                     else:
@@ -1310,7 +1310,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 first, last = self.footer_range(ops)
                 current = next(args[0] for args, op in ops[first + 1:last] if op == b"TJ")
                 self.assertEqual([bytes(item) for item in current if type(item) is ByteStringObject],
-                    original_codes)
+        original_codes)
             self.edit_page(writer, -1, alter)
 
         for case in ("containing-clip", "restored-clip", "endpoint-containing-clip"):
@@ -1330,9 +1330,9 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                     with patch.object(worker, "_contains", wraps=worker._contains) as contains:
                         with self.assertRaisesRegex(ValueError, "^typed original-brand QA refused$"):
                             worker._page(trace["pages"][-1], pages[-1][1], pages[-1][2], reader,
-                                {}, {}, roles, worker.contract.MAX_STREAM_BYTES)
+        {}, {}, roles, worker.contract.MAX_STREAM_BYTES)
                     self.assertTrue(all(worker._contains(*call.args)
-                            for call in contains.call_args_list[:-1]))
+        for call in contains.call_args_list[:-1]))
                     clip, footer = contains.call_args.args
                     self.assertEqual(len(footer), 5)
                     self.assertTrue(worker._contains(clip, footer[:4]))
@@ -1363,10 +1363,10 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         def image_or_figure(kind, y):
             if kind == "image":
                 block = artifact((numbers(0, 0, 1, 1), b"re"), ([], b"W"), ([], b"n"),
-                    ([image_name], b"Do"))
+        ([image_name], b"Do"))
             else:
                 block = [([NameObject("/Figure"), DictionaryObject({
-                    NameObject("/MCID"): NumberObject(0)})], b"BDC"), ([], b"EMC")]
+        NameObject("/MCID"): NumberObject(0)})], b"BDC"), ([], b"EMC")]
             return [([], b"q"), (numbers(120, 0, 0, 10, 100, y), b"cm"), *block, ([], b"Q")]
 
         def filled(kind, y):
@@ -1378,8 +1378,8 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         def stroked(kind, y):
             if kind == "scaled":
                 return [([], b"q"), (numbers(20, 0, 0, 20, 0, 0), b"cm"),
-                    *artifact((numbers(5), b"w"), (numbers(6, y), b"m"),
-                        (numbers(10, y), b"l"), ([], b"S")), ([], b"Q")]
+        *artifact((numbers(5), b"w"), (numbers(6, y), b"m"),
+        (numbers(10, y), b"l"), ([], b"S")), ([], b"Q")]
             return artifact((numbers(20), b"w"), ([], b"q"), (numbers(1), b"w"), ([], b"Q"),
                 (numbers(120, y), b"m"), (numbers(200, y), b"l"), ([], b"S"))
 
@@ -1402,7 +1402,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 geometry(paint + footer_ops)
             with self.subTest(later_graphic=case):
                 with self.assertRaisesRegex(ValueError, "^typed original-brand QA refused$",
-                    msg="later_graphic_obscures_validated_footer"):
+        msg="later_graphic_obscures_validated_footer"):
                     geometry(footer_ops + paint)
         for case, paint in (
             ("image", image_or_figure("image", 60)),
@@ -1477,8 +1477,8 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                     for offset in range(0, len(item), 2):
                         w = Fraction(widths[int.from_bytes(item[offset:offset + 2], "big")])
                         points.extend(worker._rectangle(
-                            (advance * scale, Fraction(descent) * scale, w * scale,
-                             (Fraction(ascent) - Fraction(descent)) * scale), effective))
+        (advance * scale, Fraction(descent) * scale, w * scale,
+        (Fraction(ascent) - Fraction(descent)) * scale), effective))
                         advance += w
                 else:
                     advance -= Fraction(worker.native._number(item))
@@ -1545,9 +1545,9 @@ class TypedOriginalBrandQATests(unittest.TestCase):
 
         h = 10**27
         corner = next(((i, w, s, Fraction(w) * s / 1000)
-                      for i, _, w in positive for s in (1001, 999)
-                      if Fraction(1, 4) <= Fraction(w) * s / 1000
-                      - round(Fraction(w) * s / 1000) <= Fraction(1, 2)), None)
+        for i, _, w in positive for s in (1001, 999)
+        if Fraction(1, 4) <= Fraction(w) * s / 1000
+        - round(Fraction(w) * s / 1000) <= Fraction(1, 2)), None)
         self.assertIsNotNone(corner, "genuine glyph for exact corner control")
         ci, cw, cs, cell_width = corner
         cases = (
@@ -1563,22 +1563,22 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         for label, advance, glyph, fs, a, c, e, shifts, left in cases:
             with self.subTest(inexact_geometry=label):
                 value = text_span(0, 25 - (ascent + descent) * fs / 2000,
-                                  [NumberObject(-advance), glyph], NumberObject(fs))
+        [NumberObject(-advance), glyph], NumberObject(fs))
                 tm = next(args for args, op in value if op == b"Tm")
                 tm[0], tm[2], tm[4] = NumberObject(a), FloatObject(c), NumberObject(e)
                 exact_ctm = (1, 0, 0, 1, sum(map(Fraction, shifts)), 0)
                 exact, _ = box(value, exact_ctm)
                 self.assertTrue(exact[0] <= 220 and exact[2] >= left
-                                and exact[1] < 30 and exact[3] > 20)
+        and exact[1] < 30 and exact[3] > 20)
                 edge = Decimal(left.numerator) / left.denominator
                 boundary = tuple((Decimal(x), Decimal(y)) for x, y in
-                                 ((edge, 20), (220, 20), (220, 30), (edge, 30), (220, 25)))
+        ((edge, 20), (220, 20), (220, 30), (edge, 30), (220, 25)))
                 transforms = [([NumberObject(1), NumberObject(0), NumberObject(0),
-                                NumberObject(1), NumberObject(x) if type(x) is int
-                                else FloatObject(x), NumberObject(0)], b"cm") for x in shifts]
+        NumberObject(1), NumberObject(x) if type(x) is int
+        else FloatObject(x), NumberObject(0)], b"cm") for x in shifts]
                 with self.assertRaisesRegex(ValueError, "^typed original-brand QA refused$"):
                     geometry(footer_ops + [([], b"q"), *transforms, *value, ([], b"Q")],
-                             boundary)
+        boundary)
 
         form = xobjects.raw_get(image_name).get_object()
         image_resources = form["/Resources"]["/XObject"]
@@ -1603,8 +1603,8 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 font = page["/Resources"]["/Font"][font_name]
                 declared = font["/DescendantFonts"][0].get_object()["/W"]
                 widths = {int(declared[offset]) + index: int(value)
-                    for offset in range(0, len(declared), 2)
-                    for index, value in enumerate(declared[offset + 1])}
+        for offset in range(0, len(declared), 2)
+        for index, value in enumerate(declared[offset + 1])}
 
                 def measure(items):
                     pen, codes, placements = 0, bytearray(), []
@@ -1622,7 +1622,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                             pen += width
                     self.assertGreater(len(placements), 3)
                     bounds = (min(origin for origin, _ in placements),
-                        max(origin + width for origin, width in placements))
+        max(origin + width for origin, width in placements))
                     return bytes(codes), pen, bounds, [origin for origin, _ in placements]
 
                 codes, advance, bounds, origins = measure(shown)
@@ -1645,7 +1645,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                         glyph += 1
                 changed_codes, changed_advance, changed_bounds, changed = measure(replacement)
                 self.assertEqual((changed_codes, changed_advance, changed_bounds),
-                    (codes, advance, bounds))
+        (codes, advance, bounds))
                 self.assertEqual(changed[:2], origins[:2])
                 self.assertEqual(changed[3:], origins[3:])
                 self.assertEqual(changed[2], origins[2] - adjustment)
@@ -1722,16 +1722,16 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             block[5][0][0].insert(0, NumberObject(-offset))
             matrix = block[3][0]
             matrix[4] = FloatObject(Decimal(worker.native._number(matrix[4]))
-                                   - offset * size / 1000 - Decimal(distance) / Decimal("0.75"))
+        - offset * size / 1000 - Decimal(distance) / Decimal("0.75"))
             return block
 
         with self.subTest(footer_extent="boundary"):
             self.assertEqual(len(worker._footer_declared_geometry(
                 displaced(cap - extent), page["/Resources"], reader, ctm, media)), 5)
         for label, block in (("boundary-plus-one", displaced(cap - extent + 1)),
-                             ("compensated-large-origin", displaced(10**12, 20))):
+        ("compensated-large-origin", displaced(10**12, 20))):
             with self.subTest(footer_extent=label), self.assertRaisesRegex(
-                    ValueError, "^typed original-brand QA refused$"):
+        ValueError, "^typed original-brand QA refused$"):
                 worker._footer_declared_geometry(block, page["/Resources"], reader, ctm, media)
 
     def test_footers_require_exact_identity_once_on_each_physical_page(self):
@@ -1744,7 +1744,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         for mode in ("missing", "duplicate", "wrong-page", "wrong-identity"):
             def alter_footer(writer):
                 source = ContentStream(writer.pages[0].raw_get("/Contents"), writer,
-                                       forced_encoding="bytes").operations
+        forced_encoding="bytes").operations
                 first, last = self.footer_range(source)
                 donor = deepcopy(source[first:last + 1])
                 def alter(ops):
@@ -1766,8 +1766,8 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         def declared_widths(font):
             declared = font["/DescendantFonts"][0].get_object()["/W"]
             return {int(declared[offset]) + index: int(value)
-                    for offset in range(0, len(declared), 2)
-                    for index, value in enumerate(declared[offset + 1])}
+        for offset in range(0, len(declared), 2)
+        for index, value in enumerate(declared[offset + 1])}
 
         reader = PdfReader(BytesIO(args["pdf_bytes"]), strict=True)
         prefix_start, footer_fonts = len("OmniGenis | "), []
@@ -1775,7 +1775,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             events = page["pagination_blocks"][0]["events"]
             font_name = events[4]["operands"][0]
             reference = next(item["reference"] for item in page["font_resources"]
-                             if item["name"] == font_name)
+        if item["name"] == font_name)
             mapping = dict(fonts[tuple(reference)]["mapping"])
             widths = declared_widths(reader.pages[page_index]["/Resources"]["/Font"][font_name])
             cursor, prefix = 0, {}
@@ -1792,7 +1792,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         selection = None
         for position, (_, old) in footer_fonts[0][2].items():
             replacements = sorted({text for text in footer_fonts[0][0].values()
-                                   if len(text) == 1 and text in "0123456789abcdef" and text != old})
+        if len(text) == 1 and text in "0123456789abcdef" and text != old})
             for replacement in replacements:
                 codes = []
                 for mapping, widths, prefix in footer_fonts:
@@ -1800,7 +1800,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                     if prior is None or prior[1] != old:
                         break
                     matches = [code for code, text in sorted(mapping.items())
-                               if text == replacement and widths[int(code, 16)] == widths[int(prior[0], 16)]]
+        if text == replacement and widths[int(code, 16)] == widths[int(prior[0], 16)]]
                     if not matches:
                         break
                     codes.append(bytes.fromhex(matches[0]))
@@ -1824,7 +1824,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                     start, end = self.footer_range(ops)
                     tf = next(i for i in range(start + 1, end) if ops[i][1] == b"Tf")
                     reference = next(item["reference"] for item in native_page["font_resources"]
-                                     if item["name"] == str(ops[tf][0][0]))
+        if item["name"] == str(ops[tf][0][0]))
                     cmap = dict(fonts[tuple(reference)]["mapping"])
                     code = replacement_codes[page_index]
                     self.assertEqual(cmap[code.hex()], replacement)
@@ -1840,7 +1840,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                             if cursor == position:
                                 self.assertEqual(text, old)
                                 self.assertEqual(widths[int.from_bytes(raw[byte:byte + 2], "big")],
-                                                 widths[int.from_bytes(code, "big")])
+        widths[int.from_bytes(code, "big")])
                                 ops[tj][0][0][index] = ByteStringObject(raw[:byte] + code + raw[byte + 2:])
                                 return
                             cursor += len(text)
@@ -1866,7 +1866,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         for page in original["trace"]["pages"]:
             block = page["pagination_blocks"][0]
             colors = [event["operands"] for event in block["events"]
-                      if event["operator"] == "rg"]
+        if event["operator"] == "rg"]
             self.assertEqual(len(colors), 1)
             self.assertEqual(tuple(self.m.prior._num(value) for value in colors[0]), expected)
 
@@ -1889,9 +1889,9 @@ class TypedOriginalBrandQATests(unittest.TestCase):
     def test_footer_grammar_fonts_and_native_event_digest_are_closed(self):
         original = self.native_record()
         self.assertNotIn("ffff", {code for font in original["trace"]["fonts"]
-                                  for code, _ in font["mapping"]})
+        for code, _ in font["mapping"]})
         for mode in ("wrong-type", "wrong-subtype", "owned-footer", "unknown-operator",
-                     "unknown-font", "unmapped-glyph"):
+        "unknown-font", "unmapped-glyph"):
             def corrupt(writer):
                 def alter(ops):
                     start, end = self.footer_range(ops)
@@ -1956,12 +1956,12 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         section_ids = tuple(f"navigation-{i:02d}" for i in range(47)) + ("findings",)
         present = ("identity",) + section_ids
         plan = replace(request.plan, expected_section_ids=present + ("optional",),
-                       required_section_ids=present)
+        required_section_ids=present)
         snapshot = replace(request.request, completeness_plan_sha256=plan.plan_sha256)
         request = replace(request, request=snapshot, resolved_request=snapshot, plan=plan)
         ledger = replace(ledger, plan=plan, projection_plan_sha256=plan.plan_sha256,
-                         section_states=tuple(SectionAvailability(section, "PRESENT")
-                                              for section in present) + (ledger.section_states[-1],))
+        section_states=tuple(SectionAvailability(section, "PRESENT")
+        for section in present) + (ledger.section_states[-1],))
         labels = [f"Navigation section {i:02d}" if i < 40 else
                   f"Wrapped navigation section {i:02d}" + " literal" * (i - 22)
                   for i in range(47)] + ["Declared findings"]
@@ -2048,7 +2048,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         self.assertTrue(all(node["role"] == "/P" for fragment in fragments[1:] for node in fragment))
         for section, fragment in zip(sections, fragments, strict=True):
             self.assertTrue(all(node["parent"] == section["reference"]
-                                and node["page_reference"] == section["page_reference"] for node in fragment))
+        and node["page_reference"] == section["page_reference"] for node in fragment))
         fragment_pages = [pages[tuple(section["page_reference"])]["index"] for section in sections]
         self.assertEqual(fragment_pages, sorted(set(fragment_pages)))
         self.assertGreaterEqual(fragment_pages[0], 1)
@@ -2058,7 +2058,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         self.assertEqual(sections[0]["page_reference"], navigation[0]["page_reference"])
         self.assertEqual(receipt["coverage"]["accounted_brand_wrapper_nodes"], 5 + len(sections))
         self.assertEqual(receipt["coverage"]["native_nodes"], receipt["coverage"]["projected_nodes"]
-                         + 5 + len(sections) + len(labels))
+        + 5 + len(sections) + len(labels))
         entries = navigation[1:]
         self.assertEqual(len(entries), len(labels))
         indexes = [pages[tuple(entry["page_reference"])]["index"] for entry in entries]
@@ -2078,14 +2078,14 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             suffix = children(spans[-1])
             self.assertEqual([span["role"] for span in suffix], ["/Span"])
             self.assertTrue(all(span["page_reference"] == entry["page_reference"]
-                                for span in spans + suffix))
+        for span in spans + suffix))
             wrapped += len(spans[:-1]) > 1
             self.assertEqual("".join(literal(span) for span in spans[:-1]), label)
             self.assertEqual(literal(target), label)
             target_spans = children(target)
             self.assertTrue(all(span["role"] == "/Span"
-                                and span["page_reference"] == target["page_reference"]
-                                for span in target_spans))
+        and span["page_reference"] == target["page_reference"]
+        for span in target_spans))
             wrapped_targets += len(target_spans) > 1
             target_page = pages[tuple(target["page_reference"])]["index"]
             printed = label + " | " + str(target_page + 1)
@@ -2102,7 +2102,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         self.assertGreater(wrapped_targets, 0)
 
         for mode in ("section-page", "continuation-page", "cross-page-span",
-                     "backward-fragment-order", "continuation-heading"):
+        "backward-fragment-order", "continuation-heading"):
             bad = deepcopy(trace)
             changed = {tuple(node["reference"]): node for node in bad["nodes"]}
             if mode == "section-page":
@@ -2177,7 +2177,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                     tails, data = [row[-1] for row in slots], []
                     for page_index, mcid in tails:
                         ops = ContentStream(writer.pages[page_index].raw_get("/Contents"), writer,
-                                            forced_encoding="bytes").operations
+        forced_encoding="bytes").operations
                         start, end = self.span_range(ops, mcid)
                         shows = [operands for operands, op in ops[start + 1:end] if op == b"TJ"]
                         self.assertEqual(len(shows), 1)
@@ -2208,10 +2208,10 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             if mode == "missing-label":
                 runs = observed["trace"]["pages"][label_slot[0]]["runs"]
                 self.assertEqual([(r["text"], r["glyph_codes"]) for r in runs
-                                  if r["mcid"] == label_slot[1]], [("", 0)])
+        if r["mcid"] == label_slot[1]], [("", 0)])
             with self.subTest(navigation=mode), patch.object(
-                    self.m, "_run_worker", return_value=raw), patch.object(
-                    self.m, "inspect_pdf_document_metadata") as metadata:
+        self.m, "_run_worker", return_value=raw), patch.object(
+        self.m, "inspect_pdf_document_metadata") as metadata:
                 self.refuse(candidate)
                 metadata.assert_not_called()
 
@@ -2317,9 +2317,9 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             if overlap:
                 mapped = set(page["projected_operator_ordinals"])
                 _, ordinal, index = min(
-                    (max(block["first_operator"] - ordinal, ordinal - block["last_operator"], 0),
-                     ordinal, index)
-                    for index, block in enumerate(page["graphic_blocks"]) for ordinal in mapped)
+        (max(block["first_operator"] - ordinal, ordinal - block["last_operator"], 0),
+        ordinal, index)
+        for index, block in enumerate(page["graphic_blocks"]) for ordinal in mapped)
                 block = page["graphic_blocks"][index]
                 block["first_operator"] = min(block["first_operator"], ordinal)
                 block["last_operator"] = max(block["last_operator"], ordinal)
@@ -2327,10 +2327,10 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 self.assertLess(block["first_operator"], block["last_operator"])
                 self.assertEqual(span.intersection(mapped), {ordinal})
                 self.assertTrue(all(
-                    not span.intersection(range(other["first_operator"], other["last_operator"] + 1))
-                    for other_index, other in enumerate(page["graphic_blocks"]) if other_index != index))
+        not span.intersection(range(other["first_operator"], other["last_operator"] + 1))
+        for other_index, other in enumerate(page["graphic_blocks"]) if other_index != index))
                 page["outside_operator_ordinals"] = [
-                    value for value in page["outside_operator_ordinals"] if value not in span]
+        value for value in page["outside_operator_ordinals"] if value not in span]
                 covered = mapped | set(page["outside_operator_ordinals"])
                 for graphic in (*page["graphic_blocks"], *page["pagination_blocks"]):
                     covered.update(range(graphic["first_operator"], graphic["last_operator"] + 1))
@@ -2342,7 +2342,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             self.m._schema(native, "native")
             self.m.project_text_trace(native["trace"])
             with self.subTest(overlap=overlap), patch.object(
-                    self.m, "_run_worker", return_value=self.m.canonical(native)):
+        self.m, "_run_worker", return_value=self.m.canonical(native)):
                 self.refuse(args)
 
     def test_native_decoded_page_stream_bytes_obey_aggregate_budget(self):
@@ -2363,13 +2363,13 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         bad = deepcopy(boundary)
         bad["trace"]["pages"][0]["decoded_stream_bytes"] += 1
         self.assertEqual(sum(page["decoded_stream_bytes"] for page in bad["trace"]["pages"]),
-                         limit + 1)
+        limit + 1)
         for observed, source in zip(bad["trace"]["pages"], original["trace"]["pages"], strict=True):
             self.assertTrue(0 < observed["decoded_stream_bytes"] <= limit)
             self.assertEqual({key: value for key, value in observed.items()
-                              if key != "decoded_stream_bytes"},
-                             {key: value for key, value in source.items()
-                              if key != "decoded_stream_bytes"})
+        if key != "decoded_stream_bytes"},
+        {key: value for key, value in source.items()
+        if key != "decoded_stream_bytes"})
         self.m._schema(bad, "native")
         self.m.prior._reference_consistency(bad["trace"])
         projected, _ = self.m.project_text_trace(bad["trace"])
@@ -2412,7 +2412,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 self.m.project_text_trace(native["trace"])
                 with self.assertRaises(ValueError):
                     self.m._validate_native(
-                        native, args["pdf_bytes"], args["expected_profile_sha256"])
+        native, args["pdf_bytes"], args["expected_profile_sha256"])
         groups = {}
         for font in fonts:
             groups.setdefault(tuple(font["cmap_reference"]), []).append(font)
@@ -2434,15 +2434,15 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             self.m.prior._reference_consistency(native["trace"])
             projected, _ = self.m.project_text_trace(native["trace"])
             bound = {self.m.prior._reference(font["reference"]): font
-                     for font in projected["fonts"]}
+        for font in projected["fonts"]}
             for page in projected["pages"]:
                 self.assertEqual(self.m.prior._replay(page, bound), page["runs"])
             with self.subTest(duplicate_cmap=mode, boundary="parent"):
                 with self.assertRaises(ValueError):
                     self.m._validate_native(
-                        native, args["pdf_bytes"], args["expected_profile_sha256"])
+        native, args["pdf_bytes"], args["expected_profile_sha256"])
             with self.subTest(duplicate_cmap=mode, boundary="public"), patch.object(
-                    self.m, "_run_worker", return_value=self.m.canonical(native)):
+        self.m, "_run_worker", return_value=self.m.canonical(native)):
                 self.refuse(args)
 
     def test_projected_span_ordinals_are_contiguous_only_within_spans(self):
@@ -2450,7 +2450,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         def with_gap(writer):
             def alter(ops):
                 starts = [i for i, (args, op) in enumerate(ops)
-                          if op == b"BDC" and args[0] == "/Span"]
+        if op == b"BDC" and args[0] == "/Span"]
                 self.assertGreaterEqual(len(starts), 2)
                 ops[starts[1]:starts[1]] = [([], b"q"), ([], b"Q")]
             target["index"] = self.page_with_multiple_spans(writer)
@@ -2480,7 +2480,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         page["outside_operator_ordinals"].sort()
         self.assertEqual(mapped, sorted(set(mapped)))
         self.assertEqual(page["outside_operator_ordinals"],
-                         sorted(set(page["outside_operator_ordinals"])))
+        sorted(set(page["outside_operator_ordinals"])))
         self.assertGreater(mapped[start + 1], mapped[start] + 1)
         covered = set(mapped)
         self.assertFalse(covered.intersection(page["outside_operator_ordinals"]))
@@ -2513,11 +2513,11 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 figure["mcid"] = None
             elif case == "figure-text-owner":
                 figure["mcid"] = next(
-                    owner["mcid"] for owner in pages[0]["mcid_owners"]
-                    if owner["mcid"] != figure_mcid)
+        owner["mcid"] for owner in pages[0]["mcid_owners"]
+        if owner["mcid"] != figure_mcid)
             elif case == "figure-wrong-page":
                 other = next(b for b in pages[1]["graphic_blocks"]
-                             if b["kind"] == "artifact" and b["dna_paints"] == 0)
+        if b["kind"] == "artifact" and b["dna_paints"] == 0)
                 figure["kind"], figure["mcid"] = "artifact", None
                 other["kind"], other["mcid"] = "figure", figure_mcid
             else:
@@ -2528,7 +2528,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 self.m.project_text_trace(native["trace"])
                 with self.assertRaises(ValueError):
                     self.m._validate_native(
-                        native, args["pdf_bytes"], args["expected_profile_sha256"])
+        native, args["pdf_bytes"], args["expected_profile_sha256"])
 
     def test_native_graphic_intervals_match_the_admitted_grammar(self):
         args = self.arguments(96)
@@ -2538,8 +2538,8 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             native = deepcopy(original)
             page = native["trace"]["pages"][0]
             block = next(b for b in page["graphic_blocks"]
-                         if (b["kind"] == "figure" if case == "figure-533"
-                             else b["dna_paints"] == 1))
+        if (b["kind"] == "figure" if case == "figure-533"
+        else b["dna_paints"] == 1))
             outside = page["outside_operator_ordinals"]
             length = block["last_operator"] - block["first_operator"] + 1
             if case == "figure-533":
@@ -2554,8 +2554,8 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                     block["first_operator"] += 1
                 else:
                     adjacent = [ordinal for ordinal in
-                                (block["first_operator"] - 1, block["last_operator"] + 1)
-                                if ordinal in outside]
+        (block["first_operator"] - 1, block["last_operator"] + 1)
+        if ordinal in outside]
                     self.assertTrue(adjacent)
                     ordinal = adjacent[0]
                     outside.remove(ordinal)
@@ -2565,12 +2565,12 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                         block["last_operator"] = ordinal
             outside.sort()
             self.assertEqual(block["last_operator"] - block["first_operator"] + 1,
-                             {"dna-five": 5, "dna-seven": 7, "figure-533": 533}[case])
+        {"dna-five": 5, "dna-seven": 7, "figure-533": 533}[case])
             for current in native["trace"]["pages"]:
                 covered = set(current["projected_operator_ordinals"])
                 for graphic in (*current["graphic_blocks"], *current["pagination_blocks"]):
                     interval = set(range(graphic["first_operator"],
-                                         graphic["last_operator"] + 1))
+        graphic["last_operator"] + 1))
                     self.assertFalse(covered.intersection(interval))
                     covered.update(interval)
                 remaining = current["outside_operator_ordinals"]
@@ -2585,7 +2585,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             with self.subTest(case=case):
                 with self.assertRaises(ValueError):
                     self.m._validate_native(
-                        native, args["pdf_bytes"], args["expected_profile_sha256"])
+        native, args["pdf_bytes"], args["expected_profile_sha256"])
 
     def test_native_dna_paint_requires_its_artifact_page(self):
         args = self.arguments(96)
@@ -2601,22 +2601,22 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             else:
                 page = pages[1]
                 receiver = next(b for b in page["graphic_blocks"]
-                                if b["kind"] == "artifact" and b["dna_paints"] == 0)
+        if b["kind"] == "artifact" and b["dna_paints"] == 0)
                 end = receiver["first_operator"] + self.m.DNA_ARTIFACT_OPERATIONS
                 self.assertLessEqual(end - 1, receiver["last_operator"])
                 page["outside_operator_ordinals"] = sorted(
-                    page["outside_operator_ordinals"] + list(range(end, receiver["last_operator"] + 1)))
+        page["outside_operator_ordinals"] + list(range(end, receiver["last_operator"] + 1)))
                 receiver["last_operator"] = end - 1
                 self.m._validate_native(native, args["pdf_bytes"], args["expected_profile_sha256"])
             donor["dna_paints"], receiver["dna_paints"] = 0, 1
             with self.subTest(receiver=case):
                 self.assertEqual(sum(b["dna_paints"] for p in pages for b in p["graphic_blocks"]),
-                                 native["graphics"]["dna_paints"])
+        native["graphics"]["dna_paints"])
                 self.m._schema(native, "native")
                 self.m.project_text_trace(native["trace"])
                 with self.assertRaises(ValueError):
                     self.m._validate_native(
-                        native, args["pdf_bytes"], args["expected_profile_sha256"])
+        native, args["pdf_bytes"], args["expected_profile_sha256"])
 
     def test_receipt_requires_every_page_rasterized_even_after_resealing(self):
         receipt = self.run_qa()
@@ -2860,6 +2860,36 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 + coverage["accounted_brand_wrapper_nodes"] + entries)
             coverage["operations"] = self.operation_floor(value)
             return value
+
+        # Synthetic receipt controls; no rendering claim.
+        for floor, units, nodes in (("suffix", 7, 29), ("heading", 5, 27)):
+            exact = navigation_boundary(1, 3, 1, source_units=units, text_mcids=12)
+            exact["represented_findings"] = 1
+            coverage = exact["coverage"]
+            coverage["projected_nodes"] = nodes
+            coverage["native_nodes"] = (nodes + coverage["accounted_brand_wrapper_nodes"]
+                + coverage["accounted_navigation_wrapper_nodes"])
+            self.m._schema(exact)
+            with self.subTest(isolated_floor=floor, boundary="control"):
+                self.assertEqual(self.m.TypedOriginalBrandQA(
+                    self.m.canonical(exact)).to_dict(), exact)
+            bad = deepcopy(exact)
+            if floor == "suffix":
+                for field in ("text_mcids", "native_mcids", "projected_nodes", "native_nodes"):
+                    bad["coverage"][field] -= 1
+            else:
+                bad["source_units"] -= 1
+            self.m._schema(bad)
+            payload = self.m.canonical(bad)
+            with self.subTest(isolated_floor=floor, boundary="constructor"):
+                with self.assertRaises(ValueError):
+                    self.m.TypedOriginalBrandQA(payload)
+            with self.subTest(isolated_floor=floor, boundary="resealed-to-dict"):
+                receipt = self.m.TypedOriginalBrandQA(self.m.canonical(exact))
+                object.__setattr__(receipt, "_payload", payload)
+                object.__setattr__(receipt, "_sealed_sha256", sha256(payload).hexdigest())
+                with self.assertRaises(ValueError):
+                    receipt.to_dict()
 
         for fragments, pages, entries, source_units, mcids, nodes in (
             (1, 8, 1, 6, 13, 31), (2, 10, 2, 7, 16, 36)):
@@ -3518,7 +3548,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         pair = None
         for page in baseline["trace"]["pages"][1:]:
             roles = tuple(nodes[tuple(owner["structure_reference"])]["role"]
-                          for owner in page["mcid_owners"])
+        for owner in page["mcid_owners"])
             if roles in signatures:
                 pair = signatures[roles], page["index"]
                 break
@@ -3539,14 +3569,14 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         fonts, forms, decoded = {}, {}, 0
         for page, (_, obj, resources) in zip(trace["pages"], pages, strict=True):
             worker._page(page, obj, resources, reader, fonts, forms, roles,
-                         worker.contract.MAX_STREAM_BYTES - decoded)
+        worker.contract.MAX_STREAM_BYTES - decoded)
             decoded += page["decoded_stream_bytes"]
         trace["fonts"] = list(fonts.values())
         self.assertEqual(len(forms), 1)
         original = deepcopy(baseline)
         original.update(pdf_sha256=args["expected_pdf_sha256"],
-                        pdf_byte_count=len(args["pdf_bytes"]), trace=trace,
-                        page_labels=reader.page_labels)
+        pdf_byte_count=len(args["pdf_bytes"]), trace=trace,
+        page_labels=reader.page_labels)
         original["graphics"].update(
             figure_count=sum(b["kind"] == "figure" for p in trace["pages"] for b in p["graphic_blocks"]),
             artifact_count=sum(b["kind"] == "artifact" for p in trace["pages"] for b in p["graphic_blocks"]),
@@ -3559,8 +3589,8 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         self.assertEqual(first["contents_reference"], second["contents_reference"])
         self.assertNotEqual(first["mcid_owners"], second["mcid_owners"])
         for name in ("content_sha256", "decoded_stream_bytes", "events",
-                     "original_operator_count", "projected_operator_ordinals",
-                     "outside_operator_ordinals", "graphic_blocks", "pagination_blocks"):
+        "original_operator_count", "projected_operator_ordinals",
+        "outside_operator_ordinals", "graphic_blocks", "pagination_blocks"):
             self.assertEqual(first[name], second[name])
         with self.assertRaises(ValueError):
             self.m._validate_native(original, args["pdf_bytes"], args["expected_profile_sha256"])
@@ -3569,7 +3599,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         self.assertEqual(second["outside_operator_ordinals"][-2:], [count - 2, count - 1])
 
         for case in ("extra-outside-pair", "relocated-outside-pair",
-                     "graphic-block-digest", "pagination-event-only"):
+        "graphic-block-digest", "pagination-event-only"):
             native = deepcopy(original)
             page = native["trace"]["pages"][receiver]
             if case == "extra-outside-pair":
@@ -3578,9 +3608,9 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 native["graphics"]["operations"] += 2
             elif case == "relocated-outside-pair":
                 page["projected_operator_ordinals"] = [
-                    ordinal + 2 for ordinal in page["projected_operator_ordinals"]]
+        ordinal + 2 for ordinal in page["projected_operator_ordinals"]]
                 page["outside_operator_ordinals"] = [0, 1] + [
-                    ordinal + 2 for ordinal in page["outside_operator_ordinals"] if ordinal < count - 2]
+        ordinal + 2 for ordinal in page["outside_operator_ordinals"] if ordinal < count - 2]
                 for block in (*page["graphic_blocks"], *page["pagination_blocks"]):
                     block["first_operator"] += 2
                     block["last_operator"] += 2
@@ -3611,7 +3641,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                         self.m._validate_native(native, args["pdf_bytes"], args["expected_profile_sha256"])
                     project.assert_not_called()
                 with patch.object(self.m, "_run_worker", return_value=self.m.canonical(native)) as launch, (
-                        patch.object(self.m, "inspect_pdf_document_metadata")) as metadata:
+        patch.object(self.m, "inspect_pdf_document_metadata")) as metadata:
                     self.refuse(args)
                     launch.assert_called_once_with(args["pdf_bytes"], args["expected_pdf_sha256"])
                     metadata.assert_not_called()
@@ -3619,16 +3649,16 @@ class TypedOriginalBrandQATests(unittest.TestCase):
     def test_receipt_projected_nodes_are_bounded_by_matched_span_grammar(self):
         genuine = self.run_qa(self.arguments(0)).to_dict()
         self.assertEqual((genuine["represented_findings"], genuine["source_units"],
-                          genuine["navigation_entries"]), (0, 6, 1))
+        genuine["navigation_entries"]), (0, 6, 1))
         self.assertEqual(self.m.TypedOriginalBrandQA(
             self.m.canonical(genuine)).to_dict(), genuine)
         self.assertLessEqual(genuine["coverage"]["projected_nodes"],
-                             1 + 6 * genuine["coverage"]["text_mcids"])
+        1 + 6 * genuine["coverage"]["text_mcids"])
 
         boundary = deepcopy(genuine)
         # Receipt-only coarse ceiling; no rendered or source-allocation claim.
         boundary.update(represented_findings=1, source_units=7, page_count=3,
-                        raster_inspected_pages=3, raster_window_count=1, pagination_pages=3)
+        raster_inspected_pages=3, raster_window_count=1, pagination_pages=3)
         coverage = boundary["coverage"]
         coverage["pagination_blocks"] = 3
         entries = boundary["navigation_entries"]
@@ -3636,9 +3666,9 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         text_units = boundary["source_units"] + boundary["brand_text_units"] + 1 + entries
         self.assertEqual(fragments, 1)
         self.assertEqual(boundary["source_units"]
-                         - boundary["represented_findings"] - 3 - entries, 2)
+        - boundary["represented_findings"] - 3 - entries, 2)
         coverage["text_mcids"] = max(text_units + entries,
-                                     boundary["page_count"] + 2 * entries + 4 - fragments)
+        boundary["page_count"] + 2 * entries + 4 - fragments)
         coverage["native_mcids"] = coverage["text_mcids"] + coverage["figure_count"]
         coverage["operations"] = self.operation_floor(boundary)
         maximum = 1 + 6 * coverage["text_mcids"]
@@ -3654,20 +3684,20 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         coverage["native_nodes"] += 1
         self.assertEqual(coverage["projected_nodes"], maximum + 1)
         self.assertEqual(coverage["native_nodes"], coverage["projected_nodes"]
-                         + coverage["accounted_brand_wrapper_nodes"] + coverage["accounted_navigation_wrapper_nodes"])
+        + coverage["accounted_brand_wrapper_nodes"] + coverage["accounted_navigation_wrapper_nodes"])
         self.assertEqual(coverage["native_mcids"], coverage["text_mcids"]
-                         + coverage["figure_count"])
+        + coverage["figure_count"])
         self.assertLessEqual(2 * coverage["native_nodes"] - 1
-                             + coverage["native_mcids"], self.m.prior.MAX_VISITS)
+        + coverage["native_mcids"], self.m.prior.MAX_VISITS)
         text_units = bad["source_units"] + bad["brand_text_units"] + 1 + bad["navigation_entries"]
         table_nodes = bad["represented_findings"] + 4 if bad["represented_findings"] else 0
         self.assertGreaterEqual(coverage["projected_nodes"],
-                                coverage["text_mcids"]
-                                + max(text_units, bad["page_count"] + entries + 4 - fragments)
-                                + 1 + table_nodes)
+        coverage["text_mcids"]
+        + max(text_units, bad["page_count"] + entries + 4 - fragments)
+        + 1 + table_nodes)
         self.assertGreaterEqual(coverage["text_mcids"], text_units + bad["navigation_entries"])
         self.assertGreaterEqual(coverage["text_mcids"],
-                                bad["page_count"] + 2 * entries + 4 - fragments)
+        bad["page_count"] + 2 * entries + 4 - fragments)
         self.assertGreaterEqual(coverage["text_mcids"], bad["page_count"])
         self.assertGreaterEqual(coverage["operations"], self.operation_floor(bad))
         self.m._schema(bad)
@@ -3687,11 +3717,11 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         for pages, windows, wrong_windows in ((4, 1, 2), (5, 2, 1)):
             valid = deepcopy(source)
             valid.update(page_count=pages, raster_inspected_pages=pages,
-                         raster_window_count=windows, pagination_pages=pages)
+        raster_window_count=windows, pagination_pages=pages)
             valid["coverage"]["pagination_blocks"] = pages
             with self.subTest(page_count=pages, operation="valid"):
                 self.assertEqual(self.m.TypedOriginalBrandQA(
-                    self.m.canonical(valid)).to_dict()["raster_window_count"], windows)
+        self.m.canonical(valid)).to_dict()["raster_window_count"], windows)
             bad = dict(valid, raster_window_count=wrong_windows)
             self.m._schema(bad)
             self.assertEqual(bad["raster_inspected_pages"], bad["page_count"])
@@ -3713,16 +3743,16 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 bad["coverage"]["native_nodes"] += 1
                 coverage = bad["coverage"]
                 self.assertTrue(coverage["native_nodes"] == coverage["projected_nodes"]
-                                + coverage["accounted_brand_wrapper_nodes"]
-                                + coverage["accounted_navigation_wrapper_nodes"],
-                                "navigation wrapper case must preserve native node accounting")
+        + coverage["accounted_brand_wrapper_nodes"]
+        + coverage["accounted_navigation_wrapper_nodes"],
+        "navigation wrapper case must preserve native node accounting")
                 self.assertEqual(coverage["accounted_navigation_wrapper_nodes"],
-                                 bad["navigation_entries"] + 1)
+        bad["navigation_entries"] + 1)
                 changed = {"native_nodes", "accounted_navigation_wrapper_nodes"}
                 self.assertEqual({key: value for key, value in coverage.items() if key not in changed},
-                                 {key: value for key, value in source["coverage"].items() if key not in changed})
+        {key: value for key, value in source["coverage"].items() if key not in changed})
                 self.assertLessEqual(2 * coverage["native_nodes"] - 1 + coverage["native_mcids"],
-                                     self.m.prior.MAX_VISITS)
+        self.m.prior.MAX_VISITS)
             self.m._schema(bad)
             payload = self.m.canonical(bad)
             with self.subTest(coverage=counter, operation="constructor"):
@@ -3743,7 +3773,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         def wrong_plan(**kwargs):
             receipt = original(**kwargs)
             return type(receipt)(pdf_sha256=receipt.pdf_sha256, ir_sha256=receipt.ir_sha256,
-                                 plan_sha256="0" * 64, page_count=receipt.page_count)
+        plan_sha256="0" * 64, page_count=receipt.page_count)
         with patch.object(self.m, "inspect_pdf_document_metadata", side_effect=wrong_plan):
             self.refuse(self.arguments())
 
@@ -3784,13 +3814,13 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                     patch.object(self.m, "wait_owned_process_group", return_value=code) as wait:
                 if code == 0:
                     self.assertEqual(self.m._run_worker(args["pdf_bytes"], args["expected_pdf_sha256"]),
-                                     response)
+        response)
                 else:
                     with self.assertRaises(ValueError):
                         self.m._run_worker(args["pdf_bytes"], args["expected_pdf_sha256"])
                 launch.assert_called_once()
                 wait.assert_called_once_with(
-                    process, wall_seconds=self.m.WALL_SECONDS, cleanup_seconds=self.m.CLEANUP_SECONDS)
+        process, wall_seconds=self.m.WALL_SECONDS, cleanup_seconds=self.m.CLEANUP_SECONDS)
 
     def test_guard_failure_precedes_request_read_and_output(self):
         from reporting import _pdf_typed_original_brand_qa_worker as worker
@@ -3844,12 +3874,12 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 self.assertEqual(ops[-1][1], b"Q")
                 rectangle = ([NumberObject(v) for v in (100, 200, 10, 10)], b"re")
                 state = (([NumberObject(1)], b"w") if context == "artifact" else
-                         ([NumberObject(v) for v in (1, 0, 0, 1, 0, 0)], b"cm"))
+        ([NumberObject(v) for v in (1, 0, 0, 1, 0, 0)], b"cm"))
                 body = [rectangle, state] if after_path else [state, rectangle]
                 if context == "artifact":
                     payload = [
-                        ([NameObject("/Artifact")], b"BMC"), ([], b"q"),
-                        *body, ([], b"S"), ([], b"Q"), ([], b"EMC")]
+        ([NameObject("/Artifact")], b"BMC"), ([], b"q"),
+        *body, ([], b"S"), ([], b"Q"), ([], b"EMC")]
                 else:
                     payload = [([], b"q"), *body, ([], b"n"), ([], b"Q")]
                 ops[-1:-1] = payload
@@ -3866,7 +3896,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             def leak(writer):
                 def alter(ops):
                     index = next(i for i, (args, op) in enumerate(ops)
-                                 if op == b"BDC" and args[0] == "/Figure")
+        if op == b"BDC" and args[0] == "/Figure")
                     rect = ([NumberObject(0), NumberObject(0), NumberObject(100), NumberObject(100)], b"re")
                     if context == "outside":
                         payload = [rect]
@@ -3892,7 +3922,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             for role in ("manifest", "source"):
                 with self.subTest(target=role, kind=kind), _temporary_profile_tree(self.m) as root:
                     target = self.m.MANIFEST if role == "manifest" else (
-                        root / "reporting/pdf_typed_brand_render.py")
+        root / "reporting/pdf_typed_brand_render.py")
                     if kind == "symlink":
                         original = target.with_name(target.name + ".original")
                         target.rename(original)
@@ -3946,13 +3976,13 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         for role, size in (("manifest", 16385), ("source", 262145)):
             with self.subTest(target=role), _temporary_profile_tree(self.m) as root:
                 target = self.m.MANIFEST if role == "manifest" else (
-                    root / "reporting/pdf_typed_brand_render.py")
+        root / "reporting/pdf_typed_brand_render.py")
                 target.write_bytes(b"x" * size)
                 with _observe_profile_file_reads({target}) as records:
                     with self.assertRaises(ValueError):
                         self.m.profile_sha256()
                 self.assertTrue(all(not item["requests"] for item in records),
-                                "oversized body was read before refusal")
+        "oversized body was read before refusal")
                 self.assertTrue(all(item["closed"] for item in records))
 
     def test_profile_bounded_reads_preserve_exact_digests(self):
@@ -3988,7 +4018,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
 
     def test_profile_source_read_changes_refuse_and_close_descriptor(self):
         for case in ("short-read-before-declared-EOF", "growth-during-read",
-                     "same-size-rewrite-during-read", "named-file-replacement-during-read"):
+        "same-size-rewrite-during-read", "named-file-replacement-during-read"):
             with self.subTest(case=case), _temporary_profile_tree(self.m) as root:
                 target = root / "reporting/pdf_typed_brand_render.py"
                 original, before = target.read_bytes(), target.stat()
@@ -4052,7 +4082,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
 
     def test_new_profile_pins_the_executed_original_brand_dependencies(self):
         for name in ("reporting/brand_assets.py", "reporting/pdf_original_brand_inclusion.py",
-                     "reporting/_pdf_original_dna_png_admission.py", "reporting/internal_navigation.py"):
+        "reporting/_pdf_original_dna_png_admission.py", "reporting/internal_navigation.py"):
             with self.subTest(source=name), _temporary_profile_tree(self.m) as root:
                 self.assertEqual(self.m.profile_sha256(), sha256(self.m.MANIFEST.read_bytes()).hexdigest())
                 target = root / name
@@ -4100,6 +4130,45 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             replacement.set_data(data[:start] + changed + data[end:])
             page[NameObject("/Contents")] = writer._add_object(replacement)
         self.refuse(self.rewritten(changed_coordinate))
+
+        from decimal import Inexact, localcontext
+        from fractions import Fraction
+        from reporting import _pdf_typed_original_brand_qa_worker as worker
+
+        reader = PdfReader(BytesIO(self.arguments()["pdf_bytes"]), strict=True)
+        page = reader.pages[0]
+        operations = ContentStream(page.raw_get("/Contents"), reader).operations
+        start = next(i for i, (args, op) in enumerate(operations)
+                     if op == b"BDC" and args[0] == "/Figure")
+        end = next(i for i in range(start + 1, len(operations))
+                   if operations[i][1] == b"EMC")
+        block = deepcopy(operations[start + 1:end])
+        matrices = [args for args, op in block if op == b"cm"]
+        self.assertEqual(len(matrices), 5)
+        states = page["/Resources"]["/ExtGState"]
+        h = 10**40
+        # Exact first pinned vertex after an identity wrapper and +h/-h.
+        reference = (
+            Fraction(h) + Fraction("0.352941") * Fraction("354.1")
+            + Fraction("12.353") - h,
+            Fraction("0.352941") * 78 - Fraction("6.471"))
+        self.assertTrue(100 < reference[0] < 220 and 20 < reference[1] < 30)
+        with localcontext() as arithmetic:
+            arithmetic.prec = 28
+            arithmetic.traps[Inexact] = False
+            arithmetic.clear_flags()
+            ambient = (arithmetic.prec, arithmetic.rounding,
+                       dict(arithmetic.traps), dict(arithmetic.flags))
+            self.assertTrue(worker._figure(block, states))
+            for matrix in matrices[:3]:
+                matrix[:] = [NumberObject(v) for v in (1, 0, 0, 1, 0, 0)]
+            self.assertEqual(tuple(map(Fraction, worker._figure(block, states)[0])),
+                             reference)
+            matrices[2][4] = NumberObject(h)
+            with self.assertRaisesRegex(ValueError, "^typed original-brand QA refused$"):
+                worker._figure(block, states)
+            self.assertEqual((arithmetic.prec, arithmetic.rounding,
+                              dict(arithmetic.traps), dict(arithmetic.flags)), ambient)
 
     def test_new_worker_rejects_invalid_descriptor_relationships_before_input(self):
         from reporting import _pdf_typed_original_brand_qa_worker as worker
@@ -4176,7 +4245,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         def cover_widths(native):
             for members in groups(native, "cid_reference").values():
                 width_count = max(max(font["explicit_cid_width_count"], len(font["mapping"]))
-                                  for font in members)
+        for font in members)
                 self.assertLessEqual(width_count, 4096)
                 for font in members:
                     font["explicit_cid_width_count"] = width_count
@@ -4189,7 +4258,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             self.m.prior._reference_consistency(native["trace"])
             projected, _ = self.m.project_text_trace(native["trace"])
             fonts = {self.m.prior._reference(font["reference"]): font
-                     for font in projected["fonts"]}
+        for font in projected["fonts"]}
             for font in fonts.values():
                 self.assertEqual(len(dict(font["mapping"])), len(font["mapping"]))
                 self.assertLessEqual(len(font["mapping"]), font["explicit_cid_width_count"])
@@ -4198,14 +4267,14 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 self.assertEqual(self.m.prior._replay(page, fonts), page["runs"])
 
         for budget, limit in (("bytes", self.m.prior.MAX_CMAP_TOTAL),
-                              ("records", self.m.prior.MAX_CMAP_RECORDS)):
+        ("records", self.m.prior.MAX_CMAP_RECORDS)):
             with self.subTest(budget=budget):
                 boundary = deepcopy(original)
                 by_cmap = groups(boundary, "cmap_reference")
                 measure = (lambda font: font["cmap_decoded_bytes"]) if budget == "bytes" else (
-                    lambda font: len(font["mapping"]))
+        lambda font: len(font["mapping"]))
                 other = sum(measure(font) for key, members in by_cmap.items()
-                            if key != shared for font in members)
+        if key != shared for font in members)
                 amount, remainder = divmod(limit - other, len(by_cmap[shared]))
                 if budget == "bytes":
                     for font in by_cmap[shared]:
@@ -4230,18 +4299,18 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 self.assertLessEqual(sum(measure(members[0]) for members in by_cmap.values()), limit)
                 if budget == "bytes":
                     self.assertLessEqual(sum(len(font["mapping"]) for font in bad["trace"]["fonts"]),
-                                         self.m.prior.MAX_CMAP_RECORDS)
+        self.m.prior.MAX_CMAP_RECORDS)
                 else:
                     self.assertLessEqual(sum(font["cmap_decoded_bytes"]
-                                             for font in bad["trace"]["fonts"]),
-                                         self.m.prior.MAX_CMAP_TOTAL)
+        for font in bad["trace"]["fonts"]),
+        self.m.prior.MAX_CMAP_TOTAL)
                 unchanged_replay(bad)
                 with self.assertRaises(ValueError):
                     self.m._validate_native(bad, args["pdf_bytes"], args["expected_profile_sha256"])
                 payload = self.m.canonical(bad)
                 self.assertLessEqual(len(payload), self.m.prior.RESULT_BYTES)
                 with patch.object(self.m, "_run_worker", return_value=payload) as worker, patch.object(
-                        self.m, "inspect_pdf_document_metadata") as metadata:
+        self.m, "inspect_pdf_document_metadata") as metadata:
                     self.refuse(args)
                     worker.assert_called_once_with(args["pdf_bytes"], args["expected_pdf_sha256"])
                     metadata.assert_not_called()
@@ -4259,11 +4328,11 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             self.m.prior._reference_consistency(native["trace"])
             projected, _ = self.m.project_text_trace(native["trace"])
             fonts = {self.m.prior._reference(font["reference"]): font
-                     for font in projected["fonts"]}
+        for font in projected["fonts"]}
             self.assertLessEqual(sum(len(font["mapping"]) for font in fonts.values()),
-                                 self.m.prior.MAX_CMAP_RECORDS)
+        self.m.prior.MAX_CMAP_RECORDS)
             self.assertLessEqual(sum(font["cmap_decoded_bytes"] for font in fonts.values()),
-                                 self.m.prior.MAX_CMAP_TOTAL)
+        self.m.prior.MAX_CMAP_TOTAL)
             for font in fonts.values():
                 self.assertEqual(len(dict(font["mapping"])), len(font["mapping"]))
             for page in projected["pages"]:
@@ -4274,7 +4343,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 self.m._validate_native(native, args["pdf_bytes"], args["expected_profile_sha256"])
             with patch.object(self.m, "_run_worker", return_value=self.m.canonical(native)) as worker, (
-                    patch.object(self.m, "inspect_pdf_document_metadata")) as metadata:
+        patch.object(self.m, "inspect_pdf_document_metadata")) as metadata:
                 self.refuse(args)
                 worker.assert_called_once_with(args["pdf_bytes"], args["expected_pdf_sha256"])
                 metadata.assert_not_called()
@@ -4300,9 +4369,9 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         known = {code for font in original["trace"]["fonts"] if font["cmap_reference"] == cmap
                  for code, _ in font["mapping"]}
         unused = next(format(number, "04x") for number in range(65536)
-                      if format(number, "04x") not in known)
+        if format(number, "04x") not in known)
         affected = {tuple(font["reference"]) for font in original["trace"]["fonts"]
-                    if font["cmap_reference"] == cmap}
+        if font["cmap_reference"] == cmap}
         used = {value[offset:offset + 4] for page in original["trace"]["pages"]
                 for run in page["runs"] if tuple(run["font_reference"]) in affected
                 for kind, value in run["parts"] if kind == "codes"
@@ -4318,7 +4387,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 cid_groups.setdefault(tuple(font["cid_reference"]), []).append(font)
             for members in cid_groups.values():
                 width = max(max(font["explicit_cid_width_count"], len(font["mapping"]))
-                            for font in members)
+        for font in members)
                 self.assertLessEqual(width, 4096)
                 for font in members:
                     font["explicit_cid_width_count"] = width
@@ -4342,7 +4411,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         def outside_pairs(writer):
             def alter(operations):
                 starts = [index for index, (operands, op) in enumerate(operations)
-                          if op == b"BDC" and operands[0] == "/Span"]
+        if op == b"BDC" and operands[0] == "/Span"]
                 self.assertGreaterEqual(len(starts), 2)
                 count = len(operations)
                 pairs.update(prefix=0, between=starts[1] + 2, suffix=count + 4)
@@ -4373,7 +4442,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                     event["ordinal"] = ordinal
                 page["projected_operator_ordinals"][index:index] = [first, first + 1]
                 page["outside_operator_ordinals"] = [ordinal for ordinal in page["outside_operator_ordinals"]
-                                                    if ordinal not in {first, first + 1}]
+        if ordinal not in {first, first + 1}]
                 for run in page["runs"]:
                     if run["operator_ordinal"] >= index:
                         run["operator_ordinal"] += 2
@@ -4399,7 +4468,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 self.assertEqual(page["mcid_owners"], original_page["mcid_owners"])
                 for observed, source in zip(page["runs"], original_page["runs"], strict=True):
                     self.assertEqual({key: value for key, value in observed.items() if key != "operator_ordinal"},
-                                     {key: value for key, value in source.items() if key != "operator_ordinal"})
+        {key: value for key, value in source.items() if key != "operator_ordinal"})
                 self.m._schema(native, "native")
                 self.m.prior._reference_consistency(native["trace"])
                 projected, _ = self.m.project_text_trace(native["trace"])
@@ -4409,7 +4478,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     self.m._validate_native(native, args["pdf_bytes"], args["expected_profile_sha256"])
                 with patch.object(self.m, "_run_worker", return_value=self.m.canonical(native)) as worker, (
-                        patch.object(self.m, "inspect_pdf_document_metadata")) as metadata:
+        patch.object(self.m, "inspect_pdf_document_metadata")) as metadata:
                     self.refuse(args)
                     worker.assert_called_once_with(args["pdf_bytes"], args["expected_pdf_sha256"])
                     metadata.assert_not_called()
@@ -4474,18 +4543,18 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                     self.m._schema(native, "native")
                 self.assertEqual(caught.exception.validator, validator)
                 self.assertEqual(list(caught.exception.absolute_path),
-                                 ["trace", "pages", 0, "graphics_states"])
+        ["trace", "pages", 0, "graphics_states"])
                 with self.assertRaises(ValidationError):
                     self.m._validate_native(native, args["pdf_bytes"], args["expected_profile_sha256"])
                 public_refusal(native)
         for label, fill, stroke in (("fractional-fill", "0.5", None),
-                                    ("fractional-stroke", None, ".5"),
-                                    ("both-alphas-present", "1", "1")):
+        ("fractional-stroke", None, ".5"),
+        ("both-alphas-present", "1", "1")):
             with self.subTest(invalid_unused_state=label):
                 native = inventory(3)
                 unused = native["trace"]["pages"][0]["graphics_states"][2]
                 self.assertFalse(any(event["operator"] == "gs" and event["operands"] == [unused["name"]]
-                                     for event in native["trace"]["pages"][0]["events"]))
+        for event in native["trace"]["pages"][0]["events"]))
                 unused["fill_alpha"], unused["stroke_alpha"] = fill, stroke
                 self.m._schema(native, "native")
                 unchanged_replay(native)
