@@ -2543,9 +2543,9 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             missing_coverage = missing_suffix["coverage"]
             missing_coverage["text_mcids"] -= 1
             missing_coverage["native_mcids"] -= 1
+            missing_coverage["projected_nodes"] -= 1
+            missing_coverage["native_nodes"] -= 1
             if findings == 0:
-                missing_coverage["projected_nodes"] -= 1
-                missing_coverage["native_nodes"] -= 1
                 self.assertEqual((missing_coverage["text_mcids"],
                                   missing_coverage["projected_nodes"],
                                   missing_coverage["native_nodes"]), (6, 13, 20))
@@ -2556,8 +2556,8 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             self.assertGreaterEqual(missing_coverage["text_mcids"], text_units)
             self.assertEqual(missing_coverage["native_mcids"],
                              missing_coverage["text_mcids"] + missing_coverage["figure_count"])
-            self.assertGreaterEqual(missing_coverage["projected_nodes"],
-                                    missing_coverage["text_mcids"] + text_units + 1 + table_nodes)
+            self.assertEqual(missing_coverage["projected_nodes"],
+                             missing_coverage["text_mcids"] + text_units + 1 + table_nodes)
             self.assertLessEqual(missing_coverage["projected_nodes"],
                                  1 + 6 * missing_coverage["text_mcids"])
             self.assertGreaterEqual(missing_coverage["text_mcids"], missing_suffix["page_count"])
@@ -2725,6 +2725,84 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                                  self.m.prior.MAX_VISITS)
             self.m._schema(value)
             return value
+
+        # Minimum source units force one one-column table and no paragraph.
+        # After f distinct contents pages, P=f+1 leaves one possible table page:
+        # M Spans + T text containers + Document + four wrappers + R body rows.
+        # These are count-grammar controls, not newly rendered PDF witnesses.
+        for label, parameters in (
+                ("reported-one-row", (1, 2, 1, 1, 5, 10, 25)),
+                ("additional-text-span", (1, 2, 1, 1, 5, 11, 26)),
+                ("two-contents-fragments", (2, 3, 2, 1, 6, 13, 30)),
+                ("two-rows-and-three-entries", (2, 3, 3, 2, 8, 17, 38))):
+            exact = counter_receipt(*parameters)
+            fragments, pages, entries, findings, units, mcids, nodes = parameters
+            text_units = units + exact["brand_text_units"] + 1 + entries
+            self.assertEqual(units, findings + 3 + entries)
+            self.assertEqual(pages, fragments + 1)
+            self.assertLessEqual(fragments, entries)
+            self.assertEqual(nodes, mcids + text_units + 1 + 4 + findings)
+            self.assertGreaterEqual(mcids, text_units + entries)
+            self.assertGreaterEqual(mcids, pages + findings + 1 + 2 * entries + 2 - fragments)
+            self.assertGreaterEqual(text_units, pages + findings + 1 + entries + 2 - fragments)
+            payload = self.m.canonical(exact)
+            with self.subTest(single_table_segment=label, boundary="constructor"):
+                self.assertEqual(self.m.TypedOriginalBrandQA(payload).to_dict(), exact)
+            receipt = self.m.TypedOriginalBrandQA(self.m.canonical(source))
+            object.__setattr__(receipt, "_payload", payload)
+            object.__setattr__(receipt, "_sealed_sha256", sha256(payload).hexdigest())
+            with self.subTest(single_table_segment=label, boundary="resealed-to-dict"):
+                self.assertEqual(receipt.to_dict(), exact)
+
+            bad = deepcopy(exact)
+            coverage = bad["coverage"]
+            coverage["projected_nodes"] += 1
+            coverage["native_nodes"] += 1
+            self.assertEqual(coverage["text_mcids"], mcids)
+            self.assertEqual(coverage["native_mcids"], mcids + coverage["figure_count"])
+            self.assertEqual(coverage["native_nodes"], coverage["projected_nodes"]
+                             + coverage["accounted_brand_wrapper_nodes"]
+                             + coverage["accounted_navigation_wrapper_nodes"])
+            self.assertEqual(coverage["projected_nodes"], mcids + text_units + 1 + 4 + findings + 1)
+            # All old lower bounds and the generic upper/traversal bounds hold;
+            # only the unexplained extra projected node violates the new rule.
+            self.assertGreaterEqual(coverage["projected_nodes"], mcids + max(
+                text_units, pages + findings + 1 + entries + 2 - fragments) + 1 + 4 + findings)
+            self.assertLessEqual(coverage["projected_nodes"], 1 + 6 * mcids)
+            self.assertLessEqual(2 * coverage["native_nodes"] - 1 + coverage["native_mcids"],
+                                 self.m.prior.MAX_VISITS)
+            self.assertEqual(coverage["operations"], self.operation_floor(bad))
+            self.assertLessEqual(coverage["operations"], self.m.prior.MAX_OPERATIONS)
+            self.m._schema(bad)
+            payload = self.m.canonical(bad)
+            with self.subTest(single_table_segment=label, surplus="one-node", boundary="constructor"), self.assertRaises(ValueError):
+                self.m.TypedOriginalBrandQA(payload)
+            receipt = self.m.TypedOriginalBrandQA(self.m.canonical(exact))
+            object.__setattr__(receipt, "_payload", payload)
+            object.__setattr__(receipt, "_sealed_sha256", sha256(payload).hexdigest())
+            with self.subTest(single_table_segment=label, surplus="one-node", boundary="resealed-to-dict"), self.assertRaises(ValueError):
+                receipt.to_dict()
+
+        # More physical pages can hold table or paragraph continuation. A wider
+        # source budget can instead hold more columns or another empty table;
+        # none of these shapes permits the minimum-source/single-page equality.
+        for label, parameters in (
+                ("one-contents-fragment-table-continues", (1, 3, 1, 1, 5, 12, 34)),
+                ("two-contents-fragments-table-continues", (2, 4, 2, 1, 6, 15, 39)),
+                ("spare-paragraph-continues", (2, 4, 2, 1, 7, 15, 34)),
+                ("two-column-table", (1, 2, 1, 1, 7, 12, 29)),
+                ("second-empty-table", (1, 2, 1, 1, 7, 12, 33))):
+            exact = counter_receipt(*parameters)
+            fragments, pages, entries, findings, units, mcids, nodes = parameters
+            self.assertTrue(pages > fragments + 1 or units > findings + 3 + entries)
+            payload = self.m.canonical(exact)
+            with self.subTest(single_segment_escape=label, boundary="constructor"):
+                self.assertEqual(self.m.TypedOriginalBrandQA(payload).to_dict(), exact)
+            receipt = self.m.TypedOriginalBrandQA(self.m.canonical(source))
+            object.__setattr__(receipt, "_payload", payload)
+            object.__setattr__(receipt, "_sealed_sha256", sha256(payload).hexdigest())
+            with self.subTest(single_segment_escape=label, boundary="resealed-to-dict"):
+                self.assertEqual(receipt.to_dict(), exact)
 
         # Two finding rows require a caption, headers and two body cells.
         # Their three-container surplus survives placing rows on separate pages.
@@ -3090,8 +3168,11 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             with self.subTest(fragment_count=fragments, text_mcid_bound="one-below",
                               boundary="resealed-to-dict"), self.assertRaises(ValueError):
                 receipt.to_dict()
-        # Eight pages need ten containers after adding contents and credit
-        # excess. Document plus eleven/twelve MCIDs therefore needs 22/23 nodes.
+        # Joint zero-findings page-coverage controls: eight pages need ten
+        # containers, hence Document plus eleven/twelve MCIDs needs 22/23 nodes.
+        # Both deficits also limit total page coverage to seven pages under the
+        # one-paragraph zero-findings grammar, so that earlier guard rejects them.
+        # Findings-bearing one-below controls above isolate the page floor.
         for fragments, entries, source_units, mcids, units, minimum in (
                 (1, 1, 3, 11, 7, 22), (2, 2, 4, 12, 9, 23)):
             page_bound = navigation_boundary(
@@ -3103,7 +3184,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                              (8, units, mcids, minimum))
             self.assertEqual(minimum, mcids + 10 + 1)
             self.m._schema(page_bound)
-            with self.subTest(fragment_count=fragments, page_container_bound="exact"):
+            with self.subTest(fragment_count=fragments, joint_page_coverage="exact"):
                 self.assertEqual(self.m.TypedOriginalBrandQA(
                     self.m.canonical(page_bound)).to_dict(), page_bound)
             bad = deepcopy(page_bound)
@@ -3124,13 +3205,13 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             self.assertGreaterEqual(coverage["operations"], self.operation_floor(bad))
             self.m._schema(bad)
             payload = self.m.canonical(bad)
-            with self.subTest(fragment_count=fragments, page_container_bound="one-below",
+            with self.subTest(fragment_count=fragments, joint_page_coverage="one-below",
                               boundary="constructor"), self.assertRaises(ValueError):
                 self.m.TypedOriginalBrandQA(payload)
             receipt = self.m.TypedOriginalBrandQA(self.m.canonical(page_bound))
             object.__setattr__(receipt, "_payload", payload)
             object.__setattr__(receipt, "_sealed_sha256", sha256(payload).hexdigest())
-            with self.subTest(fragment_count=fragments, page_container_bound="one-below",
+            with self.subTest(fragment_count=fragments, joint_page_coverage="one-below",
                               boundary="resealed-to-dict"), self.assertRaises(ValueError):
                 receipt.to_dict()
         for mode, parameters in (("pages", (2, 3, 3)), ("entries", (1, 3, 1))):

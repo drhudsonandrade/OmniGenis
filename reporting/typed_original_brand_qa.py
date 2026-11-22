@@ -695,6 +695,12 @@ def _validate_receipt(data: dict) -> None:
         # occupy pages outside that table's successive nonempty segments.
         table_segments = max(1, data["page_count"] - fragment_count
                              - data["navigation_entries"] - 2)
+        if data["page_count"] == fragment_count + 1:
+            # All body units follow the distinct contents pages after the cover.
+            # Only the final page remains; this source budget has one table and
+            # no paragraph. Its text containers and R+4 table nodes are exact.
+            require(coverage["projected_nodes"] == coverage["text_mcids"]
+                    + text_units + 1 + 4 + findings)
     row_segments = max(findings, table_segments)
     # Each segment has Table/THead/TBody/header TR and at least one body TR.
     # Distinct finding rows can span segments without requiring split rows.
