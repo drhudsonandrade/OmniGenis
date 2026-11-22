@@ -17,7 +17,7 @@
     "reporting/_pdf_original_svg_layout_worker.py": "bdfd7b79d7445d3d68351cde7e0cd63777a8339f903a4ac3ae72f421ec211f76",
     "reporting/_pdf_typed_brand_emission.py": "0133e89361649eaf9513f5f385ba0166d0af853226a042fcac5db514dba1cc05",
     "reporting/_pdf_typed_brand_render_worker.py": "6054dab7dc6c8e2d342ef7ce4a313bf2d39dc8f9472b16e25a2c9622e1abf4d5",
-    "reporting/_pdf_typed_original_brand_qa_worker.py": "5e8ad9323a6161a5abe5da8feb14a8e6f7778e34ee81272398b4c7e414fb0a9f",
+    "reporting/_pdf_typed_original_brand_qa_worker.py": "bafc7c0b4203861a7c03a23bdf55c805d6ef35882b5f62048003b417c99a0ed4",
     "reporting/assets/brand-permission.md": "14a5170bec0e347ec274312f1b915aa9a9d94de61ad32260fc8305f1eb9ddeab",
     "reporting/assets/dna_column.png": "596ca17e055b473c5d265ab1865a9adb7e453bf20a001aab79a1a255b36b6437",
     "reporting/assets/omnigenis_logo.svg": "29983790bef75837d683a392515ed35d0410d919d49b6c52a7121f7659770c51",
@@ -33,7 +33,7 @@
     "reporting/typed_pdf_association.py": "0b6f4be7d81dc5624aaa3b7e11ed3cfbca0d7d9222272f6c24ba07ee617b3a63",
     "reporting/typed_pdf_source.py": "ace530cd727eaf513bffb9070c1b412db166ca4b966d390e710b853ec8676c59",
     "schemas/report-typed-original-brand-qa.v1.schema.json": "f09fedbf5b37234ef5732cfe3081500cc036ca5d57ce7f26c4481b00b6d297ee",
-    "tests/test_reporting_typed_original_brand_qa.py": "5af0cd64282f2e98bc93458af04089019f2673176160cd01413f15ac42992d60"
+    "tests/test_reporting_typed_original_brand_qa.py": "df2d784f5388f5d90152d410a271d38a483ef289280213d3e4076a0940b5876f"
   },
   "structure_id_tree_policy": "FLAT_NAMES_EXACT_ORIGINAL_BYTE_ID_MAP",
   "table_identifier_policy": "PYPDF_TEXTSTRINGOBJECT_ONLY_ORIGINAL_BYTES_1_TO_128",

@@ -1238,6 +1238,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
 
     def test_footer_declared_geometry_requires_position_clips_and_page_bounds(self):
         """Keep every footer code while changing only its declared physical layout."""
+        from fractions import Fraction
         from reporting import _pdf_typed_original_brand_qa_worker as worker
 
         self.assertIs(self.run_qa().to_dict()["complete_literal_source_accounting"], True)
@@ -1466,18 +1467,20 @@ class TypedOriginalBrandQATests(unittest.TestCase):
 
         def box(value, ctm=worker.IDENTITY):
             matrix = next(args for args, op in value if op == b"Tm")
-            effective = worker._ctm(tuple(Decimal(worker.native._number(v)) for v in matrix), ctm)
-            scale = Decimal(worker.native._number(next(args[1] for args, op in value if op == b"Tf"))) / 1000
-            points, advance = [], Decimal(0)
+            effective = worker._ctm(tuple(Fraction(worker.native._number(v)) for v in matrix),
+                                    tuple(map(Fraction, ctm)))
+            scale = Fraction(worker.native._number(next(args[1] for args, op in value if op == b"Tf"))) / 1000
+            points, advance = [], Fraction(0)
             for item in next(args[0] for args, op in value if op == b"TJ"):
                 if type(item) is ByteStringObject:
                     for offset in range(0, len(item), 2):
-                        w = widths[int.from_bytes(item[offset:offset + 2], "big")]
+                        w = Fraction(widths[int.from_bytes(item[offset:offset + 2], "big")])
                         points.extend(worker._rectangle(
-                            (advance * scale, descent * scale, w * scale, (ascent - descent) * scale), effective))
+                            (advance * scale, Fraction(descent) * scale, w * scale,
+                             (Fraction(ascent) - Fraction(descent)) * scale), effective))
                         advance += w
                 else:
-                    advance -= Decimal(worker.native._number(item))
+                    advance -= Fraction(worker.native._number(item))
             return (min(p[0] for p in points), min(p[1] for p in points),
                     max(p[0] for p in points), max(p[1] for p in points)), advance
 
@@ -1498,6 +1501,8 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         float_overlap = text_span(220.25, fy, [FloatObject(0.5), glyph, FloatObject(-0.5)], large)
         lost_edge = text_span(160, fy, [
             NumberObject(2 * 10**32), glyph, NumberObject(-2 * 10**32), glyph], large)
+        lost_pen = text_span(220.5, fy, [NumberObject(2 * 10**32 + 1),
+                                       NumberObject(-2 * 10**32), glyph], large)
         touch = text_span(100, -descent, [pieces[index]], NumberObject(1000))
         up = tuple(map(Decimal, (1, 0, 0, 1, 0, 30)))
         touch_paint = [([], b"q"), (numbers(1, 0, 0, 1, 0, 30), b"cm"), *touch, ([], b"Q")]
@@ -1508,7 +1513,9 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         self.assertFalse(overlaps(box(outside)[0]))
         self.assertFalse(overlaps(box(float_outside)[0]))
         self.assertEqual((box(float_outside)[0][0], box(float_overlap)[0][0]), (220.25, 219.75))
-        self.assertEqual(box(lost_edge)[0][2], 160 + width)
+        self.assertEqual(box(lost_edge)[0][2], 160 + 2 * width)
+        self.assertEqual(box(lost_pen)[0][0], 219.5)
+        self.assertTrue(overlaps(box(lost_pen)[0]))
         self.assertTrue(overlaps(box(lost_edge)[0]))
         self.assertEqual(box(touch, up)[0][1], 30)
         self.assertTrue(overlaps(box(outside, shear)[0]))
@@ -1524,7 +1531,8 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 ("earlier-text-overlap", overlap + footer_ops)):
             with self.subTest(text_control=label):
                 geometry(operations)
-        for label, value in (("later-text-extrema-cancellation", lost_edge),
+        for label, value in (("later-text-pen-cancellation", lost_pen),
+                             ("later-text-extrema-cancellation", lost_edge),
                              ("later-text-float-kerning-overlap", float_overlap),
                              ("later-text-tm-overlap", overlap),
                              ("later-text-tj-compensated-overlap", shifted),
@@ -1617,6 +1625,37 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         self.assertIs(receipt["complete_literal_source_accounting"], True)
         self.assertEqual(set(receipt["stages"].values()), {"PASS"})
         self.refuse(self.rewritten(lambda writer: change(writer, True)))
+        from reporting import _pdf_typed_original_brand_qa_worker as worker
+        reader = PdfReader(BytesIO(self.fixtures[2][1]), strict=True)
+        page = reader.pages[-1]
+        ops = ContentStream(page.raw_get("/Contents"), reader, forced_encoding="bytes").operations
+        first, last = self.footer_range(ops)
+        ctm, stack = worker.IDENTITY, []
+        for operands, operator in ops[:first]:
+            if operator == b"q":
+                stack.append(ctm)
+            elif operator == b"Q":
+                self.assertTrue(stack)
+                ctm = stack.pop()
+            elif operator == b"cm":
+                ctm = worker._ctm(tuple(Decimal(worker.native._number(v)) for v in operands), ctm)
+        media = tuple(Decimal(worker.native._number(v)) for v in page.raw_get("/MediaBox"))
+
+        def declared(shift=None):
+            block = deepcopy(ops[first + 1:last])
+            if shift is not None:
+                block[5][0][0][:0] = [NumberObject(2 * 10**32 + shift), NumberObject(-2 * 10**32)]
+            return worker._footer_declared_geometry(block, page["/Resources"], reader, ctm, media)
+
+        # Synthetic pen counter-controls qualify geometry only; public controls remain above.
+        genuine = declared()
+        for shift in (0, 1001):
+            with self.subTest(footer_prefix_shift=shift):
+                if shift:
+                    with self.assertRaisesRegex(ValueError, "^typed original-brand QA refused$"):
+                        declared(shift)
+                else:
+                    self.assertEqual(declared(shift), genuine)
 
     def test_footers_require_exact_identity_once_on_each_physical_page(self):
         args = self.arguments()
@@ -1674,8 +1713,6 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                         cursor += len(text)
             footer_fonts.append((mapping, widths, prefix))
 
-        # Change identity alone: derive a distinct hex glyph with the same /W
-        # advance in every footer font, without assuming tabular digit metrics.
         selection = None
         for position, (_, old) in footer_fonts[0][2].items():
             replacements = sorted({text for text in footer_fonts[0][0].values()
@@ -2005,8 +2042,6 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 bad["pages"][first], bad["pages"][last] = bad["pages"][last], bad["pages"][first]
                 for index, page in enumerate(bad["pages"]):
                     page["index"] = index
-                # Keep every node, parent, Pg, MCID and owner unchanged. Only the
-                # declared physical ordering of the two existing body pages changes.
                 self.assertEqual(bad["nodes"], trace["nodes"])
                 self.assertEqual(bad["pages"][0], trace["pages"][0])
                 self.assertEqual(bad["pages"][-1], trace["pages"][-1])
@@ -2577,8 +2612,6 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         boundary = deepcopy(source)
         coverage = boundary["coverage"]
         limit = self.m.prior.MAX_VISITS
-        # Keep the projected-node and operation bounds feasible while isolating
-        # the independent traversal charge at its exact limit and one above it.
         coverage["text_mcids"] = limit // 10
         coverage["native_mcids"] = coverage["text_mcids"] + coverage["figure_count"]
         coverage["native_nodes"] = (limit + 1 - coverage["native_mcids"]) // 2
@@ -2643,8 +2676,6 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             text_units = exact["source_units"] + exact["brand_text_units"] + 1 + exact["navigation_entries"]
             coverage["text_mcids"] = text_units + exact["navigation_entries"]
             coverage["native_mcids"] = coverage["text_mcids"] + coverage["figure_count"]
-            # Each source/brand unit has a text container and at least one Span;
-            # findings additionally require their body TRs and four table wrappers.
             base_nodes = coverage["text_mcids"] + text_units + 1
             table_nodes = findings + 4 if findings else 0
             coverage["projected_nodes"] = base_nodes + table_nodes
@@ -2655,7 +2686,6 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             with self.subTest(findings=findings, node_bound="exact-minimum"):
                 self.assertEqual(self.m.TypedOriginalBrandQA(
                     self.m.canonical(exact)).to_dict(), exact)
-            # Isolate the missing suffix MCID while keeping the other counters feasible.
             missing_suffix = deepcopy(exact)
             missing_coverage = missing_suffix["coverage"]
             missing_coverage["text_mcids"] -= 1
@@ -2881,8 +2911,6 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                              + coverage["accounted_brand_wrapper_nodes"]
                              + coverage["accounted_navigation_wrapper_nodes"])
             self.assertEqual(coverage["projected_nodes"], mcids + text_units + 1 + 4 + findings + 1)
-            # All old lower bounds and the generic upper/traversal bounds hold;
-            # only the unexplained extra projected node violates the new rule.
             self.assertGreaterEqual(coverage["projected_nodes"], mcids + max(
                 text_units, pages + findings + 1 + entries + 2 - fragments) + 1 + 4 + findings)
             self.assertLessEqual(coverage["projected_nodes"], 1 + 6 * mcids)
@@ -2900,10 +2928,6 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             with self.subTest(single_table_segment=label, surplus="one-node", boundary="resealed-to-dict"), self.assertRaises(ValueError):
                 receipt.to_dict()
 
-        # Zero or one spare source unit still fixes one one-column table;
-        # the optional unit can only be a paragraph. Counts must admit a whole
-        # table/row/paragraph-fragment allocation, not merely a loose interval.
-        # These are receipt grammar controls, not new native PDF witnesses.
         for label, parameters in (
                 ("one-spare-unit-one-body-page", (1, 2, 1, 1, 6, 11, 27)),
                 ("one-table-segment-with-extra-text", (1, 3, 1, 1, 5, 12, 27)),
@@ -2947,9 +2971,6 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             with self.subTest(finite_table_allocation=label, boundary="resealed-to-dict"), self.assertRaises(ValueError):
                 receipt.to_dict()
 
-        # More physical pages can hold table or paragraph continuation. A wider
-        # source budget can instead hold more columns or another empty table;
-        # none of these shapes permits the minimum-source/single-page equality.
         for label, parameters in (
                 ("one-contents-fragment-table-continues", (1, 3, 1, 1, 5, 12, 34)),
                 ("two-contents-fragments-table-continues", (2, 4, 2, 1, 6, 15, 39)),
@@ -2979,8 +3000,6 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             fragments, pages, entries, findings, units, mcids, nodes = parameters
             text_units = units + exact["brand_text_units"] + 1 + entries
             containers = pages + findings + entries + 3 - fragments
-            # A spare source unit can be a paragraph, so four table segments
-            # cannot be inferred merely from the eight-page receipt.
             self.assertEqual(units, findings + 4 + entries)
             self.assertGreater(containers, text_units)
             self.assertEqual(mcids, containers + entries)
@@ -3012,7 +3031,6 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             self.assertEqual(bad["pagination_pages"], coverage["pagination_blocks"])
             self.assertGreaterEqual(bad["pdf_byte_count"], 8)
             self.assertGreaterEqual(mcids, max(text_units + 1, bad["page_count"]))
-            # All prior source, one-segment page and node floors remain met.
             self.assertGreaterEqual(mcids, 13)
             self.assertGreaterEqual(nodes, mcids + max(text_units, 12) + 1 + 6)
             self.assertLessEqual(coverage["operations"], self.m.prior.MAX_OPERATIONS)
@@ -3066,10 +3084,6 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 with self.subTest(isolated_page_floor=label, findings=findings, boundary="resealed-to-dict"), self.assertRaises(ValueError):
                     receipt.to_dict()
 
-        # These are source-grammar counter controls, not newly rendered witnesses.
-        # Zero findings implies empty tables: body rows always carry a finding ID.
-        # Three spare units can be three paragraphs, an empty table + paragraph,
-        # or an empty two-column table. Only the paragraph can continue.
         for label, parameters in (
                 ("three-paragraphs", (1, 2, 1, 0, 5, 10, 20)),
                 ("empty-table-plus-paragraph", (1, 2, 1, 0, 5, 10, 24)),
@@ -3120,7 +3134,6 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 ("one-below-node-floor", 16, 51)):
             bad = counter_receipt(1, 8, 1, 1, 5, mcids, nodes)
             self.assertEqual(bad["source_units"], bad["represented_findings"] + 3 + bad["navigation_entries"])
-            # The current first-page floor is 13 Spans and 12 text containers.
             self.assertGreaterEqual(mcids, 13)
             self.assertGreaterEqual(nodes, mcids + 12 + 1 + 5)
             if "mcid" in label:

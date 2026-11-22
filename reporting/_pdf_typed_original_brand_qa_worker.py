@@ -521,13 +521,13 @@ def _footer_declared_geometry(block, resources, reader, ctm, media):
         first = int(declared[offset])
         for index, value in enumerate(declared[offset + 1]):
             require(type(value) is NumberObject)
-            widths[first + index] = Decimal(int(value))
-    pen, glyphs, points, maximum_extent = Decimal(0), 0, [], Decimal(0)
+            widths[first + index] = int(value)
+    pen, glyphs, points, maximum_extent = 0, 0, [], 0
     previous_origin = None
     shown = block[5][0][0]
     for item in shown:
         if type(item) is NumberObject:
-            pen -= Decimal(int(item))
+            pen -= int(item)
             continue
         require(type(item) is ByteStringObject)
         data = bytes(item)
@@ -591,6 +591,8 @@ def _paint_geometry(operations, page, reader, forms, xobjects, figure_points, re
 
     def declared_text_points(shown):
         """Bound declared typographic cells, not font outlines or painted ink."""
+        from decimal import Inexact, getcontext
+
         require(text_matrix is not None and font_name is not None
                 and size is not None and size > 0)
         if font_name not in font_metrics:
@@ -615,10 +617,15 @@ def _paint_geometry(operations, page, reader, forms, xobjects, figure_points, re
 
         low, high, widths = font_metrics[font_name]
         effective = _ctm(text_matrix, ctm)
+        arithmetic = getcontext().copy()
+        arithmetic.traps[Inexact] = True
         pen, bounds = Decimal(0), None
         for item in shown:
             if type(item) in (NumberObject, FloatObject):
-                pen -= Decimal(native._number(item))
+                try:
+                    pen = arithmetic.subtract(pen, Decimal(native._number(item)))
+                except Inexact:
+                    require(False)
                 continue
             require(type(item) is ByteStringObject)
             data = bytes(item)
@@ -638,7 +645,10 @@ def _paint_geometry(operations, page, reader, forms, xobjects, figure_points, re
                         bounds[1] = min(bounds[1], y)
                         bounds[2] = max(bounds[2], x)
                         bounds[3] = max(bounds[3], y)
-                pen += width
+                try:
+                    pen = arithmetic.add(pen, width)
+                except Inexact:
+                    require(False)
         if bounds is None:
             return ()
         x0, y0, x1, y1 = bounds
