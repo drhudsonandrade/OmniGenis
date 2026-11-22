@@ -642,7 +642,7 @@ def _paint_geometry(operations, page, reader, forms, xobjects, figure_points, re
         if bounds is None:
             return ()
         x0, y0, x1, y1 = bounds
-        return _rectangle((x0, y0, x1 - x0, y1 - y0), IDENTITY)
+        return ((x0, y0), (x1, y0), (x1, y1), (x0, y1))
 
     def clear_footer(points, padding=(Decimal(0), Decimal(0))):
         if not footer_bounds:

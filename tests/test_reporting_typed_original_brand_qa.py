@@ -1274,9 +1274,6 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                             for offset in range(0, len(item), 2):
                                 pen += widths[int.from_bytes(item[offset:offset + 2], "big")]
                                 rightmost = max(rightmost, pen)
-                    # Place the endpoint one declared font unit beyond every
-                    # glyph rectangle. The clip splits that unit for refusal,
-                    # or contains one further unit for the positive control.
                     shown.append(NumberObject(pen - rightmost - 1))
                     units = Decimal(2) if case == "endpoint-containing-clip" else Decimal("0.5")
                     endpoint_clip = (Decimal(str(matrix[4]))
@@ -1288,8 +1285,6 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 elif case == "outside-page":
                     matrix[4] = FloatObject(float(matrix[4]) + 2000)
                 elif case == "tj-displaced":
-                    # Restore the final pen while leaving all declared glyph boxes
-                    # displaced: checking only the advance endpoint is insufficient.
                     shown.insert(0, NumberObject(10000))
                     shown.append(NumberObject(-10000))
                 else:
@@ -1337,16 +1332,11 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                     self.assertTrue(all(worker._contains(*call.args)
                                         for call in contains.call_args_list[:-1]))
                     clip, footer = contains.call_args.args
-                    # Returning five points means the unchanged alignment and
-                    # typographic-region checks succeeded before this clip test.
                     self.assertEqual(len(footer), 5)
                     self.assertTrue(worker._contains(clip, footer[:4]))
                     self.assertFalse(worker._contains(clip, footer[-1:]))
                 self.refuse(args)
 
-        # Reuse the already rendered fixture. These controls isolate the paint
-        # boundary with an already validated footer box; the native cases above
-        # retain the real footer/font/operator admission and clip checks.
         reader = PdfReader(BytesIO(self.fixtures[2][1]), strict=True)
         page = reader.pages[0]
         resources = page["/Resources"]
@@ -1360,8 +1350,6 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                        ((100, 20), (220, 20), (220, 30), (100, 30), (220, 25)))
         actual = ContentStream(page.raw_get("/Contents"), reader, forced_encoding="bytes").operations
         first, last = self.footer_range(actual)
-        # All later controls are outside this saved state: Q cannot erase a
-        # previously painted footer, although it must restore stroke settings.
         footer_ops = [([], b"q"), *deepcopy(actual[first:last + 1]), ([], b"Q")]
 
         def numbers(*values):
@@ -1426,7 +1414,6 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 geometry(footer_ops + paint)
 
 
-        # Reuse an admitted Span and its graphics context; no new render.
         span_start = next(i for i, (args, op) in enumerate(actual)
                           if op == b"BDC" and args[0] == "/Span")
         span_end = next(i for i in range(span_start + 1, len(actual))
@@ -1505,10 +1492,12 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         delta = int(((x + (origin + width / 2) * size / 1000 - 160) * 1000 / size).to_integral_value())
         adjusted[index:index + 1] = [NumberObject(delta), adjusted[index], NumberObject(-delta)]
         shifted = text_span(x, y, adjusted)
-        floated = deepcopy(pieces)
-        first_code = next(i for i, item in enumerate(floated) if type(item) is ByteStringObject)
-        floated[first_code:first_code + 1] = [FloatObject(0.5), floated[first_code], FloatObject(-0.5)]
-        float_outside = text_span(x, y, floated)
+        fy = 25 - (ascent + descent) / 2
+        glyph, large = pieces[index], NumberObject(1000)
+        float_outside = text_span(219.75, fy, [FloatObject(-0.5), glyph, FloatObject(0.5)], large)
+        float_overlap = text_span(220.25, fy, [FloatObject(0.5), glyph, FloatObject(-0.5)], large)
+        lost_edge = text_span(160, fy, [
+            NumberObject(2 * 10**32), glyph, NumberObject(-2 * 10**32), glyph], large)
         touch = text_span(100, -descent, [pieces[index]], NumberObject(1000))
         up = tuple(map(Decimal, (1, 0, 0, 1, 0, 30)))
         touch_paint = [([], b"q"), (numbers(1, 0, 0, 1, 0, 30), b"cm"), *touch, ([], b"Q")]
@@ -1518,9 +1507,12 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         self.assertFalse(overlaps(box(span, ctm)[0]))
         self.assertFalse(overlaps(box(outside)[0]))
         self.assertFalse(overlaps(box(float_outside)[0]))
+        self.assertEqual((box(float_outside)[0][0], box(float_overlap)[0][0]), (220.25, 219.75))
+        self.assertEqual(box(lost_edge)[0][2], 160 + width)
+        self.assertTrue(overlaps(box(lost_edge)[0]))
         self.assertEqual(box(touch, up)[0][1], 30)
         self.assertTrue(overlaps(box(outside, shear)[0]))
-        for value in (overlap, shifted, float_outside):
+        for value in (overlap, shifted):
             self.assertEqual(b"".join(bytes(item) for item in next(
                 args[0] for args, op in value if op == b"TJ") if type(item) is ByteStringObject), codes)
             self.assertEqual(box(value)[1], pen)
@@ -1532,15 +1524,15 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 ("earlier-text-overlap", overlap + footer_ops)):
             with self.subTest(text_control=label):
                 geometry(operations)
-        for label, value in (("later-text-tm-overlap", overlap),
+        for label, value in (("later-text-extrema-cancellation", lost_edge),
+                             ("later-text-float-kerning-overlap", float_overlap),
+                             ("later-text-tm-overlap", overlap),
                              ("later-text-tj-compensated-overlap", shifted),
                              ("later-text-touch", touch_paint), ("later-text-affine-overlap", affine)):
             with self.subTest(text_refusal=label), self.assertRaisesRegex(
                     ValueError, "^typed original-brand QA refused$"):
                 geometry(footer_ops + value)
 
-        # A transparency-bearing image cannot bypass the overlap policy: mask
-        # keys are outside the unchanged, exact opaque RGB image grammar.
         form = xobjects.raw_get(image_name).get_object()
         image_resources = form["/Resources"]["/XObject"]
         image_ref = next(iter(image_resources.values()))
@@ -2064,6 +2056,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             target_pages[label] = pages[tuple(matched[0]["page_reference"])]["index"] + 1
         self.assertNotEqual(target_pages["Record identity"], target_pages["Declared findings"])
         for mode in ("missing-label", "wrong-label", "swapped-page-references"):
+            label_slot = []
             def navigation(writer):
                 document_node = next(n for n in self.nodes(writer) if n["/S"] == "/Document")
                 section = document_node["/K"][1].get_object()
@@ -2088,22 +2081,24 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                         self.edit_page(writer, page_index, swap)
                 else:
                     page_index, mcid = slots[0][0]
+                    self.assertEqual(len(slots[0]), 2)
+                    label_slot[:] = page_index, mcid
                     def alter(ops):
                         start, end = self.span_range(ops, mcid)
                         tj = next(i for i in range(start + 1, end) if ops[i][1] == b"TJ")
                         if mode == "missing-label":
-                            del ops[tj]
+                            ops[tj][0][0][:] = [NumberObject(0)]
                         else:
                             self.change_first_glyph(ops[tj][0])
                     self.edit_page(writer, page_index, alter)
             candidate = self.rewritten(navigation, navigation=True)
-            if mode == "missing-label":
-                with self.subTest(navigation=mode):
-                    self.refuse(candidate)
-                continue
             raw = self.m._run_worker(candidate["pdf_bytes"], candidate["expected_pdf_sha256"])
             observed = self.m.prior._loads(raw.decode("ascii"))
             self.m._validate_native(observed, candidate["pdf_bytes"], candidate["expected_profile_sha256"])
+            if mode == "missing-label":
+                runs = observed["trace"]["pages"][label_slot[0]]["runs"]
+                self.assertEqual([(r["text"], r["glyph_codes"]) for r in runs
+                                  if r["mcid"] == label_slot[1]], [("", 0)])
             with self.subTest(navigation=mode), patch.object(
                     self.m, "_run_worker", return_value=raw), patch.object(
                     self.m, "inspect_pdf_document_metadata") as metadata:
@@ -2491,10 +2486,18 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             native = deepcopy(original)
             pages = native["trace"]["pages"]
             donor = next(b for b in pages[0]["graphic_blocks"] if b["dna_paints"] == 1)
-            receiver = (next(b for b in pages[0]["graphic_blocks"] if b["kind"] == "figure")
-                        if case == "figure" else
-                        next(b for page in pages[1:] for b in page["graphic_blocks"]
-                             if b["kind"] == "artifact" and b["dna_paints"] == 0))
+            if case == "figure":
+                receiver = next(b for b in pages[0]["graphic_blocks"] if b["kind"] == "figure")
+            else:
+                page = pages[1]
+                receiver = next(b for b in page["graphic_blocks"]
+                                if b["kind"] == "artifact" and b["dna_paints"] == 0)
+                end = receiver["first_operator"] + self.m.DNA_ARTIFACT_OPERATIONS
+                self.assertLessEqual(end - 1, receiver["last_operator"])
+                page["outside_operator_ordinals"] = sorted(
+                    page["outside_operator_ordinals"] + list(range(end, receiver["last_operator"] + 1)))
+                receiver["last_operator"] = end - 1
+                self.m._validate_native(native, args["pdf_bytes"], args["expected_profile_sha256"])
             donor["dna_paints"], receiver["dna_paints"] = 0, 1
             with self.subTest(receiver=case):
                 self.assertEqual(sum(b["dna_paints"] for p in pages for b in p["graphic_blocks"]),
