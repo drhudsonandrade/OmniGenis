@@ -1,7 +1,9 @@
 """Confined complete native accounting for the separate typed/original-brand QA."""
 from __future__ import annotations
 
-from decimal import Decimal
+from contextlib import contextmanager
+from decimal import Decimal, Inexact, localcontext
+from fractions import Fraction
 from hashlib import sha256
 from importlib.metadata import version
 from io import BytesIO
@@ -460,13 +462,16 @@ def _rectangle(values, matrix):
 
 def _contains(outer, inner):
     """Containment only for the admitted affine rectangle; no general path clipping."""
+    outer = tuple((Fraction(x), Fraction(y)) for x, y in outer)
+    inner = tuple((Fraction(x), Fraction(y)) for x, y in inner)
     def side(first, second, point):
         return ((second[0] - first[0]) * (point[1] - first[1])
                 - (second[1] - first[1]) * (point[0] - first[0]))
     direction = side(outer[0], outer[1], outer[2])
     return direction != 0 and all(
-        side(outer[i], outer[(i + 1) % 4], point) * direction >= 0
-        for point in inner for i in range(4))
+        value >= 0 if direction > 0 else value <= 0
+        for point in inner for i in range(4)
+        for value in (side(outer[i], outer[(i + 1) % 4], point),))
 
 
 def _effective_crop_box(page, reader):
@@ -486,6 +491,17 @@ def _effective_crop_box(page, reader):
     require(False)
 
 
+@contextmanager
+def _exact_geometry():
+    with localcontext() as arithmetic:
+        arithmetic.traps[Inexact] = True
+        try:
+            yield
+        except Inexact:
+            require(False)
+
+
+@_exact_geometry()
 def _footer_declared_geometry(block, resources, reader, ctm, media):
     """Bind declared PDF advances and typographic boxes, not glyph contours or ink.
 
@@ -504,8 +520,11 @@ def _footer_declared_geometry(block, resources, reader, ctm, media):
     scale, half_decimal = Decimal("0.75"), Decimal("0.0000005")
     require(effective[:4] == (scale, Decimal(0), Decimal(0), scale))
     # Existing 8.6pt footer -> integer Pango units -> pydyf's six decimal places.
-    exact_size = Decimal(int(Decimal("8.6") / scale * 1024)) / 1024
-    require(size == exact_size.quantize(Decimal("0.000001")))
+    exact_size = Decimal((86 * 4 * 1024) // 30) / 1024
+    with localcontext() as serialization:
+        serialization.traps[Inexact] = False
+        serialized_size = exact_size.quantize(Decimal("0.000001"))
+    require(size == serialized_size)
     font_map = native._dictionary(resources.raw_get("/Font"), reader)
     require(font_name in font_map)
     font = native._dictionary(font_map.raw_get(font_name), reader)
@@ -549,6 +568,14 @@ def _footer_declared_geometry(block, resources, reader, ctm, media):
             pen += width
     require(glyphs > 0 and pen > 0)
     maximum_extent = max(maximum_extent, abs(pen))
+    margin = Decimal(44)
+    left, bottom, right, top = media
+    require(right - left > 2 * margin and top - bottom > margin)
+    unit = scale * exact_size
+    # Bound emitted cells and the final pen to this fixed content strip.
+    # Undrawn, exactly cancelling TJ adjustments do not enlarge the extent.
+    require(maximum_extent * unit
+            <= 1000 * (right - left - 2 * margin) + (glyphs + 1) * unit)
     x0, y0 = min(p[0] for p in points), min(p[1] for p in points)
     x1, y1 = max(p[0] for p in points), max(p[1] for p in points)
     bounds = _rectangle((x0, y0, x1 - x0, y1 - y0), IDENTITY)
@@ -561,10 +588,9 @@ def _footer_declared_geometry(block, resources, reader, ctm, media):
         exact_size * (glyphs + 1) / 1000
         + abs(exact_size - size) * maximum_extent / 1000 + half_decimal)
         + half_decimal)
-    margin = Decimal(44)
-    left, bottom, right, top = media
-    require(right - left > 2 * margin and top - bottom > margin)
     target_right = right - margin
+    require(left + margin - (glyphs + 1) * unit / 1000 - allowance
+            <= effective[4] <= target_right + allowance)
     advance = _point((pen * size / 1000, Decimal(0)), effective)
     advance_right = advance[0]
     require(abs(advance_right - target_right) <= allowance
@@ -576,6 +602,7 @@ def _footer_declared_geometry(block, resources, reader, ctm, media):
     return (*bounds, advance)
 
 
+@_exact_geometry()
 def _paint_geometry(operations, page, reader, forms, xobjects, figure_points, resources):
     """Check admitted graphics and keep later paints clear of the footer box."""
     from pypdf.generic import ArrayObject, ByteStringObject, FloatObject, NumberObject

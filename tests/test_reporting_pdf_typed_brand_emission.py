@@ -689,6 +689,7 @@ class TypedBrandRouteTests(unittest.TestCase):
 
         original_distribution = core.distribution
         for name in ("weasyprint/layout/inline.py", "weasyprint/layout/page.py",
+                     "weasyprint/layout/preferred.py",
                      "weasyprint/layout/__init__.py", "weasyprint/text/fonts.py",
                      "weasyprint/text/constants.py"):
             with self.subTest(engine=name):
