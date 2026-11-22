@@ -704,17 +704,20 @@ def _validate_receipt(data: dict) -> None:
                     and data["page_count"] <= fragment_count + data["navigation_entries"] + 3))
     # Each finding needs a body TR, plus Table/THead/TBody/header TR.
     table_nodes = findings + 4 if findings else 0
+    # The first nonempty table page has caption, header and body-cell text.
+    # Three distinct containers/Spans add two beyond its one-per-page baseline.
+    table_text_excess = 2 if findings else 0
     # Matched grammar has at most five non-root nodes per Span, plus one
     # potentially empty TBody per table; every matched table has a Span.
     require(data["source_units"] >= (findings + 3 if findings else 1) + data["navigation_entries"]
             and data["pdf_byte_count"] >= len(b"%PDF-1.7")
             and coverage["text_mcids"] >= text_units + data["navigation_entries"]
             # Contents and final credit runs add to the per-page text floor.
-            and coverage["text_mcids"] >= (data["page_count"]
+            and coverage["text_mcids"] >= (data["page_count"] + table_text_excess
                                             + 2 * data["navigation_entries"] + 2 - fragment_count)
             # Contents and final credit containers add to the per-page floor.
             and coverage["projected_nodes"] >= (coverage["text_mcids"]
-                                                + max(text_units, data["page_count"]
+                                                + max(text_units, data["page_count"] + table_text_excess
                                                       + data["navigation_entries"] + 2 - fragment_count)
                                                 + 1 + table_nodes)
             and coverage["projected_nodes"] <= 1 + 6 * coverage["text_mcids"]

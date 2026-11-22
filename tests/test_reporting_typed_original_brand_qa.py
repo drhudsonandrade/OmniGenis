@@ -2544,6 +2544,78 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             coverage["operations"] = self.operation_floor(value)
             return value
 
+        # A findings-bearing table puts caption, header and a body cell on
+        # its first page: two text containers/Spans beyond that page's baseline.
+        # These are receipt counter boundaries, not newly rendered witnesses.
+        for fragments, pages, entries, source_units, mcids, nodes in (
+                (1, 8, 1, 6, 13, 31), (2, 10, 2, 7, 16, 36)):
+            exact = navigation_boundary(
+                fragments, pages, entries, source_units=source_units, text_mcids=mcids)
+            exact["represented_findings"] = 1
+            coverage = exact["coverage"]
+            coverage["projected_nodes"] = nodes
+            coverage["native_nodes"] = (nodes + coverage["accounted_brand_wrapper_nodes"]
+                                        + coverage["accounted_navigation_wrapper_nodes"])
+            units = source_units + exact["brand_text_units"] + 1 + entries
+            containers = pages + entries + 4 - fragments
+            self.assertGreaterEqual(source_units, 4 + entries)
+            self.assertGreaterEqual(mcids, units + entries)
+            self.assertEqual(mcids, pages + 2 * entries + 4 - fragments)
+            self.assertGreater(containers, units)
+            self.assertEqual(nodes, mcids + containers + 1 + 5)
+            self.assertEqual(coverage["native_mcids"], mcids + coverage["figure_count"])
+            self.assertEqual(coverage["operations"], self.operation_floor(exact))
+            self.assertLessEqual(nodes, 1 + 6 * mcids)
+            self.assertLessEqual(2 * coverage["native_nodes"] - 1 + coverage["native_mcids"],
+                                 self.m.prior.MAX_VISITS)
+            self.m._schema(exact)
+            with self.subTest(table_page_floor="exact", fragments=fragments):
+                self.assertEqual(self.m.TypedOriginalBrandQA(self.m.canonical(exact)).to_dict(), exact)
+            if fragments == 1:
+                table_control = exact
+        for mode, mcids, nodes in (("missing-text-span", 12, 30),
+                                   ("reported-container-deficit", 13, 29),
+                                   ("one-below-container-floor", 13, 30)):
+            bad = deepcopy(table_control)
+            coverage = bad["coverage"]
+            coverage["text_mcids"] = mcids
+            coverage["native_mcids"] = mcids + coverage["figure_count"]
+            coverage["projected_nodes"] = nodes
+            coverage["native_nodes"] = (nodes + coverage["accounted_brand_wrapper_nodes"]
+                                        + coverage["accounted_navigation_wrapper_nodes"])
+            coverage["operations"] = self.operation_floor(bad)
+            units = bad["source_units"] + bad["brand_text_units"] + 1 + bad["navigation_entries"]
+            self.assertEqual((bad["page_count"], bad["represented_findings"],
+                              bad["navigation_entries"], units), (8, 1, 1, 10))
+            self.assertEqual(coverage["accounted_brand_wrapper_nodes"], 6)
+            self.assertEqual(coverage["accounted_navigation_wrapper_nodes"], 1)
+            self.assertEqual(coverage["native_nodes"], nodes + 7)
+            self.assertEqual(coverage["native_mcids"], mcids + coverage["figure_count"])
+            self.assertEqual(bad["pagination_pages"], coverage["pagination_blocks"])
+            self.assertGreaterEqual(bad["source_units"], 4 + bad["navigation_entries"])
+            self.assertGreaterEqual(mcids, max(units + bad["navigation_entries"], bad["page_count"]))
+            self.assertGreaterEqual(nodes, mcids + units + 1 + 5)
+            self.assertLessEqual(nodes, 1 + 6 * mcids)
+            self.assertEqual(coverage["operations"], self.operation_floor(bad))
+            self.assertLessEqual(2 * coverage["native_nodes"] - 1 + coverage["native_mcids"],
+                                 self.m.prior.MAX_VISITS)
+            if mode == "missing-text-span":
+                self.assertEqual(mcids, 13 - 1)
+                self.assertEqual(nodes, mcids + 12 + 1 + 5)
+            else:
+                self.assertEqual(mcids, 13)
+                self.assertGreaterEqual(nodes, mcids + 10 + 1 + 5)
+                self.assertLess(nodes, mcids + 12 + 1 + 5)
+            self.m._schema(bad)
+            payload = self.m.canonical(bad)
+            with self.subTest(table_page_floor=mode, boundary="constructor"), self.assertRaises(ValueError):
+                self.m.TypedOriginalBrandQA(payload)
+            receipt = self.m.TypedOriginalBrandQA(self.m.canonical(table_control))
+            object.__setattr__(receipt, "_payload", payload)
+            object.__setattr__(receipt, "_sealed_sha256", sha256(payload).hexdigest())
+            with self.subTest(table_page_floor=mode, boundary="resealed-to-dict"), self.assertRaises(ValueError):
+                receipt.to_dict()
+
         # Two remaining body units are either two paragraphs or a caption
         # and one table header. The matcher always requires the empty TBody.
         for pages, mcids, nodes, shape in (

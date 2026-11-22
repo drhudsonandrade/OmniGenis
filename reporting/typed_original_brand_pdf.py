@@ -7,10 +7,10 @@ clinical/scientific claims, new executor, PDF/UA or visual parity is established
 
 This original-brand editorial profile requires at least one section heading with
 an unambiguous source section anchor for its printed contents. Carriage returns,
-line feeds, tabs, next-line characters (U+0085), and Unicode line/paragraph
-separators (U+2028/U+2029) in section headings are refused before staging:
-the exact literal association profile does not represent those explicit breaks
-or tab spacing.
+line feeds, tabs, next-line characters (U+0085), Unicode line/paragraph
+separators (U+2028/U+2029), and soft hyphens (U+00AD) in section headings are
+refused before staging: the exact literal association profile admits neither
+explicit breaks, tab spacing nor discretionary hyphenation.
 Natural line wrapping remains supported. The generic typed component contract
 remains unchanged. The complete source title must fit the
 cover area beside the DNA and below the logo in the actual fixed-font layout.
@@ -83,7 +83,7 @@ def _navigation(doc: dict, ir_sha256: str) -> tuple[str, dict]:
     headings = [component for component in doc["components"]
                 if component["component_type"] == "section_heading"]
     _require(bool(headings) and all(
-        not any(separator in heading["text"] for separator in "\t\r\n\u0085\u2028\u2029")
+        not any(separator in heading["text"] for separator in "\t\r\n\u0085\u00ad\u2028\u2029")
         for heading in headings))
     intents = tuple(NavigationIntent(doc["components"][0]["component_id"],
                                     "section", heading["section_id"])

@@ -64,7 +64,7 @@
     "reporting/pdf_typed_brand_render.py": "280f66326f4c12e4c9fc739f55e4e3f5a0d91aa99bb380def85bd5f68fe719da",
     "reporting/png_inspection.py": "189e1e1d77eabaaf829915cd6fcb21611831bb7c3af577e00e423a1b40f5bcec",
     "reporting/typed_html.py": "9b0dcd5dd6220302eaf1dcb101fedbed767b80b29fcc33c7fc19fc46a6e6f9fb",
-    "reporting/typed_original_brand_pdf.py": "a73ffb54b7ad9fd2e49cc543a333b013233f889045582153edcb6fbfa057000d",
+    "reporting/typed_original_brand_pdf.py": "256f8a0c4a8d19db44841657e8de73e72cdbb4e0365c80292dd0ddc0ad413631",
     "requirements-reporting.lock": "bc2c6d8e66ace82ca442e7931ea44b608ea037e1adddddc7a5dbebeb56008671"
   },
   "versions": {
