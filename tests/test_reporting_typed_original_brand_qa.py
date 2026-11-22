@@ -1647,7 +1647,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 block[5][0][0][:0] = [NumberObject(2 * 10**32 + shift), NumberObject(-2 * 10**32)]
             return worker._footer_declared_geometry(block, page["/Resources"], reader, ctm, media)
 
-        # Synthetic pen counter-controls qualify geometry only; public controls remain above.
+        # Check pen arithmetic here; public QA controls remain above.
         genuine = declared()
         for shift in (0, 1001):
             with self.subTest(footer_prefix_shift=shift):
