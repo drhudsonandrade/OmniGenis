@@ -578,13 +578,71 @@ def _footer_declared_geometry(block, resources, reader, ctm, media):
 
 def _paint_geometry(operations, page, reader, forms, xobjects, figure_points, resources):
     """Check admitted graphics and keep later paints clear of the footer box."""
-    from pypdf.generic import ArrayObject
+    from pypdf.generic import ArrayObject, ByteStringObject, FloatObject, NumberObject
     ctm, stack, clip = IDENTITY, [], ()
     path, pending_clip = None, False
     # These are PDF graphics-state defaults; the admitted grammar changes only
     # w and the logo's M=4. The painted footer is history, not q/Q state.
     line_width, miter_limit = Decimal(1), Decimal(10)
     footer_bounds, artifact, vertices = (), False, []
+    tagged_text = False
+    text_matrix = font_name = size = None
+    font_metrics = {}
+
+    def declared_text_points(shown):
+        """Bound declared typographic cells, not font outlines or painted ink."""
+        require(text_matrix is not None and font_name is not None
+                and size is not None and size > 0)
+        if font_name not in font_metrics:
+            require(len(font_metrics) < contract.MAX_FONTS)
+            font_map = native._dictionary(resources.raw_get("/Font"), reader)
+            require(font_name in font_map)
+            font = native._dictionary(font_map.raw_get(font_name), reader)
+            cid = native._dictionary(font.raw_get("/DescendantFonts")[0], reader)
+            descriptor = native._dictionary(cid.raw_get("/FontDescriptor"), reader)
+            ascent = Decimal(native._number(descriptor.raw_get("/Ascent")))
+            descent = Decimal(native._number(descriptor.raw_get("/Descent")))
+            low, high = sorted((ascent, descent))
+            widths = {}
+            declared = cid.raw_get("/W")
+            # native._font already admitted these explicit, bounded width runs.
+            for offset in range(0, len(declared), 2):
+                first = int(declared[offset])
+                for index, value in enumerate(declared[offset + 1]):
+                    require(type(value) is NumberObject)
+                    widths[first + index] = Decimal(int(value))
+            font_metrics[font_name] = low, high, widths
+
+        low, high, widths = font_metrics[font_name]
+        effective = _ctm(text_matrix, ctm)
+        pen, bounds = Decimal(0), None
+        for item in shown:
+            if type(item) in (NumberObject, FloatObject):
+                pen -= Decimal(native._number(item))
+                continue
+            require(type(item) is ByteStringObject)
+            data = bytes(item)
+            require(len(data) % 2 == 0)
+            for offset in range(0, len(data), 2):
+                code = int.from_bytes(data[offset:offset + 2], "big")
+                require(code in widths)
+                width = widths[code]
+                for x, y in _rectangle(
+                        (pen * size / 1000, low * size / 1000,
+                         width * size / 1000, (high - low) * size / 1000),
+                        effective):
+                    if bounds is None:
+                        bounds = [x, y, x, y]
+                    else:
+                        bounds[0] = min(bounds[0], x)
+                        bounds[1] = min(bounds[1], y)
+                        bounds[2] = max(bounds[2], x)
+                        bounds[3] = max(bounds[3], y)
+                pen += width
+        if bounds is None:
+            return ()
+        x0, y0, x1, y1 = bounds
+        return _rectangle((x0, y0, x1 - x0, y1 - y0), IDENTITY)
 
     def clear_footer(points, padding=(Decimal(0), Decimal(0))):
         if not footer_bounds:
@@ -655,6 +713,19 @@ def _paint_geometry(operations, page, reader, forms, xobjects, figure_points, re
             artifact = True
         elif op == b"EMC":
             artifact = False
+            tagged_text = False
+        elif op == b"BDC" and args[0] == "/Span":
+            tagged_text = True
+            text_matrix = font_name = size = None
+        elif op == b"Tm" and tagged_text:
+            text_matrix = tuple(map(Decimal, _numbers(args, 6)))
+        elif op == b"Tf" and tagged_text:
+            font_name = args[0]
+            size = Decimal(native._number(args[1]))
+        elif op == b"TJ" and tagged_text and footer_bounds:
+            points = declared_text_points(args[0])
+            if points:
+                clear_footer(points)
         elif op == b"BDC" and args[0] == "/Figure":
             require(_determinant(ctm) != 0 and clip is not None)
             points, declared_box = figure_points[int(args[1].raw_get("/MCID"))]

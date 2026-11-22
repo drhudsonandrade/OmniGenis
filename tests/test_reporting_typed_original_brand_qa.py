@@ -1425,6 +1425,120 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             with self.subTest(separated_graphic=case):
                 geometry(footer_ops + paint)
 
+
+        # Reuse an admitted Span and its graphics context; no new render.
+        span_start = next(i for i, (args, op) in enumerate(actual)
+                          if op == b"BDC" and args[0] == "/Span")
+        span_end = next(i for i in range(span_start + 1, len(actual))
+                        if actual[i][1] == b"EMC")
+        span = deepcopy(actual[span_start:span_end + 1])
+        context, saved = [], []
+        for args, op in actual[:span_start]:
+            if op == b"q":
+                saved.append(list(context))
+            elif op == b"Q":
+                context = saved.pop()
+            elif op == b"cm":
+                context.append((deepcopy(args), op))
+        ctm = worker.IDENTITY
+        for args, _ in context:
+            ctm = worker._ctm(tuple(Decimal(worker.native._number(v)) for v in args), ctm)
+        font_name, size_value = next(args for args, op in span if op == b"Tf")
+        cid = resources["/Font"][font_name]["/DescendantFonts"][0].get_object()
+        descriptor, declared = cid["/FontDescriptor"], cid["/W"]
+        ascent, descent = (Decimal(worker.native._number(descriptor[key]))
+                           for key in ("/Ascent", "/Descent"))
+        widths = {int(declared[i]) + j: Decimal(int(value))
+                  for i in range(0, len(declared), 2) for j, value in enumerate(declared[i + 1])}
+        size = Decimal(worker.native._number(size_value))
+        pieces, cells, pen = [], [], Decimal(0)
+        for item in next(args[0] for args, op in span if op == b"TJ"):
+            if type(item) is ByteStringObject:
+                for offset in range(0, len(item), 2):
+                    code = bytes(item[offset:offset + 2])
+                    width = widths[int.from_bytes(code, "big")]
+                    cells.append((len(pieces), pen, width))
+                    pieces.append(ByteStringObject(code))
+                    pen += width
+            else:
+                pieces.append(deepcopy(item))
+                pen -= Decimal(worker.native._number(item))
+        positive = [cell for cell in cells if cell[2] > 0]
+        self.assertGreaterEqual(len(positive), 3)
+        index, origin, width = positive[len(positive) // 2]
+        codes = b"".join(bytes(item) for item in pieces if type(item) is ByteStringObject)
+
+        def text_span(x, y, shown=None, font_size=size_value):
+            value = deepcopy(span)
+            next(args for args, op in value if op == b"Tm")[:] = [
+                FloatObject(v) for v in (1, 0, 0, 1, x, y)]
+            next(args for args, op in value if op == b"Tf")[1] = font_size
+            next(args for args, op in value if op == b"TJ")[0] = ArrayObject(
+                deepcopy(pieces if shown is None else shown))
+            return value
+
+        def box(value, ctm=worker.IDENTITY):
+            matrix = next(args for args, op in value if op == b"Tm")
+            effective = worker._ctm(tuple(Decimal(worker.native._number(v)) for v in matrix), ctm)
+            scale = Decimal(worker.native._number(next(args[1] for args, op in value if op == b"Tf"))) / 1000
+            points, advance = [], Decimal(0)
+            for item in next(args[0] for args, op in value if op == b"TJ"):
+                if type(item) is ByteStringObject:
+                    for offset in range(0, len(item), 2):
+                        w = widths[int.from_bytes(item[offset:offset + 2], "big")]
+                        points.extend(worker._rectangle(
+                            (advance * scale, descent * scale, w * scale, (ascent - descent) * scale), effective))
+                        advance += w
+                else:
+                    advance -= Decimal(worker.native._number(item))
+            return (min(p[0] for p in points), min(p[1] for p in points),
+                    max(p[0] for p in points), max(p[1] for p in points)), advance
+
+        def overlaps(box):
+            return not (box[2] < 100 or box[0] > 220 or box[3] < 20 or box[1] > 30)
+
+        y = 25 - (ascent + descent) * size / 2000
+        x = 300 - min(cell[1] for cell in cells) * size / 1000
+        outside = text_span(x, y)
+        overlap = text_span(160 - (origin + width / 2) * size / 1000, y)
+        adjusted = deepcopy(pieces)
+        delta = int(((x + (origin + width / 2) * size / 1000 - 160) * 1000 / size).to_integral_value())
+        adjusted[index:index + 1] = [NumberObject(delta), adjusted[index], NumberObject(-delta)]
+        shifted = text_span(x, y, adjusted)
+        floated = deepcopy(pieces)
+        first_code = next(i for i, item in enumerate(floated) if type(item) is ByteStringObject)
+        floated[first_code:first_code + 1] = [FloatObject(0.5), floated[first_code], FloatObject(-0.5)]
+        float_outside = text_span(x, y, floated)
+        touch = text_span(100, -descent, [pieces[index]], NumberObject(1000))
+        up = tuple(map(Decimal, (1, 0, 0, 1, 0, 30)))
+        touch_paint = [([], b"q"), (numbers(1, 0, 0, 1, 0, 30), b"cm"), *touch, ([], b"Q")]
+        shear = tuple(Decimal(worker.native._number(FloatObject(v))) for v in (
+            1, 0, 1, 1, 160 - x - (origin + width / 2) * size / 1000 - 25, 0))
+        affine = [([], b"q"), ([FloatObject(v) for v in shear], b"cm"), *outside, ([], b"Q")]
+        self.assertFalse(overlaps(box(span, ctm)[0]))
+        self.assertFalse(overlaps(box(outside)[0]))
+        self.assertFalse(overlaps(box(float_outside)[0]))
+        self.assertEqual(box(touch, up)[0][1], 30)
+        self.assertTrue(overlaps(box(outside, shear)[0]))
+        for value in (overlap, shifted, float_outside):
+            self.assertEqual(b"".join(bytes(item) for item in next(
+                args[0] for args, op in value if op == b"TJ") if type(item) is ByteStringObject), codes)
+            self.assertEqual(box(value)[1], pen)
+        self.assertTrue(overlaps(box(overlap)[0]))
+        self.assertTrue(overlaps(box(shifted)[0]))
+        for label, operations in (
+                ("later-text-outside", footer_ops + [([], b"q"), *context, *span, ([], b"Q")]),
+                ("later-text-float-kerning-outside", footer_ops + float_outside),
+                ("earlier-text-overlap", overlap + footer_ops)):
+            with self.subTest(text_control=label):
+                geometry(operations)
+        for label, value in (("later-text-tm-overlap", overlap),
+                             ("later-text-tj-compensated-overlap", shifted),
+                             ("later-text-touch", touch_paint), ("later-text-affine-overlap", affine)):
+            with self.subTest(text_refusal=label), self.assertRaisesRegex(
+                    ValueError, "^typed original-brand QA refused$"):
+                geometry(footer_ops + value)
+
         # A transparency-bearing image cannot bypass the overlap policy: mask
         # keys are outside the unchanged, exact opaque RGB image grammar.
         form = xobjects.raw_get(image_name).get_object()
@@ -2638,8 +2752,8 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             coverage["operations"] = self.operation_floor(value)
             return value
 
-        # A findings-bearing table puts caption, header and a body cell on
-        # its first page: two text containers/Spans beyond that page's baseline.
+        # Joint q1 allocation/page-coverage controls retain the original counts.
+        # The finite allocation guard already implies both page floors here.
         # These are receipt counter boundaries, not newly rendered witnesses.
         for fragments, pages, entries, source_units, mcids, nodes in (
                 (1, 8, 1, 6, 13, 31), (2, 10, 2, 7, 16, 36)):
@@ -2663,7 +2777,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             self.assertLessEqual(2 * coverage["native_nodes"] - 1 + coverage["native_mcids"],
                                  self.m.prior.MAX_VISITS)
             self.m._schema(exact)
-            with self.subTest(table_page_floor="exact", fragments=fragments):
+            with self.subTest(joint_table_page_coverage="exact", fragments=fragments):
                 self.assertEqual(self.m.TypedOriginalBrandQA(self.m.canonical(exact)).to_dict(), exact)
             if fragments == 1:
                 table_control = exact
@@ -2702,12 +2816,12 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                 self.assertLess(nodes, mcids + 12 + 1 + 5)
             self.m._schema(bad)
             payload = self.m.canonical(bad)
-            with self.subTest(table_page_floor=mode, boundary="constructor"), self.assertRaises(ValueError):
+            with self.subTest(joint_table_page_coverage=mode, boundary="constructor"), self.assertRaises(ValueError):
                 self.m.TypedOriginalBrandQA(payload)
             receipt = self.m.TypedOriginalBrandQA(self.m.canonical(table_control))
             object.__setattr__(receipt, "_payload", payload)
             object.__setattr__(receipt, "_sealed_sha256", sha256(payload).hexdigest())
-            with self.subTest(table_page_floor=mode, boundary="resealed-to-dict"), self.assertRaises(ValueError):
+            with self.subTest(joint_table_page_coverage=mode, boundary="resealed-to-dict"), self.assertRaises(ValueError):
                 receipt.to_dict()
 
         def counter_receipt(fragments, pages, entries, findings, source_units, mcids, nodes):
@@ -2851,8 +2965,8 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             with self.subTest(single_segment_escape=label, boundary="resealed-to-dict"):
                 self.assertEqual(receipt.to_dict(), exact)
 
-        # Two finding rows require a caption, headers and two body cells.
-        # Their three-container surplus survives placing rows on separate pages.
+        # Joint q1 allocation/page-coverage controls for two finding rows.
+        # Keep the split-row and two-contents-fragment cases unchanged.
         # These are counter controls; no new PDF or native witness is claimed.
         for label, parameters, extra_table_nodes in (
                 ("two-findings-exact-boundary", (1, 8, 1, 2, 7, 14, 34), 0),
@@ -2871,12 +2985,12 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             self.assertEqual(nodes, mcids + containers + 1 + 4 + findings + extra_table_nodes)
             self.assertLessEqual(exact["coverage"]["operations"], self.m.prior.MAX_OPERATIONS)
             payload = self.m.canonical(exact)
-            with self.subTest(finding_row_page_floor=label, boundary="constructor"):
+            with self.subTest(joint_finding_row_page_coverage=label, boundary="constructor"):
                 self.assertEqual(self.m.TypedOriginalBrandQA(payload).to_dict(), exact)
             receipt = self.m.TypedOriginalBrandQA(self.m.canonical(source))
             object.__setattr__(receipt, "_payload", payload)
             object.__setattr__(receipt, "_sealed_sha256", sha256(payload).hexdigest())
-            with self.subTest(finding_row_page_floor=label, boundary="resealed-to-dict"):
+            with self.subTest(joint_finding_row_page_coverage=label, boundary="resealed-to-dict"):
                 self.assertEqual(receipt.to_dict(), exact)
             if label == "two-findings-exact-boundary":
                 finding_row_control = exact
@@ -2908,13 +3022,46 @@ class TypedOriginalBrandQATests(unittest.TestCase):
             else:
                 self.assertEqual((mcids, nodes), (13, 32))
             payload = self.m.canonical(bad)
-            with self.subTest(finding_row_page_floor=label, boundary="constructor"), self.assertRaises(ValueError):
+            with self.subTest(joint_finding_row_page_coverage=label, boundary="constructor"), self.assertRaises(ValueError):
                 self.m.TypedOriginalBrandQA(payload)
             receipt = self.m.TypedOriginalBrandQA(self.m.canonical(finding_row_control))
             object.__setattr__(receipt, "_payload", payload)
             object.__setattr__(receipt, "_sealed_sha256", sha256(payload).hexdigest())
-            with self.subTest(finding_row_page_floor=label, boundary="resealed-to-dict"), self.assertRaises(ValueError):
+            with self.subTest(joint_finding_row_page_coverage=label, boundary="resealed-to-dict"), self.assertRaises(ValueError):
                 receipt.to_dict()
+
+
+        # Two spare source units bypass finite table allocation. These controls
+        # isolate each page floor; the q1 cases above retain joint coverage.
+        for findings, units, mcids, nodes in ((1, 7, 13, 31), (2, 8, 14, 34)):
+            exact = counter_receipt(1, 8, 1, findings, units, mcids, nodes)
+            text_units = units + exact["brand_text_units"] + 2
+            containers = findings + 11
+            self.assertEqual(units - findings - 3 - 1, 2)
+            self.assertEqual(containers, text_units + 1)
+            self.assertEqual(mcids, text_units + 2)
+            self.assertEqual(nodes, mcids + containers + 1 + 4 + findings)
+            payload = self.m.canonical(exact)
+            with self.subTest(isolated_page_floor="exact", findings=findings, boundary="constructor"):
+                self.assertEqual(self.m.TypedOriginalBrandQA(payload).to_dict(), exact)
+            for label, actual_mcids in (("mcid-only", mcids - 1), ("container-only", mcids)):
+                bad = counter_receipt(1, 8, 1, findings, units, actual_mcids, nodes - 1)
+                self.assertGreaterEqual(actual_mcids, text_units + 1)
+                self.assertGreaterEqual(nodes - 1, actual_mcids + text_units + 1 + 4 + findings)
+                if label == "mcid-only":
+                    self.assertEqual(actual_mcids, findings + 11)
+                    self.assertEqual(nodes - 1, actual_mcids + containers + 1 + 4 + findings)
+                else:
+                    self.assertEqual(actual_mcids, findings + 12)
+                    self.assertEqual(nodes - 1, actual_mcids + containers + 1 + 4 + findings - 1)
+                payload = self.m.canonical(bad)
+                with self.subTest(isolated_page_floor=label, findings=findings, boundary="constructor"), self.assertRaises(ValueError):
+                    self.m.TypedOriginalBrandQA(payload)
+                receipt = self.m.TypedOriginalBrandQA(self.m.canonical(exact))
+                object.__setattr__(receipt, "_payload", payload)
+                object.__setattr__(receipt, "_sealed_sha256", sha256(payload).hexdigest())
+                with self.subTest(isolated_page_floor=label, findings=findings, boundary="resealed-to-dict"), self.assertRaises(ValueError):
+                    receipt.to_dict()
 
         # These are source-grammar counter controls, not newly rendered witnesses.
         # Zero findings implies empty tables: body rows always carry a finding ID.
@@ -3219,7 +3366,7 @@ class TypedOriginalBrandQATests(unittest.TestCase):
         # containers, hence Document plus eleven/twelve MCIDs needs 22/23 nodes.
         # Both deficits also limit total page coverage to seven pages under the
         # one-paragraph zero-findings grammar, so that earlier guard rejects them.
-        # Findings-bearing one-below controls above isolate the page floor.
+        # The q2 findings controls above isolate the page floors.
         for fragments, entries, source_units, mcids, units, minimum in (
                 (1, 1, 3, 11, 7, 22), (2, 2, 4, 12, 9, 23)):
             page_bound = navigation_boundary(
