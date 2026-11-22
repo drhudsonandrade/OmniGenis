@@ -577,10 +577,28 @@ def _footer_declared_geometry(block, resources, reader, ctm, media):
 
 
 def _paint_geometry(operations, page, reader, forms, xobjects, figure_points, resources):
-    """Check brand paints, footer boxes and the advance against active rectangles."""
+    """Check admitted graphics and keep later paints clear of the footer box."""
     from pypdf.generic import ArrayObject
     ctm, stack, clip = IDENTITY, [], ()
     path, pending_clip = None, False
+    # These are PDF graphics-state defaults; the admitted grammar changes only
+    # w and the logo's M=4. The painted footer is history, not q/Q state.
+    line_width, miter_limit = Decimal(1), Decimal(10)
+    footer_bounds, artifact, vertices = (), False, []
+
+    def clear_footer(points, padding=(Decimal(0), Decimal(0))):
+        if not footer_bounds:
+            return
+        require(bool(points))
+        x0, y0, x1, y1 = footer_bounds
+        px, py = padding
+        # A strict axis gap is a conservative separation proof. Touching,
+        # unknown clipping and empty space inside a paint's AABB do not relax it.
+        require(max(p[0] for p in points) + px < x0
+                or min(p[0] for p in points) - px > x1
+                or max(p[1] for p in points) + py < y0
+                or min(p[1] for p in points) - py > y1)
+
     require("/MediaBox" in page)
     boxes = [page.raw_get("/MediaBox")]
     crop_box = _effective_crop_box(page, reader)
@@ -597,24 +615,46 @@ def _paint_geometry(operations, page, reader, forms, xobjects, figure_points, re
     for ordinal, (args, op) in enumerate(operations):
         if op == b"q":
             require(len(stack) < contract.MAX_DEPTH)
-            stack.append((ctm, clip))
+            stack.append((ctm, clip, line_width, miter_limit))
         elif op == b"Q":
             require(bool(stack))
-            ctm, clip = stack.pop()
+            ctm, clip, line_width, miter_limit = stack.pop()
         elif op == b"cm":
             ctm = _ctm(tuple(map(Decimal, _numbers(args, 6))), ctm)
+        elif op == b"w":
+            line_width = Decimal(_numbers(args, 1)[0])
+        elif op == b"M":
+            miter_limit = Decimal(_numbers(args, 1)[0])
         elif op == b"re":
             rectangle = _rectangle(tuple(map(Decimal, _numbers(args, 4))), ctm)
             path = rectangle if path is None else False
+            if artifact:
+                vertices.extend(rectangle)
         elif op in {b"m", b"l", b"h"}:
             path = False
+            if artifact and op != b"h":
+                vertices.append(_point(tuple(map(Decimal, _numbers(args, 2))), ctm))
         elif op in {b"W", b"W*"}:
             pending_clip = True
         elif op in {b"n", b"S", b"f", b"f*"}:
             if pending_clip:
                 require(path is not None)
                 clip = None if clip is None or path is False else (path, clip)
-            path, pending_clip = None, False
+            if artifact and op != b"n":
+                padding = Decimal(0), Decimal(0)
+                if op == b"S":
+                    # The admitted straight segments have butt caps and miter
+                    # joins. Bound their width and joins in page space under
+                    # the current affine map; q/Q restores both stroke values.
+                    radius = line_width * miter_limit / 2
+                    a, b, c, d, _, _ = ctm
+                    padding = radius * (abs(a) + abs(c)), radius * (abs(b) + abs(d))
+                clear_footer(vertices, padding)
+            path, pending_clip, vertices = None, False, []
+        elif op == b"BMC":
+            artifact = True
+        elif op == b"EMC":
+            artifact = False
         elif op == b"BDC" and args[0] == "/Figure":
             require(_determinant(ctm) != 0 and clip is not None)
             points, declared_box = figure_points[int(args[1].raw_get("/MCID"))]
@@ -625,6 +665,7 @@ def _paint_geometry(operations, page, reader, forms, xobjects, figure_points, re
             while inherited:
                 bounds, inherited = inherited
                 require(_contains(bounds, logo))
+            clear_footer(logo)
         elif op == b"BDC" and args[0] == "/Artifact":
             require(_determinant(ctm) != 0 and clip is not None
                     and path is None and not pending_clip)
@@ -634,6 +675,8 @@ def _paint_geometry(operations, page, reader, forms, xobjects, figure_points, re
             while inherited:
                 bounds, inherited = inherited
                 require(_contains(bounds, footer))
+            footer_bounds = (min(p[0] for p in footer[:4]), min(p[1] for p in footer[:4]),
+                             max(p[0] for p in footer[:4]), max(p[1] for p in footer[:4]))
         elif op == b"Do":
             require(_determinant(ctm) != 0 and clip is not None
                     and path is None and not pending_clip)
@@ -643,6 +686,7 @@ def _paint_geometry(operations, page, reader, forms, xobjects, figure_points, re
             while inherited:
                 bounds, inherited = inherited
                 require(_contains(bounds, image))
+            clear_footer(image)
     require(not stack and path is None and not pending_clip)
 
 

@@ -700,9 +700,10 @@ def _validate_receipt(data: dict) -> None:
     # Distinct finding rows can span segments without requiring split rows.
     table_nodes = 4 * table_segments + row_segments
     repeated_table_units = max(0, table_segments - 1) + row_segments - findings
-    # Caption/header/cell add two beyond the first table page's text baseline;
-    # each continuation adds its header and cell, one beyond that page's baseline.
-    table_text_excess = table_segments + 1 if findings else 0
+    # Tables need at least one caption, a header on each segment, and a
+    # cell for every row segment. Removing one baseline per table page
+    # still leaves at least row_segments + 1 extra containers and Spans.
+    table_text_excess = row_segments + 1 if findings else 0
     # Matched grammar has at most five non-root nodes per Span, plus one
     # potentially empty TBody per table; every matched table has a Span.
     require(data["source_units"] >= (findings + 3 if findings else 1) + data["navigation_entries"]

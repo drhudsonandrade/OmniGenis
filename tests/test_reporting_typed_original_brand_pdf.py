@@ -275,6 +275,7 @@ class TypedOriginalBrandPdfTests(unittest.TestCase):
         # preceding contents text cannot share one page. Inspect the actual
         # moved heading and the same-artifact combined association.
         import json
+        from decimal import Decimal
         from reporting import typed_original_brand_qa as qa
         from reporting.typed_pdf_source import prepare_typed_pdf_source
 
@@ -322,16 +323,44 @@ class TypedOriginalBrandPdfTests(unittest.TestCase):
         self.assertEqual(pages[tuple(entry["page_reference"])]["index"], 1)
         self.assertEqual(target_page, 2)
         target_spans = [nodes[tuple(child["reference"])] for child in target["children"]]
-        entry_spans = [nodes[tuple(child["reference"])] for child in entry["children"]
-                       if nodes[tuple(child["reference"])]["role"] == "/Span"]
+        entry_children = [nodes[tuple(child["reference"])] for child in entry["children"]]
+        self.assertGreaterEqual(len(entry_children), 2)
+        # This is the raw native trace: the suffix remains under /NonStruct.
+        suffix_wrapper = entry_children[-1]
+        self.assertEqual(suffix_wrapper["role"], "/NonStruct")
+        self.assertEqual(len(suffix_wrapper["children"]), 1)
+        suffix = nodes[tuple(suffix_wrapper["children"][0]["reference"])]
+        self.assertEqual(suffix["role"], "/Span")
+        self.assertEqual(literal(suffix), " | " + str(target_page + 1))
+        entry_spans = entry_children[:-1]
+        self.assertTrue(all(span["role"] == "/Span"
+                            and span["page_reference"] == entry["page_reference"]
+                            for span in entry_spans))
+        self.assertEqual("".join(literal(span) for span in entry_spans), label)
         self.assertGreater(len(target_spans), 1)
         self.assertTrue(all(span["role"] == "/Span"
                             and span["page_reference"] == target["page_reference"]
                             for span in target_spans))
-        # Each plain fixed-font line has one Span. Even omitting all margins
-        # and the Contents heading, their line boxes exceed the content height.
-        self.assertGreater(20 * len(target_spans) + 15.3 * len(entry_spans), 753.88976)
-        self.assertLessEqual(20 * len(target_spans), 753.88976)
+        def baselines(spans):
+            observed = set()
+            for span in spans:
+                self.assertEqual(len(span["children"]), 1)
+                mcid = span["children"][0]["value"]
+                page = pages[tuple(span["page_reference"])]
+                runs = [run for run in page["runs"] if run["mcid"] == mcid]
+                self.assertEqual(len(runs), 1)
+                self.assertEqual(runs[0]["structure_reference"], span["reference"])
+                observed.add(Decimal(runs[0]["text_matrix"][5]))
+            return observed
+
+        # Count distinct baselines in this plain fixed-font fixture, excluding
+        # the generated suffix even if it occupies a separate physical line.
+        # Omitting all margins and Contents still exceeds the content height.
+        target_lines, entry_lines = len(baselines(target_spans)), len(baselines(entry_spans))
+        self.assertGreater(target_lines, 1)
+        self.assertGreater(Decimal(20) * target_lines + Decimal("15.3") * entry_lines,
+                           Decimal("753.88976"))
+        self.assertLessEqual(Decimal(20) * target_lines, Decimal("753.88976"))
         reader = PdfReader(BytesIO(candidate.pdf_bytes), strict=True)
         self.assertTrue(all("/Annots" not in page for page in reader.pages))
 

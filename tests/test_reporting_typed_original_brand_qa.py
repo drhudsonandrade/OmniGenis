@@ -1344,6 +1344,100 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                     self.assertFalse(worker._contains(clip, footer[-1:]))
                 self.refuse(args)
 
+        # Reuse the already rendered fixture. These controls isolate the paint
+        # boundary with an already validated footer box; the native cases above
+        # retain the real footer/font/operator admission and clip checks.
+        reader = PdfReader(BytesIO(self.fixtures[2][1]), strict=True)
+        page = reader.pages[0]
+        resources = page["/Resources"]
+        xobjects = resources["/XObject"]
+        image_name = next(iter(xobjects))
+        image_key = tuple(worker.native._ref(xobjects.raw_get(image_name), reader))
+        unit = tuple((Decimal(x), Decimal(y)) for x, y in ((0, 0), (1, 0), (1, 1), (0, 1)))
+        forms = {image_key: {"image_bounds": unit}}
+        figures = {0: (unit, tuple(Decimal(str(value)) for value in page.raw_get("/MediaBox")))}
+        footer = tuple((Decimal(x), Decimal(y)) for x, y in
+                       ((100, 20), (220, 20), (220, 30), (100, 30), (220, 25)))
+        actual = ContentStream(page.raw_get("/Contents"), reader, forced_encoding="bytes").operations
+        first, last = self.footer_range(actual)
+        # All later controls are outside this saved state: Q cannot erase a
+        # previously painted footer, although it must restore stroke settings.
+        footer_ops = [([], b"q"), *deepcopy(actual[first:last + 1]), ([], b"Q")]
+
+        def numbers(*values):
+            return [NumberObject(value) for value in values]
+
+        def artifact(*operations):
+            return [([NameObject("/Artifact")], b"BMC"), *operations, ([], b"EMC")]
+
+        def image_or_figure(kind, y):
+            if kind == "image":
+                block = artifact((numbers(0, 0, 1, 1), b"re"), ([], b"W"), ([], b"n"),
+                                 ([image_name], b"Do"))
+            else:
+                block = [([NameObject("/Figure"), DictionaryObject({
+                    NameObject("/MCID"): NumberObject(0)})], b"BDC"), ([], b"EMC")]
+            return [([], b"q"), (numbers(120, 0, 0, 10, 100, y), b"cm"), *block, ([], b"Q")]
+
+        def filled(kind, y):
+            if kind == "rectangle":
+                return artifact((numbers(100, y, 120, 10), b"re"), ([], b"f"))
+            return artifact((numbers(100, y), b"m"), (numbers(220, y), b"l"),
+                            (numbers(160, y + 10), b"l"), ([], b"f*"))
+
+        def stroked(kind, y):
+            if kind == "scaled":
+                return [([], b"q"), (numbers(20, 0, 0, 20, 0, 0), b"cm"),
+                        *artifact((numbers(5), b"w"), (numbers(6, y), b"m"),
+                                  (numbers(10, y), b"l"), ([], b"S")), ([], b"Q")]
+            return artifact((numbers(20), b"w"), ([], b"q"), (numbers(1), b"w"), ([], b"Q"),
+                            (numbers(120, y), b"m"), (numbers(200, y), b"l"), ([], b"S"))
+
+        def geometry(operations):
+            with patch.object(worker, "_footer_declared_geometry", return_value=footer):
+                worker._paint_geometry(operations, page, reader, forms, xobjects, figures, resources)
+
+        later_paints = (
+            ("image-overlap", image_or_figure("image", 20)),
+            ("image-touch", image_or_figure("image", 30)),
+            ("figure-overlap", image_or_figure("figure", 20)),
+            ("figure-touch", image_or_figure("figure", 30)),
+            ("rectangle-fill", filled("rectangle", 20)),
+            ("polygon-fill", filled("polygon", 20)),
+            ("scaled-stroke", stroked("scaled", 3)),
+            ("restored-stroke", stroked("restored", 14)),
+        )
+        for case, paint in later_paints:
+            with self.subTest(earlier_graphic=case):
+                geometry(paint + footer_ops)
+            with self.subTest(later_graphic=case):
+                with self.assertRaisesRegex(ValueError, "^typed original-brand QA refused$",
+                                            msg="later_graphic_obscures_validated_footer"):
+                    geometry(footer_ops + paint)
+        for case, paint in (
+            ("image", image_or_figure("image", 60)),
+            ("figure", image_or_figure("figure", 60)),
+            ("rectangle", filled("rectangle", 60)),
+            ("polygon", filled("polygon", 60)),
+            ("scaled-stroke", stroked("scaled", 30)),
+            ("restored-stroke", stroked("restored", 160)),
+        ):
+            with self.subTest(separated_graphic=case):
+                geometry(footer_ops + paint)
+
+        # A transparency-bearing image cannot bypass the overlap policy: mask
+        # keys are outside the unchanged, exact opaque RGB image grammar.
+        form = xobjects.raw_get(image_name).get_object()
+        image_resources = form["/Resources"]["/XObject"]
+        image_ref = next(iter(image_resources.values()))
+        image = image_ref.get_object()
+        for mask in ("/SMask", "/Mask"):
+            masked = DictionaryObject(dict(image))
+            masked[NameObject(mask)] = image_ref
+            with self.subTest(unsupported_image_mask=mask):
+                with self.assertRaisesRegex(ValueError, "^typed original-brand QA refused$"):
+                    worker._dna_image(masked)
+
     def test_footer_compensated_overlap_refuses_with_kerning_control(self):
         """Keep text, outer bounds and final advance while changing one origin."""
         def change(writer, collapse):
@@ -2631,6 +2725,71 @@ class TypedOriginalBrandQATests(unittest.TestCase):
                                  self.m.prior.MAX_VISITS)
             self.m._schema(value)
             return value
+
+        # Two finding rows require a caption, headers and two body cells.
+        # Their three-container surplus survives placing rows on separate pages.
+        # These are counter controls; no new PDF or native witness is claimed.
+        for label, parameters, extra_table_nodes in (
+                ("two-findings-exact-boundary", (1, 8, 1, 2, 7, 14, 34), 0),
+                ("two-findings-on-separate-table-pages", (1, 8, 1, 2, 7, 14, 38), 4),
+                ("two-contents-fragments", (2, 10, 2, 2, 8, 17, 39), 0)):
+            exact = counter_receipt(*parameters)
+            fragments, pages, entries, findings, units, mcids, nodes = parameters
+            text_units = units + exact["brand_text_units"] + 1 + entries
+            containers = pages + findings + entries + 3 - fragments
+            # A spare source unit can be a paragraph, so four table segments
+            # cannot be inferred merely from the eight-page receipt.
+            self.assertEqual(units, findings + 4 + entries)
+            self.assertGreater(containers, text_units)
+            self.assertEqual(mcids, containers + entries)
+            self.assertGreater(mcids, text_units + entries)
+            self.assertEqual(nodes, mcids + containers + 1 + 4 + findings + extra_table_nodes)
+            self.assertLessEqual(exact["coverage"]["operations"], self.m.prior.MAX_OPERATIONS)
+            payload = self.m.canonical(exact)
+            with self.subTest(finding_row_page_floor=label, boundary="constructor"):
+                self.assertEqual(self.m.TypedOriginalBrandQA(payload).to_dict(), exact)
+            receipt = self.m.TypedOriginalBrandQA(self.m.canonical(source))
+            object.__setattr__(receipt, "_payload", payload)
+            object.__setattr__(receipt, "_sealed_sha256", sha256(payload).hexdigest())
+            with self.subTest(finding_row_page_floor=label, boundary="resealed-to-dict"):
+                self.assertEqual(receipt.to_dict(), exact)
+            if label == "two-findings-exact-boundary":
+                finding_row_control = exact
+        for label, mcids, nodes in (
+                ("reported-span-and-container-deficit", 13, 32),
+                ("one-below-span-floor", 13, 33),
+                ("one-below-container-floor", 14, 33)):
+            bad = counter_receipt(1, 8, 1, 2, 7, mcids, nodes)
+            coverage = bad["coverage"]
+            text_units = bad["source_units"] + bad["brand_text_units"] + 1 + bad["navigation_entries"]
+            self.assertEqual(text_units, 11)
+            self.assertGreater(bad["source_units"],
+                               bad["represented_findings"] + 3 + bad["navigation_entries"])
+            self.assertEqual(coverage["native_nodes"], nodes + 7)
+            self.assertEqual(coverage["native_mcids"], mcids + 1)
+            self.assertEqual(bad["pagination_pages"], coverage["pagination_blocks"])
+            self.assertGreaterEqual(bad["pdf_byte_count"], 8)
+            self.assertGreaterEqual(mcids, max(text_units + 1, bad["page_count"]))
+            # All prior source, one-segment page and node floors remain met.
+            self.assertGreaterEqual(mcids, 13)
+            self.assertGreaterEqual(nodes, mcids + max(text_units, 12) + 1 + 6)
+            self.assertLessEqual(coverage["operations"], self.m.prior.MAX_OPERATIONS)
+            if label == "one-below-span-floor":
+                self.assertEqual(mcids, 14 - 1)
+                self.assertEqual(nodes, mcids + 13 + 1 + 6)
+            elif label == "one-below-container-floor":
+                self.assertEqual(mcids, 14)
+                self.assertEqual(nodes, mcids + 13 + 1 + 6 - 1)
+            else:
+                self.assertEqual((mcids, nodes), (13, 32))
+            payload = self.m.canonical(bad)
+            with self.subTest(finding_row_page_floor=label, boundary="constructor"), self.assertRaises(ValueError):
+                self.m.TypedOriginalBrandQA(payload)
+            receipt = self.m.TypedOriginalBrandQA(self.m.canonical(finding_row_control))
+            object.__setattr__(receipt, "_payload", payload)
+            object.__setattr__(receipt, "_sealed_sha256", sha256(payload).hexdigest())
+            with self.subTest(finding_row_page_floor=label, boundary="resealed-to-dict"), self.assertRaises(ValueError):
+                receipt.to_dict()
 
         # These are source-grammar counter controls, not newly rendered witnesses.
         # Zero findings implies empty tables: body rows always carry a finding ID.
