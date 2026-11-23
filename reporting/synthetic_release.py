@@ -148,7 +148,8 @@ def profile_sha256():
     try:
         return _profile()[1]
     except Exception:
-        raise SyntheticReleaseError("synthetic_release_profile_refused") from None
+        pass
+    raise SyntheticReleaseError("synthetic_release_profile_refused") from None
 
 
 def synthetic_release_profile():
@@ -165,7 +166,8 @@ def synthetic_release_profile():
                 "staged_locale_ids": list(profile["staged_locale_ids"]),
                 "other_profiles": "DISABLED", **NONCLAIMS}
     except Exception:
-        raise SyntheticReleaseError("synthetic_release_profile_refused") from None
+        pass
+    raise SyntheticReleaseError("synthetic_release_profile_refused") from None
 
 
 def _policy(expected=None):
@@ -183,6 +185,13 @@ def _schema_document(path):
     raw = _source(path, 131072)
     name = path.relative_to(ROOT).as_posix()
     _require(sha256(raw).hexdigest() == profile["sources"][name])
+    return json.loads(raw)
+
+
+def _renderer_profile(profile):
+    raw = _source(ROOT / "reporting/pdf-typed-brand-render.v1.json", 16384)
+    _require(sha256(raw).hexdigest()
+             == profile["sources"]["reporting/pdf-typed-brand-render.v1.json"])
     return json.loads(raw)
 
 
@@ -306,8 +315,10 @@ class SyntheticAuthorityContext:
             _require(sha256(authorization_record).hexdigest() == expected_record_sha256)
             self._record, self._pin = authorization_record, expected_record_sha256
             self._revoked, self._lock = False, RLock()
+            return
         except Exception:
-            raise SyntheticReleaseError("synthetic_authority_refused") from None
+            pass
+        raise SyntheticReleaseError("synthetic_authority_refused") from None
 
     def revoke(self):
         """Serialize revocation with synthetic publication and access."""
@@ -335,8 +346,10 @@ class BoundSyntheticRelease:
     def __post_init__(self):
         try:
             self._validate()
+            return
         except Exception:
-            raise SyntheticReleaseError("synthetic_release_binding_refused") from None
+            pass
+        raise SyntheticReleaseError("synthetic_release_binding_refused") from None
 
     def _validate(self):
         binding = _loads(self._binding_bytes, 131072)
@@ -352,14 +365,16 @@ class BoundSyntheticRelease:
                  and verify_artifact_bytes(binding["artifact"], self._pdf_bytes).passed)
         _require(type(self._locale_pack_bytes) is bytes
                  and self._locale_pack_bytes == _source(ROOT / "reporting/locales/en-US.v1.json", 65536)
-                 and sha256(self._locale_pack_bytes).hexdigest() == self._request.request.locale_pack.sha256
+                 and sha256(self._locale_pack_bytes).hexdigest()
+                 == profile["sources"]["reporting/locales/en-US.v1.json"]
+                 == self._request.request.locale_pack.sha256
                  and type(self._report_pack_bytes) is bytes and 0 < len(self._report_pack_bytes) <= 131072
                  and sha256(self._report_pack_bytes).hexdigest() == self._request.request.report_contract_bundle_sha256
                  and binding["qa_profile_sha256"]
                  == profile["sources"]["reporting/pdf-typed-original-brand-qa.v1.json"]
                  and binding["lineage"]["renderer_profile_sha256"]
                  == profile["sources"]["reporting/pdf-typed-brand-render.v1.json"])
-        render = json.loads(_source(ROOT / "reporting/pdf-typed-brand-render.v1.json", 16384))
+        render = _renderer_profile(profile)
         _require(binding["lineage"]["renderer_profile_id"] == render["profile_id"])
         return binding
 
@@ -402,7 +417,7 @@ def bind_synthetic_release(*, bound_request, pdf_bytes, qa_bytes, locale_pack_by
         parents.append(request["locale_pack"]["artifact_id"])
         if parent_id is not None:
             parents.append(parent_id)
-        render = json.loads(_source(ROOT / "reporting/pdf-typed-brand-render.v1.json", 16384))
+        render = _renderer_profile(profile)
         lineage = {"parent_artifact_id": parent_id,
                    "parent_manifest_sha256": expected_parent_manifest_sha256, "delta": delta,
                    "analysis_id": source["identity"]["analysis_id"],
@@ -430,7 +445,8 @@ def bind_synthetic_release(*, bound_request, pdf_bytes, qa_bytes, locale_pack_by
         return BoundSyntheticRelease(_canonical(binding), pdf_bytes, bound_request,
                                      locale_pack_bytes, report_pack_bytes, parent_manifest_bytes)
     except Exception:
-        raise SyntheticReleaseError("synthetic_release_binding_refused") from None
+        pass
+    raise SyntheticReleaseError("synthetic_release_binding_refused") from None
 
 
 def _dir_identity(fd):
@@ -450,6 +466,9 @@ def _artifact_directory(directory, artifact_id, *, create):
         root_identity = _dir_identity(root_fd)
         if create:
             os.mkdir(artifact_id, 0o700, dir_fd=root_fd)
+        else:
+            _require(stat.S_ISDIR(os.stat(artifact_id, dir_fd=root_fd,
+                                         follow_symlinks=False).st_mode))
         child_fd = os.open(artifact_id, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC,
                            dir_fd=root_fd)
         child_identity = _dir_identity(child_fd)
@@ -523,6 +542,8 @@ def publish_synthetic_release(*, release, directory, authority, requester_id):
 
     An exact completed retry only reads existing bytes. A post-installation
     failure does not establish that publication was refused or rolled back.
+    An I/O failure while checking an existing attempt also leaves its outcome
+    unknown.
     """
     marker_installed = False
     retry_uncertain = False
@@ -560,21 +581,22 @@ def publish_synthetic_release(*, release, directory, authority, requester_id):
             except FileExistsError:
                 if marker_installed:
                     raise
-                with _artifact_directory(directory, artifact_id, create=False) as (fd, check):
-                    try:
+                try:
+                    with _artifact_directory(directory, artifact_id, create=False) as (fd, check):
                         _read_complete(fd, pin, binding)
-                    except OSError:
-                        retry_uncertain = True
-                        raise
-                    marker_installed = True
-                    check()
+                        marker_installed = True
+                        check()
+                except OSError:
+                    retry_uncertain = True
+                    raise
             _policy(binding["profile_sha256"])
             authority._check(binding, "publish", requester_id)
             return {"artifact_id": artifact_id, "manifest_sha256": pin, "manifest": manifest}
     except Exception:
-        if marker_installed or retry_uncertain:
-            raise SyntheticReleaseError("synthetic_publication_outcome_unknown_retry_same_artifact") from None
-        raise SyntheticReleaseError("synthetic_publication_refused") from None
+        pass
+    if marker_installed or retry_uncertain:
+        raise SyntheticReleaseError("synthetic_publication_outcome_unknown_retry_same_artifact") from None
+    raise SyntheticReleaseError("synthetic_publication_refused") from None
 
 
 def read_synthetic_release(*, directory, artifact_id, expected_manifest_sha256, authority, requester_id):
@@ -599,4 +621,5 @@ def read_synthetic_release(*, directory, artifact_id, expected_manifest_sha256, 
             authority._check(binding, "read", requester_id)
             return pdf, manifest
     except Exception:
-        raise SyntheticReleaseError("synthetic_readback_refused") from None
+        pass
+    raise SyntheticReleaseError("synthetic_readback_refused") from None

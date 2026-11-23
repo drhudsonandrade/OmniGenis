@@ -151,13 +151,38 @@ def read(result, context, directory, **changes):
 def inventory(directory):
     result = {}
     for path in directory.rglob("*"):
-        if path.is_symlink():
-            continue
-        info = path.stat()
-        value = path.read_bytes() if path.is_file() else None
+        info = path.lstat()
+        value = (os.readlink(path) if stat.S_ISLNK(info.st_mode)
+                 else path.read_bytes() if stat.S_ISREG(info.st_mode) else None)
         result[str(path.relative_to(directory))] = (
             value, info.st_mode, info.st_ino, info.st_size, info.st_mtime_ns)
     return result
+
+
+def test_inventory_observes_symlink_add_remove_and_retarget_without_following(tmp_path):
+    directory = tmp_path / "store"
+    directory.mkdir(mode=0o700)
+    targets = [tmp_path / name for name in ("first", "second")]
+    for target in targets:
+        target.mkdir(mode=0o700)
+        (target / "outside.txt").write_bytes(b"SYNTHETIC-OUTSIDE")
+    before = inventory(directory)
+    link = directory / "link"
+    link.symlink_to(targets[0], target_is_directory=True)
+    added = inventory(directory)
+    assert set(added) == {"link"}
+    assert added["link"][0] == os.readlink(link) == str(targets[0])
+    assert added["link"][1] == link.lstat().st_mode
+    assert stat.S_ISLNK(added["link"][1])
+    assert added != before
+    link.unlink()
+    link.symlink_to(targets[1], target_is_directory=True)
+    retargeted = inventory(directory)
+    assert set(retargeted) == {"link"}
+    assert retargeted["link"][0] == os.readlink(link) == str(targets[1])
+    assert retargeted != added
+    link.unlink()
+    assert inventory(directory) == before
 
 
 def test_default_disabled_refuses_publication_and_access(packet, tmp_path, monkeypatch):
@@ -214,19 +239,32 @@ def test_exact_publication_readback_and_retry_are_immutable(packet, tmp_path):
 
 
 @pytest.mark.parametrize("error_type", [OSError, FileNotFoundError])
-def test_existing_publication_io_uncertainty_preserves_exact_retry(packet, tmp_path, monkeypatch, error_type):
+@pytest.mark.parametrize("failure_point", ["read_complete", "directory_entry"])
+def test_existing_publication_io_uncertainty_preserves_exact_retry(packet, tmp_path, monkeypatch,
+                                                                 error_type, failure_point):
     bound = release.bind_synthetic_release(**packet)
     context = authority(bound)
     result = publish(bound, context, tmp_path)
     before = inventory(tmp_path)
     calls = []
+    original_directory = release._artifact_directory
 
     def unavailable(*args, **kwargs):
         calls.append(True)
         raise error_type("synthetic existing-publication I/O fault")
 
+    @contextmanager
+    def unavailable_directory(*args, **kwargs):
+        if kwargs["create"] is False:
+            unavailable()
+        with original_directory(*args, **kwargs) as opened:
+            yield opened
+
     with monkeypatch.context() as patch:
-        patch.setattr(release, "_read_complete", unavailable)
+        if failure_point == "read_complete":
+            patch.setattr(release, "_read_complete", unavailable)
+        else:
+            patch.setattr(release, "_artifact_directory", unavailable_directory)
         with pytest.raises(release.SyntheticReleaseError) as error:
             publish(bound, context, tmp_path)
     assert error.value.args == ("synthetic_publication_outcome_unknown_retry_same_artifact",)
@@ -333,6 +371,70 @@ def test_schema_validation_pins_the_exact_consumed_bytes(packet, monkeypatch, sc
     assert supplied == [target]
 
 
+def test_consumed_locale_bytes_must_match_admitted_profile_and_request(packet, monkeypatch):
+    admitted = release._profile()
+    altered = packet["locale_pack_bytes"] + b"\n"
+    request = replace(packet["bound_request"].request,
+                      locale_pack=ReportArtifactBinding("SYNTHETIC-LOCALE", digest(altered)))
+    bound_request = bind_report_request(
+        request=request, resolved_request=request, sources=packet["bound_request"].sources,
+        plan=packet["bound_request"].plan)
+    qa = json.loads(packet["qa_bytes"])
+    qa["request_sha256"] = request.request_sha256
+    qa_bytes = canonical(qa)
+    args = dict(packet, bound_request=bound_request, locale_pack_bytes=altered,
+                qa_bytes=qa_bytes,
+                expectations=dict(packet["expectations"], qa_sha256=digest(qa_bytes)))
+    target = ROOT / "reporting/locales/en-US.v1.json"
+    original = release._source
+    supplied = []
+
+    def changed_source(path, limit):
+        if path == target:
+            supplied.append(path)
+            return altered
+        return original(path, limit)
+
+    monkeypatch.setattr(release, "_profile", lambda: admitted)
+    monkeypatch.setattr(release, "_source", changed_source)
+    with pytest.raises(release.SyntheticReleaseError):
+        release.bind_synthetic_release(**args)
+    assert supplied == [target]
+
+
+@pytest.mark.parametrize("operation", ["constructor", "factory"])
+def test_renderer_pins_the_exact_consumed_bytes_before_parsing(packet, monkeypatch, operation):
+    bound = release.bind_synthetic_release(**packet)
+    admitted = release._profile()
+    target = ROOT / "reporting/pdf-typed-brand-render.v1.json"
+    original_source, original_loads = release._source, json.loads
+    altered = original_source(target, 16384) + b"\n"
+    supplied, parsed = [], []
+
+    def changed_source(path, limit):
+        if path == target:
+            supplied.append(path)
+            if len(supplied) == 1:
+                return altered
+        return original_source(path, limit)
+
+    def observed_loads(raw, *args, **kwargs):
+        if raw == altered:
+            parsed.append(raw)
+        return original_loads(raw, *args, **kwargs)
+
+    monkeypatch.setattr(release, "_profile", lambda: admitted)
+    monkeypatch.setattr(release, "_source", changed_source)
+    monkeypatch.setattr(release.json, "loads", observed_loads)
+    with pytest.raises(release.SyntheticReleaseError):
+        if operation == "constructor":
+            replace(bound)
+        else:
+            release.bind_synthetic_release(**packet)
+    assert supplied == [target]
+    assert parsed == []
+
+
 @pytest.mark.parametrize("key", sorted(release.EXPECTATIONS))
 def test_independent_binding_pins_cannot_be_substituted(packet, key):
     packet["expectations"] = dict(packet["expectations"], **{key: "1" * 64})
@@ -424,6 +526,52 @@ def test_direct_constructor_invalid_binding_returns_content_free_refusal(packet)
     bound = release.bind_synthetic_release(**packet)
     with pytest.raises(release.SyntheticReleaseError, match="^synthetic_release_binding_refused$"):
         replace(bound, _binding_bytes=b"{}")
+
+
+@pytest.mark.parametrize("operation,expected", [
+    ("profile_pin", "synthetic_release_profile_refused"),
+    ("profile_description", "synthetic_release_profile_refused"),
+    ("authority", "synthetic_authority_refused"),
+    ("constructor", "synthetic_release_binding_refused"),
+    ("factory", "synthetic_release_binding_refused"),
+    ("publish", "synthetic_publication_refused"),
+    ("read", "synthetic_readback_refused"),
+])
+def test_public_refusals_do_not_retain_private_exception_context(packet, tmp_path, monkeypatch,
+                                                               operation, expected):
+    bound = release.bind_synthetic_release(**packet)
+    context = authority(bound)
+    malformed = b'{"private":"SYNTHETIC-PRIVATE-AUTHORITY",'
+    if operation in ("profile_pin", "profile_description"):
+        original = release._source
+
+        def invalid_profile(path, limit):
+            return malformed if path == release.PROFILE else original(path, limit)
+
+        monkeypatch.setattr(release, "_source", invalid_profile)
+    elif operation in ("publish", "read"):
+        context._record, context._pin = malformed, digest(malformed)
+    with pytest.raises(release.SyntheticReleaseError) as error:
+        if operation == "profile_pin":
+            release.profile_sha256()
+        elif operation == "profile_description":
+            release.synthetic_release_profile()
+        elif operation == "authority":
+            release.SyntheticAuthorityContext(
+                authorization_record=malformed, expected_record_sha256=digest(malformed))
+        elif operation == "constructor":
+            replace(bound, _binding_bytes=malformed)
+        elif operation == "factory":
+            release.bind_synthetic_release(**dict(packet, qa_bytes=malformed,
+                expectations=dict(packet["expectations"], qa_sha256=digest(malformed))))
+        elif operation == "publish":
+            publish(bound, context, tmp_path)
+        else:
+            read({"artifact_id": packet["artifact_id"], "manifest_sha256": "0" * 64}, context, tmp_path)
+    assert error.value.args == (expected,)
+    assert error.value.__context__ is None
+    assert error.value.__cause__ is None
+    assert not list(tmp_path.iterdir())
 
 
 @pytest.mark.parametrize("operation", ["publish", "read"])
@@ -582,16 +730,26 @@ def test_symlink_and_untrusted_directory_modes_refuse(packet, tmp_path):
     context = authority(bound)
     external = tmp_path / "outside"
     external.mkdir(mode=0o700)
-    (tmp_path / packet["artifact_id"]).symlink_to(external, target_is_directory=True)
-    with pytest.raises(release.SyntheticReleaseError):
-        publish(bound, context, tmp_path)
-    assert not list(external.iterdir())
+    child = tmp_path / packet["artifact_id"]
+    for kind in ("symlink", "file"):
+        if kind == "symlink":
+            child.symlink_to(external, target_is_directory=True)
+        else:
+            child.write_bytes(b"SYNTHETIC-NONDIRECTORY")
+        before = inventory(tmp_path)
+        with pytest.raises(release.SyntheticReleaseError) as error:
+            publish(bound, context, tmp_path)
+        assert error.value.args == ("synthetic_publication_refused",)
+        assert inventory(tmp_path) == before
+        assert not list(external.iterdir())
+        child.unlink()
     other = tmp_path / "public"
     other.mkdir(mode=0o700)
     other.chmod(0o755)
     assert other.stat().st_mode & 0o777 == 0o755
-    with pytest.raises(release.SyntheticReleaseError):
+    with pytest.raises(release.SyntheticReleaseError) as error:
         publish(bound, context, other)
+    assert error.value.args == ("synthetic_publication_refused",)
 
 
 def test_disable_blocks_existing_artifact_without_deleting_it(packet, tmp_path, monkeypatch):
