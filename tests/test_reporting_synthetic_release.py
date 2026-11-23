@@ -5,6 +5,7 @@ fixtures. No renderer, native inspector or current-final-candidate integration
 runs here; actual same-artifact qualification is a separate dependency.
 """
 from copy import deepcopy
+from contextlib import contextmanager
 from dataclasses import replace
 from hashlib import sha256
 import json
@@ -38,16 +39,22 @@ def digest(value):
 
 
 def case(*, analysis_revision="1", namespace="SYNTHETIC-NAMESPACE",
-         content_sha256=None, pdf_bytes=None, artifact_id="SYNTHETIC-REPORT"):
+         content_sha256=None, pdf_bytes=None, artifact_id="SYNTHETIC-REPORT", upstream_ids=None):
     """Build sealed synthetic inputs; the QA receipt is a unit fixture only."""
+    ids = {"namespace": namespace, "request": "SYNTHETIC-REQUEST", "requester": REQUESTER,
+           "analysis": "SYNTHETIC-ANALYSIS", "revision": analysis_revision,
+           "result": "SYNTHETIC-RESULT", "evidence": "SYNTHETIC-EVIDENCE",
+           "locale": "SYNTHETIC-LOCALE", "consent": "SYNTHETIC-CONSENT",
+           "review": "SYNTHETIC-REVIEW"}
+    ids.update(upstream_ids or {})
     content = b'{"synthetic":true,"value":0.12345678901234567890}'
     evidence = b"SYNTHETIC-EVIDENCE-SNAPSHOT"
-    identity = ReportSourceIdentity(namespace, "SYNTHETIC-CASE", "SYNTHETIC-SUBJECT",
-        "SYNTHETIC-SAMPLE", "SYNTHETIC-ANALYSIS", analysis_revision, None)
+    identity = ReportSourceIdentity(ids["namespace"], "SYNTHETIC-CASE", "SYNTHETIC-SUBJECT",
+        "SYNTHETIC-SAMPLE", ids["analysis"], ids["revision"], None)
     source = ReportSourceBinding(identity,
         ReportArtifactBinding("SYNTHETIC-INPUT", "a" * 64),
-        ReportArtifactBinding("SYNTHETIC-RESULT", digest(content)),
-        ReportArtifactBinding("SYNTHETIC-EVIDENCE", digest(evidence)), "b" * 64)
+        ReportArtifactBinding(ids["result"], digest(content)),
+        ReportArtifactBinding(ids["evidence"], digest(evidence)), "b" * 64)
     sources = bind_report_sources(expected_binding=source, resolved_binding=source,
         canonical_result_bytes=content, evidence_snapshot_bytes=evidence)
     plan = ReportCompletenessPlan(source.binding_sha256, ("SYNTHETIC-F1",),
@@ -55,14 +62,14 @@ def case(*, analysis_revision="1", namespace="SYNTHETIC-NAMESPACE",
     locale = (ROOT / "reporting/locales/en-US.v1.json").read_bytes()
     pack = b"SYNTHETIC-SEALED-REPORT-PACK"
     request = ReportRequestSnapshot(
-        request_id="SYNTHETIC-REQUEST", requester_id=REQUESTER, source_binding=source,
+        request_id=ids["request"], requester_id=ids["requester"], source_binding=source,
         completeness_plan_sha256=plan.plan_sha256, report_contract_bundle_sha256=digest(pack),
-        locale_pack=ReportArtifactBinding("SYNTHETIC-LOCALE", digest(locale)),
+        locale_pack=ReportArtifactBinding(ids["locale"], digest(locale)),
         policy_record=ReportArtifactBinding("SYNTHETIC-POLICY", "e" * 64),
         consent_status=ConsentStatus.VERIFIED,
-        consent_record=ReportArtifactBinding("SYNTHETIC-CONSENT", "f" * 64),
+        consent_record=ReportArtifactBinding(ids["consent"], "f" * 64),
         review_state=ReviewState.APPROVED,
-        review_record=ReportArtifactBinding("SYNTHETIC-REVIEW", "0" * 64))
+        review_record=ReportArtifactBinding(ids["review"], "0" * 64))
     bound = bind_report_request(request=request, resolved_request=request, sources=sources, plan=plan)
     pdf = pdf_bytes or b"%PDF-1.7\nSYNTHETIC TRANSACTION UNIT FIXTURE; NOT NATIVE-INSPECTED\n%%EOF\n"
     schema = json.loads((ROOT / "schemas/report-typed-original-brand-qa.v1.schema.json").read_bytes())
@@ -204,6 +211,126 @@ def test_exact_publication_readback_and_retry_are_immutable(packet, tmp_path):
     assert publish(bound, context, tmp_path) == result
     assert inventory(tmp_path) == before
     assert bound._request.sources.canonical_result_bytes == b'{"synthetic":true,"value":0.12345678901234567890}'
+
+
+@pytest.mark.parametrize("error_type", [OSError, FileNotFoundError])
+def test_existing_publication_io_uncertainty_preserves_exact_retry(packet, tmp_path, monkeypatch, error_type):
+    bound = release.bind_synthetic_release(**packet)
+    context = authority(bound)
+    result = publish(bound, context, tmp_path)
+    before = inventory(tmp_path)
+    calls = []
+
+    def unavailable(*args, **kwargs):
+        calls.append(True)
+        raise error_type("synthetic existing-publication I/O fault")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(release, "_read_complete", unavailable)
+        with pytest.raises(release.SyntheticReleaseError) as error:
+            publish(bound, context, tmp_path)
+    assert error.value.args == ("synthetic_publication_outcome_unknown_retry_same_artifact",)
+    assert calls == [True]
+    assert inventory(tmp_path) == before
+    assert publish(bound, context, tmp_path) == result
+    assert read(result, context, tmp_path)[0] == packet["pdf_bytes"]
+    assert inventory(tmp_path) == before
+
+
+@pytest.mark.parametrize("fault", ["missing_marker", "manifest_pin", "expected_binding"])
+def test_existing_publication_definite_mismatch_remains_refused(packet, tmp_path, monkeypatch, fault):
+    bound = release.bind_synthetic_release(**packet)
+    context = authority(bound)
+    result = publish(bound, context, tmp_path)
+    if fault == "missing_marker":
+        (tmp_path / result["artifact_id"] / "publication.commit").rmdir()
+    before = inventory(tmp_path)
+    original = release._read_complete
+
+    def verify(fd, expected_pin, expected_binding=None):
+        if fault == "manifest_pin":
+            expected_pin = ("0" if expected_pin[0] != "0" else "1") + expected_pin[1:]
+        elif fault == "expected_binding":
+            old = expected_binding["content_sha256"]
+            changed = ("0" if old[0] != "0" else "1") + old[1:]
+            expected_binding = dict(expected_binding, content_sha256=changed)
+        return original(fd, expected_pin, expected_binding)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(release, "_read_complete", verify)
+        with pytest.raises(release.SyntheticReleaseError) as error:
+            publish(bound, context, tmp_path)
+    assert error.value.args == ("synthetic_publication_refused",)
+    assert inventory(tmp_path) == before
+
+
+@pytest.mark.parametrize("length", [32, 256])
+def test_copied_upstream_identifiers_preserve_colons_and_supported_length(packet, tmp_path, length):
+    roles = ("namespace", "request", "requester", "analysis", "revision", "result",
+             "evidence", "locale", "consent", "review")
+    ids = {}
+    for role in roles:
+        prefix = "SYNTHETIC-" + role.upper() + ":"
+        ids[role] = prefix + "x" * (length - len(prefix))
+    args = case(upstream_ids=ids)
+    bound = release.bind_synthetic_release(**args)
+    context = authority(bound)
+    result = release.publish_synthetic_release(
+        release=bound, authority=context, directory=tmp_path, requester_id=ids["requester"])
+    pdf, manifest = release.read_synthetic_release(
+        directory=tmp_path, artifact_id=result["artifact_id"],
+        expected_manifest_sha256=result["manifest_sha256"], authority=context,
+        requester_id=ids["requester"])
+    assert pdf == args["pdf_bytes"]
+    grant = manifest["authorization_record"]
+    assert grant["request_id"] == ids["request"]
+    assert grant["requester_id"] == ids["requester"]
+    assert grant["namespace_id"] == ids["namespace"]
+    assert grant["consent_record"]["artifact_id"] == ids["consent"]
+    assert grant["review_record"]["artifact_id"] == ids["review"]
+    lineage = manifest["binding"]["lineage"]
+    assert lineage["analysis_id"] == ids["analysis"]
+    assert lineage["analysis_revision"] == ids["revision"]
+    for key, role in (("canonical_result", "result"), ("evidence_snapshot", "evidence"),
+                      ("locale_pack", "locale")):
+        assert lineage[key]["artifact_id"] == ids[role]
+    for artifact_id in ("SYNTHETIC:REPORT", "x" * 97):
+        with pytest.raises(release.SyntheticReleaseError):
+            release.bind_synthetic_release(**dict(args, artifact_id=artifact_id))
+
+
+@pytest.mark.parametrize("schema_name", ["synthetic", "request"])
+def test_schema_validation_pins_the_exact_consumed_bytes(packet, monkeypatch, schema_name):
+    bound = release.bind_synthetic_release(**packet)
+    binding = bound.to_dict()
+    admitted = release._profile()
+    target = (release.SCHEMA if schema_name == "synthetic"
+              else ROOT / "schemas/report-request-snapshot.v1.schema.json")
+    original = release._source
+    supplied = []
+
+    def changed_source(path, limit):
+        if path == target:
+            supplied.append(path)
+            return b"{}"
+        return original(path, limit)
+
+    if schema_name == "request":
+        binding["request_snapshot"]["schema_version"] = "SYNTHETIC-INVALID-VERSION"
+        binding["request_sha256"] = digest(canonical(binding["request_snapshot"]))
+        qa = json.loads(binding["qa_record_json"])
+        qa["request_sha256"] = binding["request_sha256"]
+        raw = canonical(qa)
+        binding["qa_record_json"] = raw.decode()
+        binding["qa_sha256"] = digest(raw)
+    monkeypatch.setattr(release, "_profile", lambda: admitted)
+    monkeypatch.setattr(release, "_source", changed_source)
+    with pytest.raises(release.SyntheticReleaseError):
+        if schema_name == "synthetic":
+            release._schema({})
+        else:
+            release._validate_binding(binding)
+    assert supplied == [target]
 
 
 @pytest.mark.parametrize("key", sorted(release.EXPECTATIONS))
@@ -378,6 +505,33 @@ def test_read_authorization_happens_before_artifact_io(packet, tmp_path, monkeyp
     with pytest.raises(release.SyntheticReleaseError):
         read(result, context, tmp_path, requester_id="SYNTHETIC-OTHER")
     assert calls == []
+
+
+@pytest.mark.parametrize("effect", ["revoke", "disable"])
+def test_reader_rechecks_policy_and_authority_after_directory_exit(packet, tmp_path, monkeypatch, effect):
+    bound = release.bind_synthetic_release(**packet)
+    context = authority(bound)
+    result = publish(bound, context, tmp_path)
+    before = inventory(tmp_path)
+    original = release._artifact_directory
+    calls = []
+
+    @contextmanager
+    def changed_at_exit(*args, **kwargs):
+        with original(*args, **kwargs) as opened:
+            yield opened
+        calls.append(effect)
+        if effect == "revoke":
+            context.revoke()
+        else:
+            monkeypatch.setenv(release.DISABLE_KEY, "1")
+
+    monkeypatch.setattr(release, "_artifact_directory", changed_at_exit)
+    with pytest.raises(release.SyntheticReleaseError) as error:
+        read(result, context, tmp_path)
+    assert error.value.args == ("synthetic_readback_refused",)
+    assert calls == [effect]
+    assert inventory(tmp_path) == before
 
 
 @pytest.mark.parametrize("name", ["candidate.pdf", "manifest.json"])
@@ -582,7 +736,8 @@ def test_successor_lineage_preserves_prior_bytes_and_analysis(packet, tmp_path, 
     first = publish(bound, authority(bound), tmp_path)
     before = inventory(tmp_path)
     later = case(pdf_bytes=packet["pdf_bytes"] + b"SYNTHETIC EDITORIAL VERSION\n",
-                 artifact_id="SYNTHETIC-REPORT-2")
+                 artifact_id="SYNTHETIC-REPORT-2",
+                 content_sha256="2" * 64 if delta == "EDITORIAL_ONLY" else None)
     later.update(delta=delta, content_revision="SYNTHETIC-CONTENT-2",
                  parent_manifest_bytes=canonical(first["manifest"]),
                  expected_parent_manifest_sha256=first["manifest_sha256"])
@@ -590,6 +745,8 @@ def test_successor_lineage_preserves_prior_bytes_and_analysis(packet, tmp_path, 
     final = publish(successor, authority(successor), tmp_path)
     assert final["manifest"]["binding"]["lineage"]["parent_artifact_id"] == "SYNTHETIC-REPORT"
     assert final["manifest"]["binding"]["lineage"]["analysis_revision"] == "1"
+    assert (final["manifest"]["binding"]["content_sha256"]
+            != first["manifest"]["binding"]["content_sha256"]) == (delta == "EDITORIAL_ONLY")
     assert all(inventory(tmp_path)[key] == value for key, value in before.items())
 
 

@@ -28,8 +28,7 @@
           "additionalProperties": false,
           "properties": {
             "artifact_id": {
-              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$(?![\\s\\S])",
-              "type": "string"
+              "$ref": "#/$defs/upstream_identifier"
             },
             "sha256": {
               "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
@@ -43,8 +42,7 @@
           "type": "object"
         },
         "namespace_id": {
-          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$(?![\\s\\S])",
-          "type": "string"
+          "$ref": "#/$defs/upstream_identifier"
         },
         "record_id": {
           "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$(?![\\s\\S])",
@@ -58,23 +56,20 @@
           "const": "SYNTHETIC_TEST_AUTHORITY"
         },
         "request_id": {
-          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$(?![\\s\\S])",
-          "type": "string"
+          "$ref": "#/$defs/upstream_identifier"
         },
         "request_sha256": {
           "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
           "type": "string"
         },
         "requester_id": {
-          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$(?![\\s\\S])",
-          "type": "string"
+          "$ref": "#/$defs/upstream_identifier"
         },
         "review_record": {
           "additionalProperties": false,
           "properties": {
             "artifact_id": {
-              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$(?![\\s\\S])",
-              "type": "string"
+              "$ref": "#/$defs/upstream_identifier"
             },
             "sha256": {
               "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
@@ -181,19 +176,16 @@
           "additionalProperties": false,
           "properties": {
             "analysis_id": {
-              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$(?![\\s\\S])",
-              "type": "string"
+              "$ref": "#/$defs/upstream_identifier"
             },
             "analysis_revision": {
-              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$(?![\\s\\S])",
-              "type": "string"
+              "$ref": "#/$defs/upstream_identifier"
             },
             "canonical_result": {
               "additionalProperties": false,
               "properties": {
                 "artifact_id": {
-                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$(?![\\s\\S])",
-                  "type": "string"
+                  "$ref": "#/$defs/upstream_identifier"
                 },
                 "sha256": {
                   "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
@@ -225,8 +217,7 @@
               "additionalProperties": false,
               "properties": {
                 "artifact_id": {
-                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$(?![\\s\\S])",
-                  "type": "string"
+                  "$ref": "#/$defs/upstream_identifier"
                 },
                 "sha256": {
                   "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
@@ -246,8 +237,7 @@
               "additionalProperties": false,
               "properties": {
                 "artifact_id": {
-                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$(?![\\s\\S])",
-                  "type": "string"
+                  "$ref": "#/$defs/upstream_identifier"
                 },
                 "sha256": {
                   "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
@@ -375,6 +365,15 @@
         "lineage"
       ],
       "type": "object"
+    },
+    "upstream_identifier": {
+      "maxLength": 256,
+      "minLength": 1,
+      "not": {
+        "pattern": "[^A-Za-z0-9._:-]"
+      },
+      "pattern": "^[A-Za-z0-9]",
+      "type": "string"
     }
   },
   "$id": "urn:omnigenis:schema:report-synthetic-release:1.0.0",

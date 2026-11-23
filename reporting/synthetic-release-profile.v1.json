@@ -21,10 +21,10 @@
     "reporting/pdf-typed-original-brand-qa.v1.json": "9e4663e8baf7f1191a35e23491b9ec70103301d5856557a1d9f4735b477a6950",
     "reporting/pdf_candidate_store.py": "a71412523180dc56b2685d4e79102bccd6f76dd76662403a9d7a5a06b2528935",
     "reporting/requests.py": "fb02deca6ace8041af3ecb4bb8241ef51b0c6b6bae52d4eee9a5f857061a9db5",
-    "reporting/synthetic_release.py": "c7c5322304e007c2876d89bfb70bfd9413311707a77c3eef3ad077d5813166aa",
+    "reporting/synthetic_release.py": "54a94d785c7879c57b18f9cd7b73f6bf236b27f69637f58940485ef923c85272",
     "reporting/workflow.py": "260db22ded50421b3562fd83fd53c92499ef75acb7468f18eb575ed2122a4264",
     "schemas/report-request-snapshot.v1.schema.json": "658c7684c6f38aaab8b160680fb10bea20aec52c48ae46e19e3e4ee09d22a5dc",
-    "schemas/report-synthetic-release.v1.schema.json": "391ecad1831b230aa86e2d6e0ba1ce1e3298ea494b8b8a30c8faa6d1df619312"
+    "schemas/report-synthetic-release.v1.schema.json": "eeafa7de8f33d5e0b94e1646812935bd2f980a95c05b6113abd0546b48c2ce5b"
   },
   "staged_locale_ids": [
     "pt-BR",

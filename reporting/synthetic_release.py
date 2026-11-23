@@ -178,8 +178,16 @@ def _policy(expected=None):
     return profile, pin
 
 
+def _schema_document(path):
+    profile, _ = _profile()
+    raw = _source(path, 131072)
+    name = path.relative_to(ROOT).as_posix()
+    _require(sha256(raw).hexdigest() == profile["sources"][name])
+    return json.loads(raw)
+
+
 def _schema(value, definition=None):
-    schema = json.loads(_source(SCHEMA, 131072))
+    schema = _schema_document(SCHEMA)
     if definition:
         schema = {"$schema": schema["$schema"], "$defs": schema["$defs"],
                   "$ref": "#/$defs/" + definition}
@@ -189,8 +197,8 @@ def _schema(value, definition=None):
 def _validate_binding(binding):
     _schema(binding, "binding")
     request = binding["request_snapshot"]
-    Draft202012Validator(json.loads(_source(
-        ROOT / "schemas/report-request-snapshot.v1.schema.json", 131072))).validate(request)
+    Draft202012Validator(_schema_document(
+        ROOT / "schemas/report-request-snapshot.v1.schema.json")).validate(request)
     _require(sha256(_canonical(request)).hexdigest() == binding["request_sha256"]
              and sha256(_canonical(request["source_binding"])).hexdigest()
              == binding["source_binding_sha256"]
@@ -517,6 +525,7 @@ def publish_synthetic_release(*, release, directory, authority, requester_id):
     failure does not establish that publication was refused or rolled back.
     """
     marker_installed = False
+    retry_uncertain = False
     try:
         _policy()
         _require(type(release) is BoundSyntheticRelease and type(authority) is SyntheticAuthorityContext
@@ -552,14 +561,18 @@ def publish_synthetic_release(*, release, directory, authority, requester_id):
                 if marker_installed:
                     raise
                 with _artifact_directory(directory, artifact_id, create=False) as (fd, check):
-                    _read_complete(fd, pin, binding)
+                    try:
+                        _read_complete(fd, pin, binding)
+                    except OSError:
+                        retry_uncertain = True
+                        raise
                     marker_installed = True
                     check()
             _policy(binding["profile_sha256"])
             authority._check(binding, "publish", requester_id)
             return {"artifact_id": artifact_id, "manifest_sha256": pin, "manifest": manifest}
     except Exception:
-        if marker_installed:
+        if marker_installed or retry_uncertain:
             raise SyntheticReleaseError("synthetic_publication_outcome_unknown_retry_same_artifact") from None
         raise SyntheticReleaseError("synthetic_publication_refused") from None
 
@@ -582,7 +595,8 @@ def read_synthetic_release(*, directory, artifact_id, expected_manifest_sha256, 
                 authority._check(binding, "read", requester_id)
                 _policy(binding["profile_sha256"])
                 check()
-                authority._check(binding, "read", requester_id)
-                return pdf, manifest
+            _policy(binding["profile_sha256"])
+            authority._check(binding, "read", requester_id)
+            return pdf, manifest
     except Exception:
         raise SyntheticReleaseError("synthetic_readback_refused") from None
