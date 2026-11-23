@@ -141,20 +141,36 @@ def read(result, context, directory, **changes):
 
 
 def inventory(directory):
-    return {str(p.relative_to(directory)): (p.read_bytes(), p.stat().st_mtime_ns, p.stat().st_ino)
-            for p in directory.rglob("*") if p.is_file() and not p.is_symlink()}
+    result = {}
+    for path in directory.rglob("*"):
+        if path.is_symlink():
+            continue
+        info = path.stat()
+        value = path.read_bytes() if path.is_file() else None
+        result[str(path.relative_to(directory))] = (
+            value, info.st_mode, info.st_ino, info.st_size, info.st_mtime_ns)
+    return result
 
 
-def test_default_disabled_refuses_publication_and_access(tmp_path, monkeypatch):
+def test_default_disabled_refuses_publication_and_access(packet, tmp_path, monkeypatch):
+    bound = release.bind_synthetic_release(**packet)
+    context = authority(bound)
+    existing, fresh = tmp_path / "existing", tmp_path / "fresh"
+    existing.mkdir(mode=0o700)
+    fresh.mkdir(mode=0o700)
+    result = publish(bound, context, existing)
+    before = inventory(existing)
     monkeypatch.delenv(release.MODE_KEY, raising=False)
     monkeypatch.delenv(release.DISABLE_KEY, raising=False)
     profile = release.synthetic_release_profile()
     assert profile["mode"] == "DISABLED"
     assert profile["product_profile_qualified"] is False
     with pytest.raises(release.SyntheticReleaseError):
-        release.read_synthetic_release(directory=tmp_path, artifact_id="SYNTHETIC-REPORT",
-            expected_manifest_sha256="a" * 64, authority=None, requester_id=REQUESTER)
-    assert not list(tmp_path.iterdir())
+        read(result, context, existing)
+    with pytest.raises(release.SyntheticReleaseError):
+        publish(bound, context, fresh)
+    assert inventory(existing) == before
+    assert not list(fresh.iterdir())
 
 
 @pytest.mark.parametrize("mode", ["production", "on", "qualification-only "])
@@ -267,6 +283,15 @@ def test_authority_record_must_be_closed_canonical_and_pinned(packet):
             release.SyntheticAuthorityContext(authorization_record=raw, expected_record_sha256=pin)
 
 
+def test_authority_record_identifier_rejects_trailing_newline(packet, tmp_path):
+    bound = release.bind_synthetic_release(**packet)
+    context = authority(bound, record_id="SYNTHETIC-RECORD")
+    result = publish(bound, context, tmp_path)
+    assert read(result, context, tmp_path)[1]["authorization_record"]["record_id"] == "SYNTHETIC-RECORD"
+    with pytest.raises(release.SyntheticReleaseError):
+        authority(bound, record_id="SYNTHETIC-RECORD\n")
+
+
 def test_revocation_blocks_publication_and_later_access(packet, tmp_path):
     bound = release.bind_synthetic_release(**packet)
     revoked = authority(bound)
@@ -298,7 +323,7 @@ def test_revocation_after_staging_prevents_commit_and_preserves_attempt(packet, 
         with pytest.raises(release.SyntheticReleaseError):
             publish(bound, context, tmp_path)
     attempted = tmp_path / packet["artifact_id"]
-    assert not (attempted / "publication.json").exists()
+    assert not (attempted / "publication.commit").exists()
     before = inventory(tmp_path)
     with pytest.raises(release.SyntheticReleaseError):
         publish(bound, authority(bound), tmp_path)
@@ -322,7 +347,7 @@ def test_read_authorization_happens_before_artifact_io(packet, tmp_path, monkeyp
     assert calls == []
 
 
-@pytest.mark.parametrize("name", ["candidate.pdf", "manifest.json", "publication.json"])
+@pytest.mark.parametrize("name", ["candidate.pdf", "manifest.json"])
 def test_stored_tampering_refuses_without_repair(packet, tmp_path, name):
     bound = release.bind_synthetic_release(**packet)
     context = authority(bound)
@@ -333,6 +358,36 @@ def test_stored_tampering_refuses_without_repair(packet, tmp_path, name):
     with pytest.raises(release.SyntheticReleaseError):
         read(result, context, tmp_path)
     assert inventory(tmp_path) == before
+
+
+@pytest.mark.parametrize("kind", ["nonempty", "public", "file", "symlink"])
+def test_invalid_commit_marker_refuses_without_repair(packet, tmp_path, kind):
+    bound = release.bind_synthetic_release(**packet)
+    context = authority(bound)
+    result = publish(bound, context, tmp_path)
+    marker = tmp_path / result["artifact_id"] / "publication.commit"
+    if kind == "nonempty":
+        (marker / "unexpected").write_bytes(b"SYNTHETIC-TAMPER")
+    elif kind == "public":
+        marker.chmod(0o755)
+    else:
+        marker.rmdir()
+        if kind == "file":
+            marker.write_bytes(b"SYNTHETIC-TAMPER")
+        else:
+            outside = tmp_path / "outside"
+            outside.mkdir(mode=0o700)
+            marker.symlink_to(outside, target_is_directory=True)
+    before = inventory(tmp_path)
+    marker_identity = marker.lstat()
+    with pytest.raises(release.SyntheticReleaseError):
+        read(result, context, tmp_path)
+    with pytest.raises(release.SyntheticReleaseError):
+        publish(bound, context, tmp_path)
+    assert inventory(tmp_path) == before
+    after = marker.lstat()
+    assert (after.st_ino, after.st_mode, after.st_mtime_ns) == (
+        marker_identity.st_ino, marker_identity.st_mode, marker_identity.st_mtime_ns)
 
 
 def test_symlink_and_untrusted_directory_modes_refuse(packet, tmp_path):
@@ -366,18 +421,20 @@ def test_disable_blocks_existing_artifact_without_deleting_it(packet, tmp_path, 
     assert inventory(tmp_path) == before
 
 
-@pytest.mark.parametrize("phase", ["before_commit", "after_commit"])
+@pytest.mark.parametrize("phase", ["before_install", "after_install"])
 def test_actual_process_interruption_has_exact_recovery_boundary(packet, tmp_path, phase):
     bound = release.bind_synthetic_release(**packet)
     context = authority(bound)
-    original = release._commit_record
+    original = release.os.mkdir
 
     def child():
-        def interrupted(fd, raw):
-            if phase == "after_commit":
-                original(fd, raw)
-            os._exit(23)
-        release._commit_record = interrupted
+        def interrupted(path, mode=0o777, *, dir_fd=None):
+            if path == "publication.commit":
+                if phase == "after_install":
+                    original(path, mode, dir_fd=dir_fd)
+                os._exit(23)
+            return original(path, mode, dir_fd=dir_fd)
+        release.os.mkdir = interrupted
         publish(bound, context, tmp_path)
         os._exit(99)
 
@@ -387,7 +444,12 @@ def test_actual_process_interruption_has_exact_recovery_boundary(packet, tmp_pat
     assert not process.is_alive()
     assert process.exitcode == 23
     before = inventory(tmp_path)
-    if phase == "before_commit":
+    if phase == "before_install":
+        attempted = tmp_path / packet["artifact_id"]
+        result = {"artifact_id": packet["artifact_id"],
+                  "manifest_sha256": digest((attempted / "manifest.json").read_bytes())}
+        with pytest.raises(release.SyntheticReleaseError):
+            read(result, context, tmp_path)
         with pytest.raises(release.SyntheticReleaseError):
             publish(bound, context, tmp_path)
     else:

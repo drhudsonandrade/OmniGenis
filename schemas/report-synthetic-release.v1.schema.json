@@ -17,22 +17,22 @@
           "uniqueItems": true
         },
         "artifact_id": {
-          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$(?![\\s\\S])",
           "type": "string"
         },
         "binding_sha256": {
-          "pattern": "^[0-9a-f]{64}$",
+          "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
           "type": "string"
         },
         "consent_record": {
           "additionalProperties": false,
           "properties": {
             "artifact_id": {
-              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$(?![\\s\\S])",
               "type": "string"
             },
             "sha256": {
-              "pattern": "^[0-9a-f]{64}$",
+              "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
               "type": "string"
             }
           },
@@ -43,11 +43,11 @@
           "type": "object"
         },
         "namespace_id": {
-          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$(?![\\s\\S])",
           "type": "string"
         },
         "record_id": {
-          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$(?![\\s\\S])",
           "type": "string"
         },
         "record_revision": {
@@ -58,26 +58,26 @@
           "const": "SYNTHETIC_TEST_AUTHORITY"
         },
         "request_id": {
-          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$(?![\\s\\S])",
           "type": "string"
         },
         "request_sha256": {
-          "pattern": "^[0-9a-f]{64}$",
+          "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
           "type": "string"
         },
         "requester_id": {
-          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$(?![\\s\\S])",
           "type": "string"
         },
         "review_record": {
           "additionalProperties": false,
           "properties": {
             "artifact_id": {
-              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$(?![\\s\\S])",
               "type": "string"
             },
             "sha256": {
-              "pattern": "^[0-9a-f]{64}$",
+              "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
               "type": "string"
             }
           },
@@ -123,7 +123,7 @@
           "additionalProperties": false,
           "properties": {
             "artifact_id": {
-              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$(?![\\s\\S])",
               "type": "string"
             },
             "artifact_kind": {
@@ -148,7 +148,7 @@
               "const": "1.0.0"
             },
             "sha256": {
-              "pattern": "^[0-9a-f]{64}$",
+              "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
               "type": "string"
             },
             "size_bytes": {
@@ -170,33 +170,33 @@
           "type": "object"
         },
         "content_sha256": {
-          "pattern": "^[0-9a-f]{64}$",
+          "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
           "type": "string"
         },
         "ir_sha256": {
-          "pattern": "^[0-9a-f]{64}$",
+          "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
           "type": "string"
         },
         "lineage": {
           "additionalProperties": false,
           "properties": {
             "analysis_id": {
-              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$(?![\\s\\S])",
               "type": "string"
             },
             "analysis_revision": {
-              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$(?![\\s\\S])",
               "type": "string"
             },
             "canonical_result": {
               "additionalProperties": false,
               "properties": {
                 "artifact_id": {
-                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$(?![\\s\\S])",
                   "type": "string"
                 },
                 "sha256": {
-                  "pattern": "^[0-9a-f]{64}$",
+                  "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
                   "type": "string"
                 }
               },
@@ -207,7 +207,7 @@
               "type": "object"
             },
             "content_revision": {
-              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$(?![\\s\\S])",
               "type": "string"
             },
             "delta": {
@@ -218,18 +218,18 @@
               ]
             },
             "evidence_cutoff": {
-              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$",
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$(?![\\s\\S])",
               "type": "string"
             },
             "evidence_snapshot": {
               "additionalProperties": false,
               "properties": {
                 "artifact_id": {
-                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$(?![\\s\\S])",
                   "type": "string"
                 },
                 "sha256": {
-                  "pattern": "^[0-9a-f]{64}$",
+                  "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
                   "type": "string"
                 }
               },
@@ -246,11 +246,11 @@
               "additionalProperties": false,
               "properties": {
                 "artifact_id": {
-                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$(?![\\s\\S])",
                   "type": "string"
                 },
                 "sha256": {
-                  "pattern": "^[0-9a-f]{64}$",
+                  "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
                   "type": "string"
                 }
               },
@@ -266,7 +266,7 @@
                   "type": "null"
                 },
                 {
-                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$(?![\\s\\S])",
                   "type": "string"
                 }
               ]
@@ -277,25 +277,25 @@
                   "type": "null"
                 },
                 {
-                  "pattern": "^[0-9a-f]{64}$",
+                  "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
                   "type": "string"
                 }
               ]
             },
             "reference_bundle_sha256": {
-              "pattern": "^[0-9a-f]{64}$",
+              "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
               "type": "string"
             },
             "renderer_profile_id": {
-              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$(?![\\s\\S])",
               "type": "string"
             },
             "renderer_profile_sha256": {
-              "pattern": "^[0-9a-f]{64}$",
+              "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
               "type": "string"
             },
             "report_pack_sha256": {
-              "pattern": "^[0-9a-f]{64}$",
+              "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
               "type": "string"
             }
           },
@@ -319,15 +319,15 @@
           "type": "object"
         },
         "plan_sha256": {
-          "pattern": "^[0-9a-f]{64}$",
+          "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
           "type": "string"
         },
         "profile_sha256": {
-          "pattern": "^[0-9a-f]{64}$",
+          "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
           "type": "string"
         },
         "qa_profile_sha256": {
-          "pattern": "^[0-9a-f]{64}$",
+          "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
           "type": "string"
         },
         "qa_record_json": {
@@ -336,11 +336,11 @@
           "type": "string"
         },
         "qa_sha256": {
-          "pattern": "^[0-9a-f]{64}$",
+          "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
           "type": "string"
         },
         "request_sha256": {
-          "pattern": "^[0-9a-f]{64}$",
+          "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
           "type": "string"
         },
         "request_snapshot": {
@@ -350,11 +350,11 @@
           "const": "1.0.0"
         },
         "source_binding_sha256": {
-          "pattern": "^[0-9a-f]{64}$",
+          "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
           "type": "string"
         },
         "source_expectation_sha256": {
-          "pattern": "^[0-9a-f]{64}$",
+          "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
           "type": "string"
         }
       },
@@ -385,14 +385,14 @@
       "$ref": "#/$defs/authority"
     },
     "authorization_record_sha256": {
-      "pattern": "^[0-9a-f]{64}$",
+      "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
       "type": "string"
     },
     "binding": {
       "$ref": "#/$defs/binding"
     },
     "binding_sha256": {
-      "pattern": "^[0-9a-f]{64}$",
+      "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
       "type": "string"
     },
     "clinical_release_authorized": {

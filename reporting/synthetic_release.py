@@ -39,7 +39,7 @@ MODE_KEY = "OMNIGENIS_SYNTHETIC_RELEASE_MODE"
 DISABLE_KEY = "OMNIGENIS_SYNTHETIC_RELEASE_DISABLED"
 DIGEST = re.compile(r"[0-9a-f]{64}\Z")
 IDENTIFIER = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,95}\Z")
-NAMES = frozenset({"candidate.pdf", "manifest.json", "publication.json"})
+NAMES = frozenset({"candidate.pdf", "manifest.json", "publication.commit"})
 SOURCE_PATHS = frozenset({
     "reporting/synthetic_release.py", "schemas/report-synthetic-release.v1.schema.json",
     "reporting/requests.py", "reporting/bindings.py", "reporting/completeness.py",
@@ -459,41 +459,40 @@ def _artifact_directory(directory, artifact_id, *, create):
         os.close(root_fd)
 
 
-def _commit_record(fd, raw):
-    """Publish a complete synced marker by a create-only link."""
-    _require(type(raw) is bytes and 0 < len(raw) <= 1024)
-    out = os.open("publication.pending", os.O_WRONLY | os.O_CREAT | os.O_EXCL
-                  | os.O_NOFOLLOW | os.O_CLOEXEC, 0o600, dir_fd=fd)
-    try:
-        os.fchmod(out, 0o600)
-        position = 0
-        while position < len(raw):
-            count = os.write(out, raw[position:])
-            _require(type(count) is int and 0 < count <= len(raw) - position)
-            position += count
-        os.fsync(out)
-        storage._file_identity(os.fstat(out), 1024)
-    finally:
-        os.close(out)
-    os.link("publication.pending", "publication.json", src_dir_fd=fd, dst_dir_fd=fd, follow_symlinks=False)
-    os.unlink("publication.pending", dir_fd=fd)
+def _commit_record(fd):
+    """Expose the synced PDF/manifest with one create-only directory entry."""
+    os.mkdir("publication.commit", 0o700, dir_fd=fd)
     os.fsync(fd)
+
+
+def _marker_identity(fd):
+    marker = os.open("publication.commit", os.O_RDONLY | os.O_DIRECTORY
+                     | os.O_NOFOLLOW | os.O_CLOEXEC, dir_fd=fd)
+    try:
+        before = os.fstat(marker)
+        _dir_identity(marker)
+        _require(not os.listdir(marker))
+        after = os.fstat(marker)
+        named = os.stat("publication.commit", dir_fd=fd, follow_symlinks=False)
+        keys = ("st_dev", "st_ino", "st_mode", "st_uid", "st_gid", "st_nlink",
+                "st_size", "st_mtime_ns", "st_ctime_ns")
+        _require(all(getattr(before, key) == getattr(after, key) == getattr(named, key)
+                     for key in keys))
+        return tuple(getattr(before, key) for key in keys)
+    finally:
+        os.close(marker)
 
 
 def _read_complete(fd, expected_manifest_sha256, expected_binding=None):
     _digest(expected_manifest_sha256)
     _require(set(os.listdir(fd)) == NAMES)
-    limits = {"candidate.pdf": 16777216, "manifest.json": 131072, "publication.json": 1024}
+    marker_identity = _marker_identity(fd)
+    limits = {"candidate.pdf": 16777216, "manifest.json": 131072}
     before = {n: storage._file_identity(os.stat(n, dir_fd=fd, follow_symlinks=False), limit)
               for n, limit in limits.items()}
     raw = storage._read_data(fd, "manifest.json", 131072)
     pdf = storage._read_data(fd, "candidate.pdf", 16777216)
-    marker_raw = storage._read_data(fd, "publication.json", 1024)
-    marker = _loads(marker_raw, 1024)
-    _require(set(marker) == {"schema_version", "state", "manifest_sha256"}
-             and marker["schema_version"] == "1.0.0" and marker["state"] == "FINAL_SYNTHETIC_TECHNICAL"
-             and marker["manifest_sha256"] == expected_manifest_sha256
-             and sha256(raw).hexdigest() == expected_manifest_sha256)
+    _require(sha256(raw).hexdigest() == expected_manifest_sha256)
     manifest = _loads(raw, 131072)
     _validate_manifest(manifest)
     _require(verify_artifact_bytes(manifest["binding"]["artifact"], pdf).passed)
@@ -503,7 +502,7 @@ def _read_complete(fd, expected_manifest_sha256, expected_binding=None):
         _require(storage._file_identity(os.stat(name, dir_fd=fd, follow_symlinks=False), limit) == before[name])
     _require(storage._read_data(fd, "manifest.json", 131072) == raw
              and storage._read_data(fd, "candidate.pdf", 16777216) == pdf
-             and storage._read_data(fd, "publication.json", 1024) == marker_raw and set(os.listdir(fd)) == NAMES)
+             and _marker_identity(fd) == marker_identity and set(os.listdir(fd)) == NAMES)
     return pdf, manifest
 
 
@@ -534,8 +533,7 @@ def publish_synthetic_release(*, release, directory, authority, requester_id):
                     _policy(binding["profile_sha256"])
                     release._validate()
                     authority._check(binding, "publish", requester_id)
-                    _commit_record(fd, _canonical({"schema_version": "1.0.0",
-                        "state": "FINAL_SYNTHETIC_TECHNICAL", "manifest_sha256": pin}))
+                    _commit_record(fd)
                     check()
                     _read_complete(fd, pin, binding)
             except FileExistsError:
