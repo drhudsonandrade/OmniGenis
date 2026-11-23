@@ -40,7 +40,8 @@ from reporting.brand_assets import (
 from reporting.editorial_typed_pdf import prepare_editorial_typed_html
 from reporting.pdf_original_brand_inclusion import _logo_markup
 from reporting.pdf_typed_brand_render import (
-    TypedBrandPdfCandidate, render_typed_brand_pdf, require_policy as require_render_policy,
+    TypedBrandPdfCandidate, render_typed_brand_pdf, render_observed_typed_brand_pdf,
+    require_policy as require_render_policy,
 )
 from reporting._pdf_native_launch_budget import require_no_active_scope
 from reporting import _pdf_typed_brand_emission as emission
@@ -256,20 +257,28 @@ def prepare_typed_original_brand_pdf(
         raise TypedOriginalBrandError("typed_original_brand_pdf_unavailable") from None
 
 
-def render_typed_original_brand_pdf(
+def _render_typed_original_brand_pdf(
     *, presentation_ir: object, expected_ir_sha256: object,
-    assets: BoundBrandAssets, expected_brand_bundle_sha256: object,
-) -> tuple[TypedBrandPdfCandidate, dict]:
-    """Render exact preloaded originals once and withhold all unqualified release claims."""
+    assets: BoundBrandAssets, expected_brand_bundle_sha256: object, observe_processes: bool,
+):
+    """Share exact source capture and one renderer with optional process observations."""
     try:
         require_no_active_scope()
+        _require(type(observe_processes) is bool)
         html, resources, record = prepare_typed_original_brand_pdf(
             presentation_ir=presentation_ir, expected_ir_sha256=expected_ir_sha256,
             assets=assets, expected_brand_bundle_sha256=expected_brand_bundle_sha256)
         _ready(assets, expected_brand_bundle_sha256)
-        pdf = render_typed_brand_pdf(
-            html=html, expected_html_sha256=record["html_sha256"],
-            resources=resources, expected_resources_sha256=record["resources_sha256"])
+        if observe_processes:
+            pdf, observation = render_observed_typed_brand_pdf(
+                html=html, expected_html_sha256=record["html_sha256"],
+                resources=resources, expected_resources_sha256=record["resources_sha256"])
+            _require(type(observation) is dict)
+        else:
+            pdf = render_typed_brand_pdf(
+                html=html, expected_html_sha256=record["html_sha256"],
+                resources=resources, expected_resources_sha256=record["resources_sha256"])
+            observation = None
         _require(type(pdf) is TypedBrandPdfCandidate
                  and pdf.html_sha256 == record["html_sha256"]
                  and pdf.resources_sha256 == record["resources_sha256"]
@@ -286,6 +295,33 @@ def render_typed_original_brand_pdf(
         return pdf, {**record, "render_profile_id": emission.PROFILE_ID,
                      "render_profile_sha256": metadata["profile_sha256"],
                      "pdf_sha256": metadata["pdf_sha256"],
-                     "page_count": metadata["page_count"]}
+                     "page_count": metadata["page_count"]}, observation
     except Exception:
         raise TypedOriginalBrandError("typed_original_brand_pdf_unavailable") from None
+
+
+def render_typed_original_brand_pdf(
+    *, presentation_ir: object, expected_ir_sha256: object,
+    assets: BoundBrandAssets, expected_brand_bundle_sha256: object,
+) -> tuple[TypedBrandPdfCandidate, dict]:
+    """Render exact preloaded originals with the unchanged candidate/metadata pair."""
+    candidate, metadata, _ = _render_typed_original_brand_pdf(
+        presentation_ir=presentation_ir, expected_ir_sha256=expected_ir_sha256,
+        assets=assets, expected_brand_bundle_sha256=expected_brand_bundle_sha256,
+        observe_processes=False)
+    return candidate, metadata
+
+
+def render_observed_typed_original_brand_pdf(
+    *, presentation_ir: object, expected_ir_sha256: object,
+    assets: BoundBrandAssets, expected_brand_bundle_sha256: object,
+) -> tuple[TypedBrandPdfCandidate, dict, dict]:
+    """Add one bounded unsigned render row without changing candidate or source metadata.
+
+    Parent-observed ownership and local clock bounds establish no authenticated
+    execution, aggregate resources, accessibility, supported default or release.
+    """
+    return _render_typed_original_brand_pdf(
+        presentation_ir=presentation_ir, expected_ir_sha256=expected_ir_sha256,
+        assets=assets, expected_brand_bundle_sha256=expected_brand_bundle_sha256,
+        observe_processes=True)

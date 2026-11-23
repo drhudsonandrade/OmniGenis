@@ -5,15 +5,24 @@ import dis
 import os
 from pathlib import Path
 import stat
+from subprocess import Popen as _Process
 import sys
 import tempfile
+from time import monotonic_ns
 from types import FunctionType
 
 from reporting import _pdf_render_worker as worker
 from reporting import _pdf_typed_brand_emission as emission
 from reporting import pdf_raster_render as inherited
 from reporting._pdf_native_launch_budget import require_no_active_scope, reserve_standalone_typed_render
+from reporting._pdf_process_lifecycle import _observe as _observe_owned
 from reporting.pdf_raster_resources import RasterBundle, _canonical, _digest
+
+_MAX_PROCESS_OBSERVATION_BYTES = 2048
+_PROCESS_FIELDS = frozenset({
+    "kind", "worker", "worker_source_sha256", "parent_pid", "pid",
+    "spawn_monotonic_ns", "exit_monotonic_ns", "exit_code", "request_header_sha256",
+})
 
 DISABLE = ("OMNIGENIS_TYPED_BRAND_RENDER_DISABLED", "OMNIGENIS_TYPED_ORIGINAL_BRAND_PDF_DISABLED",
            "OMNIGENIS_TYPED_EDITORIAL_PDF_DISABLED", "OMNIGENIS_PDF_PRELOADED_RASTER_DISABLED",
@@ -176,8 +185,77 @@ def _confirmed_pre_wait(error, controller_code, waiter_code, offsets,
     return False
 
 
-def _run_owned_child(command, env, fds):
+def _observe_typed_render_spawn(process, command, fds, launch_lower_bound):
+    """Attach a local prelaunch bound only after proving the fixed child's ownership."""
+    require = emission.require
+    require(type(process) is _Process)
+    if process.returncode is not None:
+        raise ChildProcessError("typed render child ownership lost")
+    parent = os.getpid()
+    path = Path(__file__).with_name("_pdf_typed_brand_render_worker.py")
+    require(type(parent) is int and 2 <= parent <= 2147483647
+            and type(process.pid) is int and 2 <= process.pid <= 2147483647
+            and process.pid != parent and type(command) is list
+            and type(fds) is tuple and len(fds) == 4
+            and all(type(fd) is int and fd >= 0 for fd in fds)
+            and command == [sys.executable, "-I", "-B", str(path),
+                            *(str(fd) for fd in fds[:3]), str(parent),
+                            emission.MODE, str(fds[3])]
+            and process.args == command and not path.is_symlink()
+            and type(launch_lower_bound) is int
+            and 0 <= launch_lower_bound < (1 << 63))
+    _observe_owned(process)
+    require(os.getpgid(process.pid) == process.pid)
+    header = os.pread(fds[0], 132, 0)
+    require(len(header) == 132)
+    return {
+        "kind": "typed_brand_render", "worker": path.name,
+        "worker_source_sha256": emission._bounded_file(path, 65536)[1],
+        "parent_pid": parent, "pid": process.pid,
+        "spawn_monotonic_ns": launch_lower_bound,
+        "request_header_sha256": sha256(header).hexdigest(),
+    }
+
+
+def _finish_typed_render_observation(value, candidate):
+    """Seal a bounded unsigned row against the decoded unchanged candidate."""
+    require = emission.require
+    require(type(value) is dict and set(value) == _PROCESS_FIELDS
+            and type(candidate) is TypedBrandPdfCandidate)
+    metadata = candidate.to_dict()
+    path = Path(__file__).with_name("_pdf_typed_brand_render_worker.py")
+    header = f"3 {metadata['html_sha256']} {metadata['resources_sha256']}\n".encode("ascii")
+    for name in ("worker_source_sha256", "request_header_sha256"):
+        _digest(value[name])
+    require(value["kind"] == "typed_brand_render" and value["worker"] == path.name
+            and not path.is_symlink()
+            and value["worker_source_sha256"] == emission._bounded_file(path, 65536)[1]
+            and value["request_header_sha256"] == sha256(header).hexdigest()
+            and type(value["parent_pid"]) is int and value["parent_pid"] == os.getpid()
+            and 2 <= value["parent_pid"] <= 2147483647
+            and type(value["pid"]) is int and 2 <= value["pid"] <= 2147483647
+            and value["pid"] != value["parent_pid"]
+            and type(value["exit_code"]) is int and value["exit_code"] == 0
+            and type(value["spawn_monotonic_ns"]) is int
+            and type(value["exit_monotonic_ns"]) is int
+            and 0 <= value["spawn_monotonic_ns"] <= value["exit_monotonic_ns"] < (1 << 63))
+    result = {
+        **value, "html_sha256": metadata["html_sha256"],
+        "resources_sha256": metadata["resources_sha256"],
+        "pdf_sha256": metadata["pdf_sha256"], "pdf_byte_count": metadata["pdf_bytes"],
+        "page_count": metadata["page_count"], "resource_count": metadata["resource_count"],
+        "render_sha256": sha256(_canonical(metadata)).hexdigest(),
+        "profile_sha256": metadata["profile_sha256"],
+    }
+    result["observation_sha256"] = sha256(_canonical(result)).hexdigest()
+    raw = _canonical(result)
+    require(0 < len(raw) <= _MAX_PROCESS_OBSERVATION_BYTES)
+    return inherited._strict(raw.decode("ascii"))
+
+
+def _run_owned_child(command, env, fds, *, observe_processes=False):
     from reporting import adapters
+    emission.require(type(observe_processes) is bool)
     waiter = adapters._wait_pdf_render_worker
     wall = worker.WALL_SECONDS
     emission.require(type(waiter) is FunctionType and type(wall) is int and wall == 30)
@@ -188,17 +266,42 @@ def _run_owned_child(command, env, fds):
     with reserve_standalone_typed_render() as ticket:
         process = None
         observer = ticket.settle
+        observation_ownership_lost = False
         try:
+            launch_lower_bound = monotonic_ns() if observe_processes else None
+            if observe_processes:
+                emission.require(type(launch_lower_bound) is int
+                                 and 0 <= launch_lower_bound < (1 << 63))
+                observed_command = tuple(command)
             process = adapters._start_pdf_render_worker(
                 command, env=env, pass_fds=fds, before_spawn=ticket.arm)
             if process is None:
                 raise ValueError("typed render child unavailable")
+            observation = None
+            if observe_processes:
+                try:
+                    observation = _observe_typed_render_spawn(
+                        process, command, fds, launch_lower_bound)
+                except ChildProcessError:
+                    # Only this optional ownership check forbids another PID lookup.
+                    observation_ownership_lost = True
+                    raise
             status = waiter(process, wall_seconds=wall, cleanup_observer=observer)
             emission.require(ticket.phase == "settled" and type(status) is int)
+            if observe_processes:
+                current = monotonic_ns()
+                emission.require(type(process.returncode) is int
+                    and process.returncode == status and process.pid == observation["pid"]
+                    and command == list(observed_command) and process.args == command
+                    and os.getpid() == observation["parent_pid"]
+                    and type(current) is int
+                    and observation["spawn_monotonic_ns"] <= current < (1 << 63))
+                observation.update(exit_monotonic_ns=current, exit_code=status)
+                return status, observation
             return status
         except BaseException as error:
             try:
-                if process is not None and _confirmed_pre_wait(
+                if process is not None and not observation_ownership_lost and _confirmed_pre_wait(
                         error, controller_code, waiter_code, offsets, call_offsets,
                         adapter_offsets, lifecycle_code):
                     waiter(process, wall_seconds=0, cleanup_observer=observer)
@@ -208,12 +311,14 @@ def _run_owned_child(command, env, fds):
             raise
 
 
-def render_typed_brand_pdf(*, html: str, expected_html_sha256: str, resources: RasterBundle,
-                           expected_resources_sha256: str) -> TypedBrandPdfCandidate:
+def _render_typed_brand_pdf(*, html: str, expected_html_sha256: str, resources: RasterBundle,
+                            expected_resources_sha256: str, observe_processes: bool):
+    """Share the original renderer and custody boundary with optional observations."""
     from reporting import adapters
     require = emission.require
     try:
         require_no_active_scope()
+        require(type(observe_processes) is bool)
         profile = require_policy()
         _digest(expected_html_sha256)
         _digest(expected_resources_sha256)
@@ -244,14 +349,43 @@ def render_typed_brand_pdf(*, html: str, expected_html_sha256: str, resources: R
                        *(str(fd) for fd in fds[:3]), str(os.getpid()), emission.MODE, str(fds[3])]
             require_no_active_scope()
             require(require_policy() == profile)
-            code = _run_owned_child(command, env, fds)
+            if observe_processes:
+                code, observation = _run_owned_child(command, env, fds, observe_processes=True)
+            else:
+                code, observation = _run_owned_child(command, env, fds), None
             require(code == 0 and os.fstat(fds[2]).st_size <= worker.RESULT_BYTES)
             response.seek(0)
             result = _decode(response.read(worker.RESULT_BYTES + 1), fds[1], expected_html_sha256,
                              expected_resources_sha256, count, profile)
+            if observe_processes:
+                observation = _finish_typed_render_observation(observation, result)
             require(resources.to_bytes() == payload and len(resources.assets) == count
                     and require_policy() == profile)
             require_no_active_scope()
-            return result
+            return result, observation
     except Exception:
         raise ValueError("typed_brand_render_refused") from None
+
+
+def render_typed_brand_pdf(*, html: str, expected_html_sha256: str, resources: RasterBundle,
+                           expected_resources_sha256: str) -> TypedBrandPdfCandidate:
+    """Keep the original candidate-only contract without process observation."""
+    candidate, _ = _render_typed_brand_pdf(
+        html=html, expected_html_sha256=expected_html_sha256, resources=resources,
+        expected_resources_sha256=expected_resources_sha256, observe_processes=False)
+    return candidate
+
+
+def render_observed_typed_brand_pdf(
+    *, html: str, expected_html_sha256: str, resources: RasterBundle,
+    expected_resources_sha256: str,
+) -> tuple[TypedBrandPdfCandidate, dict]:
+    """Return the unchanged candidate and one detached unsigned direct-child row.
+
+    The local launch lower bound and post-reap clock are not kernel event times.
+    Source checksums and parent observations do not authenticate execution or
+    qualify aggregate resources, accessibility, supported defaults or release.
+    """
+    return _render_typed_brand_pdf(
+        html=html, expected_html_sha256=expected_html_sha256, resources=resources,
+        expected_resources_sha256=expected_resources_sha256, observe_processes=True)
