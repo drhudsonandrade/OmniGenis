@@ -9,8 +9,9 @@
 ## Final review
 
 - [ ] All intended changes have been pushed and local validation is complete.
-- [ ] Add the `review-ready` label exactly once after the final push to start the
-      CodeRabbit review.
+- [ ] After the final push, add the `review-ready` label exactly once to start
+      the CodeRabbit review. Contributors without label permission must ask a
+      maintainer to apply it.
 - [ ] Wait for the CodeRabbit check to finish before requesting owner approval.
 
 Do not use a full review, GitHub's **Re-request review** button, usage credits,

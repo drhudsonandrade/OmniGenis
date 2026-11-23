@@ -15,4 +15,3 @@ reviews:
     auto_incremental_review: false
 chat:
   auto_reply: false
-  allow_non_org_members: false
