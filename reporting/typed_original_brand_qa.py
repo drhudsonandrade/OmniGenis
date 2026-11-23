@@ -15,16 +15,27 @@ from pathlib import Path
 import re
 import stat
 import subprocess
+from subprocess import Popen as _Process
 import sys
 import tempfile
+from time import monotonic_ns
 
 from reporting import pdf_typed_observation as prior
 from reporting._pdf_native_launch_budget import require_no_active_scope
-from reporting._pdf_process_lifecycle import wait_owned_process_group
+from reporting._pdf_process_lifecycle import _observe as _observe_owned, wait_owned_process_group
+from reporting._pdf_raster_child_observation import validate_observation as _validate_raster_children
 from reporting.brand_assets import BoundBrandAssets, REQUIRED_CREDIT_EN
 from reporting.page_windows import plan_pdf_page_windows, bind_pdf_page_window_evidence
-from reporting.pdf_document_metadata import inspect_pdf_document_metadata
-from reporting.pdf_raster_windows import inspect_pdf_raster_window
+from reporting.pdf_document_metadata import (
+    PdfDocumentMetadataInspection, inspect_pdf_document_metadata,
+    inspect_observed_pdf_document_metadata,
+    _validate_process_observation as _validate_metadata_process,
+)
+from reporting.pdf_raster_windows import (
+    IDENTITY_FIELDS as _RASTER_IDENTITY_FIELDS, PROTOCOL_VERSION as _RASTER_PROTOCOL,
+    PdfRasterWindowInspection, inspect_pdf_raster_window,
+    inspect_process_observed_pdf_raster_window,
+)
 from reporting.typed_html import capture_typed_document
 from reporting.typed_original_brand_pdf import prepare_typed_original_brand_pdf
 from reporting.typed_pdf_source import prepare_typed_pdf_source
@@ -65,6 +76,8 @@ SOURCE_FILES = (
     "reporting/_pdf_typed_brand_emission.py",
     "reporting/_pdf_typed_brand_render_worker.py",
     "reporting/typed_original_brand_qa.py",
+    "reporting/pdf_document_metadata.py",
+    "tests/test_reporting_typed_original_brand_process_observation.py",
     "reporting/_pdf_typed_original_brand_qa_worker.py",
     "schemas/report-typed-original-brand-qa.v1.schema.json",
     "tests/test_reporting_typed_original_brand_qa.py",
@@ -541,30 +554,75 @@ def _validate_native(record: dict, pdf: bytes, profile: str) -> tuple[dict, dict
     return trace, counts
 
 
-def _run_worker(pdf: bytes, digest: str) -> bytes:
-    """Own one fixed native worker and reap its group before interpreting a result."""
+def _observe_qa_spawn(process, command: list[str], started: int) -> dict:
+    """Bind only the creator-owned unreaped fixed QA child to its local launch bound."""
+    require(isinstance(process, _Process))
+    if process.returncode is not None:
+        raise ChildProcessError("typed original-brand child ownership lost")
+    parent = _process_integer(os.getpid(), 2, 2147483647)
+    pid = _process_integer(process.pid, 2, 2147483647)
+    path = Path(__file__).with_name("_pdf_typed_original_brand_qa_worker.py")
+    require(pid != parent and type(process.args) is list and process.args == command
+            and type(command) is list and len(command) == 7
+            and command[:4] == [sys.executable, "-I", "-B", str(path)]
+            and command[-1] == str(parent))
+    _observe_owned(process)
+    require(os.getpgid(pid) == pid)
+    return {"kind": "typed_original_brand_qa", "worker": path.name,
+            "worker_source_sha256": _bounded_profile_file(path, 262144)[1],
+            "parent_pid": parent, "pid": pid, "spawn_monotonic_ns": _process_integer(started)}
+
+
+def _run_worker(pdf: bytes, digest: str, *, observe_processes=False):
+    """Own the unchanged fixed worker; optionally record actual launch and final reap."""
+    require(type(observe_processes) is bool)
     with tempfile.TemporaryFile() as source, tempfile.TemporaryFile() as output:
         fds = source.fileno(), output.fileno()
         infos = [os.fstat(fd) for fd in fds]
         require(all(stat.S_ISREG(x.st_mode) and x.st_nlink == 0
                     and x.st_uid == os.geteuid() for x in infos)
                 and (infos[0].st_dev, infos[0].st_ino) != (infos[1].st_dev, infos[1].st_ino))
-        source.write(b"1 " + digest.encode("ascii") + b"\n" + pdf)
+        header = b"1 " + digest.encode("ascii") + b"\n"
+        source.write(header + pdf)
         source.flush()
         command = [sys.executable, "-I", "-B",
                    str(Path(__file__).with_name("_pdf_typed_original_brand_qa_worker.py")),
                    str(fds[0]), str(fds[1]), str(os.getpid())]
+        started = monotonic_ns() if observe_processes else None
         process = subprocess.Popen(
             command, cwd=ROOT,
             env={"PATH": os.defpath, "LANG": "C.UTF-8",
                  "OMNIGENIS_PDF_QUALIFICATION_RECEIPT_MODE": "qualification-only"},
             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             close_fds=True, pass_fds=fds, start_new_session=True)
+        if observe_processes:
+            try:
+                observation = _observe_qa_spawn(process, command, started)
+                require(os.pread(fds[0], len(header), 0) == header)
+                observation["request_header_sha256"] = sha256(header).hexdigest()
+            except ChildProcessError:
+                # A lost waitable identity never grants a later numeric PID retry.
+                raise
+            except BaseException as failure:
+                if isinstance(process, _Process):
+                    try:
+                        wait_owned_process_group(process, wall_seconds=0, cleanup_seconds=CLEANUP_SECONDS)
+                    except BaseException as cleanup:
+                        raise failure from cleanup
+                raise
         code = wait_owned_process_group(
             process, wall_seconds=WALL_SECONDS, cleanup_seconds=CLEANUP_SECONDS)
+        if observe_processes:
+            ended = _process_integer(monotonic_ns())
+            require(type(code) is int and code == 0 and type(process.returncode) is int
+                    and process.returncode == code and process.pid == observation["pid"]
+                    and process.args == command and os.getpid() == observation["parent_pid"]
+                    and ended >= observation["spawn_monotonic_ns"])
+            observation.update(exit_code=code, exit_monotonic_ns=ended)
         require(code == 0 and 0 < os.fstat(fds[1]).st_size <= prior.RESULT_BYTES)
         output.seek(0)
-        return output.read(prior.RESULT_BYTES + 1)
+        raw = output.read(prior.RESULT_BYTES + 1)
+        return (raw, observation) if observe_processes else raw
 
 
 def _associate(manifest: dict, physical: dict, document: dict) -> dict:
@@ -803,14 +861,217 @@ class TypedOriginalBrandQA:
         return "TypedOriginalBrandQA()"
 
 
-def validate_typed_original_brand_candidate(
+
+MAX_DIRECT_PROCESS_OBSERVATION_BYTES = 2048
+MAX_PROCESS_OBSERVATION_BYTES = 65536
+_PROCESS_BASE_FIELDS = {
+    "kind", "worker", "worker_source_sha256", "parent_pid", "pid",
+    "spawn_monotonic_ns", "exit_monotonic_ns", "exit_code",
+}
+_PROCESS_WORKERS = {
+    "typed_original_brand_qa": "_pdf_typed_original_brand_qa_worker.py",
+    "raster_windows": "_pdf_raster_window_worker.py",
+}
+_PROCESS_BINDING_FIELDS = (
+    "profile_sha256", "pdf_sha256", "pdf_byte_count", "page_count", "ir_sha256",
+    "source_expectation_sha256", "brand_bundle_sha256", "html_sha256",
+    "native_observation_sha256", "association_sha256", "metadata_sha256",
+    "raster_plan_sha256", "raster_ledger_sha256", "raster_window_count",
+    "raster_inspected_pages", "request_sha256", "source_binding_sha256",
+    "plan_sha256", "ledger_sha256", "content_sha256", "section_states_sha256",
+)
+_PROCESS_GEOMETRY_FIELDS = ("raster_sha256", "total_pixels", "min_edge_margin_px")
+_PROCESS_NONCLAIMS = (
+    *NONCLAIMS, "authenticated_worker_execution", "aggregate_job_resources_qualified",
+    "arbitrary_descendants_observed", "whole_graph_observed", "native_profile_qualified",
+    "external_observer_measured", "hard_job_deadline_enforced", "durable_observation_storage",
+)
+_PROCESS_ENVELOPE_FIELDS = {
+    "schema", "state", "parent_pid", "started_monotonic_ns", "verified_monotonic_ns",
+    "native_qa_process", "metadata_process", "raster_windows",
+    "observed_direct_spawns", "observed_direct_exits", "observed_nested_spawns",
+    "observed_nested_exits", "observed_total_spawns", "observed_total_exits",
+    "declared_retries", "timer_helper_processes_added", "timing_scope", "observation_sha256",
+}
+_PROCESS_TIMING = "Parent launch lower bounds and post-reap observations; not kernel event timestamps."
+
+
+def _process_integer(value, minimum=0, maximum=(1 << 63) - 1) -> int:
+    """Reject coerced, boolean and unbounded process counters or local clocks."""
+    require(type(value) is int and minimum <= value <= maximum)
+    return value
+
+
+def _process_metadata(value, limit: int) -> dict:
+    """Detach bounded canonical content-free metadata without producer aliases."""
+    require(type(value) is dict)
+    raw = canonical(value)
+    require(0 < len(raw) <= limit)
+    return prior._loads(raw.decode("ascii"))
+
+
+def _checked_process(record, kind: str, expected: dict) -> dict:
+    """Recheck a closed unsigned direct row against fixed source and result identities."""
+    require(type(record) is dict and kind in _PROCESS_WORKERS
+            and set(record) == _PROCESS_BASE_FIELDS | set(expected) | {"observation_sha256"})
+    value = _process_metadata(record, MAX_DIRECT_PROCESS_OBSERVATION_BYTES)
+    worker = Path(__file__).with_name(_PROCESS_WORKERS[kind])
+    fixed = {
+        "kind": kind, "worker": worker.name,
+        "worker_source_sha256": _bounded_profile_file(worker, 262144)[1],
+        "parent_pid": os.getpid(), "exit_code": 0, **expected,
+    }
+    require(canonical({key: value[key] for key in fixed}) == canonical(fixed))
+    parent = _process_integer(value["parent_pid"], 2, 2147483647)
+    require(_process_integer(value["pid"], 2, 2147483647) != parent
+            and _process_integer(value["spawn_monotonic_ns"])
+            <= _process_integer(value["exit_monotonic_ns"]))
+    require(type(value["observation_sha256"]) is str
+            and prior._DIGEST.fullmatch(value["observation_sha256"]) is not None
+            and value["observation_sha256"] == sha256(canonical({
+                key: item for key, item in value.items() if key != "observation_sha256"
+            })).hexdigest())
+    return value
+
+
+def _process_order(record: dict, previous: int, pids: set, children=()) -> int:
+    """Require sequential direct lifetimes and unique contained nested children."""
+    require(record["pid"] not in pids
+            and previous <= record["spawn_monotonic_ns"] <= record["exit_monotonic_ns"])
+    pids.add(record["pid"])
+    for child in children:
+        require(child["pid"] not in pids and child["parent_pid"] == record["pid"]
+                and record["spawn_monotonic_ns"] <= child["observed_spawn_ns"]
+                <= child["observed_exit_ns"] <= record["exit_monotonic_ns"])
+        pids.add(child["pid"])
+    return record["exit_monotonic_ns"]
+
+
+def _process_context(receipt: TypedOriginalBrandQA) -> dict:
+    """Bind every existing source/result identity without changing the QA receipt."""
+    require(type(receipt) is TypedOriginalBrandQA)
+    metadata = receipt.to_dict()
+    return {"qa_sha256": sha256(canonical(metadata)).hexdigest(),
+            **{key: metadata[key] for key in _PROCESS_BINDING_FIELDS}}
+
+
+def _checked_process_window(entry: dict, plan, window):
+    """Reconstruct the original raster receipt and bind its exact direct/nested rows."""
+    require(type(entry) is dict and set(entry) == {
+        "window_index", "geometry", "direct_process", "child_observation"}
+        and _process_integer(entry["window_index"], 0, 15) == window.index
+        and type(entry["geometry"]) is dict and set(entry["geometry"]) == set(_PROCESS_GEOMETRY_FIELDS))
+    identity = {
+        "pdf_sha256": plan.pdf_sha256, "ir_sha256": plan.ir_sha256,
+        "plan_sha256": plan.plan_sha256, "page_count": plan.page_count,
+        "window_index": window.index, "first_page": window.first_page, "last_page": window.last_page,
+    }
+    receipt = PdfRasterWindowInspection(**identity, **entry["geometry"])
+    direct = entry["direct_process"]
+    require(type(direct) is dict and "pid" in direct)
+    pid = _process_integer(direct["pid"], 2, 2147483647)
+    metadata = receipt.to_dict()
+    inspection = {key: metadata[key] for key in (
+        "status", "raster_sha256", "total_pixels", "min_edge_margin_px", "inspected_pages")}
+    nested = _validate_raster_children(entry["child_observation"], identity, inspection, pid)
+    header = " ".join([str(_RASTER_PROTOCOL),
+                       *(str(identity[key]) for key in _RASTER_IDENTITY_FIELDS)]) + "\n"
+    expected = {
+        "request_header_sha256": sha256(header.encode("ascii")).hexdigest(), "identity": identity,
+        "inspection_sha256": receipt.observation_sha256,
+        "nested_observation_sha256": sha256(canonical(nested)).hexdigest(),
+    }
+    checked = _checked_process(direct, "raster_windows", expected)
+    return receipt, {
+        "window_index": window.index,
+        "geometry": {key: getattr(receipt, key) for key in _PROCESS_GEOMETRY_FIELDS},
+        "direct_process": checked, "child_observation": nested,
+    }
+
+
+def _build_process_observation(receipt: TypedOriginalBrandQA, native, metadata_process,
+                               windows, started_ns, verified_ns) -> dict:
+    """Reconcile exactly the native QA, metadata and complete selected raster sequence."""
+    context = _process_context(receipt)
+    qa = receipt.to_dict()
+    started, verified = _process_integer(started_ns), _process_integer(verified_ns)
+    require(started <= verified and type(windows) is list
+            and len(windows) == qa["raster_window_count"] and 1 <= len(windows) <= 16)
+    plan = plan_pdf_page_windows(
+        pdf_sha256=qa["pdf_sha256"], ir_sha256=qa["ir_sha256"],
+        page_count=qa["page_count"], admitted_page_budget=64,
+        pages_per_window=RASTER_PAGES_PER_WINDOW,
+        inspector_profile_id="generated-pdf-raster-window-v1")
+    require(plan.plan_sha256 == qa["raster_plan_sha256"] and len(plan.windows) == len(windows))
+    expected = {
+        "request_header_sha256": sha256(f"1 {qa['pdf_sha256']}\n".encode("ascii")).hexdigest(),
+        **{key: qa[key] for key in ("pdf_sha256", "pdf_byte_count", "page_count",
+                                    "native_observation_sha256", "profile_sha256")},
+    }
+    native = _checked_process(native, "typed_original_brand_qa", expected)
+    metadata = PdfDocumentMetadataInspection(
+        pdf_sha256=qa["pdf_sha256"], ir_sha256=qa["ir_sha256"],
+        plan_sha256=plan.plan_sha256, page_count=qa["page_count"])
+    require(metadata.inspection_sha256 == qa["metadata_sha256"])
+    metadata_process = _validate_metadata_process(metadata_process, metadata)
+    parent = _process_integer(os.getpid(), 2, 2147483647)
+    pids = {parent}
+    previous = _process_order(native, started, pids)
+    previous = _process_order(metadata_process, previous, pids)
+    checked_windows, receipts, nested_count = [], [], 0
+    for entry, window in zip(windows, plan.windows, strict=True):
+        raster, checked = _checked_process_window(entry, plan, window)
+        children = checked["child_observation"]["processes"]
+        previous = _process_order(checked["direct_process"], previous, pids, children)
+        nested_count += len(children)
+        receipts.append(raster)
+        checked_windows.append(checked)
+    ledger = bind_pdf_page_window_evidence(
+        plan=plan, observations=tuple(row.to_observation() for row in receipts))
+    require(sha256(canonical(ledger.to_dict())).hexdigest() == qa["raster_ledger_sha256"]
+            and sum(row.inspected_pages for row in receipts) == qa["raster_inspected_pages"] == qa["page_count"])
+    direct_count = 2 + len(windows)
+    total_count = len(pids) - 1
+    require(previous <= verified and nested_count == qa["page_count"] + len(windows)
+            and total_count == direct_count + nested_count)
+    result = {
+        "schema": "typed-original-brand-qa-process-observation/v1",
+        "state": "COMPLETE_FIXED_TYPED_ORIGINAL_BRAND_QA_PROCESSES_OBSERVED", **context,
+        "parent_pid": parent, "started_monotonic_ns": started, "verified_monotonic_ns": verified,
+        "native_qa_process": native, "metadata_process": metadata_process,
+        "raster_windows": checked_windows,
+        "observed_direct_spawns": direct_count, "observed_direct_exits": direct_count,
+        "observed_nested_spawns": nested_count, "observed_nested_exits": nested_count,
+        "observed_total_spawns": total_count, "observed_total_exits": total_count,
+        "declared_retries": 0, "timer_helper_processes_added": 0, "timing_scope": _PROCESS_TIMING,
+        **{key: False for key in _PROCESS_NONCLAIMS},
+    }
+    result["observation_sha256"] = sha256(canonical(result)).hexdigest()
+    return _process_metadata(result, MAX_PROCESS_OBSERVATION_BYTES)
+
+
+def _validate_process_observation(value: object, receipt: TypedOriginalBrandQA) -> dict:
+    """Rebuild a separate checksum-bound sidecar; no authenticity is inferred."""
+    context = _process_context(receipt)
+    require(type(value) is dict and set(value) == (
+        set(context) | _PROCESS_ENVELOPE_FIELDS | set(_PROCESS_NONCLAIMS)))
+    snapshot = _process_metadata(value, MAX_PROCESS_OBSERVATION_BYTES)
+    rebuilt = _build_process_observation(
+        receipt, snapshot["native_qa_process"], snapshot["metadata_process"],
+        snapshot["raster_windows"], snapshot["started_monotonic_ns"], snapshot["verified_monotonic_ns"])
+    require(canonical(snapshot) == canonical(rebuilt))
+    return rebuilt
+
+def _validate_typed_original_brand_candidate(
     *, presentation_ir: object, expected_ir_sha256: object,
     expected_source_expectation_sha256: object, assets: BoundBrandAssets,
     expected_brand_bundle_sha256: object, pdf_bytes: object,
-    expected_pdf_sha256: object, expected_profile_sha256: object,
-) -> TypedOriginalBrandQA:
+    expected_pdf_sha256: object, expected_profile_sha256: object, observe_processes=False,
+):
     """Inspect the exact caller candidate; never rerender or accept caller PASS flags."""
     try:
+        require(type(observe_processes) is bool)
+        started = _process_integer(monotonic_ns()) if observe_processes else None
         profile = _admit(expected_profile_sha256)
         require(type(expected_source_expectation_sha256) is str
                 and prior._DIGEST.fullmatch(expected_source_expectation_sha256) is not None)
@@ -825,7 +1086,10 @@ def validate_typed_original_brand_candidate(
         _, _, render_source = prepare_typed_original_brand_pdf(
             presentation_ir=doc, expected_ir_sha256=expected_ir_sha256,
             assets=assets, expected_brand_bundle_sha256=expected_brand_bundle_sha256)
-        raw = _run_worker(pdf_bytes, expected_pdf_sha256)
+        if observe_processes:
+            raw, native_process = _run_worker(pdf_bytes, expected_pdf_sha256, observe_processes=True)
+        else:
+            raw = _run_worker(pdf_bytes, expected_pdf_sha256)
         require(type(raw) is bytes and 0 < len(raw) <= prior.RESULT_BYTES)
         native = prior._loads(raw.decode("ascii"))
         trace, coverage = _validate_native(native, pdf_bytes, profile)
@@ -838,19 +1102,37 @@ def validate_typed_original_brand_candidate(
             page_count=native["page_count"], admitted_page_budget=64,
             pages_per_window=RASTER_PAGES_PER_WINDOW,
             inspector_profile_id="generated-pdf-raster-window-v1")
-        metadata = inspect_pdf_document_metadata(
+        metadata_inspector = (inspect_observed_pdf_document_metadata
+                              if observe_processes else inspect_pdf_document_metadata)
+        metadata_result = metadata_inspector(
             pdf_bytes=pdf_bytes, plan=plan, expected_plan_sha256=plan.plan_sha256,
             expected_language="en-US")
+        if observe_processes:
+            metadata, metadata_process = metadata_result
+        else:
+            metadata = metadata_result
         require(metadata.pdf_sha256 == expected_pdf_sha256
                 and metadata.ir_sha256 == expected_ir_sha256
                 and metadata.plan_sha256 == plan.plan_sha256
                 and metadata.page_count == native["page_count"])
         receipts = []
+        process_windows = []
         for window in plan.windows:
             _admit(profile)
-            receipt = inspect_pdf_raster_window(
+            raster_inspector = (inspect_process_observed_pdf_raster_window
+                                if observe_processes else inspect_pdf_raster_window)
+            raster_result = raster_inspector(
                 pdf_bytes=pdf_bytes, plan=plan, window_index=window.index,
                 expected_plan_sha256=plan.plan_sha256)
+            if observe_processes:
+                receipt, nested, direct = raster_result
+                process_windows.append({
+                    "window_index": window.index,
+                    "geometry": {key: getattr(receipt, key) for key in _PROCESS_GEOMETRY_FIELDS},
+                    "direct_process": direct, "child_observation": nested,
+                })
+            else:
+                receipt = raster_result
             require(receipt.pdf_sha256 == expected_pdf_sha256
                     and receipt.ir_sha256 == expected_ir_sha256
                     and receipt.plan_sha256 == plan.plan_sha256)
@@ -896,6 +1178,53 @@ def validate_typed_original_brand_candidate(
         for key in ("request_sha256", "source_binding_sha256", "plan_sha256", "ledger_sha256",
                     "content_sha256", "section_states_sha256"):
             result[key] = source.to_dict()[key]
-        return TypedOriginalBrandQA(canonical(result))
+        receipt = TypedOriginalBrandQA(canonical(result))
+        if observe_processes:
+            require(type(native_process) is dict
+                    and set(native_process) == _PROCESS_BASE_FIELDS | {"request_header_sha256"})
+            native_process = dict(native_process, **{
+                key: result[key] for key in ("pdf_sha256", "pdf_byte_count", "page_count",
+                                             "native_observation_sha256", "profile_sha256")
+            })
+            native_process["observation_sha256"] = sha256(canonical(native_process)).hexdigest()
+            bundle = _build_process_observation(
+                receipt, native_process, metadata_process, process_windows, started, monotonic_ns())
+            require(_admit(profile) == profile)
+            return receipt, bundle
+        return receipt
     except Exception:
         raise TypedOriginalBrandQAError("typed_original_brand_qa_refused") from None
+
+
+def validate_typed_original_brand_candidate(
+    *, presentation_ir: object, expected_ir_sha256: object,
+    expected_source_expectation_sha256: object, assets: BoundBrandAssets,
+    expected_brand_bundle_sha256: object, pdf_bytes: object,
+    expected_pdf_sha256: object, expected_profile_sha256: object,
+) -> TypedOriginalBrandQA:
+    """Inspect the exact caller candidate with the unchanged receipt and default route."""
+    return _validate_typed_original_brand_candidate(
+        presentation_ir=presentation_ir, expected_ir_sha256=expected_ir_sha256,
+        expected_source_expectation_sha256=expected_source_expectation_sha256, assets=assets,
+        expected_brand_bundle_sha256=expected_brand_bundle_sha256, pdf_bytes=pdf_bytes,
+        expected_pdf_sha256=expected_pdf_sha256, expected_profile_sha256=expected_profile_sha256)
+
+
+def validate_observed_typed_original_brand_candidate(
+    *, presentation_ir: object, expected_ir_sha256: object,
+    expected_source_expectation_sha256: object, assets: BoundBrandAssets,
+    expected_brand_bundle_sha256: object, pdf_bytes: object,
+    expected_pdf_sha256: object, expected_profile_sha256: object,
+) -> tuple[TypedOriginalBrandQA, dict]:
+    """Return unchanged same-PDF QA plus bounded standalone actual-process observations.
+
+    The fixed renderer is outside this QA sequence. Unsigned checksums and local
+    clock bounds do not authenticate execution, measure arbitrary descendants,
+    qualify aggregate resources, prove human accessibility or authorize release.
+    """
+    return _validate_typed_original_brand_candidate(
+        presentation_ir=presentation_ir, expected_ir_sha256=expected_ir_sha256,
+        expected_source_expectation_sha256=expected_source_expectation_sha256, assets=assets,
+        expected_brand_bundle_sha256=expected_brand_bundle_sha256, pdf_bytes=pdf_bytes,
+        expected_pdf_sha256=expected_pdf_sha256, expected_profile_sha256=expected_profile_sha256,
+        observe_processes=True)
