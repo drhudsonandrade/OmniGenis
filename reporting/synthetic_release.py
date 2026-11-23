@@ -7,8 +7,10 @@ in-process qualification fixture, not real-user authentication, legal consent
 or a distributed revocation service. Existing candidate nonclaims are retained.
 
 Only these APIs define publication visibility. Partial attempts remain refused;
-exact complete retries are read-only. Process-interruption tests do not establish
-power-loss durability or protection from a malicious same-owner process.
+exact complete retries are read-only. A failure after marker installation reports
+an unknown outcome and requires retry with the same artifact identity. Process-
+interruption tests do not establish power-loss durability or protection from a
+malicious same-owner process.
 """
 from __future__ import annotations
 
@@ -64,7 +66,7 @@ NONCLAIMS = {name: False for name in (
 
 
 class SyntheticReleaseError(ValueError):
-    """Content-free refusal without private artifact contents."""
+    """Content-free refusal or unknown outcome without private artifact contents."""
 
 
 def _require(condition):
@@ -465,7 +467,6 @@ def _artifact_directory(directory, artifact_id, *, create):
 def _commit_record(fd):
     """Expose the synced PDF/manifest with one create-only directory entry."""
     os.mkdir("publication.commit", 0o700, dir_fd=fd)
-    os.fsync(fd)
 
 
 def _marker_identity(fd):
@@ -510,7 +511,12 @@ def _read_complete(fd, expected_manifest_sha256, expected_binding=None):
 
 
 def publish_synthetic_release(*, release, directory, authority, requester_id):
-    """Commit one synthetic artifact under a live, exact, synthetic grant."""
+    """Publish under a live grant; retry unknown outcomes with the same artifact.
+
+    An exact completed retry only reads existing bytes. A post-installation
+    failure does not establish that publication was refused or rolled back.
+    """
+    marker_installed = False
     try:
         _policy()
         _require(type(release) is BoundSyntheticRelease and type(authority) is SyntheticAuthorityContext
@@ -538,16 +544,23 @@ def publish_synthetic_release(*, release, directory, authority, requester_id):
                     release._validate()
                     authority._check(binding, "publish", requester_id)
                     _commit_record(fd)
+                    marker_installed = True
+                    os.fsync(fd)
                     check()
                     _read_complete(fd, pin, binding)
             except FileExistsError:
+                if marker_installed:
+                    raise
                 with _artifact_directory(directory, artifact_id, create=False) as (fd, check):
                     _read_complete(fd, pin, binding)
+                    marker_installed = True
                     check()
             _policy(binding["profile_sha256"])
             authority._check(binding, "publish", requester_id)
             return {"artifact_id": artifact_id, "manifest_sha256": pin, "manifest": manifest}
     except Exception:
+        if marker_installed:
+            raise SyntheticReleaseError("synthetic_publication_outcome_unknown_retry_same_artifact") from None
         raise SyntheticReleaseError("synthetic_publication_refused") from None
 
 

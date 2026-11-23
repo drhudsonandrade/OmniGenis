@@ -11,6 +11,7 @@ import json
 import multiprocessing
 import os
 from pathlib import Path
+import stat
 from threading import Barrier, Thread
 
 import pytest
@@ -453,6 +454,59 @@ def test_disable_blocks_existing_artifact_without_deleting_it(packet, tmp_path, 
     assert inventory(tmp_path) == before
 
 
+@pytest.mark.parametrize("phase", ["before_install", "after_install", "post_install_readback"])
+def test_publication_failure_reports_visibility_boundary(packet, tmp_path, monkeypatch, phase):
+    bound = release.bind_synthetic_release(**packet)
+    context = authority(bound)
+    original_fsync = release.os.fsync
+    original_read = release._read_complete
+    faults = []
+
+    def sync(fd):
+        if stat.S_ISDIR(os.fstat(fd).st_mode):
+            names = set(os.listdir(fd))
+            installed = "publication.commit" in names
+            if ({"candidate.pdf", "manifest.json"} <= names
+                    and ((phase == "before_install" and not installed)
+                         or (phase == "after_install" and installed))):
+                faults.append(phase)
+                raise OSError("synthetic directory synchronization fault")
+        return original_fsync(fd)
+
+    def read_complete(*args, **kwargs):
+        if phase == "post_install_readback" and not faults:
+            faults.append(phase)
+            raise FileExistsError("synthetic post-installation readback fault")
+        return original_read(*args, **kwargs)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(release.os, "fsync", sync)
+        patch.setattr(release, "_read_complete", read_complete)
+        with pytest.raises(release.SyntheticReleaseError) as error:
+            publish(bound, context, tmp_path)
+    expected_code = ("synthetic_publication_refused" if phase == "before_install"
+                     else "synthetic_publication_outcome_unknown_retry_same_artifact")
+    assert error.value.args == (expected_code,)
+    assert faults == [phase]
+    attempted = tmp_path / packet["artifact_id"]
+    result = {"artifact_id": packet["artifact_id"],
+              "manifest_sha256": digest((attempted / "manifest.json").read_bytes())}
+    before = inventory(tmp_path)
+    if phase == "before_install":
+        assert not (attempted / "publication.commit").exists()
+        with pytest.raises(release.SyntheticReleaseError):
+            read(result, context, tmp_path)
+        with pytest.raises(release.SyntheticReleaseError):
+            publish(bound, context, tmp_path)
+    else:
+        assert read(result, context, tmp_path)[0] == packet["pdf_bytes"]
+        retry = publish(bound, context, tmp_path)
+        assert retry["artifact_id"] == result["artifact_id"]
+        assert retry["manifest_sha256"] == result["manifest_sha256"]
+        assert read(retry, context, tmp_path)[0] == packet["pdf_bytes"]
+    assert inventory(tmp_path) == before
+
+
 @pytest.mark.parametrize("phase", ["before_install", "after_install"])
 def test_actual_process_interruption_has_exact_recovery_boundary(packet, tmp_path, phase):
     bound = release.bind_synthetic_release(**packet)
@@ -553,15 +607,23 @@ def test_lineage_cannot_hide_analysis_changes_or_wrong_parent(packet, tmp_path, 
         release.bind_synthetic_release(**args)
 
 
-def test_oversized_pdf_and_qa_refuse_without_truncation(packet):
+def test_oversized_pdf_refuses_without_truncation(packet):
     oversized = dict(packet, pdf_bytes=b"%PDF-1.7" + b" " * 16777216)
     oversized["expectations"] = dict(packet["expectations"], pdf_sha256=digest(oversized["pdf_bytes"]))
     with pytest.raises(release.SyntheticReleaseError):
         release.bind_synthetic_release(**oversized)
-    oversized = dict(packet, qa_bytes=b" " * 65537)
-    oversized["expectations"] = dict(packet["expectations"], qa_sha256=digest(oversized["qa_bytes"]))
+
+
+def test_qa_json_byte_limit_accepts_exact_bound_and_rejects_next_byte():
+    limit = 65536
+    overhead = len(canonical({"padding": ""}))
+    value = {"padding": "x" * (limit - overhead)}
+    exact = canonical(value)
+    oversized = canonical({"padding": value["padding"] + "x"})
+    assert len(exact) == limit and len(oversized) == limit + 1
+    assert release._loads(exact, limit) == value
     with pytest.raises(release.SyntheticReleaseError):
-        release.bind_synthetic_release(**oversized)
+        release._loads(oversized, limit)
 
 
 def test_qa_cannot_claim_human_acceptance_or_omit_closed_fields(packet):
