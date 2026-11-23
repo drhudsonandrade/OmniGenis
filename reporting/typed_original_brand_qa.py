@@ -554,17 +554,17 @@ def _validate_native(record: dict, pdf: bytes, profile: str) -> tuple[dict, dict
     return trace, counts
 
 
-def _observe_qa_spawn(process, command: list[str], started: int) -> dict:
-    """Bind only the creator-owned unreaped fixed QA child to its local launch bound."""
+def _observe_qa_spawn(process, command: tuple[str, ...], started: int) -> dict:
+    """Bind the owned unreaped QA child to its immutable launch snapshot."""
     require(isinstance(process, _Process))
     if process.returncode is not None:
         raise ChildProcessError("typed original-brand child ownership lost")
     parent = _process_integer(os.getpid(), 2, 2147483647)
     pid = _process_integer(process.pid, 2, 2147483647)
     path = Path(__file__).with_name("_pdf_typed_original_brand_qa_worker.py")
-    require(pid != parent and type(process.args) is list and process.args == command
-            and type(command) is list and len(command) == 7
-            and command[:4] == [sys.executable, "-I", "-B", str(path)]
+    require(pid != parent and type(process.args) is list and tuple(process.args) == command
+            and type(command) is tuple and len(command) == 7
+            and command[:4] == (sys.executable, "-I", "-B", str(path))
             and command[-1] == str(parent))
     _observe_owned(process)
     require(os.getpgid(pid) == pid)
@@ -588,6 +588,7 @@ def _run_worker(pdf: bytes, digest: str, *, observe_processes=False):
         command = [sys.executable, "-I", "-B",
                    str(Path(__file__).with_name("_pdf_typed_original_brand_qa_worker.py")),
                    str(fds[0]), str(fds[1]), str(os.getpid())]
+        observed_command = tuple(command) if observe_processes else None
         started = monotonic_ns() if observe_processes else None
         process = subprocess.Popen(
             command, cwd=ROOT,
@@ -597,7 +598,8 @@ def _run_worker(pdf: bytes, digest: str, *, observe_processes=False):
             close_fds=True, pass_fds=fds, start_new_session=True)
         if observe_processes:
             try:
-                observation = _observe_qa_spawn(process, command, started)
+                require(tuple(command) == observed_command)
+                observation = _observe_qa_spawn(process, observed_command, started)
                 require(os.pread(fds[0], len(header), 0) == header)
                 observation["request_header_sha256"] = sha256(header).hexdigest()
             except ChildProcessError:
@@ -616,7 +618,8 @@ def _run_worker(pdf: bytes, digest: str, *, observe_processes=False):
             ended = _process_integer(monotonic_ns())
             require(type(code) is int and code == 0 and type(process.returncode) is int
                     and process.returncode == code and process.pid == observation["pid"]
-                    and process.args == command and os.getpid() == observation["parent_pid"]
+                    and type(process.args) is list and tuple(process.args) == observed_command
+                    and tuple(command) == observed_command and os.getpid() == observation["parent_pid"]
                     and ended >= observation["spawn_monotonic_ns"])
             observation.update(exit_code=code, exit_monotonic_ns=ended)
         require(code == 0 and 0 < os.fstat(fds[1]).st_size <= prior.RESULT_BYTES)

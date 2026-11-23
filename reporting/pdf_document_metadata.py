@@ -19,7 +19,9 @@ import tempfile
 from time import monotonic_ns
 
 from reporting._pdf_document_byte_budget import require_pdf_document_budget
-from reporting._pdf_native_launch_budget import require_no_active_scope
+from reporting._pdf_native_launch_budget import (
+    require_no_active_scope, reserve_standalone_typed_render,
+)
 from reporting._pdf_process_lifecycle import (
     _observe as _observe_owned, wait_owned_process_group as _cleanup_owned,
 )
@@ -29,7 +31,9 @@ from reporting._pdf_document_metadata_worker import (
     PROTOCOL_VERSION, RESULT_BYTES, STATUS, _is_digest, _validate_identity,
 )
 from reporting.page_windows import PageWindowPlan
-from reporting.pdf_object_graph import _canonical, _start, _unique_pairs, _wait
+from reporting.pdf_object_graph import (
+    WALL_SECONDS as _WALL_SECONDS, _canonical, _start, _unique_pairs, _wait,
+)
 
 _LIMITS = {"memory_bytes": MEMORY_BYTES, "cpu_seconds": CPU_SECONDS,
            "file_bytes": RESULT_BYTES, "open_files": OPEN_FILES}
@@ -173,8 +177,8 @@ def _validate_process_observation(value: object, receipt: PdfDocumentMetadataIns
     return snapshot
 
 
-def _observe_metadata_spawn(process, command: list[str], started: int) -> dict:
-    """Observe the creator-owned unreaped fixed child before the original wait."""
+def _observe_metadata_spawn(process, command: tuple[str, ...], started: int) -> dict:
+    """Compare the owned unreaped child with its immutable launch snapshot."""
     if not isinstance(process, _Process):
         raise ValueError("actual metadata process required")
     if process.returncode is not None:
@@ -182,9 +186,9 @@ def _observe_metadata_spawn(process, command: list[str], started: int) -> dict:
     parent = _process_integer(os.getpid(), 2, 2147483647)
     pid = _process_integer(process.pid, 2, 2147483647)
     worker = Path(__file__).resolve().with_name("_pdf_document_metadata_worker.py")
-    if (pid == parent or type(process.args) is not list or process.args != command
-            or type(command) is not list or len(command) != 6
-            or command[:3] != [sys.executable, "-I", str(worker)]
+    if (pid == parent or type(process.args) is not list or tuple(process.args) != command
+            or type(command) is not tuple or len(command) != 6
+            or command[:3] != (sys.executable, "-I", str(worker))
             or command[-1] != str(parent)):
         raise ValueError("metadata process launch identity")
     _observe_owned(process)
@@ -197,7 +201,7 @@ def _observe_metadata_spawn(process, command: list[str], started: int) -> dict:
 
 
 def _run_worker(pdf: bytes, identity: dict, *, observe_processes=False):
-    """Use the unchanged launch/wait boundary; optionally observe its actual child."""
+    """Keep default launch/wait behavior and reserve observed custody through reap."""
     if type(observe_processes) is not bool:
         raise ValueError("metadata process observation flag")
     with tempfile.TemporaryFile() as source, tempfile.TemporaryFile() as result:
@@ -212,34 +216,44 @@ def _run_worker(pdf: bytes, identity: dict, *, observe_processes=False):
         command = [sys.executable, "-I",
             str(Path(__file__).resolve().with_name("_pdf_document_metadata_worker.py")),
             str(fds[0]), str(fds[1]), str(os.getpid())]
-        started = monotonic_ns() if observe_processes else None
-        process = _start(command, fds)
         if observe_processes:
-            try:
-                observation = _observe_metadata_spawn(process, command, started)
-                if os.pread(fds[0], len(header), 0) != header:
-                    raise ValueError("metadata process request changed")
-                observation.update(request_header_sha256=hashlib.sha256(header).hexdigest(),
-                                   identity=dict(identity))
-            except ChildProcessError:
-                # A lost waitable identity never grants a later numeric PID retry.
-                raise
-            except BaseException as failure:
-                if isinstance(process, _Process):
-                    try:
-                        _cleanup_owned(process, wall_seconds=0)
-                    except BaseException as cleanup:
-                        raise failure from cleanup
-                raise
-        code = _wait(process)
-        if observe_processes:
-            ended = _process_integer(monotonic_ns())
-            if (type(code) is not int or code != 0 or type(process.returncode) is not int
-                    or process.returncode != code or process.pid != observation["pid"]
-                    or process.args != command or os.getpid() != observation["parent_pid"]
-                    or ended < observation["spawn_monotonic_ns"]):
-                raise ValueError("metadata process final identity")
-            observation.update(exit_code=code, exit_monotonic_ns=ended)
+            observed_command = tuple(command)
+            with reserve_standalone_typed_render() as ticket:
+                started = monotonic_ns()
+                ticket.arm()
+                process = _start(command, fds)
+                try:
+                    if tuple(command) != observed_command:
+                        raise ValueError("metadata process launch changed")
+                    observation = _observe_metadata_spawn(process, observed_command, started)
+                    if os.pread(fds[0], len(header), 0) != header:
+                        raise ValueError("metadata process request changed")
+                    observation.update(request_header_sha256=hashlib.sha256(header).hexdigest(),
+                                       identity=dict(identity))
+                except ChildProcessError:
+                    # Lost custody stays quarantined and never grants a numeric PID retry.
+                    raise
+                except BaseException as failure:
+                    if isinstance(process, _Process):
+                        try:
+                            _cleanup_owned(process, wall_seconds=0, cleanup_observer=ticket.settle)
+                        except BaseException as cleanup:
+                            raise failure from cleanup
+                    raise
+                code = _cleanup_owned(
+                    process, wall_seconds=_WALL_SECONDS, cleanup_observer=ticket.settle)
+                ended = _process_integer(monotonic_ns())
+                if (ticket.phase != "settled" or type(code) is not int or code != 0
+                        or type(process.returncode) is not int or process.returncode != code
+                        or process.pid != observation["pid"] or type(process.args) is not list
+                        or tuple(process.args) != observed_command or tuple(command) != observed_command
+                        or os.getpid() != observation["parent_pid"]
+                        or ended < observation["spawn_monotonic_ns"]):
+                    raise ValueError("metadata process final identity")
+                observation.update(exit_code=code, exit_monotonic_ns=ended)
+        else:
+            process = _start(command, fds)
+            code = _wait(process)
         if code != 0 or not 0 < os.fstat(result.fileno()).st_size <= RESULT_BYTES:
             raise ValueError("metadata worker failed")
         result.seek(0)

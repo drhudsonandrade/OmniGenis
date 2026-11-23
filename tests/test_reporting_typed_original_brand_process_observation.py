@@ -5,9 +5,11 @@ from copy import deepcopy
 from hashlib import sha256
 import os
 from pathlib import Path
+import subprocess
 import unittest
 from unittest.mock import patch
 
+from reporting import _pdf_native_launch_budget as launch_budget
 from reporting import pdf_document_metadata as metadata
 from reporting import typed_original_brand_qa as qa
 from reporting.brand_assets import BoundBrandAssets
@@ -227,6 +229,125 @@ class TypedOriginalBrandProcessObservationTests(unittest.TestCase):
             with self.subTest(case=mode):
                 self.reject_bundle(changed)
 
+    def test_observed_worker_command_mutation_is_refused_after_actual_reap(self):
+        metadata_wait, metadata_cleanup = metadata._wait, metadata._cleanup_owned
+        qa_wait = qa.wait_owned_process_group
+        for route, argument_count in (("metadata", 6), ("qa", 7)):
+            for index in range(argument_count):
+                with self.subTest(route=route, argument=index):
+                    reaped = []
+
+                    def mutate_after_reap(waiter):
+                        def changed_wait(process, *args, **kwargs):
+                            code = waiter(process, *args, **kwargs)
+                            self.assert_reaped(process)
+                            reaped.append(process)
+                            self.assertIs(type(process.args), list)
+                            self.assertIs(type(process.args[index]), str)
+                            process.args[index] += "-changed-after-reap"
+                            return code
+                        return changed_wait
+
+                    with (
+                        patch.object(metadata, "_wait",
+                                     side_effect=mutate_after_reap(metadata_wait)),
+                        patch.object(metadata, "_cleanup_owned",
+                                     side_effect=mutate_after_reap(metadata_cleanup)),
+                        patch.object(qa, "wait_owned_process_group",
+                                     side_effect=mutate_after_reap(qa_wait)),
+                    ):
+                        with self.assertRaises(ValueError):
+                            if route == "metadata":
+                                metadata._run_worker(
+                                    self.pdf, self.metadata_receipt._identity(),
+                                    observe_processes=True)
+                            else:
+                                qa._run_worker(
+                                    self.pdf, sha256(self.pdf).hexdigest(),
+                                    observe_processes=True)
+                    self.assertEqual(len(reaped), 1)
+                    self.assert_reaped(reaped[0])
+
+    def test_observed_metadata_excludes_native_scope_until_actual_reap(self):
+        self.assertIsNone(launch_budget._ACTIVE)
+        self.assertIsNone(launch_budget._TYPED_RENDER)
+        text_plan = plan_pdf_page_windows(
+            pdf_sha256=self.plan.pdf_sha256, ir_sha256=self.plan.ir_sha256,
+            page_count=self.plan.page_count, admitted_page_budget=self.plan.page_count,
+            pages_per_window=launch_budget.TEXT_WIDTH,
+            inspector_profile_id=launch_budget.TEXT_PROFILE)
+        actual_observe = metadata._observe_metadata_spawn
+        actual_cleanup = metadata._cleanup_owned
+        captured, held_scopes, admitted, refused, settled = [], [], [], [], []
+
+        def scope_probe(label):
+            scope = launch_budget.NativeLaunchScope(
+                text_plan, len(self.pdf), observe_processes=True)
+            try:
+                scope.__enter__()
+            except ValueError as error:
+                refused.append((label, str(error)))
+            else:
+                # The RED route deliberately keeps this scope active until finally.
+                held_scopes.append(scope)
+                admitted.append(label)
+
+        def observe_with_probe(process, command, started):
+            captured.append(process)
+            observation = actual_observe(process, command, started)
+            scope_probe("after_spawn")
+            return observation
+
+        def wait_with_reap_probe(process, **kwargs):
+            observer = kwargs.get("cleanup_observer")
+            if observer is not None:
+                def observe_cleanup(status):
+                    self.assert_reaped(process)
+                    scope_probe("before_settle")
+                    observer(status)
+                    settled.append(status)
+                    scope_probe("after_settle")
+                kwargs["cleanup_observer"] = observe_cleanup
+            return actual_cleanup(process, **kwargs)
+
+        failure, result = None, None
+        try:
+            with (
+                patch.object(metadata, "_observe_metadata_spawn", side_effect=observe_with_probe),
+                patch.object(metadata, "_cleanup_owned", side_effect=wait_with_reap_probe),
+            ):
+                try:
+                    result = metadata.inspect_observed_pdf_document_metadata(**self.metadata_args())
+                except metadata.PdfDocumentMetadataError as error:
+                    failure = error
+        finally:
+            # Closing the injected RED scope cannot substitute for owning/reaping its child.
+            for scope in reversed(held_scopes):
+                scope.close()
+            for process in captured:
+                if process.returncode is None:
+                    try:
+                        actual_cleanup(process, wall_seconds=0)
+                    except subprocess.TimeoutExpired:
+                        pass
+                self.assert_reaped(process)
+        self.assertEqual(admitted, [], "standalone metadata admitted a competing native scope")
+        self.assertIsNone(failure)
+        self.assertEqual(len(captured), 1)
+        self.assertEqual(refused, [
+            ("after_spawn", "typed render custody active"),
+            ("before_settle", "typed render custody active"),
+            ("after_settle", "typed render custody active"),
+        ])
+        self.assertEqual(settled, [0])
+        self.assertEqual(result[0].to_dict(), self.metadata_receipt.to_dict())
+        self.assertIsNone(launch_budget._TYPED_RENDER)
+        with launch_budget.NativeLaunchScope(
+            text_plan, len(self.pdf), observe_processes=True,
+        ) as fresh:
+            self.assertIs(launch_budget._ACTIVE, fresh)
+        self.assertIsNone(launch_budget._ACTIVE)
+
     def test_observed_standalone_guards_preserve_default_metadata_admission(self):
         identity = self.metadata_receipt._identity()
         raw = metadata._canonical({
@@ -274,19 +395,22 @@ class TypedOriginalBrandProcessObservationTests(unittest.TestCase):
         with (
             patch.object(qa, "_run_worker", return_value=native),
             patch.object(qa, "inspect_observed_pdf_document_metadata",
-                         side_effect=metadata.PdfDocumentMetadataError("refused")),
+                         side_effect=metadata.PdfDocumentMetadataError("refused")) as inspector,
             patch.object(qa, "inspect_process_observed_pdf_raster_window") as raster,
         ):
             with self.assertRaises(qa.TypedOriginalBrandQAError):
                 qa.validate_observed_typed_original_brand_candidate(**self.args())
+            inspector.assert_called_once()
             raster.assert_not_called()
         with (
             patch.object(qa, "_run_worker", return_value=native),
             patch.object(qa, "inspect_observed_pdf_document_metadata", return_value=metadata_result),
-            patch.object(qa, "inspect_process_observed_pdf_raster_window", side_effect=ValueError("refused")),
+            patch.object(qa, "inspect_process_observed_pdf_raster_window",
+                         side_effect=ValueError("refused")) as raster,
         ):
             with self.assertRaises(qa.TypedOriginalBrandQAError):
                 qa.validate_observed_typed_original_brand_candidate(**self.args())
+            raster.assert_called_once()
         original_prepare = qa.prepare_typed_original_brand_pdf
         calls = []
 
@@ -332,9 +456,14 @@ class TypedOriginalBrandProcessObservationTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "synthetic registration refusal"):
                 metadata._run_worker(self.pdf, self.metadata_receipt._identity(), observe_processes=True)
             self.assertEqual(cleanup.call_count, 1)
-            self.assertEqual(cleanup.call_args.kwargs, {"wall_seconds": 0})
+            self.assertEqual(set(cleanup.call_args.kwargs), {"wall_seconds", "cleanup_observer"})
+            self.assertEqual(cleanup.call_args.kwargs["wall_seconds"], 0)
+            observer = cleanup.call_args.kwargs["cleanup_observer"]
+            self.assertTrue(callable(observer))
+            self.assertEqual(observer.__self__.phase, "settled")
             waiter.assert_not_called()
         self.assert_reaped(captured.pop())
+        self.assertIsNone(launch_budget._TYPED_RENDER)
 
     def test_lost_waitable_identity_never_retries_numeric_cleanup(self):
         captured = []
@@ -359,7 +488,9 @@ class TypedOriginalBrandProcessObservationTests(unittest.TestCase):
                 qa._run_worker(self.pdf, sha256(self.pdf).hexdigest(), observe_processes=True)
             waiter.assert_not_called()
         self.assert_reaped(captured.pop())
+        self.assertIsNone(launch_budget._TYPED_RENDER)
         with (
+            patch.object(launch_budget, "_TYPED_RENDER", None),
             patch.object(metadata, "_observe_metadata_spawn", side_effect=metadata_reaped_elsewhere),
             patch.object(metadata, "_cleanup_owned") as cleanup,
             patch.object(metadata, "_wait") as waiter,
@@ -368,7 +499,13 @@ class TypedOriginalBrandProcessObservationTests(unittest.TestCase):
                 metadata._run_worker(self.pdf, self.metadata_receipt._identity(), observe_processes=True)
             cleanup.assert_not_called()
             waiter.assert_not_called()
+            self.assertIsNotNone(launch_budget._TYPED_RENDER)
+            self.assertEqual(launch_budget._TYPED_RENDER.phase, "quarantined")
+            with self.assertRaisesRegex(ValueError, "typed render unavailable"):
+                with launch_budget.reserve_standalone_typed_render():
+                    self.fail("quarantined custody was released")
         self.assert_reaped(captured.pop())
+        self.assertIsNone(launch_budget._TYPED_RENDER)
 
     def test_observed_clock_regression_refuses_after_actual_final_reap(self):
         captured = []

@@ -123,7 +123,7 @@
     "reporting/pdf_cid_widths.py": "bcdd1d9491f75f51a69c060f0675d41ea11120dae31bf9334cfbfe1308196e0c",
     "reporting/pdf_content.py": "694040deb3dfe24b9c56d93b0161dd4366e3a0e33d4ca5f2eb50c228db4e5b1b",
     "reporting/pdf_document_content.py": "03519955c8a64bdd5c0607782a8e74c129b5767dbe6771119fadd1beb2ebe2d9",
-    "reporting/pdf_document_metadata.py": "12a10c9a8018d000283e2f34217083d9cfe5115a2845c91fc3b6de39c6670694",
+    "reporting/pdf_document_metadata.py": "4e2c65f6422fbf0bf57e9d4ea4826d889813f94cfedc067f7e1f6f3d6e823b37",
     "reporting/pdf_final_document_candidate.py": "306e22db07154d65f67aa16faa2a1366d917fae7fdf032fed8d7821c09695e6b",
     "reporting/pdf_font_descriptor.py": "6fff28a9ce2c32fb5eef5e6baea11d8094d093dbc689eb231300c1781372053e",
     "reporting/pdf_font_selection.py": "5c5771d1d6b86aa1695e5d6f3abc42f8d7599deb5dd9f65215488e1e705be034",

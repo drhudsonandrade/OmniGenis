@@ -52,7 +52,7 @@
     "reporting/_pdf_process_lifecycle.py": "e3da8ad54736b891ff2c2eb1c9a65e384114307e775da49b42518c07768f7b2f",
     "reporting/page_checkpoints.py": "4aebcc9b2ae76d734189d286b4fcc17366ab21b2ce85d5210c094dd32995a51f",
     "reporting/page_windows.py": "c8d6cb86f7876f7c02f878ecead5b93b09ee1024d68f7e68d020bdc62c843833",
-    "reporting/pdf_document_metadata.py": "12a10c9a8018d000283e2f34217083d9cfe5115a2845c91fc3b6de39c6670694",
+    "reporting/pdf_document_metadata.py": "4e2c65f6422fbf0bf57e9d4ea4826d889813f94cfedc067f7e1f6f3d6e823b37",
     "reporting/pdf_inspection_bundle.py": "03d636617653e940cfdcad4951b867d1cadd258bd0bd00cd8c56f4d4a22c0c51",
     "reporting/pdf_inspection_set.py": "1f5c86e09cf2b492e80a96676f602682c896b309ca8a7996c706c09c7c8a703d",
     "reporting/pdf_mcid_coverage.py": "f34df042f6d904c0183b0ce4cc70eb89004e862ac49fe18d0253478ba732e107",
