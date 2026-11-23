@@ -10,6 +10,9 @@ reviews:
   auto_review:
     enabled: false
     drafts: false
+    labels:
+      - "review-ready"
     auto_incremental_review: false
 chat:
   auto_reply: false
+  allow_non_org_members: false
