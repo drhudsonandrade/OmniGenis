@@ -14,6 +14,9 @@
       the PR was a draft, remove it while still draft, mark the PR ready, then
       add the label once.
       Contributors without label permission must ask a maintainer to apply it.
+- [ ] If the label-triggered review is rate limited, post
+      `@coderabbitai rate limit`, wait for the included slot shown by the bot,
+      then post `@coderabbitai review` once. Do not add the label again.
 - [ ] Wait for the CodeRabbit check to finish before requesting owner approval.
 
 Do not use a full review, GitHub's **Re-request review** button, usage credits,
