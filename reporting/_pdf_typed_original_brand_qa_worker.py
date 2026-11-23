@@ -1,7 +1,9 @@
 """Confined complete native accounting for the separate typed/original-brand QA."""
 from __future__ import annotations
 
-from decimal import Decimal
+from contextlib import contextmanager
+from decimal import Decimal, Inexact, localcontext
+from fractions import Fraction
 from hashlib import sha256
 from importlib.metadata import version
 from io import BytesIO
@@ -9,6 +11,7 @@ import logging
 import os
 from pathlib import Path
 import re
+import signal
 import stat
 import sys
 import xml.etree.ElementTree as ET
@@ -23,12 +26,41 @@ from reporting import _pdf_typed_observation_worker as native
 from reporting import _pdf_safety_worker as passive
 from reporting._pdf_original_svg_layout_worker import _inspect_figure
 from reporting._pdf_resource_leaves_worker import _lab_presets
-from reporting._pdf_object_graph_worker import _lifetime
 from reporting._pdf_process_sandbox import enforce_pdf_landlock, enforce_pdf_network_filter
-from reporting._pdf_render_worker import _write_bytes
+from reporting._pdf_render_worker import _arm_worker_lifetime, _write_bytes
 
 require = qa.require
 IDENTITY = tuple(map(Decimal, ("1", "0", "0", "1", "0", "0")))
+
+
+def _limits() -> dict:
+    """Install the combined QA profile's finite process limits before input."""
+    import resource
+
+    values = (
+        (resource.RLIMIT_AS, qa.LIMITS["memory_bytes"]),
+        (resource.RLIMIT_CPU, qa.LIMITS["cpu_seconds"]),
+        (resource.RLIMIT_FSIZE, qa.LIMITS["file_bytes"]),
+        (resource.RLIMIT_NOFILE, qa.LIMITS["open_files"]),
+        (resource.RLIMIT_CORE, 0),
+    )
+    for key, value in values:
+        resource.setrlimit(key, (value, value))
+    require(all(resource.getrlimit(key) == (value, value) for key, value in values))
+    limits = {
+        "memory_bytes": resource.getrlimit(resource.RLIMIT_AS)[0],
+        "cpu_seconds": resource.getrlimit(resource.RLIMIT_CPU)[0],
+        "file_bytes": resource.getrlimit(resource.RLIMIT_FSIZE)[0],
+        "open_files": resource.getrlimit(resource.RLIMIT_NOFILE)[0],
+    }
+    require(limits == qa.LIMITS)
+    return limits
+
+
+def _lifetime(parent: int) -> None:
+    """Retain parent-death binding and the combined QA profile's fixed timer."""
+    _arm_worker_lifetime(parent)
+    signal.setitimer(signal.ITIMER_REAL, qa.WALL_SECONDS)
 
 
 def _identifier(value):
@@ -126,7 +158,7 @@ def _structure(reader, pages):
                 and type(obj.raw_get("/S")) is NameObject
                 and native._ref(obj.raw_get("/P"), reader) == native._ref(parent_ref, reader))
         role = str(obj.raw_get("/S"))
-        require(role in set(contract.ROLES) | {"/Div", "/Sect", "/Figure"})
+        require(role in set(contract.ROLES) | {"/Div", "/Sect", "/Figure", "/NonStruct"})
         form, children = kids(obj.raw_get("/K"))
         visits += 1 + len(children)
         require(visits <= contract.MAX_VISITS)
@@ -353,18 +385,21 @@ def _form(ref, reader, fonts, forms):
     require([op for _, op in ops] == [b"cm", b"cm", b"Do"])
     first = tuple(map(Decimal, _numbers(ops[0][0], 6)))
     second = tuple(map(Decimal, _numbers(ops[1][0], 6)))
+    # Fixed 753.88976 pt cover panel serialized in CSS px by the qualified renderer.
+    dna_height = Decimal("1005.186347")
     require(first[:4] == (1, 0, 0, 1) and all(abs(x) <= 1600 for x in first[4:])
             and second[1:3] == (0, 0) and second[4] == 0
-            and second[3] == -530 and second[5] == 530
-            and abs(second[0] - Decimal(530 * 324) / Decimal(1154)) <= Decimal("0.000001")
+            and second[3] == -dna_height and second[5] == dna_height
+            and abs(second[0] - dna_height * Decimal(324) / Decimal(1154)) <= Decimal("0.000001")
             and len(ops[2][0]) == 1 and type(ops[2][0][0]) is NameObject
             and ops[2][0][0] == image_name)
-    image_bounds = _rectangle((Decimal(0), Decimal(0), Decimal(1), Decimal(1)),
-                              _ctm(second, _ctm(first, IDENTITY)))
-    form_bounds = _rectangle((coordinates[0], coordinates[1],
-                              coordinates[2] - coordinates[0],
-                              coordinates[3] - coordinates[1]), IDENTITY)
-    require(_contains(form_bounds, image_bounds))
+    with _exact_geometry():
+        image_bounds = _rectangle((Decimal(0), Decimal(0), Decimal(1), Decimal(1)),
+                                  _ctm(second, _ctm(first, IDENTITY)))
+        form_bounds = _rectangle((coordinates[0], coordinates[1],
+                                  coordinates[2] - coordinates[0],
+                                  coordinates[3] - coordinates[1]), IDENTITY)
+        require(_contains(form_bounds, image_bounds))
     forms[key] = {"image": native._ref(image_ref, reader), "sha256": sha256(data).hexdigest(),
                   "image_bounds": image_bounds}
 
@@ -428,13 +463,16 @@ def _rectangle(values, matrix):
 
 def _contains(outer, inner):
     """Containment only for the admitted affine rectangle; no general path clipping."""
+    outer = tuple((Fraction(x), Fraction(y)) for x, y in outer)
+    inner = tuple((Fraction(x), Fraction(y)) for x, y in inner)
     def side(first, second, point):
         return ((second[0] - first[0]) * (point[1] - first[1])
                 - (second[1] - first[1]) * (point[0] - first[0]))
     direction = side(outer[0], outer[1], outer[2])
     return direction != 0 and all(
-        side(outer[i], outer[(i + 1) % 4], point) * direction >= 0
-        for point in inner for i in range(4))
+        value >= 0 if direction > 0 else value <= 0
+        for point in inner for i in range(4)
+        for value in (side(outer[i], outer[(i + 1) % 4], point),))
 
 
 def _effective_crop_box(page, reader):
@@ -454,42 +492,278 @@ def _effective_crop_box(page, reader):
     require(False)
 
 
-def _paint_geometry(operations, page, reader, forms, xobjects, figure_points):
-    """Require original brand paints inside the existing known rectangle clips."""
-    from pypdf.generic import ArrayObject
+@contextmanager
+def _exact_geometry():
+    with localcontext() as arithmetic:
+        arithmetic.traps[Inexact] = True
+        try:
+            yield
+        except Inexact:
+            require(False)
+
+
+@_exact_geometry()
+def _footer_declared_geometry(block, resources, reader, ctm, media):
+    """Bind declared PDF advances and typographic boxes, not glyph contours or ink.
+
+    The existing Type0/Identity-H font admission supplies bounded explicit /W
+    runs. Ascent/descent and widths are PDF declarations: this does not decode
+    FontFile2, authenticate outlines, or establish actual painted-ink bounds.
+    """
+    from pypdf.generic import ByteStringObject, NumberObject
+
+    require([op.decode("ascii") for _, op in block] == list(qa.PAGINATION_OPERATORS))
+    matrix = tuple(map(Decimal, _numbers(block[3][0], 6)))
+    font_name, size_value = block[4][0]
+    size = Decimal(native._number(size_value))
+    effective = _ctm(matrix, ctm)
+    # WeasyPrint's PDF scale is 72/96; draw_text reverses the CSS text y-axis.
+    scale, half_decimal = Decimal("0.75"), Decimal("0.0000005")
+    require(effective[:4] == (scale, Decimal(0), Decimal(0), scale))
+    # Existing 8.6pt footer -> integer Pango units -> pydyf's six decimal places.
+    exact_size = Decimal((86 * 4 * 1024) // 30) / 1024
+    with localcontext() as serialization:
+        serialization.traps[Inexact] = False
+        serialized_size = exact_size.quantize(Decimal("0.000001"))
+    require(size == serialized_size)
+    font_map = native._dictionary(resources.raw_get("/Font"), reader)
+    require(font_name in font_map)
+    font = native._dictionary(font_map.raw_get(font_name), reader)
+    cid = native._dictionary(font.raw_get("/DescendantFonts")[0], reader)
+    descriptor = native._dictionary(cid.raw_get("/FontDescriptor"), reader)
+    ascent = Decimal(native._number(descriptor.raw_get("/Ascent")))
+    descent = Decimal(native._number(descriptor.raw_get("/Descent")))
+    require(descent < 0 < ascent)
+    widths = {}
+    declared = cid.raw_get("/W")
+    # native._font already checked the ascending, disjoint 4096-value envelope.
+    for offset in range(0, len(declared), 2):
+        first = int(declared[offset])
+        for index, value in enumerate(declared[offset + 1]):
+            require(type(value) is NumberObject)
+            widths[first + index] = int(value)
+    pen, glyphs, points, maximum_extent = 0, 0, [], 0
+    previous_origin = None
+    shown = block[5][0][0]
+    for item in shown:
+        if type(item) is NumberObject:
+            pen -= int(item)
+            continue
+        require(type(item) is ByteStringObject)
+        data = bytes(item)
+        require(0 < len(data) and len(data) % 2 == 0)
+        for offset in range(0, len(data), 2):
+            glyphs += 1
+            require(glyphs <= 64)
+            code = int.from_bytes(data[offset:offset + 2], "big")
+            require(code in widths)
+            # Kerning may tighten spacing, but fixed ASCII footer origins must
+            # advance even when later TJ adjustments restore the final pen.
+            require(previous_origin is None or pen > previous_origin)
+            previous_origin = pen
+            width = widths[code]
+            points.extend(_rectangle(
+                (pen * size / 1000, descent * size / 1000,
+                 width * size / 1000, (ascent - descent) * size / 1000), effective))
+            maximum_extent = max(maximum_extent, abs(pen), abs(pen + width))
+            pen += width
+    require(glyphs > 0 and pen > 0)
+    maximum_extent = max(maximum_extent, abs(pen))
+    margin = Decimal(44)
+    left, bottom, right, top = media
+    require(right - left > 2 * margin and top - bottom > margin)
+    unit = scale * exact_size
+    # Bound emitted cells and the final pen to this fixed content strip.
+    # Undrawn, exactly cancelling TJ adjustments do not enlarge the extent.
+    require(maximum_extent * unit
+            <= 1000 * (right - left - 2 * margin) + (glyphs + 1) * unit)
+    x0, y0 = min(p[0] for p in points), min(p[1] for p in points)
+    x1, y1 = max(p[0] for p in points), max(p[1] for p in points)
+    bounds = _rectangle((x0, y0, x1 - x0, y1 - y0), IDENTITY)
+    # draw/text.py rounds /W and truncates each TJ kerning to an integer.
+    # One unit per glyph bounds truncation; one more bounds the final rounded
+    # logical edge. Add the exact Tf serialization error and half a serialized
+    # decimal unit for Tm and the page edge. This is a data-derived bound, not
+    # an arbitrary coordinate tolerance; it never relaxes physical clipping.
+    allowance = (scale * (
+        exact_size * (glyphs + 1) / 1000
+        + abs(exact_size - size) * maximum_extent / 1000 + half_decimal)
+        + half_decimal)
+    target_right = right - margin
+    require(left + margin - (glyphs + 1) * unit / 1000 - allowance
+            <= effective[4] <= target_right + allowance)
+    advance = _point((pen * size / 1000, Decimal(0)), effective)
+    advance_right = advance[0]
+    require(abs(advance_right - target_right) <= allowance
+            and abs(x1 - target_right) <= allowance)
+    region = _rectangle((left + margin, bottom,
+                         right - left - 2 * margin + allowance, margin), IDENTITY)
+    require(_contains(region, bounds))
+    # Active clips and page boxes contain the endpoint without an allowance.
+    return (*bounds, advance)
+
+
+@_exact_geometry()
+def _paint_geometry(operations, page, reader, forms, xobjects, figure_points, resources):
+    """Check admitted graphics and keep later paints clear of the footer box."""
+    from pypdf.generic import ArrayObject, ByteStringObject, FloatObject, NumberObject
     ctm, stack, clip = IDENTITY, [], ()
     path, pending_clip = None, False
+    # These are PDF graphics-state defaults; the admitted grammar changes only
+    # w and the logo's M=4. The painted footer is history, not q/Q state.
+    line_width, miter_limit = Decimal(1), Decimal(10)
+    footer_bounds, artifact, vertices = (), False, []
+    tagged_text = False
+    text_matrix = font_name = size = None
+    font_metrics = {}
+
+    def declared_text_points(shown):
+        """Bound declared typographic cells, not font outlines or painted ink."""
+        from decimal import Inexact, getcontext
+
+        require(text_matrix is not None and font_name is not None
+                and size is not None and size > 0)
+        if font_name not in font_metrics:
+            require(len(font_metrics) < contract.MAX_FONTS)
+            font_map = native._dictionary(resources.raw_get("/Font"), reader)
+            require(font_name in font_map)
+            font = native._dictionary(font_map.raw_get(font_name), reader)
+            cid = native._dictionary(font.raw_get("/DescendantFonts")[0], reader)
+            descriptor = native._dictionary(cid.raw_get("/FontDescriptor"), reader)
+            ascent = Decimal(native._number(descriptor.raw_get("/Ascent")))
+            descent = Decimal(native._number(descriptor.raw_get("/Descent")))
+            low, high = sorted((ascent, descent))
+            widths = {}
+            declared = cid.raw_get("/W")
+            # native._font already admitted these explicit, bounded width runs.
+            for offset in range(0, len(declared), 2):
+                first = int(declared[offset])
+                for index, value in enumerate(declared[offset + 1]):
+                    require(type(value) is NumberObject)
+                    widths[first + index] = Decimal(int(value))
+            font_metrics[font_name] = low, high, widths
+
+        low, high, widths = font_metrics[font_name]
+        effective = _ctm(text_matrix, ctm)
+        arithmetic = getcontext().copy()
+        arithmetic.traps[Inexact] = True
+        pen, bounds = Decimal(0), None
+        for item in shown:
+            if type(item) in (NumberObject, FloatObject):
+                try:
+                    pen = arithmetic.subtract(pen, Decimal(native._number(item)))
+                except Inexact:
+                    require(False)
+                continue
+            require(type(item) is ByteStringObject)
+            data = bytes(item)
+            require(len(data) % 2 == 0)
+            for offset in range(0, len(data), 2):
+                code = int.from_bytes(data[offset:offset + 2], "big")
+                require(code in widths)
+                width = widths[code]
+                for x, y in _rectangle(
+                        (pen * size / 1000, low * size / 1000,
+                         width * size / 1000, (high - low) * size / 1000),
+                        effective):
+                    if bounds is None:
+                        bounds = [x, y, x, y]
+                    else:
+                        bounds[0] = min(bounds[0], x)
+                        bounds[1] = min(bounds[1], y)
+                        bounds[2] = max(bounds[2], x)
+                        bounds[3] = max(bounds[3], y)
+                try:
+                    pen = arithmetic.add(pen, width)
+                except Inexact:
+                    require(False)
+        if bounds is None:
+            return ()
+        x0, y0, x1, y1 = bounds
+        return ((x0, y0), (x1, y0), (x1, y1), (x0, y1))
+
+    def clear_footer(points, padding=(Decimal(0), Decimal(0))):
+        if not footer_bounds:
+            return
+        require(bool(points))
+        x0, y0, x1, y1 = footer_bounds
+        px, py = padding
+        # A strict axis gap is a conservative separation proof. Touching,
+        # unknown clipping and empty space inside a paint's AABB do not relax it.
+        require(max(p[0] for p in points) + px < x0
+                or min(p[0] for p in points) - px > x1
+                or max(p[1] for p in points) + py < y0
+                or min(p[1] for p in points) - py > y1)
+
     require("/MediaBox" in page)
     boxes = [page.raw_get("/MediaBox")]
     crop_box = _effective_crop_box(page, reader)
     if crop_box is not None:
         boxes.append(crop_box)
+    media = None
     for box in boxes:
         require(type(box) is ArrayObject and len(box) == 4)
         x0, y0, x1, y1 = (Decimal(native._number(v)) for v in box)
         require(x0 < x1 and y0 < y1)
+        if media is None:
+            media = x0, y0, x1, y1
         clip = (_rectangle((x0, y0, x1 - x0, y1 - y0), IDENTITY), clip)
-    for args, op in operations:
+    for ordinal, (args, op) in enumerate(operations):
         if op == b"q":
             require(len(stack) < contract.MAX_DEPTH)
-            stack.append((ctm, clip))
+            stack.append((ctm, clip, line_width, miter_limit))
         elif op == b"Q":
             require(bool(stack))
-            ctm, clip = stack.pop()
+            ctm, clip, line_width, miter_limit = stack.pop()
         elif op == b"cm":
             ctm = _ctm(tuple(map(Decimal, _numbers(args, 6))), ctm)
+        elif op == b"w":
+            line_width = Decimal(_numbers(args, 1)[0])
+        elif op == b"M":
+            miter_limit = Decimal(_numbers(args, 1)[0])
         elif op == b"re":
             rectangle = _rectangle(tuple(map(Decimal, _numbers(args, 4))), ctm)
             path = rectangle if path is None else False
+            if artifact:
+                vertices.extend(rectangle)
         elif op in {b"m", b"l", b"h"}:
             path = False
+            if artifact and op != b"h":
+                vertices.append(_point(tuple(map(Decimal, _numbers(args, 2))), ctm))
         elif op in {b"W", b"W*"}:
             pending_clip = True
         elif op in {b"n", b"S", b"f", b"f*"}:
             if pending_clip:
                 require(path is not None)
                 clip = None if clip is None or path is False else (path, clip)
-            path, pending_clip = None, False
+            if artifact and op != b"n":
+                padding = Decimal(0), Decimal(0)
+                if op == b"S":
+                    # The admitted straight segments have butt caps and miter
+                    # joins. Bound their width and joins in page space under
+                    # the current affine map; q/Q restores both stroke values.
+                    radius = line_width * miter_limit / 2
+                    a, b, c, d, _, _ = ctm
+                    padding = radius * (abs(a) + abs(c)), radius * (abs(b) + abs(d))
+                clear_footer(vertices, padding)
+            path, pending_clip, vertices = None, False, []
+        elif op == b"BMC":
+            artifact = True
+        elif op == b"EMC":
+            artifact = False
+            tagged_text = False
+        elif op == b"BDC" and args[0] == "/Span":
+            tagged_text = True
+            text_matrix = font_name = size = None
+        elif op == b"Tm" and tagged_text:
+            text_matrix = tuple(map(Decimal, _numbers(args, 6)))
+        elif op == b"Tf" and tagged_text:
+            font_name = args[0]
+            size = Decimal(native._number(args[1]))
+        elif op == b"TJ" and tagged_text and footer_bounds:
+            points = declared_text_points(args[0])
+            if points:
+                clear_footer(points)
         elif op == b"BDC" and args[0] == "/Figure":
             require(_determinant(ctm) != 0 and clip is not None)
             points, declared_box = figure_points[int(args[1].raw_get("/MCID"))]
@@ -500,6 +774,18 @@ def _paint_geometry(operations, page, reader, forms, xobjects, figure_points):
             while inherited:
                 bounds, inherited = inherited
                 require(_contains(bounds, logo))
+            clear_footer(logo)
+        elif op == b"BDC" and args[0] == "/Artifact":
+            require(_determinant(ctm) != 0 and clip is not None
+                    and path is None and not pending_clip)
+            footer = _footer_declared_geometry(
+                operations[ordinal + 1:ordinal + 8], resources, reader, ctm, media)
+            inherited = clip
+            while inherited:
+                bounds, inherited = inherited
+                require(_contains(bounds, footer))
+            footer_bounds = (min(p[0] for p in footer[:4]), min(p[1] for p in footer[:4]),
+                             max(p[0] for p in footer[:4]), max(p[1] for p in footer[:4]))
         elif op == b"Do":
             require(_determinant(ctm) != 0 and clip is not None
                     and path is None and not pending_clip)
@@ -509,6 +795,7 @@ def _paint_geometry(operations, page, reader, forms, xobjects, figure_points):
             while inherited:
                 bounds, inherited = inherited
                 require(_contains(bounds, image))
+            clear_footer(image)
     require(not stack and path is None and not pending_clip)
 
 
@@ -548,8 +835,11 @@ def _logo_source():
                 cursor += 3
         color = path.attrib["fill"]
         require(re.fullmatch(r"#[0-9A-Fa-f]{6}", color) is not None)
-        paint = tuple((Decimal(int(color[i:i+2], 16)) / 255).quantize(Decimal("0.000001"))
-                      for i in (1, 3, 5))
+        # Pinned SVG colors use six-decimal RGB serialization.
+        with localcontext() as serialization:
+            serialization.traps[Inexact] = False
+            paint = tuple((Decimal(int(color[i:i+2], 16)) / 255).quantize(Decimal("0.000001"))
+                          for i in (1, 3, 5))
         group = parents[path]
         require(group in groups)
         rule = path.attrib.get("fill-rule", group.attrib.get("fill-rule", "nonzero"))
@@ -559,6 +849,7 @@ def _logo_source():
     return expected, matrices
 
 
+@_exact_geometry()
 def _figure(operations, states):
     from pypdf.generic import ArrayObject, NameObject, NumberObject
     expected, groups = _logo_source()
@@ -702,6 +993,24 @@ def _op_digest(operations):
                                for args, op in operations])).hexdigest()
 
 
+def _page_labels(reader, count):
+    """Observe the explicit flat decimal labels, never the parser's defaults."""
+    from pypdf.generic import ArrayObject, DictionaryObject, NameObject, NumberObject
+    root = reader.root_object
+    require("/PageLabels" in root)
+    labels = native._dictionary(root.raw_get("/PageLabels"), reader)
+    require(set(labels) == {"/Nums"})
+    values = labels.raw_get("/Nums")
+    require(type(values) is ArrayObject and len(values) == 2
+            and type(values[0]) is NumberObject and int(values[0]) == 0
+            and type(values[1]) is DictionaryObject and set(values[1]) == {"/S", "/St"}
+            and type(values[1].raw_get("/S")) is NameObject and values[1].raw_get("/S") == "/D"
+            and type(values[1].raw_get("/St")) is NumberObject and int(values[1].raw_get("/St")) == 1)
+    actual = reader.page_labels
+    require(actual == [str(i) for i in range(1, count + 1)])
+    return actual
+
+
 def _page(page, obj, resources, reader, fonts, forms, roles, remaining):
     from pypdf.generic import DictionaryObject, IndirectObject, NameObject, NumberObject
     states, xobjects = _resources(resources, reader, fonts, forms, page)
@@ -714,6 +1023,7 @@ def _page(page, obj, resources, reader, fonts, forms, roles, remaining):
     page["original_operator_count"] = len(ops)
     page["projected_operator_ordinals"] = []
     page["graphic_blocks"] = []
+    page["pagination_blocks"] = []
     page["outside_operator_ordinals"] = []
     owners = {m["mcid"]: tuple(m["structure_reference"]) for m in page["mcid_owners"]}
     used, index, outside_depth = set(), 0, 0
@@ -728,13 +1038,22 @@ def _page(page, obj, resources, reader, fonts, forms, roles, remaining):
             kind, mcid = None, None
             if op == b"BDC":
                 require(len(args) == 2 and type(args[0]) is NameObject
-                        and args[0] in {"/Span", "/Figure"}
-                        and type(args[1]) is DictionaryObject and set(args[1]) == {"/MCID"}
-                        and type(args[1].raw_get("/MCID")) is NumberObject)
-                mcid = int(args[1].raw_get("/MCID"))
-                require(mcid in owners and mcid not in used and roles[owners[mcid]] == str(args[0]))
-                used.add(mcid)
-                kind = "text" if args[0] == "/Span" else "figure"
+                        and type(args[1]) is DictionaryObject)
+                if args[0] == "/Artifact":
+                    require(set(args[1]) == {"/Type", "/Subtype"}
+                            and type(args[1].raw_get("/Type")) is NameObject
+                            and args[1].raw_get("/Type") == "/Pagination"
+                            and type(args[1].raw_get("/Subtype")) is NameObject
+                            and args[1].raw_get("/Subtype") == "/Footer"
+                            and not page["pagination_blocks"])
+                    kind = "pagination"
+                else:
+                    require(args[0] in {"/Span", "/Figure"} and set(args[1]) == {"/MCID"}
+                            and type(args[1].raw_get("/MCID")) is NumberObject)
+                    mcid = int(args[1].raw_get("/MCID"))
+                    require(mcid in owners and mcid not in used and roles[owners[mcid]] == str(args[0]))
+                    used.add(mcid)
+                    kind = "text" if args[0] == "/Span" else "figure"
             else:
                 require(len(args) == 1 and type(args[0]) is NameObject and args[0] == "/Artifact")
                 kind = "artifact"
@@ -749,6 +1068,13 @@ def _page(page, obj, resources, reader, fonts, forms, roles, remaining):
                     a, o = ops[original_ordinal]
                     page["events"].append(_text_event(a, o, len(page["events"])))
                     page["projected_operator_ordinals"].append(original_ordinal)
+            elif kind == "pagination":
+                require([o.decode("ascii") for _, o in block] == list(qa.PAGINATION_OPERATORS))
+                events = [_text_event(a, o, ordinal) for ordinal, (a, o) in enumerate(block)]
+                page["pagination_blocks"].append({
+                    "kind": "pagination", "type": "Pagination", "subtype": "Footer",
+                    "first_operator": start, "last_operator": index,
+                    "events": events, "sha256": sha256(qa.canonical(events)).hexdigest()})
             else:
                 if kind == "figure":
                     figure = native._dictionary(IndirectObject(*owners[mcid], reader), reader)
@@ -783,8 +1109,8 @@ def _page(page, obj, resources, reader, fonts, forms, roles, remaining):
         page["outside_operator_ordinals"].append(index)
         index += 1
     require(outside_depth == 0 and not outside_path and not outside_clip
-            and used == set(owners))
-    _paint_geometry(ops, obj, reader, forms, xobjects, figure_points)
+            and used == set(owners) and len(page["pagination_blocks"]) == 1)
+    _paint_geometry(ops, obj, reader, forms, xobjects, figure_points, resources)
     text_page = dict(page)
     text_page["mcid_owners"] = [v for v in page["mcid_owners"] if roles[tuple(v["structure_reference"])] == "/Span"]
     page["runs"] = contract._replay(text_page, fonts)
@@ -805,13 +1131,14 @@ def inspect(pdf, digest, limits):
         require(not reader.is_encrypted)
         pages = native._page_tree(reader)
         contract.require_pdf_document_budget(len(pdf), len(pages))
+        labels = _page_labels(reader, len(pages))
         trace, attributes, figures = _structure(reader, pages)
         _passive(reader, attributes, figures)
         fonts, forms, decoded = {}, {}, 0
         nodes = {tuple(n["reference"]): n for n in trace["nodes"]}
         roles = {key: node["role"] for key, node in nodes.items()}
         document = nodes[tuple(trace["root_children"][0])]
-        dna_page = nodes[tuple(document["children"][-2]["reference"])]["page_reference"]
+        dna_page = nodes[tuple(document["children"][0]["reference"])]["page_reference"]
         for page, (_, obj, resources) in zip(trace["pages"], pages, strict=True):
             _page(page, obj, resources, reader, fonts, forms, roles,
                   contract.MAX_STREAM_BYTES - decoded)
@@ -832,7 +1159,7 @@ def inspect(pdf, digest, limits):
             "schema_version": "1.0.0", "profile_id": qa.PROFILE_ID,
             "profile_sha256": profile, "status": "NATIVE_TYPED_BRAND_ACCOUNTED",
             "pdf_sha256": digest, "pdf_byte_count": len(pdf), "page_count": len(pages),
-            "limits": limits, "trace": trace, "graphics": graphics,
+            "limits": limits, "trace": trace, "graphics": graphics, "page_labels": labels,
         }
         qa._validate_native(result, pdf, profile)
         require(qa.profile_sha256() == profile)
@@ -857,7 +1184,7 @@ def main(argv=None):
         require(all(stat.S_ISREG(v.st_mode) and v.st_nlink == 0 and v.st_uid == os.geteuid() for v in infos)
                 and (infos[0].st_dev, infos[0].st_ino) != (infos[1].st_dev, infos[1].st_ino)
                 and infos[1].st_size == 0)
-        limits = native._limits()
+        limits = _limits()
         _lifetime(parent)
         enforce_pdf_landlock(Path(__file__))
         enforce_pdf_network_filter()
