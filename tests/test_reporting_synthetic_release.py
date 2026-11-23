@@ -292,6 +292,38 @@ def test_authority_record_identifier_rejects_trailing_newline(packet, tmp_path):
         authority(bound, record_id="SYNTHETIC-RECORD\n")
 
 
+def test_direct_constructor_invalid_binding_returns_content_free_refusal(packet):
+    bound = release.bind_synthetic_release(**packet)
+    with pytest.raises(release.SyntheticReleaseError, match="^synthetic_release_binding_refused$"):
+        replace(bound, _binding_bytes=b"{}")
+
+
+@pytest.mark.parametrize("operation", ["publish", "read"])
+def test_requester_subclass_refused_before_any_callback(packet, tmp_path, operation):
+    bound = release.bind_synthetic_release(**packet)
+    context = authority(bound)
+    calls = []
+
+    class RevokingRequester(str):
+        def __eq__(self, other):
+            calls.append(True)
+            context.revoke()
+            return str.__eq__(self, other)
+
+    requester = RevokingRequester(REQUESTER)
+    result = publish(bound, context, tmp_path) if operation == "read" else None
+    before = inventory(tmp_path)
+    with pytest.raises(release.SyntheticReleaseError):
+        if operation == "read":
+            read(result, context, tmp_path, requester_id=requester)
+        else:
+            release.publish_synthetic_release(release=bound, authority=context,
+                directory=tmp_path, requester_id=requester)
+    assert calls == []
+    assert context._revoked is False
+    assert inventory(tmp_path) == before
+
+
 def test_revocation_blocks_publication_and_later_access(packet, tmp_path):
     bound = release.bind_synthetic_release(**packet)
     revoked = authority(bound)
@@ -440,9 +472,14 @@ def test_actual_process_interruption_has_exact_recovery_boundary(packet, tmp_pat
 
     process = multiprocessing.get_context("fork").Process(target=child)
     process.start()
-    process.join(10)
-    assert not process.is_alive()
-    assert process.exitcode == 23
+    try:
+        process.join(10)
+        assert not process.is_alive(), "synthetic publisher exceeded the test deadline"
+        assert process.exitcode == 23
+    finally:
+        if process.is_alive():
+            process.kill()
+            process.join(5)
     before = inventory(tmp_path)
     if phase == "before_install":
         attempted = tmp_path / packet["artifact_id"]
@@ -473,7 +510,7 @@ def test_concurrent_conflicting_publications_never_overwrite(packet, tmp_path):
         except release.SyntheticReleaseError:
             failures.append(True)
 
-    threads = [Thread(target=worker, args=(value, context))
+    threads = [Thread(target=worker, args=(value, context), daemon=True)
                for value, context in zip([first, second], contexts)]
     for thread in threads:
         thread.start()

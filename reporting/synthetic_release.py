@@ -323,7 +323,10 @@ class BoundSyntheticRelease:
     _parent_manifest_bytes: bytes | None = field(default=None, repr=False)
 
     def __post_init__(self):
-        self._validate()
+        try:
+            self._validate()
+        except Exception:
+            raise SyntheticReleaseError("synthetic_release_binding_refused") from None
 
     def _validate(self):
         binding = _loads(self._binding_bytes, 131072)
@@ -510,7 +513,8 @@ def publish_synthetic_release(*, release, directory, authority, requester_id):
     """Commit one synthetic artifact under a live, exact, synthetic grant."""
     try:
         _policy()
-        _require(type(release) is BoundSyntheticRelease and type(authority) is SyntheticAuthorityContext)
+        _require(type(release) is BoundSyntheticRelease and type(authority) is SyntheticAuthorityContext
+                 and type(requester_id) is str)
         with authority._lock:
             binding = release._validate()
             grant = authority._check(binding, "publish", requester_id)
@@ -551,7 +555,7 @@ def read_synthetic_release(*, directory, artifact_id, expected_manifest_sha256, 
     """Read exact committed bytes under a currently live synthetic access grant."""
     try:
         _policy()
-        _require(type(authority) is SyntheticAuthorityContext)
+        _require(type(authority) is SyntheticAuthorityContext and type(requester_id) is str)
         with authority._lock:
             _require(not authority._revoked and sha256(authority._record).hexdigest() == authority._pin)
             grant = _loads(authority._record, 8192)
