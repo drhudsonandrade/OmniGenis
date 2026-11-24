@@ -528,6 +528,24 @@ def test_direct_constructor_invalid_binding_returns_content_free_refusal(packet)
         replace(bound, _binding_bytes=b"{}")
 
 
+@pytest.mark.parametrize("operation", ["binding_sha256", "to_dict"])
+def test_public_binding_accessors_sanitize_malformed_profile(packet, tmp_path, monkeypatch, operation):
+    bound = release.bind_synthetic_release(**packet)
+    profile = tmp_path / "malformed-profile.json"
+    profile.write_bytes(b'{"private":"SYNTHETIC-PRIVATE-PROFILE",')
+    monkeypatch.setattr(release, "ROOT", tmp_path)
+    monkeypatch.setattr(release, "PROFILE", profile)
+    with pytest.raises(release.SyntheticReleaseError) as error:
+        if operation == "binding_sha256":
+            bound.binding_sha256
+        else:
+            bound.to_dict()
+    assert type(error.value) is release.SyntheticReleaseError
+    assert error.value.args == ("synthetic_release_binding_refused",)
+    assert error.value.__context__ is None
+    assert error.value.__cause__ is None
+
+
 @pytest.mark.parametrize("operation,expected", [
     ("profile_pin", "synthetic_release_profile_refused"),
     ("profile_description", "synthetic_release_profile_refused"),
@@ -717,8 +735,9 @@ def test_invalid_commit_marker_refuses_without_repair(packet, tmp_path, kind):
     marker_identity = marker.lstat()
     with pytest.raises(release.SyntheticReleaseError):
         read(result, context, tmp_path)
-    with pytest.raises(release.SyntheticReleaseError):
+    with pytest.raises(release.SyntheticReleaseError) as error:
         publish(bound, context, tmp_path)
+    assert error.value.args == ("synthetic_publication_refused",)
     assert inventory(tmp_path) == before
     after = marker.lstat()
     assert (after.st_ino, after.st_mode, after.st_mtime_ns) == (

@@ -344,9 +344,11 @@ class BoundSyntheticRelease:
     _parent_manifest_bytes: bytes | None = field(default=None, repr=False)
 
     def __post_init__(self):
+        self._validated_binding()
+
+    def _validated_binding(self):
         try:
-            self._validate()
-            return
+            return self._validate()
         except Exception:
             pass
         raise SyntheticReleaseError("synthetic_release_binding_refused") from None
@@ -380,11 +382,11 @@ class BoundSyntheticRelease:
 
     @property
     def binding_sha256(self):
-        self._validate()
+        self._validated_binding()
         return sha256(self._binding_bytes).hexdigest()
 
     def to_dict(self):
-        return self._validate()
+        return self._validated_binding()
 
     def __repr__(self):
         return "BoundSyntheticRelease()"
@@ -497,6 +499,8 @@ def _commit_record(fd):
 
 
 def _marker_identity(fd):
+    named_before = os.stat("publication.commit", dir_fd=fd, follow_symlinks=False)
+    _require(stat.S_ISDIR(named_before.st_mode))
     marker = os.open("publication.commit", os.O_RDONLY | os.O_DIRECTORY
                      | os.O_NOFOLLOW | os.O_CLOEXEC, dir_fd=fd)
     try:
@@ -507,7 +511,8 @@ def _marker_identity(fd):
         named = os.stat("publication.commit", dir_fd=fd, follow_symlinks=False)
         keys = ("st_dev", "st_ino", "st_mode", "st_uid", "st_gid", "st_nlink",
                 "st_size", "st_mtime_ns", "st_ctime_ns")
-        _require(all(getattr(before, key) == getattr(after, key) == getattr(named, key)
+        _require(all(getattr(named_before, key) == getattr(before, key)
+                     == getattr(after, key) == getattr(named, key)
                      for key in keys))
         return tuple(getattr(before, key) for key in keys)
     finally:
