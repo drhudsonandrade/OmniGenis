@@ -1,0 +1,467 @@
+{
+  "$comment": "Request snapshot and QA receipt are additionally validated against their pinned existing contracts at runtime.",
+  "$defs": {
+    "authority": {
+      "additionalProperties": false,
+      "properties": {
+        "actions": {
+          "items": {
+            "enum": [
+              "publish",
+              "read"
+            ]
+          },
+          "maxItems": 2,
+          "minItems": 1,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "artifact_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$(?![\\s\\S])",
+          "type": "string"
+        },
+        "binding_sha256": {
+          "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
+          "type": "string"
+        },
+        "consent_record": {
+          "additionalProperties": false,
+          "properties": {
+            "artifact_id": {
+              "$ref": "#/$defs/upstream_identifier"
+            },
+            "sha256": {
+              "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
+              "type": "string"
+            }
+          },
+          "required": [
+            "artifact_id",
+            "sha256"
+          ],
+          "type": "object"
+        },
+        "namespace_id": {
+          "$ref": "#/$defs/upstream_identifier"
+        },
+        "record_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$(?![\\s\\S])",
+          "type": "string"
+        },
+        "record_revision": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "record_type": {
+          "const": "SYNTHETIC_TEST_AUTHORITY"
+        },
+        "request_id": {
+          "$ref": "#/$defs/upstream_identifier"
+        },
+        "request_sha256": {
+          "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
+          "type": "string"
+        },
+        "requester_id": {
+          "$ref": "#/$defs/upstream_identifier"
+        },
+        "review_record": {
+          "additionalProperties": false,
+          "properties": {
+            "artifact_id": {
+              "$ref": "#/$defs/upstream_identifier"
+            },
+            "sha256": {
+              "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
+              "type": "string"
+            }
+          },
+          "required": [
+            "artifact_id",
+            "sha256"
+          ],
+          "type": "object"
+        },
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "scope": {
+          "const": "SYNTHETIC_PRIVATE_QUALIFICATION_ONLY"
+        },
+        "state": {
+          "const": "AUTHORIZED_FOR_SYNTHETIC_QUALIFICATION"
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "record_id",
+        "record_revision",
+        "scope",
+        "state",
+        "namespace_id",
+        "request_id",
+        "requester_id",
+        "request_sha256",
+        "artifact_id",
+        "binding_sha256",
+        "consent_record",
+        "review_record",
+        "actions"
+      ],
+      "type": "object"
+    },
+    "binding": {
+      "additionalProperties": false,
+      "properties": {
+        "artifact": {
+          "additionalProperties": false,
+          "properties": {
+            "artifact_id": {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$(?![\\s\\S])",
+              "type": "string"
+            },
+            "artifact_kind": {
+              "const": "synthetic-technical-report"
+            },
+            "media_type": {
+              "const": "application/pdf"
+            },
+            "parent_artifact_ids": {
+              "items": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "type": "array",
+              "uniqueItems": true
+            },
+            "producer_execution_profile_id": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "schema_version": {
+              "const": "1.0.0"
+            },
+            "sha256": {
+              "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
+              "type": "string"
+            },
+            "size_bytes": {
+              "maximum": 16777216,
+              "minimum": 8,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "schema_version",
+            "artifact_id",
+            "artifact_kind",
+            "media_type",
+            "sha256",
+            "size_bytes",
+            "producer_execution_profile_id",
+            "parent_artifact_ids"
+          ],
+          "type": "object"
+        },
+        "content_sha256": {
+          "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
+          "type": "string"
+        },
+        "ir_sha256": {
+          "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
+          "type": "string"
+        },
+        "lineage": {
+          "additionalProperties": false,
+          "properties": {
+            "analysis_id": {
+              "$ref": "#/$defs/upstream_identifier"
+            },
+            "analysis_revision": {
+              "$ref": "#/$defs/upstream_identifier"
+            },
+            "canonical_result": {
+              "additionalProperties": false,
+              "properties": {
+                "artifact_id": {
+                  "$ref": "#/$defs/upstream_identifier"
+                },
+                "sha256": {
+                  "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "artifact_id",
+                "sha256"
+              ],
+              "type": "object"
+            },
+            "content_revision": {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$(?![\\s\\S])",
+              "type": "string"
+            },
+            "delta": {
+              "enum": [
+                "NEW",
+                "DESIGN_ONLY",
+                "EDITORIAL_ONLY"
+              ]
+            },
+            "evidence_cutoff": {
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$(?![\\s\\S])",
+              "type": "string"
+            },
+            "evidence_snapshot": {
+              "additionalProperties": false,
+              "properties": {
+                "artifact_id": {
+                  "$ref": "#/$defs/upstream_identifier"
+                },
+                "sha256": {
+                  "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "artifact_id",
+                "sha256"
+              ],
+              "type": "object"
+            },
+            "locale_id": {
+              "const": "en-US"
+            },
+            "locale_pack": {
+              "additionalProperties": false,
+              "properties": {
+                "artifact_id": {
+                  "$ref": "#/$defs/upstream_identifier"
+                },
+                "sha256": {
+                  "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "artifact_id",
+                "sha256"
+              ],
+              "type": "object"
+            },
+            "parent_artifact_id": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$(?![\\s\\S])",
+                  "type": "string"
+                }
+              ]
+            },
+            "parent_manifest_sha256": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
+                  "type": "string"
+                }
+              ]
+            },
+            "reference_bundle_sha256": {
+              "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
+              "type": "string"
+            },
+            "renderer_profile_id": {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$(?![\\s\\S])",
+              "type": "string"
+            },
+            "renderer_profile_sha256": {
+              "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
+              "type": "string"
+            },
+            "report_pack_sha256": {
+              "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
+              "type": "string"
+            }
+          },
+          "required": [
+            "parent_artifact_id",
+            "parent_manifest_sha256",
+            "delta",
+            "analysis_id",
+            "analysis_revision",
+            "canonical_result",
+            "evidence_snapshot",
+            "evidence_cutoff",
+            "reference_bundle_sha256",
+            "report_pack_sha256",
+            "content_revision",
+            "locale_id",
+            "locale_pack",
+            "renderer_profile_id",
+            "renderer_profile_sha256"
+          ],
+          "type": "object"
+        },
+        "plan_sha256": {
+          "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
+          "type": "string"
+        },
+        "profile_sha256": {
+          "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
+          "type": "string"
+        },
+        "qa_profile_sha256": {
+          "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
+          "type": "string"
+        },
+        "qa_record_json": {
+          "maxLength": 65536,
+          "minLength": 1,
+          "type": "string"
+        },
+        "qa_sha256": {
+          "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
+          "type": "string"
+        },
+        "request_sha256": {
+          "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
+          "type": "string"
+        },
+        "request_snapshot": {
+          "type": "object"
+        },
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "source_binding_sha256": {
+          "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
+          "type": "string"
+        },
+        "source_expectation_sha256": {
+          "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "profile_sha256",
+        "artifact",
+        "request_snapshot",
+        "request_sha256",
+        "source_binding_sha256",
+        "plan_sha256",
+        "qa_record_json",
+        "qa_sha256",
+        "qa_profile_sha256",
+        "source_expectation_sha256",
+        "ir_sha256",
+        "content_sha256",
+        "lineage"
+      ],
+      "type": "object"
+    },
+    "upstream_identifier": {
+      "maxLength": 256,
+      "minLength": 1,
+      "not": {
+        "pattern": "[^A-Za-z0-9._:-]"
+      },
+      "pattern": "^[A-Za-z0-9]",
+      "type": "string"
+    }
+  },
+  "$id": "urn:omnigenis:schema:report-synthetic-release:1.0.0",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "authorization_record": {
+      "$ref": "#/$defs/authority"
+    },
+    "authorization_record_sha256": {
+      "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
+      "type": "string"
+    },
+    "binding": {
+      "$ref": "#/$defs/binding"
+    },
+    "binding_sha256": {
+      "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
+      "type": "string"
+    },
+    "clinical_release_authorized": {
+      "const": false,
+      "type": "boolean"
+    },
+    "default_pipeline_activated": {
+      "const": false,
+      "type": "boolean"
+    },
+    "distributed_revocation_supported": {
+      "const": false,
+      "type": "boolean"
+    },
+    "human_assistive_accessibility_verified": {
+      "const": false,
+      "type": "boolean"
+    },
+    "power_loss_durability_qualified": {
+      "const": false,
+      "type": "boolean"
+    },
+    "product_profile_qualified": {
+      "const": false,
+      "type": "boolean"
+    },
+    "production_release_authorized": {
+      "const": false,
+      "type": "boolean"
+    },
+    "profile_id": {
+      "const": "synthetic-technical-final-release-v1"
+    },
+    "publication_state": {
+      "const": "FINAL_SYNTHETIC_TECHNICAL"
+    },
+    "qa_execution_authenticated": {
+      "const": false,
+      "type": "boolean"
+    },
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "scope": {
+      "const": "SYNTHETIC_PRIVATE_QUALIFICATION_ONLY"
+    },
+    "upstream_authority_authenticated": {
+      "const": false,
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "schema_version",
+    "publication_state",
+    "scope",
+    "profile_id",
+    "binding",
+    "binding_sha256",
+    "authorization_record",
+    "authorization_record_sha256",
+    "production_release_authorized",
+    "clinical_release_authorized",
+    "default_pipeline_activated",
+    "product_profile_qualified",
+    "upstream_authority_authenticated",
+    "qa_execution_authenticated",
+    "distributed_revocation_supported",
+    "power_loss_durability_qualified",
+    "human_assistive_accessibility_verified"
+  ],
+  "title": "Private Synthetic Technical Publication",
+  "type": "object"
+}

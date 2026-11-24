@@ -1,0 +1,41 @@
+{
+  "default_pipeline_activated": false,
+  "max_authority_bytes": 8192,
+  "max_manifest_bytes": 131072,
+  "max_pdf_bytes": 16777216,
+  "max_qa_bytes": 65536,
+  "other_profiles": "DISABLED",
+  "product_profile_qualified": false,
+  "profile_id": "synthetic-technical-final-release-v1",
+  "qualification_state": "PREPARATION_ONLY",
+  "schema_version": "1.0.0",
+  "scope": "SYNTHETIC_PRIVATE_QUALIFICATION_ONLY",
+  "sources": {
+    "omnigenis/capabilities/artifact_gate.py": "906fc6f9258841e5bf81acbc044ebb9f86796a14f77d417cc2fe274287c2f85f",
+    "reporting/_pdf_job_durable_receipt.py": "918b19f1e723bae4cba8fbb62f69a028bec70eadc778bf68d34860c8c407019d",
+    "reporting/bindings.py": "bdbc232cb0cfd507001731075ea9856cd421b60202f2871511d406aead09eb38",
+    "reporting/completeness.py": "7654206ac064d36e8e1205e868aad46af1fd053f5446395f928617803cde8bfe",
+    "reporting/families.v1.json": "14a0999a68b70ad83b9111b04283752444173255a573460e38cb3224fb8afbaa",
+    "reporting/locales/en-US.v1.json": "b9c72053ba222194072d26f4846500c8788f7a8bebf5104a4ec097386d2dd1bd",
+    "reporting/pdf-typed-brand-render.v1.json": "e72f353597132326616dd06ed6465bd4fc10bf19a57718ac7100763648057b05",
+    "reporting/pdf-typed-original-brand-qa.v1.json": "9e4663e8baf7f1191a35e23491b9ec70103301d5856557a1d9f4735b477a6950",
+    "reporting/pdf_candidate_store.py": "a71412523180dc56b2685d4e79102bccd6f76dd76662403a9d7a5a06b2528935",
+    "reporting/requests.py": "fb02deca6ace8041af3ecb4bb8241ef51b0c6b6bae52d4eee9a5f857061a9db5",
+    "reporting/synthetic_release.py": "1d098a1f14d33a51865504e2419a549000d4a342ccf8be1044d15b5160f1b2f2",
+    "reporting/workflow.py": "260db22ded50421b3562fd83fd53c92499ef75acb7468f18eb575ed2122a4264",
+    "schemas/report-request-snapshot.v1.schema.json": "658c7684c6f38aaab8b160680fb10bea20aec52c48ae46e19e3e4ee09d22a5dc",
+    "schemas/report-synthetic-release.v1.schema.json": "eeafa7de8f33d5e0b94e1646812935bd2f980a95c05b6113abd0546b48c2ce5b"
+  },
+  "staged_locale_ids": [
+    "pt-BR",
+    "es-ES",
+    "it-IT",
+    "fr-FR"
+  ],
+  "supported_profile": {
+    "family_id": "e1a-small-variant",
+    "intended_use_id": "e1a-technical-validation",
+    "locale_id": "en-US",
+    "report_id": "e1a-small-variant-report"
+  }
+}
