@@ -36,6 +36,7 @@
     "max_csi_bytes": 1048576,
     "max_stdout_bytes": 1114112,
     "max_stderr_bytes": 65536,
+    "max_executor_snapshot_bytes": 16777216,
     "max_timeout_seconds": 600,
     "threads": 1,
     "network": false
@@ -57,7 +58,9 @@
     "plugins": false,
     "min_shift": 14,
     "overlap": "record",
-    "evidence": "Actual index creation and indexed selection at every record anchor, inside nontrivial reference blocks, and in uncovered gaps when present. Query output is evidence only."
+    "evidence": "Actual index creation and indexed selection at every record anchor, inside nontrivial reference blocks, and in uncovered gaps when present. Query output is evidence only.",
+    "executor_binding": "Hash bytes copied from one stable opened regular file, seal the bounded snapshot against write/grow/shrink, verify its sealed digest and use that descriptor for every version/index/query launch. Recheck the original executable identity before promotion.",
+    "runtime_requirements": "Linux memfd_create, immutable WRITE/GROW/SHRINK/SEAL support and /proc/self/fd access are required; no pathname-execution fallback."
   },
   "reference": {
     "profile": "resources/reference-profiles/grch38-p14-ncbi-refseq-autosomal-v1.json",
@@ -126,7 +129,8 @@
     "This operation preserves artifacts; it does not normalize alleles, transform likelihoods, perform joint genotyping, infer calls, establish callability or support scientific negative findings.",
     "Reference-block concordance checks the REF anchor and bounds; it does not prove every base through END is callable.",
     "Unsupported INFO content, alternate callers, multiple samples, non-autosomal domains, additional concrete ALTs and general indels are rejected.",
-    "No default pipeline activation, interpretation, reporting, clinical use or release authorization."
+    "No default pipeline activation, interpretation, reporting, clinical use or release authorization.",
+    "The maximum 600-second deadline is cooperative. Blocking regular-file I/O, process creation, post-kill reaping and cleanup may overrun it; observed expiry prevents artifact promotion."
   ],
   "disable_path": "Explicit module invocation only. Do not select this execution profile; no automatic fallback."
 }

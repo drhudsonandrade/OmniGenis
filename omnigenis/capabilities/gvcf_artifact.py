@@ -7,7 +7,8 @@ with explicit integrity, reference and indexed-selection evidence.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
+from contextlib import contextmanager
 from dataclasses import dataclass
 import hashlib
 import json
@@ -22,6 +23,11 @@ import tempfile
 import time
 from typing import BinaryIO
 import zlib
+
+try:
+    import fcntl
+except ImportError:
+    fcntl = None
 
 from .artifact_gate import verify_artifact_bytes
 from .gvcf_intake import (
@@ -50,6 +56,7 @@ MAX_BGZF_BYTES = 2097152
 MAX_CSI_BYTES = 1048576
 MAX_STDOUT_BYTES = 1114112
 MAX_STDERR_BYTES = 65536
+MAX_EXECUTOR_SNAPSHOT_BYTES = 16777216
 MAX_TIMEOUT_SECONDS = 600
 _IO_CHUNK_BYTES = 1048576
 _BGZF_HEADER = bytes.fromhex("1f8b08040000000000ff060042430200")
@@ -76,6 +83,8 @@ _EXECUTION_PROFILE = {
 _RecordKey = tuple[str, int, str, str, tuple[str, ...]]
 _LIMITATIONS = (
     "Opt-in bounded artifact preservation only; no default pipeline activation.",
+    "Executor launches require Linux memfd sealing and /proc/self/fd access; no pathname fallback.",
+    "The 600-second maximum deadline is cooperative: blocking system I/O, process creation and cleanup may overrun it; expiry never permits artifact promotion.",
     "HaplotypeCaller identity is an input declaration, not observed caller execution.",
     "No normalization, likelihood transformation, genotype inference or joint genotyping.",
     "Reference-block concordance covers its REF anchor and bounds, not callability through END.",
@@ -284,25 +293,95 @@ def _open_regular(path: Path, stage: str) -> BinaryIO:
 
 
 def _sha256_file(path: Path, deadline: float, stage: str) -> tuple[str, tuple[int, ...]]:
-    digest = hashlib.sha256()
+    digest, total = hashlib.sha256(), 0
     with _open_regular(path, stage) as stream:
         before = os.fstat(stream.fileno())
-        if not stat.S_ISREG(before.st_mode):
-            raise _Failure(stage, "not_regular_file")
+        if not 0 < before.st_size <= MAX_EXECUTOR_SNAPSHOT_BYTES:
+            raise _Failure(stage, "byte_budget_exceeded")
         while True:
             _remaining(deadline, stage)
-            chunk = stream.read(_IO_CHUNK_BYTES)
+            chunk = stream.read(min(_IO_CHUNK_BYTES, MAX_EXECUTOR_SNAPSHOT_BYTES - total + 1))
             if not chunk:
                 break
+            total += len(chunk)
+            if total > MAX_EXECUTOR_SNAPSHOT_BYTES:
+                raise _Failure(stage, "byte_budget_exceeded")
             digest.update(chunk)
         after = os.fstat(stream.fileno())
-    if _fingerprint(before) != _fingerprint(after) or _fingerprint(after) != _fingerprint(path.stat()):
+    if (total != before.st_size or _fingerprint(before) != _fingerprint(after)
+            or _fingerprint(after) != _fingerprint(path.stat())):
         raise _Failure(stage, "changed_during_read")
     return digest.hexdigest(), _fingerprint(after)
 
 
-def _run(args: list[str], *, cwd: Path, deadline: float, stage: str) -> subprocess.CompletedProcess[bytes]:
-    """Drain both pipes with fixed memory and time budgets, then reap the process."""
+@contextmanager
+def _sealed_executor(path: Path, expected_digest: str, deadline: float) -> Iterator[tuple[int, str]]:
+    """Verify one bounded executable snapshot and seal it before any launch."""
+    descriptor: int | None = None
+    try:
+        if (not hasattr(os, "memfd_create")
+                or any(not hasattr(fcntl, name) for name in (
+                    "F_ADD_SEALS", "F_GET_SEALS", "F_SEAL_WRITE", "F_SEAL_GROW", "F_SEAL_SHRINK", "F_SEAL_SEAL",
+                ))):
+            raise _Failure("executor", "sealed_snapshot_unavailable")
+        _remaining(deadline, "executor")
+        with _open_regular(path, "executor") as stream:
+            before = os.fstat(stream.fileno())
+            if not 0 < before.st_size <= MAX_EXECUTOR_SNAPSHOT_BYTES:
+                raise _Failure("executor", "byte_budget_exceeded")
+            if not before.st_mode & 0o111:
+                raise _Failure("executor", "not_executable")
+            descriptor = os.memfd_create("omnigenis-bcftools", os.MFD_CLOEXEC | os.MFD_ALLOW_SEALING)
+            digest, total = hashlib.sha256(), 0
+            while True:
+                _remaining(deadline, "executor")
+                chunk = stream.read(min(_IO_CHUNK_BYTES, MAX_EXECUTOR_SNAPSHOT_BYTES - total + 1))
+                if not chunk:
+                    break
+                total += len(chunk)
+                if total > MAX_EXECUTOR_SNAPSHOT_BYTES:
+                    raise _Failure("executor", "byte_budget_exceeded")
+                digest.update(chunk)
+                pending = memoryview(chunk)
+                while pending:
+                    _remaining(deadline, "executor")
+                    written = os.write(descriptor, pending)
+                    if written <= 0:
+                        raise _Failure("executor", "snapshot_write_failed")
+                    pending = pending[written:]
+            after = os.fstat(stream.fileno())
+            if (total != before.st_size or _fingerprint(before) != _fingerprint(after)
+                    or _fingerprint(after) != _fingerprint(path.stat())):
+                raise _Failure("executor", "changed_during_read")
+        observed_digest = digest.hexdigest()
+        if observed_digest != expected_digest:
+            raise _Failure("executor", "digest_mismatch")
+        os.fchmod(descriptor, 0o500)
+        seals = fcntl.F_SEAL_WRITE | fcntl.F_SEAL_GROW | fcntl.F_SEAL_SHRINK | fcntl.F_SEAL_SEAL
+        fcntl.fcntl(descriptor, fcntl.F_ADD_SEALS, seals)
+        if fcntl.fcntl(descriptor, fcntl.F_GET_SEALS) & seals != seals or os.fstat(descriptor).st_size != total:
+            raise _Failure("executor", "snapshot_seal_failed")
+        sealed_digest, offset = hashlib.sha256(), 0
+        while offset < total:
+            _remaining(deadline, "executor")
+            chunk = os.pread(descriptor, min(_IO_CHUNK_BYTES, total - offset), offset)
+            if not chunk:
+                raise _Failure("executor", "snapshot_incomplete")
+            sealed_digest.update(chunk)
+            offset += len(chunk)
+        if sealed_digest.hexdigest() != expected_digest:
+            raise _Failure("executor", "snapshot_digest_mismatch")
+        _remaining(deadline, "executor")
+        yield descriptor, observed_digest
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
+
+
+def _run(
+    args: list[str], *, cwd: Path, deadline: float, stage: str, pass_fds: tuple[int, ...] = (),
+) -> subprocess.CompletedProcess[bytes]:
+    """Drain bounded pipes under a cooperative deadline and reap the process."""
     _remaining(deadline, stage)
     process: subprocess.Popen[bytes] | None = None
     completed = False
@@ -311,7 +390,7 @@ def _run(args: list[str], *, cwd: Path, deadline: float, stage: str) -> subproce
         process = subprocess.Popen(
             args, cwd=cwd, shell=False, stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0,
-            close_fds=True, start_new_session=True,
+            close_fds=True, start_new_session=True, pass_fds=pass_fds,
             env={"LANG": "C", "LC_ALL": "C", "PATH": "/usr/bin:/bin", "TZ": "UTC", "BCFTOOLS_PLUGINS": ""},
         )
         with selectors.DefaultSelector() as selector:
@@ -585,7 +664,7 @@ def _query_keys(output: bytes) -> tuple[_RecordKey, ...]:
     result = []
     try:
         for line in lines:
-            if not line or len(line) > MAX_LINE_BYTES or line.startswith(b"#"):
+            if not line or line.startswith(b"#"):
                 raise _Failure("query", "record_structure_invalid")
             values = line.decode("utf-8").split("\t")
             if len(values) != 10 or not values[1].isascii() or not values[1].isdigit() or len(values[1]) > 10:
@@ -681,64 +760,64 @@ def prepare_gvcf_artifacts(
         executable = Path(bcftools_executable).resolve(strict=True)
         if not executable.is_file() or not os.access(executable, os.X_OK):
             raise _Failure("executor", "not_executable")
-        observed_digest, executor_stat = _sha256_file(executable, deadline, "executor")
-        facts["executor_sha256"] = observed_digest
-        if observed_digest != expected_executor_sha256:
-            raise _Failure("executor", "digest_mismatch")
-        version = _run([str(executable), "--version"], cwd=executable.parent, deadline=min(deadline, time.monotonic() + 30), stage="version")
-        if version.stdout.splitlines()[:2] != [f"bcftools {EXECUTOR_VERSION}".encode(), f"Using htslib {HTSLIB_VERSION}".encode()]:
-            raise _Failure("executor", "version_mismatch")
-        facts.update(executor_version=EXECUTOR_VERSION, htslib_version=HTSLIB_VERSION)
-        _verify_reference(reference_fasta, reference_identity, reference_profile, intake, deadline)
-        facts["reference_sha256"] = REFERENCE_FASTA_CONTENT_SHA256
-        passed(RULE_REF_CONCORDANCE, "actual_reference_bytes_alias_lengths_and_ref_spans_verified")
+        executor_stat = _fingerprint(executable.stat())
+        with _sealed_executor(executable, expected_executor_sha256, deadline) as (descriptor, observed_digest):
+            facts["executor_sha256"] = observed_digest
+            launch_path = f"/proc/self/fd/{descriptor}"
+            version = _run([launch_path, "--version"], cwd=executable.parent, deadline=min(deadline, time.monotonic() + 30), stage="version", pass_fds=(descriptor,))
+            if version.stdout.splitlines()[:2] != [f"bcftools {EXECUTOR_VERSION}".encode(), f"Using htslib {HTSLIB_VERSION}".encode()]:
+                raise _Failure("executor", "version_mismatch")
+            facts.update(executor_version=EXECUTOR_VERSION, htslib_version=HTSLIB_VERSION)
+            _verify_reference(reference_fasta, reference_identity, reference_profile, intake, deadline)
+            facts["reference_sha256"] = REFERENCE_FASTA_CONTENT_SHA256
+            passed(RULE_REF_CONCORDANCE, "actual_reference_bytes_alias_lengths_and_ref_spans_verified")
 
-        compressed = _encode_bgzf(data)
-        decoded = _decode_bgzf(compressed)
-        if decoded != data:
-            raise _Failure("reparse", "source_bytes_changed")
-        reparsed = validate_gvcf_bytes(decoded, input_profile)
-        if not reparsed.is_valid or reparsed != intake:
-            raise _Failure("reparse", "strict_intake_mismatch")
-        passed(RULE_STRICT_REPARSE, "bounded_bgzf_decoding_equals_source_and_strict_intake")
-        if reparsed.record_count != intake.record_count or any(a.alts != b.alts for a, b in zip(intake.records, reparsed.records)):
-            raise _Failure("cardinality", "record_or_allele_mismatch")
-        passed(RULE_CARDINALITY, "record_allele_and_format_cardinalities_preserved")
-        phase = lambda record: (record.gt, record.phase_separator, record.genotype_status, tuple(pair for pair in record.format_values if pair[0] in {"GT", "PGT", "PID", "PS"}))
-        if any(phase(a) != phase(b) for a, b in zip(intake.records, reparsed.records)):
-            raise _Failure("phase", "phase_observation_mismatch")
-        passed(RULE_PHASE, "exact_gt_phase_and_missing_observations_preserved")
-        if tuple((r.chrom, r.pos, r.end) for r in intake.records) != tuple((r.chrom, r.pos, r.end) for r in reparsed.records):
-            raise _Failure("ordering", "record_order_mismatch")
-        passed(RULE_ORDERING, "strict_source_order_and_nonoverlapping_spans_preserved")
-        ledger = tuple(GvcfRetentionRecord(index, source.record_sha256, index, output.record_sha256) for index, (source, output) in enumerate(zip(intake.records, reparsed.records), 1))
-        _remaining(deadline, "index")
-        with tempfile.TemporaryDirectory(prefix="omnigenis-gvcf-artifact-") as temporary:
-            workspace = Path(temporary)
-            bgzf_path = workspace / "artifact.g.vcf.gz"
-            csi_path = workspace / "artifact.g.vcf.gz.csi"
-            bgzf_path.write_bytes(compressed)
-            _run([str(executable), "index", "--csi", "--min-shift", "14", "--output", str(csi_path), str(bgzf_path)], cwd=workspace, deadline=deadline, stage="index")
-            index_bytes = _read_output(csi_path, MAX_CSI_BYTES, "index")
-            keys = tuple(_record_key(record) for record in intake.records)
-            ordinal_by_key = {key: index for index, key in enumerate(keys, 1)}
-            queries = []
-            for chrom, position in _query_points(intake.records):
-                region = f"{chrom}:{position}-{position}"
-                expected_ordinals = tuple(index for index, record in enumerate(intake.records, 1) if record.chrom == chrom and record.pos <= position <= record.end)
-                expected_keys = tuple(keys[index - 1] for index in expected_ordinals)
-                query = _run([str(executable), "view", "--no-version", "-H", "-Ov", "-I", "--regions-overlap", "1", "-r", region, str(bgzf_path)], cwd=workspace, deadline=deadline, stage="query")
-                observed_keys = _query_keys(query.stdout)
-                if observed_keys != expected_keys:
-                    raise _Failure("query", "indexed_selection_mismatch")
-                observed_ordinals = tuple(ordinal_by_key[key] for key in observed_keys)
-                queries.append(GvcfIndexQueryEvidence(region, expected_ordinals, observed_ordinals, expected_keys, observed_keys))
-            if _read_output(bgzf_path, MAX_BGZF_BYTES, "index") != compressed or _read_output(csi_path, MAX_CSI_BYTES, "index") != index_bytes:
-                raise _Failure("index", "artifacts_changed_during_queries")
-        passed(RULE_INDEXABILITY, "actual_csi_anchor_block_interior_and_gap_queries_match")
-        digest_after, stat_after = _sha256_file(executable, deadline, "executor")
-        if digest_after != expected_executor_sha256 or stat_after != executor_stat:
-            raise _Failure("executor", "changed_during_execution")
+            compressed = _encode_bgzf(data)
+            decoded = _decode_bgzf(compressed)
+            if decoded != data:
+                raise _Failure("reparse", "source_bytes_changed")
+            reparsed = validate_gvcf_bytes(decoded, input_profile)
+            if not reparsed.is_valid or reparsed != intake:
+                raise _Failure("reparse", "strict_intake_mismatch")
+            passed(RULE_STRICT_REPARSE, "bounded_bgzf_decoding_equals_source_and_strict_intake")
+            if reparsed.record_count != intake.record_count or any(a.alts != b.alts for a, b in zip(intake.records, reparsed.records)):
+                raise _Failure("cardinality", "record_or_allele_mismatch")
+            passed(RULE_CARDINALITY, "record_allele_and_format_cardinalities_preserved")
+            phase = lambda record: (record.gt, record.phase_separator, record.genotype_status, tuple(pair for pair in record.format_values if pair[0] in {"GT", "PGT", "PID", "PS"}))
+            if any(phase(a) != phase(b) for a, b in zip(intake.records, reparsed.records)):
+                raise _Failure("phase", "phase_observation_mismatch")
+            passed(RULE_PHASE, "exact_gt_phase_and_missing_observations_preserved")
+            if tuple((r.chrom, r.pos, r.end) for r in intake.records) != tuple((r.chrom, r.pos, r.end) for r in reparsed.records):
+                raise _Failure("ordering", "record_order_mismatch")
+            passed(RULE_ORDERING, "strict_source_order_and_nonoverlapping_spans_preserved")
+            ledger = tuple(GvcfRetentionRecord(index, source.record_sha256, index, output.record_sha256) for index, (source, output) in enumerate(zip(intake.records, reparsed.records), 1))
+            _remaining(deadline, "index")
+            with tempfile.TemporaryDirectory(prefix="omnigenis-gvcf-artifact-") as temporary:
+                workspace = Path(temporary)
+                bgzf_path = workspace / "artifact.g.vcf.gz"
+                csi_path = workspace / "artifact.g.vcf.gz.csi"
+                bgzf_path.write_bytes(compressed)
+                _run([launch_path, "index", "--csi", "--min-shift", "14", "--output", str(csi_path), str(bgzf_path)], cwd=workspace, deadline=deadline, stage="index", pass_fds=(descriptor,))
+                index_bytes = _read_output(csi_path, MAX_CSI_BYTES, "index")
+                keys = tuple(_record_key(record) for record in intake.records)
+                ordinal_by_key = {key: index for index, key in enumerate(keys, 1)}
+                queries = []
+                for chrom, position in _query_points(intake.records):
+                    region = f"{chrom}:{position}-{position}"
+                    expected_ordinals = tuple(index for index, record in enumerate(intake.records, 1) if record.chrom == chrom and record.pos <= position <= record.end)
+                    expected_keys = tuple(keys[index - 1] for index in expected_ordinals)
+                    query = _run([launch_path, "view", "--no-version", "-H", "-Ov", "-I", "--regions-overlap", "1", "-r", region, str(bgzf_path)], cwd=workspace, deadline=deadline, stage="query", pass_fds=(descriptor,))
+                    observed_keys = _query_keys(query.stdout)
+                    if observed_keys != expected_keys:
+                        raise _Failure("query", "indexed_selection_mismatch")
+                    observed_ordinals = tuple(ordinal_by_key[key] for key in observed_keys)
+                    queries.append(GvcfIndexQueryEvidence(region, expected_ordinals, observed_ordinals, expected_keys, observed_keys))
+                if _read_output(bgzf_path, MAX_BGZF_BYTES, "index") != compressed or _read_output(csi_path, MAX_CSI_BYTES, "index") != index_bytes:
+                    raise _Failure("index", "artifacts_changed_during_queries")
+            passed(RULE_INDEXABILITY, "actual_csi_anchor_block_interior_and_gap_queries_match")
+            digest_after, stat_after = _sha256_file(executable, deadline, "executor")
+            if digest_after != expected_executor_sha256 or stat_after != executor_stat:
+                raise _Failure("executor", "changed_during_execution")
         compressed_artifact = _artifact(compressed, "gVCF_BGZF", "application/gzip", source_gate.artifact_id)
         index_artifact = _artifact(index_bytes, "CSI", "application/octet-stream", compressed_artifact.artifact_id)
         if source_gate.artifact_id in {compressed_artifact.artifact_id, index_artifact.artifact_id}:

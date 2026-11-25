@@ -141,7 +141,7 @@ class GvcfArtifactFixtureTests(unittest.TestCase):
             "parent_artifact_ids": [],
         }
 
-    def run_double(self, args, *, cwd, deadline, stage):
+    def run_double(self, args, *, cwd, deadline, stage, pass_fds=()):
         """Models declared command outputs; never presented as real index evidence."""
         arguments = [str(value) for value in args]
         self.calls.append((arguments, Path(cwd), deadline, stage))
@@ -261,6 +261,7 @@ class GvcfArtifactFixtureTests(unittest.TestCase):
         self.assertEqual(profile["limits"]["input_bytes"], 1048576)
         self.assertEqual(profile["limits"]["records"], 32)
         self.assertEqual(profile["limits"]["bgzf_uncompressed_chunk_bytes"], 32768)
+        self.assertEqual(profile["limits"]["max_executor_snapshot_bytes"], 16777216)
         self.assertEqual(profile["index"]["executor_version"], "1.24")
         self.assertEqual(profile["index"]["htslib_version"], "1.24")
         self.assertEqual(profile["compression"]["compression_level"], 6)
@@ -351,6 +352,23 @@ class GvcfArtifactFixtureTests(unittest.TestCase):
         result = self.prepare()
         self.assertTrue(result.passed, result.errors)
         self.assertEqual(gzip.decompress(result.artifacts[0].content), self.data)
+
+    def test_rendered_query_can_grow_beyond_source_line_boundary(self) -> None:
+        payload = change_record(self.data, 1, id="x", qual=".5")
+        source_line = record_lines(payload)[1]
+        identifier = "x" * (65536 - len(source_line.encode("utf-8")) + 1)
+        payload = change_record(payload, 1, id=identifier)
+        self.assertEqual(len(record_lines(payload)[1].encode("utf-8")), 65536)
+        intake = validate_gvcf_bytes(payload, self.bound_profile(payload))
+        self.assertTrue(intake.is_valid)
+        self.native_mode = "lexical-query"
+        result = self.prepare(payload)
+        self.assertTrue(result.passed, result.errors)
+        self.assertEqual(gzip.decompress(result.artifacts[0].content), payload)
+        self.assertTrue(any(
+            item.observed_record_keys and item.observed_record_keys[0][2] == identifier
+            for item in result.index_queries
+        ))
 
     def test_crlf_and_unused_metadata_are_preserved_byte_for_byte(self) -> None:
         payload = self.data.replace(
@@ -498,6 +516,65 @@ class GvcfArtifactFixtureTests(unittest.TestCase):
         for mode in ("wrong-version", "binary-drift"):
             self.native_mode = mode
             self.assert_refused(self.prepare())
+
+    def test_executor_replacement_cannot_change_any_verified_launch(self) -> None:
+        native_double = self.run_double
+        stages = []
+        descriptors = set()
+
+        def replace_before_launch(args, *, cwd, deadline, stage, pass_fds=()):
+            if not stages:
+                replacement = self.directory / "replacement-executor"
+                replacement.write_bytes(b"Unverified replacement; never execute.\n")
+                replacement.chmod(0o700)
+                replacement.replace(self.executable)
+            stages.append(stage)
+            self.assertEqual(digest(Path(args[0]).read_bytes()), self.executor_digest)
+            self.assertTrue(pass_fds)
+            for descriptor in pass_fds:
+                descriptors.add(descriptor)
+                with self.assertRaises(OSError):
+                    os.write(descriptor, b"changed")
+                with self.assertRaises(OSError):
+                    os.ftruncate(descriptor, 0)
+            return native_double(args, cwd=cwd, deadline=deadline, stage=stage,
+                                 pass_fds=pass_fds)
+
+        with patch.object(self, "run_double", side_effect=replace_before_launch):
+            result = self.prepare()
+        # Executed bytes stay verified; original-source drift still refuses promotion.
+        self.assert_refused(result)
+        self.assertEqual(set(stages), {"version", "index", "query"})
+        self.assertEqual(len(descriptors), 1)
+        for descriptor in descriptors:
+            with self.assertRaises(OSError):
+                os.fstat(descriptor)
+
+    def test_executor_snapshot_is_closed_after_native_failure(self) -> None:
+        native_double = self.run_double
+        for failed_stage in ("version", "index", "query"):
+            descriptors = set()
+
+            def observe_launch(args, *, cwd, deadline, stage, pass_fds=()):
+                self.assertTrue(pass_fds)
+                descriptors.update(pass_fds)
+                return native_double(args, cwd=cwd, deadline=deadline, stage=stage,
+                                     pass_fds=pass_fds)
+
+            self.native_mode = "failure-" + failed_stage
+            with patch.object(self, "run_double", side_effect=observe_launch):
+                self.assert_refused(self.prepare())
+            self.assertEqual(len(descriptors), 1)
+            for descriptor in descriptors:
+                with self.assertRaises(OSError):
+                    os.fstat(descriptor)
+
+    def test_oversized_executor_snapshot_is_refused_before_launch(self) -> None:
+        with self.executable.open("wb") as stream:
+            stream.truncate(16 * 1024 * 1024 + 1)
+        self.executor_digest = digest(self.executable.read_bytes())
+        self.assert_refused(self.prepare())
+        self.assertEqual(self.calls, [])
 
     def test_native_failure_at_each_stage_discards_all_artifacts(self) -> None:
         for stage in ("version", "index", "query"):
@@ -678,22 +755,41 @@ class GvcfBoundedRunnerTests(unittest.TestCase):
         self.assertEqual(result.stderr, b"err")
 
     def test_nonzero_exit_is_a_sanitized_failure(self) -> None:
-        secret = "private-stderr-unit-sentinel"
+        stderr_marker = "synthetic stderr marker"
         with self.assertRaises(artifact._Failure) as caught:
-            self.run_python("import sys;sys.stderr.write(" + repr(secret) + ");sys.exit(7)")
-        self.assertNotIn(secret, str(caught.exception))
+            self.run_python("import sys;sys.stderr.write(" + repr(stderr_marker) + ");sys.exit(7)")
+        self.assertNotIn(stderr_marker, str(caught.exception))
         self.assertNotIn(str(self.directory), str(caught.exception))
 
     def test_timeout_kills_and_reaps_child(self) -> None:
         pid_file = self.directory / "child.pid"
         script = (
-            "import os,pathlib,time;pathlib.Path(" + repr(str(pid_file))
+            "import os,pathlib,time;time.sleep(0.75);pathlib.Path(" + repr(str(pid_file))
             + ").write_text(str(os.getpid()));time.sleep(10)"
         )
-        started = time.monotonic()
-        with self.assertRaises(artifact._Failure):
-            self.run_python(script, seconds=0.5)
-        self.assertLess(time.monotonic() - started, 3)
+        real_clock = time.monotonic
+        started = real_clock()
+        ready_at = None
+
+        def clock_after_readiness():
+            nonlocal ready_at
+            now = real_clock()
+            if now - started > 8:
+                raise AssertionError("Child-reaping test exceeded its independent watchdog")
+            if ready_at is None:
+                if not pid_file.exists():
+                    if now - started > 5:
+                        raise AssertionError("Child did not signal readiness before startup watchdog")
+                    return started
+                ready_at = now
+            return started + now - ready_at
+
+        # The child deliberately starts later than the tested 0.5-second interval.
+        with patch.object(artifact.time, "monotonic", side_effect=clock_after_readiness):
+            with self.assertRaises(artifact._Failure):
+                self.run_python(script, seconds=0.5)
+        self.assertIsNotNone(ready_at)
+        self.assertLess(real_clock() - started, 8)
         self.assertTrue(pid_file.exists())
         with self.assertRaises(ProcessLookupError):
             os.kill(int(pid_file.read_text()), 0)
