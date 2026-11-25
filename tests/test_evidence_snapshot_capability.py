@@ -428,7 +428,59 @@ class MinimumEvidenceSnapshotCapabilityTests(unittest.TestCase):
                     if field.name != "condition_name_observations"
                 }
                 legacy = type(value)(**legacy_arguments)
-                self.assertEqual(legacy.to_dict().get("condition_name_observations"), [])
+                self.assertEqual(legacy.condition_name_observations, ())
+                self.assertNotIn("condition_name_observations", legacy.to_dict())
+
+    def test_legacy_snapshot_keeps_existing_byte_bound_identity(self) -> None:
+        from test_canonical_interpretation_capability import (
+            empty_model, empty_snapshot, evidence_snapshot, model,
+        )
+
+        # Canonical byte identities of the existing synthetic legacy fixtures.
+        cases = (
+            (evidence_snapshot(model()), 3260,
+             "ddbce5bac17a65476b8c712510f4e8e7e1758ec0d2d76e3cae004da592315066"),
+            (empty_snapshot(empty_model()), 1753,
+             "2b08df3920aca2c2a91fae663fab8f6107f6622872774e80c6144054b02200a8"),
+        )
+        for snapshot, expected_size, expected_digest in cases:
+            with self.subTest(evidence_items=len(snapshot.items)):
+                encoded = json.dumps(snapshot.to_dict(), sort_keys=True,
+                                     separators=(",", ":"), ensure_ascii=False,
+                                     allow_nan=False).encode("utf-8")
+                self.assertEqual(len(encoded), expected_size)
+                self.assertEqual(hashlib.sha256(encoded).hexdigest(), expected_digest)
+
+    def test_name_observation_limitation_covers_aggregate_or_submission(self) -> None:
+        from test_canonical_interpretation_capability import evidence_snapshot, model
+
+        sut = load_sut(self)
+        legacy = evidence_snapshot(model())
+        original = legacy.items[0]
+        observation = sut.ClinVarConditionNameObservation(
+            value=" Synthetic included condition ", source_type="included",
+        )
+        limitation = (
+            "Condition-name observations retain source Type and exact text for "
+            "Preferred/included Trait/Name values; no preferred status is inferred."
+        )
+        for role in ("aggregate", "submission"):
+            with self.subTest(role=role):
+                if role == "aggregate":
+                    changed = replace(original, condition_name_observations=(observation,))
+                else:
+                    changed = replace(original, submissions=(
+                        replace(original.submissions[0],
+                                condition_name_observations=(observation,)),
+                    ))
+                payload = replace(legacy, items=(changed,)).to_dict()
+                self.assertIn(limitation, payload["limitations"])
+                item_payload = payload["canonical_payload"]["items"][0]
+                observed = (item_payload if role == "aggregate"
+                            else item_payload["submissions"][0])
+                self.assertEqual(observed["condition_name_observations"], [
+                    {"value": " Synthetic included condition ", "source_type": "included"},
+                ])
 
     def test_metadata_digest_version_locator_and_retrieval_contract_fail_closed(self) -> None:
         base = item(self.simple_model, self.simple_xml, "VCV000001001.3")
@@ -703,8 +755,10 @@ class MinimumEvidenceSnapshotCapabilityTests(unittest.TestCase):
             submission.condition_references,
             ("MedGen:C123456",),
         )
-        self.assertEqual(evidence.to_dict().get("condition_name_observations"), [])
-        self.assertEqual(submission.to_dict().get("condition_name_observations"), [])
+        self.assertEqual(evidence.condition_name_observations, ())
+        self.assertEqual(submission.condition_name_observations, ())
+        self.assertNotIn("condition_name_observations", evidence.to_dict())
+        self.assertNotIn("condition_name_observations", submission.to_dict())
 
     def test_malformed_model_and_source_registry_fail_closed(self) -> None:
         forged_model = replace(self.simple_model, rules=(None,))

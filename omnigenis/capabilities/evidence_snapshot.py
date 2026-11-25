@@ -133,7 +133,7 @@ class ClinVarSubmissionEvidence:
     condition_name_observations: tuple[ClinVarConditionNameObservation, ...] = ()
 
     def to_dict(self) -> dict[str, object]:
-        return {
+        result = {
             "accession": self.accession,
             "version": self.version,
             "submitter_name": self.submitter_name,
@@ -144,11 +144,13 @@ class ClinVarSubmissionEvidence:
             "classification": self.classification,
             "condition_names": list(self.condition_names),
             "condition_references": list(self.condition_references),
-            "condition_name_observations": [
+        }
+        if self.condition_name_observations:
+            result["condition_name_observations"] = [
                 observation.to_dict()
                 for observation in self.condition_name_observations
-            ],
-        }
+            ]
+        return result
 @dataclass(frozen=True)
 class ClinVarEvidenceItem:
     canonical_variant_id: str
@@ -168,7 +170,7 @@ class ClinVarEvidenceItem:
     condition_name_observations: tuple[ClinVarConditionNameObservation, ...] = ()
 
     def to_dict(self) -> dict[str, object]:
-        return {
+        result = {
             "canonical_variant_id": self.canonical_variant_id,
             "metadata": self.metadata.to_dict(),
             "vcv_accession": self.vcv_accession,
@@ -183,16 +185,18 @@ class ClinVarEvidenceItem:
             "aggregate_review_status": self.aggregate_review_status,
             "condition_names": list(self.condition_names),
             "condition_references": list(self.condition_references),
-            "condition_name_observations": [
-                observation.to_dict()
-                for observation in self.condition_name_observations
-            ],
             "conflict": self.conflict,
             "submissions": [
                 submission.to_dict()
                 for submission in self.submissions
             ],
         }
+        if self.condition_name_observations:
+            result["condition_name_observations"] = [
+                observation.to_dict()
+                for observation in self.condition_name_observations
+            ]
+        return result
 
 
 @dataclass(frozen=True)
@@ -213,7 +217,7 @@ class MinimumEvidenceSnapshotResult:
         )
 
     def to_dict(self) -> dict[str, object]:
-        return {
+        result = {
             "capability_id": CAPABILITY_ID,
             "capability_version": CAPABILITY_VERSION,
             "canonical_status": (
@@ -236,7 +240,6 @@ class MinimumEvidenceSnapshotResult:
             "availability": "AVAILABLE" if self.passed else "BLOCKED",
             "limitations": [
                 "Minimum E1A snapshot currently preserves ClinVar VCV aggregate and SCV evidence only.",
-                "Condition-name observations retain source Type and exact text for Preferred/included Trait/Name values; no preferred status is inferred.",
                 "Conflicts are preserved and are never reduced by voting or local consensus.",
                 "No ACMG/AMP classification, ClinGen/VCEP application, gene-disease validity, actionability, phenotype matching, or clinical interpretation is performed.",
                 "Network retrieval is outside this pure capability; exact retrieval bytes and metadata must be supplied.",
@@ -257,6 +260,16 @@ class MinimumEvidenceSnapshotResult:
                 "canonical-genomic-model",
             ],
         }
+        if any(
+            item.condition_name_observations
+            or any(submission.condition_name_observations for submission in item.submissions)
+            for item in self.items
+        ):
+            result["limitations"].insert(
+                1,
+                "Condition-name observations retain source Type and exact text for Preferred/included Trait/Name values; no preferred status is inferred.",
+            )
+        return result
 def _sha256_bytes(value: bytes) -> str:
     return hashlib.sha256(value).hexdigest()
 
