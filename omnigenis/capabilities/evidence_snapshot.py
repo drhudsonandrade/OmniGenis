@@ -108,6 +108,17 @@ class EvidenceSnapshotMetadataRecord:
 
 
 @dataclass(frozen=True)
+class ClinVarConditionNameObservation:
+    """An original Trait/Name value and its case-sensitive source Type."""
+
+    value: str
+    source_type: str
+
+    def to_dict(self) -> dict[str, str]:
+        return {"value": self.value, "source_type": self.source_type}
+
+
+@dataclass(frozen=True)
 class ClinVarSubmissionEvidence:
     accession: str
     version: int
@@ -119,6 +130,7 @@ class ClinVarSubmissionEvidence:
     classification: str
     condition_names: tuple[str, ...]
     condition_references: tuple[str, ...]
+    condition_name_observations: tuple[ClinVarConditionNameObservation, ...] = ()
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -132,6 +144,10 @@ class ClinVarSubmissionEvidence:
             "classification": self.classification,
             "condition_names": list(self.condition_names),
             "condition_references": list(self.condition_references),
+            "condition_name_observations": [
+                observation.to_dict()
+                for observation in self.condition_name_observations
+            ],
         }
 @dataclass(frozen=True)
 class ClinVarEvidenceItem:
@@ -149,6 +165,7 @@ class ClinVarEvidenceItem:
     condition_references: tuple[str, ...]
     conflict: bool
     submissions: tuple[ClinVarSubmissionEvidence, ...]
+    condition_name_observations: tuple[ClinVarConditionNameObservation, ...] = ()
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -166,6 +183,10 @@ class ClinVarEvidenceItem:
             "aggregate_review_status": self.aggregate_review_status,
             "condition_names": list(self.condition_names),
             "condition_references": list(self.condition_references),
+            "condition_name_observations": [
+                observation.to_dict()
+                for observation in self.condition_name_observations
+            ],
             "conflict": self.conflict,
             "submissions": [
                 submission.to_dict()
@@ -215,6 +236,7 @@ class MinimumEvidenceSnapshotResult:
             "availability": "AVAILABLE" if self.passed else "BLOCKED",
             "limitations": [
                 "Minimum E1A snapshot currently preserves ClinVar VCV aggregate and SCV evidence only.",
+                "Condition-name observations retain source Type and exact text for Preferred/included Trait/Name values; no preferred status is inferred.",
                 "Conflicts are preserved and are never reduced by voting or local consensus.",
                 "No ACMG/AMP classification, ClinGen/VCEP application, gene-disease validity, actionability, phenotype matching, or clinical interpretation is performed.",
                 "Network retrieval is outside this pure capability; exact retrieval bytes and metadata must be supplied.",
@@ -278,22 +300,33 @@ def _first_text(element: ET.Element, name: str) -> str | None:
 
 def _condition_context(
     element: ET.Element,
-) -> tuple[tuple[str, ...], tuple[str, ...]]:
+) -> tuple[
+    tuple[str, ...],
+    tuple[str, ...],
+    tuple[ClinVarConditionNameObservation, ...],
+]:
     names: list[str] = []
     references: list[str] = []
+    observations: list[ClinVarConditionNameObservation] = []
     seen_names: set[str] = set()
     seen_references: set[str] = set()
     traitsets = _descendants(element, "TraitSet")
     for traitset in traitsets:
+        for trait in _children(traitset, "Trait"):
+            for name in _children(trait, "Name"):
+                for child in _children(name, "ElementValue"):
+                    source_type = child.attrib.get("Type")
+                    raw_value = child.text or ""
+                    value = raw_value.strip()
+                    if source_type not in {"Preferred", "included"} or not value:
+                        continue
+                    observations.append(ClinVarConditionNameObservation(
+                        value=raw_value, source_type=source_type,
+                    ))
+                    if value not in seen_names:
+                        seen_names.add(value)
+                        names.append(value)
         for child in traitset.iter():
-            if (
-                _local_name(child) == "ElementValue"
-                and child.attrib.get("Type") == "Preferred"
-            ):
-                value = (child.text or "").strip()
-                if value and value not in seen_names:
-                    seen_names.add(value)
-                    names.append(value)
             if _local_name(child) == "XRef":
                 db = child.attrib.get("DB", "").strip()
                 identifier = child.attrib.get("ID", "").strip()
@@ -302,7 +335,7 @@ def _condition_context(
                     if value not in seen_references:
                         seen_references.add(value)
                         references.append(value)
-    return tuple(names), tuple(references)
+    return tuple(names), tuple(references), tuple(observations)
 
 
 def _rule(
@@ -483,23 +516,83 @@ def _validate_metadata(
         ),
         None,
     )
+def _minimal_literal_edit(
+    position_0_based: int,
+    deleted: str,
+    inserted: str,
+) -> tuple[int, str, str]:
+    """Cancel shared literal flanks without shifting or projecting the edit."""
+    deleted_end = len(deleted)
+    inserted_end = len(inserted)
+    while (
+        deleted_end
+        and inserted_end
+        and deleted[deleted_end - 1] == inserted[inserted_end - 1]
+    ):
+        deleted_end -= 1
+        inserted_end -= 1
+    prefix = 0
+    while (
+        prefix < deleted_end
+        and prefix < inserted_end
+        and deleted[prefix] == inserted[prefix]
+    ):
+        prefix += 1
+    return (
+        position_0_based + prefix,
+        deleted[prefix:deleted_end],
+        inserted[prefix:inserted_end],
+    )
+
+
 def _vcf_to_spdi(
     contig: str,
     position_1_based: int,
     ref: str,
     alt: str,
 ) -> str:
-    position_0_based = position_1_based - 1
-    deleted = ref
-    inserted = alt
-    while deleted and inserted and deleted[-1] == inserted[-1]:
-        deleted = deleted[:-1]
-        inserted = inserted[:-1]
-    while deleted and inserted and deleted[0] == inserted[0]:
-        deleted = deleted[1:]
-        inserted = inserted[1:]
-        position_0_based += 1
-    return f"{contig}:{position_0_based}:{deleted}:{inserted}"
+    position, deleted, inserted = _minimal_literal_edit(
+        position_1_based - 1, ref, alt,
+    )
+    return f"{contig}:{position}:{deleted}:{inserted}"
+
+
+def _spdi_matches_variant(
+    spdi: str,
+    variant: CanonicalGenomicVariant,
+) -> bool:
+    fields = spdi.split(":")
+    if len(fields) != 4:
+        return False
+    contig, position_text, deleted, inserted = fields
+    if (
+        contig != variant.contig_accession
+        or _NON_NEGATIVE_INT.fullmatch(position_text) is None
+        or any(base not in "ACGT" for base in deleted)
+        or any(base not in "ACGT" for base in inserted)
+        or (not deleted and not inserted)
+    ):
+        return False
+    expected = _vcf_to_spdi(
+        variant.contig_accession,
+        variant.position_1_based,
+        variant.ref,
+        variant.alt,
+    )
+    expected_position = expected.split(":", 2)[1]
+    # Cancelling a prefix can only increase the position. Check this bound
+    # before integer conversion, including for arbitrarily long digit strings.
+    if len(position_text) > len(expected_position) or (
+        len(position_text) == len(expected_position)
+        and position_text > expected_position
+    ):
+        return False
+    position, deleted, inserted = _minimal_literal_edit(
+        int(position_text), deleted, inserted,
+    )
+    if not deleted and not inserted:
+        return False
+    return f"{contig}:{position}:{deleted}:{inserted}" == expected
 
 
 def _exactly_one(
@@ -554,7 +647,7 @@ def _parse_submission(
     classification = _first_text(classification_node, "GermlineClassification")
     if not review_status or not classification:
         return None, "clinvar_submission_invalid"
-    condition_names, condition_references = _condition_context(assertion)
+    condition_names, condition_references, condition_observations = _condition_context(assertion)
     if not condition_names and not condition_references:
         return None, "clinvar_submission_invalid"
     evaluated = classification_node.attrib.get("DateLastEvaluated")
@@ -574,6 +667,7 @@ def _parse_submission(
             classification=classification,
             condition_names=condition_names,
             condition_references=condition_references,
+            condition_name_observations=condition_observations,
         ),
         None,
     )
@@ -637,12 +731,7 @@ def _parse_clinvar_xml(
     if spdi_node is None:
         return None, "clinvar_variant_binding_mismatch"
     canonical_spdi = (spdi_node.text or "").strip()
-    if canonical_spdi != _vcf_to_spdi(
-        variant.contig_accession,
-        variant.position_1_based,
-        variant.ref,
-        variant.alt,
-    ):
+    if not _spdi_matches_variant(canonical_spdi, variant):
         return None, "clinvar_variant_binding_mismatch"
 
     display_locations = [
@@ -688,17 +777,20 @@ def _parse_clinvar_xml(
     if not aggregate_review or not aggregate_classification:
         return None, "clinvar_aggregate_invalid"
 
-    condition_names, condition_references = _condition_context(aggregate)
+    condition_names, condition_references, condition_observations = _condition_context(aggregate)
     if not condition_names and not condition_references:
         direct_traitsets = _children(classified, "TraitSet")
         fallback_names: list[str] = []
         fallback_references: list[str] = []
+        fallback_observations: list[ClinVarConditionNameObservation] = []
         for traitset in direct_traitsets:
-            names, references = _condition_context(traitset)
+            names, references, observations = _condition_context(traitset)
             fallback_names.extend(names)
             fallback_references.extend(references)
+            fallback_observations.extend(observations)
         condition_names = tuple(dict.fromkeys(fallback_names))
         condition_references = tuple(dict.fromkeys(fallback_references))
+        condition_observations = tuple(fallback_observations)
     if not condition_names and not condition_references:
         return None, "clinvar_aggregate_invalid"
 
@@ -746,6 +838,7 @@ def _parse_clinvar_xml(
             condition_references=condition_references,
             conflict=conflict,
             submissions=tuple(submissions),
+            condition_name_observations=condition_observations,
         ),
         None,
     )

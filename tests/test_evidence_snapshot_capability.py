@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from dataclasses import replace
+from dataclasses import FrozenInstanceError, fields, replace
 import hashlib
 import importlib
 import importlib.util
 import json
 from pathlib import Path
 import unittest
+import xml.etree.ElementTree as ET
 
 from jsonschema import Draft202012Validator
 
@@ -158,6 +159,31 @@ def item(model: CanonicalGenomicModelResult, xml_bytes: bytes, source_version: s
     }
 
 
+def variant_xml(
+    template: bytes,
+    *,
+    spdi: str,
+    position: int,
+    ref: str,
+    alt: str,
+    location_overrides: dict[str, str] | None = None,
+) -> bytes:
+    """Build synthetic source evidence with independently supplied representations."""
+    root = ET.fromstring(template)
+    allele = root.find("./VariationArchive/ClassifiedRecord/SimpleAllele")
+    assert allele is not None
+    spdi_node = allele.find("CanonicalSPDI")
+    location = allele.find("./Location/SequenceLocation")
+    assert spdi_node is not None and location is not None
+    spdi_node.text = spdi
+    location.set("positionVCF", str(position))
+    location.set("referenceAlleleVCF", ref)
+    location.set("alternateAlleleVCF", alt)
+    for key, value in (location_overrides or {}).items():
+        location.set(key, value)
+    return ET.tostring(root, encoding="utf-8")
+
+
 def load_sut(testcase: unittest.TestCase):
     name = "omnigenis.capabilities.evidence_snapshot"
     if importlib.util.find_spec(name) is None:
@@ -258,6 +284,152 @@ class MinimumEvidenceSnapshotCapabilityTests(unittest.TestCase):
                 forbidden_decision_keys.isdisjoint(submission_payload)
             )
 
+    def test_included_submission_name_preserves_original_type_and_text(self) -> None:
+        root = ET.fromstring(self.simple_xml)
+        name = root.find("./VariationArchive/ClassifiedRecord/ClinicalAssertion/TraitSet/Trait/Name/ElementValue")
+        self.assertIsNotNone(name)
+        name.set("Type", "included")
+        name.text = "  Synthetic included condition A  "
+        xml_bytes = ET.tostring(root, encoding="utf-8")
+        result = self.build(
+            self.simple_model,
+            [item(self.simple_model, xml_bytes, "VCV000001001.3")],
+        )
+        self.assertTrue(result.passed, result.errors)
+        evidence = result.items[0]
+        submission = evidence.submissions[0]
+        self.assertEqual(submission.condition_names, ("Synthetic included condition A",))
+        self.assertEqual(submission.condition_references, ())
+        self.assertEqual(submission.to_dict().get("condition_name_observations"), [
+            {"value": "  Synthetic included condition A  ", "source_type": "included"},
+        ])
+        self.assertEqual(evidence.to_dict().get("condition_name_observations"), [
+            {"value": "Synthetic condition A", "source_type": "Preferred"},
+        ])
+        self.assertEqual(evidence.metadata.result_sha256, sha256_bytes(xml_bytes))
+        self.assertEqual(submission.classification, "Likely pathogenic")
+        self.assertEqual(evidence.aggregate_classification, "Likely pathogenic")
+        self.assertFalse(evidence.conflict)
+        self.assertIsInstance(submission.condition_name_observations, tuple)
+        with self.assertRaises(FrozenInstanceError):
+            submission.condition_name_observations[0].value = "changed"
+
+    def test_included_aggregate_name_preserves_type_in_direct_and_nested_contexts(self) -> None:
+        for placement in ("direct", "aggregate"):
+            with self.subTest(placement=placement):
+                root = ET.fromstring(self.simple_xml)
+                classified = root.find("./VariationArchive/ClassifiedRecord")
+                traitset = classified.find("TraitSet")
+                name = traitset.find("./Trait/Name/ElementValue")
+                name.set("Type", "included")
+                name.text = "Synthetic aggregate condition"
+                if placement == "aggregate":
+                    classified.remove(traitset)
+                    classified.find("GermlineClassification").append(traitset)
+                xml_bytes = ET.tostring(root, encoding="utf-8")
+                result = self.build(
+                    self.simple_model,
+                    [item(self.simple_model, xml_bytes, "VCV000001001.3")],
+                )
+                self.assertTrue(result.passed, result.errors)
+                evidence = result.items[0]
+                self.assertEqual(evidence.condition_names, ("Synthetic aggregate condition",))
+                self.assertEqual(evidence.to_dict().get("condition_name_observations"), [
+                    {"value": "Synthetic aggregate condition", "source_type": "included"},
+                ])
+                self.assertEqual(evidence.submissions[0].condition_names, ("Synthetic condition A",))
+                self.assertEqual(evidence.submissions[0].to_dict().get("condition_name_observations"), [
+                    {"value": "Synthetic condition A", "source_type": "Preferred"},
+                ])
+
+    def test_condition_name_observations_preserve_source_type_order_and_duplicates(self) -> None:
+        root = ET.fromstring(self.simple_xml)
+        name = root.find("./VariationArchive/ClassifiedRecord/ClinicalAssertion/TraitSet/Trait/Name")
+        for _ in range(2):
+            ET.SubElement(name, "ElementValue", {"Type": "included"}).text = "Synthetic condition A"
+        xml_bytes = ET.tostring(root, encoding="utf-8")
+        result = self.build(
+            self.simple_model,
+            [item(self.simple_model, xml_bytes, "VCV000001001.3")],
+        )
+        self.assertTrue(result.passed, result.errors)
+        submission = result.items[0].submissions[0]
+        self.assertEqual(submission.condition_names, ("Synthetic condition A",))
+        self.assertEqual(submission.to_dict().get("condition_name_observations"), [
+            {"value": "Synthetic condition A", "source_type": "Preferred"},
+            {"value": "Synthetic condition A", "source_type": "included"},
+            {"value": "Synthetic condition A", "source_type": "included"},
+        ])
+
+    def test_unsupported_or_missing_condition_names_do_not_fabricate_context(self) -> None:
+        for source_type, source_text, container in (
+            ("Alternate", "Synthetic condition A", "Name"),
+            ("Included", "Synthetic condition A", "Name"),
+            ("", "Synthetic condition A", "Name"),
+            (None, "Synthetic condition A", "Name"),
+            ("included", "   ", "Name"),
+            ("included", "SYNTHETIC_SYMBOL", "Symbol"),
+            ("Preferred", "SYNTHETIC_SYMBOL", "Symbol"),
+        ):
+            with self.subTest(source_type=source_type, container=container):
+                root = ET.fromstring(self.simple_xml)
+                name = root.find("./VariationArchive/ClassifiedRecord/ClinicalAssertion/TraitSet/Trait/Name")
+                name.tag = container
+                value = name.find("ElementValue")
+                value.attrib.clear()
+                if source_type is not None:
+                    value.set("Type", source_type)
+                value.text = source_text
+                xml_bytes = ET.tostring(root, encoding="utf-8")
+                result = self.build(
+                    self.simple_model,
+                    [item(self.simple_model, xml_bytes, "VCV000001001.3")],
+                )
+                self.assertFalse(result.passed)
+                self.assertIn("clinvar_submission_invalid", result.errors)
+
+    def test_included_name_keeps_every_conflicting_submission(self) -> None:
+        root = ET.fromstring(self.conflict_xml)
+        name = root.find("./VariationArchive/ClassifiedRecord/ClinicalAssertion/TraitSet/Trait/Name/ElementValue")
+        name.set("Type", "included")
+        name.text = "Synthetic included condition"
+        xml_bytes = ET.tostring(root, encoding="utf-8")
+        result = self.build(
+            self.conflict_model,
+            [item(self.conflict_model, xml_bytes, "VCV000002002.4")],
+        )
+        self.assertTrue(result.passed, result.errors)
+        evidence = result.items[0]
+        self.assertTrue(evidence.conflict)
+        self.assertEqual(evidence.aggregate_classification, "Conflicting classifications of pathogenicity")
+        self.assertEqual(
+            [(submission.accession, submission.classification) for submission in evidence.submissions],
+            [("SCV000002001", "Likely benign"), ("SCV000002002", "Uncertain significance")],
+        )
+        self.assertEqual(evidence.submissions[0].to_dict().get("condition_name_observations"), [
+            {"value": "Synthetic included condition", "source_type": "included"},
+        ])
+        self.assertEqual(evidence.submissions[1].to_dict().get("condition_name_observations"), [
+            {"value": "Synthetic condition B", "source_type": "Preferred"},
+        ])
+
+    def test_legacy_condition_evidence_constructors_default_to_no_name_observations(self) -> None:
+        result = self.build(
+            self.simple_model,
+            [item(self.simple_model, self.simple_xml, "VCV000001001.3")],
+        )
+        self.assertTrue(result.passed, result.errors)
+        evidence = result.items[0]
+        for value in (evidence, evidence.submissions[0]):
+            with self.subTest(type=type(value).__name__):
+                legacy_arguments = {
+                    field.name: getattr(value, field.name)
+                    for field in fields(value)
+                    if field.name != "condition_name_observations"
+                }
+                legacy = type(value)(**legacy_arguments)
+                self.assertEqual(legacy.to_dict().get("condition_name_observations"), [])
+
     def test_metadata_digest_version_locator_and_retrieval_contract_fail_closed(self) -> None:
         base = item(self.simple_model, self.simple_xml, "VCV000001001.3")
         mutations = []
@@ -284,6 +456,161 @@ class MinimumEvidenceSnapshotCapabilityTests(unittest.TestCase):
                 result = self.build(self.simple_model, [forged])
                 self.assertFalse(result.passed)
                 self.assertIn(expected_error, result.errors)
+
+    def test_repeat_expanded_deletion_preserves_raw_source_spdi(self) -> None:
+        model = model_for_variant(
+            contig="NC_000001.11", position=10471,
+            ref="AC", alt="A", seed="expanded-deletion",
+        )
+        for spdi in (
+            "NC_000001.11:10471:CCCCCC:CCCCC",
+            "NC_000001.11:10469:GACCCC:GACCC",
+            "NC_000001.11:10471:C:",
+        ):
+            with self.subTest(spdi=spdi):
+                xml_bytes = variant_xml(
+                    self.simple_xml, spdi=spdi,
+                    position=10471, ref="AC", alt="A",
+                )
+                result = self.build(
+                    model, [item(model, xml_bytes, "VCV000001001.3")],
+                )
+                self.assertTrue(result.passed, result.errors)
+                self.assertEqual(result.items[0].canonical_spdi, spdi)
+                self.assertEqual(
+                    result.items[0].metadata.result_sha256,
+                    hashlib.sha256(xml_bytes).hexdigest(),
+                )
+
+    def test_repeat_expanded_insertion_preserves_raw_source_spdi(self) -> None:
+        model = model_for_variant(
+            contig="NC_000001.11", position=10471,
+            ref="A", alt="AC", seed="expanded-insertion",
+        )
+        for spdi in (
+            "NC_000001.11:10471:CCCCC:CCCCCC",
+            "NC_000001.11:10469:GACCC:GACCCC",
+            "NC_000001.11:10471::C",
+        ):
+            with self.subTest(spdi=spdi):
+                xml_bytes = variant_xml(
+                    self.simple_xml, spdi=spdi,
+                    position=10471, ref="A", alt="AC",
+                )
+                result = self.build(
+                    model, [item(model, xml_bytes, "VCV000001001.3")],
+                )
+                self.assertTrue(result.passed, result.errors)
+                self.assertEqual(result.items[0].canonical_spdi, spdi)
+
+    def test_literal_spdi_common_flanks_preserve_the_same_snv(self) -> None:
+        spdi = "NC_000001.11:10468:AACGG:AAGGG"
+        xml_bytes = variant_xml(
+            self.simple_xml, spdi=spdi,
+            position=10471, ref="C", alt="G",
+        )
+        result = self.build(
+            self.simple_model,
+            [item(self.simple_model, xml_bytes, "VCV000001001.3")],
+        )
+        self.assertTrue(result.passed, result.errors)
+        self.assertEqual(result.items[0].canonical_spdi, spdi)
+
+    def test_expanded_spdi_refuses_non_equivalent_or_foreign_edits(self) -> None:
+        model = model_for_variant(
+            contig="NC_000001.11", position=10471,
+            ref="AC", alt="A", seed="expanded-deletion",
+        )
+        for spdi in (
+            "NC_000002.12:10471:CCCCCC:CCCCC",
+            "NC_000001.10:10471:CCCCCC:CCCCC",
+            "NC_000001.11:10472:CCCCCC:CCCCC",
+            "NC_000001.11:10471:GGGGGG:GGGGG",
+            "NC_000001.11:10471:CCCCCC:CCCC",
+            "NC_000001.11:10471:CCCCC:CCCCCC",
+            "NC_000001.11:10471:CCCCCC:CCCCG",
+            "NC_000001.11:10471:CCCCCC:CCCCCC",
+        ):
+            with self.subTest(spdi=spdi):
+                xml_bytes = variant_xml(
+                    self.simple_xml, spdi=spdi,
+                    position=10471, ref="AC", alt="A",
+                )
+                result = self.build(
+                    model, [item(model, xml_bytes, "VCV000001001.3")],
+                )
+                self.assertFalse(result.passed)
+                self.assertIn("clinvar_variant_binding_mismatch", result.errors)
+
+    def test_literal_spdi_refuses_malformed_or_unsupported_fields(self) -> None:
+        cases = (
+            ("missing_field", "NC_000001.11:10470:C"),
+            ("extra_field", "NC_000001.11:10470:C:G:A"),
+            ("missing_reference", ":10470:C:G"),
+            ("negative_position", "NC_000001.11:-1:C:G"),
+            ("signed_position", "NC_000001.11:+10470:C:G"),
+            ("noncanonical_integer", "NC_000001.11:010470:C:G"),
+            ("unicode_integer", "NC_000001.11:１０４７０:C:G"),
+            ("oversized_integer", "NC_000001.11:" + "9" * 5000 + ":C:G"),
+            ("integer_deletion", "NC_000001.11:10470:1:G"),
+            ("ambiguous_base", "NC_000001.11:10470:N:G"),
+            ("lowercase_base", "NC_000001.11:10470:c:G"),
+            ("internal_space", "NC_000001.11:10470:C :G"),
+            ("nonliteral_insertion", "NC_000001.11:10470:C:<DEL>"),
+            ("empty_edit", "NC_000001.11:10470::"),
+        )
+        for label, spdi in cases:
+            with self.subTest(case=label):
+                xml_bytes = variant_xml(
+                    self.simple_xml, spdi=spdi,
+                    position=10471, ref="C", alt="G",
+                )
+                result = self.build(
+                    self.simple_model,
+                    [item(self.simple_model, xml_bytes, "VCV000001001.3")],
+                )
+                self.assertFalse(result.passed)
+                self.assertIn("clinvar_variant_binding_mismatch", result.errors)
+
+    def test_matching_expanded_spdi_does_not_bypass_source_vcf_binding(self) -> None:
+        model = model_for_variant(
+            contig="NC_000001.11", position=10471,
+            ref="AC", alt="A", seed="expanded-deletion",
+        )
+        for overrides in (
+            {"Accession": "NC_000002.12"},
+            {"positionVCF": "10472"},
+            {"referenceAlleleVCF": "GC"},
+            {"alternateAlleleVCF": "G"},
+        ):
+            with self.subTest(overrides=overrides):
+                xml_bytes = variant_xml(
+                    self.simple_xml,
+                    spdi="NC_000001.11:10471:CCCCCC:CCCCC",
+                    position=10471, ref="AC", alt="A",
+                    location_overrides=overrides,
+                )
+                result = self.build(
+                    model, [item(model, xml_bytes, "VCV000001001.3")],
+                )
+                self.assertFalse(result.passed)
+                self.assertIn("clinvar_variant_binding_mismatch", result.errors)
+
+    def test_long_literal_spdi_flanks_preserve_one_base_deletion(self) -> None:
+        model = model_for_variant(
+            contig="NC_000001.11", position=10471,
+            ref="AC", alt="A", seed="long-expanded-deletion",
+        )
+        spdi = "NC_000001.11:10471:" + "C" * 100001 + ":" + "C" * 100000
+        xml_bytes = variant_xml(
+            self.simple_xml, spdi=spdi,
+            position=10471, ref="AC", alt="A",
+        )
+        result = self.build(
+            model, [item(model, xml_bytes, "VCV000001001.3")],
+        )
+        self.assertTrue(result.passed, result.errors)
+        self.assertEqual(result.items[0].canonical_spdi, spdi)
 
     def test_variant_coordinate_and_allele_binding_fail_closed(self) -> None:
         cases = (
@@ -376,6 +703,8 @@ class MinimumEvidenceSnapshotCapabilityTests(unittest.TestCase):
             submission.condition_references,
             ("MedGen:C123456",),
         )
+        self.assertEqual(evidence.to_dict().get("condition_name_observations"), [])
+        self.assertEqual(submission.to_dict().get("condition_name_observations"), [])
 
     def test_malformed_model_and_source_registry_fail_closed(self) -> None:
         forged_model = replace(self.simple_model, rules=(None,))
