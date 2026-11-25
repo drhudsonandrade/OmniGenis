@@ -25,7 +25,7 @@ qualified default pipeline or a validated clinical workflow.
 
 Synthetic fixtures and private qualification profiles do not establish
 production release readiness. Report artifacts retain the intended use,
-limitations, provenance, and validation state of their source results.
+limitations, and provenance of their source results.
 
 ## License
 
