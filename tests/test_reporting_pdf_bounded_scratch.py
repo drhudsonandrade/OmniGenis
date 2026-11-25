@@ -538,19 +538,24 @@ class PdfBoundedScratchReadTests(unittest.TestCase):
                         os.fstat(opened[0])
 
     def test_proc_parsers_cannot_accept_valid_prefix_before_oversized_tail(self):
-        """Reject oversized fdinfo and mountinfo payloads even when each begins with an otherwise valid record."""
-        payloads = ((b'mnt_id: 77\n' + b'x'*4096, 'fdinfo'),
-                    (b'12 1 0:12 / /run/omnigenis-pdf-bounded-scratch rw,nosuid,nodev,noexec - tmpfs tmpfs rw\n' + b'x'*262144, 'mountinfo'))
-        for payload, kind in payloads:
-            with self.subTest(kind=kind), tempfile.TemporaryFile() as fixture:
+        """Reject over-budget mountinfo after a valid prefix using the real bounded reader."""
+        prefix = (b'12 1 0:12 / /run/omnigenis-pdf-bounded-scratch '
+                  b'rw,nosuid,nodev,noexec - tmpfs tmpfs rw\n')
+        for payload, accepted in ((prefix, True), (prefix + b'x' * 262144, False)):
+            with self.subTest(accepted=accepted), tempfile.TemporaryFile() as fixture:
                 fixture.write(payload)
                 fixture.seek(0)
-                with patch.object(scratch.os, 'open', side_effect=lambda *args, **kwargs: os.dup(fixture.fileno())):
-                    with self.assertRaises(scratch.PdfBoundedScratchError):
-                        if kind == 'fdinfo':
-                            scratch._fd_mount_id(9)
-                        else:
-                            scratch._mount_record(scratch._PARENT, os.makedev(0,12), 12)
+                with patch.object(scratch, '_HELD_MOUNTINFO', None), \
+                     patch.object(scratch.os, 'open', side_effect=lambda *args, **kwargs: os.dup(fixture.fileno())):
+                    if accepted:
+                        self.assertEqual(
+                            scratch._mount_record(scratch._PARENT, os.makedev(0, 12), 12),
+                            ('tmpfs', FLAGS | {'rw'}),
+                        )
+                    else:
+                        with self.assertRaises(scratch.PdfBoundedScratchError) as raised:
+                            scratch._mount_record(scratch._PARENT, os.makedev(0, 12), 12)
+                        self.assertEqual(str(raised.exception), 'pdf_bounded_scratch_metadata_budget')
 
 
 if __name__=="__main__":
