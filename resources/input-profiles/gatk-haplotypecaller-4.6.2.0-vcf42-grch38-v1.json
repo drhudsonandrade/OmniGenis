@@ -1,0 +1,89 @@
+{
+  "schema_version": "1.0.0",
+  "profile_id": "gatk-haplotypecaller-4.6.2.0-vcf42-grch38-v1",
+  "input_kind": "gVCF",
+  "media_type": "text/vcf",
+  "format_version": "VCFv4.2",
+  "caller": {
+    "id": "gatk.HaplotypeCaller",
+    "version": "4.6.2.0",
+    "source_commit": "76edc75c26504da94bbaee66584e107e76ee15de",
+    "provenance": "DECLARED_INPUT_HEADER_ONLY"
+  },
+  "reference": {
+    "assembly": "GRCh38",
+    "contig_names": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22"
+    ],
+    "concordance": "NOT_PERFORMED_BY_INTAKE"
+  },
+  "supported_domain": {
+    "ploidy": 2,
+    "concrete_alt_count": 1,
+    "variants": "SNVs and anchored one-base insertions/deletions; one concrete ALT followed by <NON_REF>.",
+    "reference_blocks": "One-base REF and <NON_REF> ALT with explicit inclusive END; nonoverlapping source spans; source gaps remain unknown.",
+    "phase_handling": "Retain observed diploid GT separator and optional declared phase fields; no phase confidence, cis/trans or haplotype inference."
+  },
+  "limits": {
+    "max_bytes": 1048576,
+    "max_records": 32,
+    "max_line_bytes": 65536,
+    "max_header_lines": 256,
+    "max_numeric_digits": 10,
+    "max_integer": 2147483647
+  },
+  "sources": [
+    {
+      "id": "GA4GH-HTS-VCFv4.2",
+      "version": "4.2;c101c79",
+      "url": "https://samtools.github.io/hts-specs/VCFv4.2.pdf",
+      "sha256": "23940c794db16f554d3d77c301e12d29d7709696d36b8454cc7838582616bce8"
+    },
+    {
+      "id": "GATK-HaplotypeCaller",
+      "version": "4.6.2.0",
+      "url": "https://github.com/broadinstitute/gatk/tree/76edc75c26504da94bbaee66584e107e76ee15de"
+    },
+    {
+      "id": "GATK-GVCF-format",
+      "version": "documentation-updated-2024-06-25",
+      "url": "https://gatk.broadinstitute.org/hc/en-us/articles/360035531812-GVCF-Genomic-Variant-Call-Format"
+    },
+    {
+      "id": "GATK-license",
+      "version": "Apache-2.0;4.6.2.0",
+      "url": "https://github.com/broadinstitute/gatk/blob/76edc75c26504da94bbaee66584e107e76ee15de/LICENSE.TXT",
+      "sha256": "0e53509666a2480048ef7ae7dfdfc24a075fc1d6492295f5fa93aa60eb7d226a"
+    }
+  ],
+  "default_enabled": false,
+  "known_issues": [
+    "Structural subset qualification with synthetic fixtures only; no actual HaplotypeCaller execution or full output-compatibility claim.",
+    "Caller and reference declarations are retained provenance, not proof of the generating executable or reference sequence.",
+    "No BGZF/BCF, multiple samples, alternate contig aliases, non-autosomal domains, multiallelic concrete variants or general indels.",
+    "No actual reference concordance, normalization, PL transformation, joint genotyping, global callability or negative findings.",
+    "Unconsumed INFO annotations are retained after syntax checks without scientific validation.",
+    "No interpretation, reporting, default pipeline activation or release authorization."
+  ]
+}

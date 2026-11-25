@@ -1,0 +1,20 @@
+##fileformat=VCFv4.2
+##source=HaplotypeCaller
+##GATKCommandLine=<ID=HaplotypeCaller,Version="4.6.2.0",CommandLineOptions="synthetic only">
+##ALT=<ID=NON_REF,Description="Represents any possible alternative allele">
+##INFO=<ID=END,Number=1,Type=Integer,Description="End position of a reference block">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Read depth">
+##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype quality">
+##FORMAT=<ID=MIN_DP,Number=1,Type=Integer,Description="Minimum block depth">
+##FORMAT=<ID=PL,Number=G,Type=Integer,Description="Phred scaled genotype likelihoods">
+##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Allelic depths">
+##GVCFBlock0-60=minGQ=0(inclusive),maxGQ=60(exclusive)
+##GVCFBlock60-100=minGQ=60(inclusive),maxGQ=100(exclusive)
+##contig=<ID=1,length=1000,assembly=GRCh38>
+##study="Synthetic, bounded data"
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	SYNTHETIC_GVCF
+1	1	.	A	<NON_REF>	.	PASS	END=9	GT:DP:GQ:MIN_DP:PL	0/0:20:20:14:0,60,90
+1	10	synthetic_snv	A	G,<NON_REF>	50	PASS	NOTE=synthetic	GT:DP:GQ:AD:PL	0|1:20:30:12,8,0:70,0,80,90,100,110
+1	20	.	C	<NON_REF>	.	.	END=29	GT:DP:GQ:MIN_DP:PL	./.:.:.:.:.
+1	35	.	C	T,<NON_REF>	.	PASS	.	GT:DP:GQ:AD:PL	0/.:12:.:5,7,0:.

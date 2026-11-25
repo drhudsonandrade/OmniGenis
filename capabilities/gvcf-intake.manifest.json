@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0.0",
+  "capability_id": "gvcf-intake",
+  "capability_version": "1.0.0",
+  "real_use_case": "Validate a bounded single-sample reference-confidence input before any downstream genomic transformation.",
+  "owner_priority": "input-validation",
+  "upstream_status": "GA4GH HTS VCF 4.2 printing c101c79 and GATK HaplotypeCaller 4.6.2.0 source commit 76edc75c26504da94bbaee66584e107e76ee15de; checked 2026-11-25. Exact source references and supported subset are in the input profile.",
+  "license": "Independent implementation and independently written synthetic fixtures. No third-party implementation or fixture bytes copied. The referenced GATK source is Apache-2.0; no GATK executable is distributed or invoked.",
+  "supported_profile": "resources/input-profiles/gatk-haplotypecaller-4.6.2.0-vcf42-grch38-v1.json: uncompressed UTF-8 VCF 4.2, one declared GATK HaplotypeCaller 4.6.2.0 sample, declared GRCh38 autosomes 1-22, diploid bounded subset.",
+  "resource_budget": "At most 1 MiB input, 32 records, 256 header lines and 64 KiB per line. Bounded integer tokens; O(n) parsing time and memory; no filesystem, subprocess or network access.",
+  "input_fixture": "tests/fixtures/gvcf_intake/valid-single-sample.gvcf",
+  "output_contract": "Tool-neutral CapabilityResult mapping emitted by omnigenis.capabilities.gvcf_intake.GvcfIntakeResult.to_dict; source records, missingness and phase observations retained.",
+  "known_issues": "Synthetic structural qualification only. No actual caller execution or full gVCF compatibility, reference concordance, normalization, joint genotyping, callability, scientific negative inference, interpretation, reporting or release. Unconsumed INFO annotation values are not scientifically validated.",
+  "security": "Pure bytes/profile parser with explicit size/count/numeric bounds and no I/O. Invalid input produces no accepted record payload.",
+  "disable_path": "Not wired to any default execution pipeline or package-level exports; explicit module invocation only."
+}
