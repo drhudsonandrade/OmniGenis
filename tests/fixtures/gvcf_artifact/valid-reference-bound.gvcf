@@ -1,0 +1,23 @@
+##fileformat=VCFv4.2
+##source=HaplotypeCaller
+##GATKCommandLine=<ID=HaplotypeCaller,Version="4.6.2.0",CommandLineOptions="synthetic artifact fixture only">
+##ALT=<ID=NON_REF,Description="Unspecified alternative allele">
+##INFO=<ID=END,Number=1,Type=Integer,Description="Inclusive reference block endpoint">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Source genotype">
+##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Source depth">
+##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Source genotype quality">
+##FORMAT=<ID=MIN_DP,Number=1,Type=Integer,Description="Minimum source block depth">
+##FORMAT=<ID=PL,Number=G,Type=Integer,Description="Source genotype likelihood values">
+##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Source allele depth values">
+##FORMAT=<ID=PGT,Number=1,Type=String,Description="Source physical phasing genotype">
+##FORMAT=<ID=PID,Number=1,Type=String,Description="Source physical phasing identifier">
+##FORMAT=<ID=PS,Number=1,Type=Integer,Description="Source phase set">
+##GVCFBlock0-100=minGQ=0(inclusive),maxGQ=100(exclusive)
+##contig=<ID=1,length=248956422,assembly=GRCh38>
+##fixture="Independently constructed synthetic observations; not caller output"
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	SYNTHETIC_ARTIFACT
+1	10001	.	T	<NON_REF>	.	PASS	END=10009	GT:DP:GQ:MIN_DP:PL	0/0:20:20:14:0,60,90
+1	10010	fixture_snv	C	A,<NON_REF>	50	PASS	.	GT:DP:GQ:AD:PL:PGT:PID:PS	0|1:20:30:12,8,0:70,0,80,90,100,110:1|0:10010_C_A:10010
+1	10020	.	A	<NON_REF>	.	.	END=10029	GT:DP:GQ:MIN_DP:PL	./.:.:.:.:.
+1	10035	fixture_partial	C	T,<NON_REF>	.	PASS	.	GT:DP:GQ:AD:PL	0/.:12:.:5,7,0:.
+1	10045	fixture_insertion	A	AT,<NON_REF>	45	PASS	.	GT:DP:GQ:AD:PL	0/1:18:25:10,8,0:60,0,70,80,90,100

@@ -1,0 +1,7 @@
+{
+  "schema_version": "1.0.0",
+  "execution_profile_id": "single-sample-gvcf-artifact-v1",
+  "executor_id": "omnigenis.local-direct",
+  "executor_version": "1.0.0",
+  "deterministic": true
+}
