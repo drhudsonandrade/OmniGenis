@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0.0",
+  "capability_id": "single-sample-small-variant-run",
+  "capability_version": "1.0.0",
+  "real_use_case": "Compose existing VCF intake, artifact/QC/reference verification, normalization, canonical models, source evidence, source-attributed gene identity, and interpretation for one explicit limited local run.",
+  "owner_priority": "Explicit deterministic local integration.",
+  "upstream_status": "Project-owned opt-in composition over existing versioned capability and resource contracts.",
+  "license": "Independent project-owned integration; external executor and scientific resource bytes are not redistributed.",
+  "supported_profile": "Uncompressed UTF-8 VCF 4.5 with one sample and primary-autosomal RefSeq contigs in the pinned GRCh38.p14 profile; original-representation SNVs or matching-left-anchor single-base insertions/deletions; diploid GT with missing allele slots preserved.",
+  "resource_budget": "At most 1 MiB original VCF, 32 input records, 20 MiB supplied XML evidence, and 64 source gene entries. These are engineering qualification limits, not scientific definitions. Reuses the existing normalizer's 256M sort budget with a per-stage timeout of 1 through 600 seconds; exact reference/executor verification remains mandatory.",
+  "input_fixture": "tests/test_small_variant_run.py exercises synthetic inputs and explicit test-only resource substitutions; unpatched reference integration remains a separate qualification.",
+  "output_contract": "SmallVariantRunResult retains actual stage results, immutable source/evidence bindings, source gene entries, completed stages, and explicit refusal state; no persisted run protocol is introduced.",
+  "known_issues": "Other valid ploidies and sequence representations are UNSUPPORTED_PROFILE. Variant-only callability remains unavailable. All ClinVar GeneList entries remain source-attributed; missing HGNC IDs are unavailable and unresolved explicit IDs block interpretation. No inferred interval annotation, clinical classification, default pipeline, or product release is established.",
+  "security": "Strict profile and original-byte binding; bounded VCF/evidence/gene admission; immutable source snapshots; validated XML only for source gene extraction; existing pinned normalizer executes argv-only commands in its private temporary workspace. No network retrieval, retry, publication, or runtime-path serialization.",
+  "disable_path": "Never invoked by default. Call explicitly with the exact execution profile and matching resource inputs; stop at the first failed or unsupported stage."
+}
