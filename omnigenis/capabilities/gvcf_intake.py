@@ -383,7 +383,7 @@ def _info(value: str) -> dict[str, str | None]:
         key, separator, item = entry.partition("=")
         if not _KEY.fullmatch(key) or key in annotations:
             raise _Invalid("INFO: invalid or duplicate key")
-        if separator and (not item or "=" in item):
+        if separator and (not item or "=" in item or "" in item.split(",")):
             raise _Invalid("INFO: ambiguous or empty value")
         annotations[key] = item if separator else None
     return annotations
@@ -449,6 +449,8 @@ def _format(
         _array(observed["SB"], 4, "SB")
     if "PGT" in observed and observed["PGT"] != ".":
         _genotype(observed["PGT"], maximum, "PGT")
+    if "PID" in observed and "," in observed["PID"]:
+        raise _Invalid("PID: require one string value or missing dot")
     return tuple(zip(tags, values)), separator, status
 
 

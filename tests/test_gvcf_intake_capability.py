@@ -482,6 +482,23 @@ class GvcfIntakeCapabilityTests(unittest.TestCase):
             with self.subTest(declared_tag=tag):
                 self.assert_refused(self.with_records(rows, declarations))
 
+    def test_pid_preserves_one_identifier_or_missing_and_refuses_multiple_values(self) -> None:
+        declaration = ['##FORMAT=<ID=PID,Number=1,Type=String,Description="Physical phase identifier">']
+        for value in ("block_a", "."):
+            with self.subTest(valid_pid=value):
+                data = self.changed_record(1, format="GT:DP:GQ:AD:PL:PID",
+                    sample=f"0|1:20:30:12,8,0:70,0,80,90,100,110:{value}")
+                records = [line for line in data.decode("utf-8").splitlines() if not line.startswith("#")]
+                result = self.parse(self.with_records(records, declaration))
+                self.assertTrue(result.is_valid, result.errors)
+                self.assertEqual(result.to_dict()["canonical_payload"]["records"][1]["format_values"]["PID"], value)
+        for value in ("block_a,block_b", "block_a,", ",block_a"):
+            with self.subTest(invalid_pid=value):
+                data = self.changed_record(1, format="GT:DP:GQ:AD:PL:PID",
+                    sample=f"0|1:20:30:12,8,0:70,0,80,90,100,110:{value}")
+                records = [line for line in data.decode("utf-8").splitlines() if not line.startswith("#")]
+                self.assert_refused(self.with_records(records, declaration))
+
     def test_qual_must_be_missing_or_finite_nonnegative_numeric(self) -> None:
         result = self.parse(self.changed_record(1, qual="0.125"))
         self.assertTrue(result.is_valid, result.errors)
@@ -509,6 +526,17 @@ class GvcfIntakeCapabilityTests(unittest.TestCase):
             with self.subTest(info=info):
                 self.assert_refused(self.changed_record(1, info=info))
         self.assert_refused(self.changed_record(0, info="END=9;END=9"))
+
+    def test_info_list_syntax_retains_values_missing_and_flags_but_refuses_empty_members(self) -> None:
+        for info in ("NOTE=a,b", "NOTE=.", "FLAG"):
+            with self.subTest(valid_info=info):
+                result = self.parse(self.changed_record(1, info=info))
+                self.assertTrue(result.is_valid, result.errors)
+                record = result.to_dict()["canonical_payload"]["records"][1]
+                self.assertEqual(record["raw_record"].split("\t")[7], info)
+        for info in ("NOTE=a,,b", "NOTE=,a", "NOTE=a,"):
+            with self.subTest(invalid_info=info):
+                self.assert_refused(self.changed_record(1, info=info))
 
     def test_record_budget_accepts_limit_and_refuses_next_record(self) -> None:
         records = [f"1\t{pos}\t.\tA\t<NON_REF>\t.\tPASS\tEND={pos}\tGT:DP:GQ:MIN_DP:PL\t0/0:20:20:14:0,60,90"
