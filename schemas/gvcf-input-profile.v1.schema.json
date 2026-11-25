@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:omnigenis:schema:gvcf-input-profile:1.0.0",
+  "title": "GvcfInputProfile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "profile_id",
+    "input_id",
+    "input_kind",
+    "media_type",
+    "content_sha256",
+    "size_bytes",
+    "sample_id",
+    "caller_id",
+    "caller_version",
+    "reference_assembly"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "profile_id": {
+      "const": "gatk-haplotypecaller-4.6.2.0-vcf42-grch38-v1"
+    },
+    "input_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "input_kind": {
+      "const": "gVCF"
+    },
+    "media_type": {
+      "const": "text/vcf"
+    },
+    "content_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$(?![\\s\\S])"
+    },
+    "size_bytes": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1048576
+    },
+    "sample_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[!-~]+$(?![\\s\\S])"
+    },
+    "caller_id": {
+      "const": "gatk.HaplotypeCaller"
+    },
+    "caller_version": {
+      "const": "4.6.2.0"
+    },
+    "reference_assembly": {
+      "const": "GRCh38"
+    }
+  }
+}
