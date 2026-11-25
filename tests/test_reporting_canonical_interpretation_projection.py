@@ -7,6 +7,7 @@ import importlib
 import importlib.util
 import json
 from pathlib import Path
+from types import MappingProxyType
 import unittest
 from unittest.mock import patch
 import xml.etree.ElementTree as ET
@@ -29,7 +30,7 @@ def load_projection(testcase):
     return importlib.import_module(name)
 
 
-def synthetic_run(*, empty=False, conflict=False, gene_count=0, multiple=False):
+def synthetic_run(*, empty=False, conflict=False, gene_count=0, multiple=False, registry=None):
     """Run actual pure components around an explicit synthetic normalizer fixture."""
     runner = importlib.import_module("omnigenis.small_variant_run")
     source = (ROOT / "tests/fixtures/canonical_genomic_model/source-normalized.vcf").read_bytes()
@@ -92,7 +93,8 @@ def synthetic_run(*, empty=False, conflict=False, gene_count=0, multiple=False):
             reference_profile=load_json("resources/reference-profiles/grch38-p14-ncbi-refseq-autosomal-v1.json"),
             reference_resource_bom=load_json("resources/scientific-resource-bom/grch38-p14-ncbi-refseq-autosomal-v1.json"),
             reference_observation=load_json("tests/fixtures/reference_identity/ncbi-grch38-p14.observation.json"),
-            source_registry=load_json("resources/source-registry.v1.json"),
+            source_registry=(load_json("resources/source-registry.v1.json")
+                             if registry is None else registry),
             reference_fasta="synthetic-not-opened.fa",
             bcftools_executable="synthetic-not-invoked",
             expected_executor_sha256=normalized.executor_sha256,
@@ -330,6 +332,148 @@ class CanonicalInterpretationProjectionTests(unittest.TestCase):
         self.assertIn("NOT_PERFORMED", rendered.artifact_text)
         self.assertEqual(rendered.artifact_sha256,
                          hashlib.sha256(rendered.artifact_text.encode("utf-8")).hexdigest())
+
+    def test_finite_float_registry_metadata_can_be_detached_and_projected(self):
+        registry = load_json("resources/source-registry.v1.json")
+        registry["extension_score"] = 0.5
+        registry["extension_details"] = {"scores": [0.25, 2.0]}
+        run = synthetic_run(registry=registry)
+        self.assertTrue(run.passed)
+        detached = self.sut._plain(run.source_registry)
+        self.assertEqual(detached["extension_score"], 0.5)
+        self.assertIs(type(detached["extension_score"]), float)
+        self.assertEqual(detached["extension_details"], {"scores": [0.25, 2.0]})
+        detached["extension_details"]["scores"].clear()
+        self.assertEqual(tuple(run.source_registry["extension_details"]["scores"]), (0.25, 2.0))
+        projection = self.project(run)
+        self.assertEqual(projection["items"],
+                         [item.to_dict() for item in run.interpretation.items])
+
+    def test_nonfinite_registry_metadata_is_not_projected(self):
+        run = synthetic_run()
+        for number in (float("nan"), float("inf"), -float("inf")):
+            with self.subTest(number=number):
+                changed = replace(run, source_registry={
+                    **dict(run.source_registry), "extension_details": {"score": number},
+                })
+                with self.assertRaisesRegex(self.sut.ReportProjectionError, "run_binding_invalid"):
+                    self.project(changed)
+
+    def test_nested_numeric_type_substitutions_are_not_rebound(self):
+        run = synthetic_run()
+        self.assertTrue(self.project(run)["items"])
+        variant = run.canonical_model.variants[0]
+        evidence = run.evidence_snapshot.items[0]
+        interpretation = run.interpretation.items[0]
+        cases = (
+            (replace(run, canonical_model=replace(run.canonical_model, variants=(
+                replace(variant, position_1_based=float(variant.position_1_based)),
+            ))), "canonical_model_binding_mismatch"),
+            (replace(run, canonical_model=replace(run.canonical_model, variants=(
+                replace(variant, normalized_record_ordinal=True),
+            ))), "canonical_model_binding_mismatch"),
+            (replace(run, evidence_snapshot=replace(run.evidence_snapshot, items=(
+                replace(evidence, variation_id=float(evidence.variation_id)),
+            ))), "evidence_snapshot_binding_mismatch"),
+            (replace(run, evidence_snapshot=replace(run.evidence_snapshot, items=(
+                replace(evidence, conflict=0),
+            ))), "evidence_snapshot_binding_mismatch"),
+            (replace(run, interpretation=replace(run.interpretation, items=(
+                replace(interpretation, source_submission_count=True),
+            ))), "interpretation_binding_mismatch"),
+        )
+        for changed, code in cases:
+            with self.subTest(code=code, changed=changed):
+                self.assertTrue(changed.passed)
+                with self.assertRaisesRegex(self.sut.ReportProjectionError, code):
+                    self.project(changed)
+
+    def test_structural_comparison_keeps_mapping_and_sequence_member_types(self):
+        code = "synthetic_binding_mismatch"
+        expected = MappingProxyType({"entries": [{"ordinal": 1, "verified": True}], "score": 0.5})
+        same = MappingProxyType({"score": 0.5, "entries": [{"verified": True, "ordinal": 1}]})
+        self.sut._equal(same, expected, code)
+        cases = (
+            (MappingProxyType({"entries": [{"ordinal": 1.0, "verified": True}], "score": 0.5}), expected),
+            (MappingProxyType({"entries": [{"ordinal": 1, "verified": 1}], "score": 0.5}), expected),
+            ({"entries": (1.0,)}, {"entries": (1,)}),
+            ({"entries": [True]}, {"entries": [1]}),
+            ({True: "value"}, {1: "value"}),
+            ({(True,): "value"}, {(1,): "value"}),
+        )
+        for actual, reference in cases:
+            with self.subTest(actual=actual):
+                with self.assertRaisesRegex(self.sut.ReportProjectionError, code):
+                    self.sut._equal(actual, reference, code)
+
+    def test_source_gene_ordinal_and_version_require_exact_integers(self):
+        run = synthetic_run(gene_count=1)
+        reference = run.source_gene_references[0]
+        projected = self.project(run)["provenance"][0]["source_gene_references"][0]
+        self.assertIs(type(projected["source_gene_ordinal"]), int)
+        self.assertIs(type(projected["source_vcv_version"]), int)
+        for changes in (
+            {"source_gene_ordinal": True},
+            {"source_gene_ordinal": 1.0},
+            {"source_vcv_version": float(reference.source_vcv_version)},
+            {"source_vcv_version": True},
+        ):
+            with self.subTest(changes=changes):
+                changed = replace(run, source_gene_references=(replace(reference, **changes),))
+                self.assertTrue(changed.passed)
+                with self.assertRaisesRegex(self.sut.ReportProjectionError, "source_gene_binding_mismatch"):
+                    self.project(changed)
+
+    def test_retained_symbol_in_explicit_hgnc_id_is_not_projected(self):
+        from test_small_variant_run import SyntheticRunFixture
+        from omnigenis.capabilities.evidence_snapshot import build_minimum_evidence_snapshot
+        from omnigenis.capabilities.canonical_interpretation import build_canonical_interpretation_object
+        from omnigenis.capabilities.gene_identity import resolve_gene_identity
+        runner = importlib.import_module("omnigenis.small_variant_run")
+        with SyntheticRunFixture() as fixture:
+            original_attributes = {"HGNC_ID": "HGNC:1001", "Source": "submitted"}
+            evidence = fixture.evidence(genes=[original_attributes])
+            run = runner.run_small_variant_components(**fixture.arguments(evidence=[evidence]))
+            self.assertTrue(run.passed, (run.failed_stage, run.errors))
+            self.assertTrue(self.project(run, source_identity("SYNTHETIC-001"))["items"])
+
+            # Rebuild actual source/evidence bindings around the invalid retained attribution.
+            # This deliberately bypasses the runner to test projection's independent guard.
+            attributes = {"HGNC_ID": "GENEA", "Source": "submitted"}
+            altered = fixture.evidence(genes=[attributes])
+            snapshot = build_minimum_evidence_snapshot(
+                canonical_model=run.canonical_model, evidence_items=[altered],
+                source_registry=fixture.registry,
+            )
+            self.assertTrue(snapshot.passed, snapshot.errors)
+            interpretation = build_canonical_interpretation_object(
+                canonical_model=run.canonical_model, evidence_snapshot=snapshot,
+                as_of_date=run.as_of_date,
+            )
+            self.assertTrue(interpretation.passed, interpretation.errors)
+            resolution = resolve_gene_identity(
+                "GENEA", approved_tsv=fixture.approved, withdrawn_tsv=fixture.withdrawn,
+                source_registry=fixture.registry, resource_bom=fixture.gene_bom,
+            )
+            self.assertTrue(resolution.passed, resolution.errors)
+            self.assertEqual(resolution.gene.canonical_gene_id, "HGNC:1001")
+            binding = runner.EvidenceInputBinding(
+                canonical_variant_id=altered["canonical_variant_id"],
+                metadata_json=json.dumps(altered["metadata"], sort_keys=True,
+                                         separators=(",", ":"), ensure_ascii=False,
+                                         allow_nan=False).encode("utf-8"),
+                xml_bytes=altered["xml_bytes"],
+            )
+            reference = replace(
+                run.source_gene_references[0], hgnc_id="GENEA",
+                source_xml_sha256=hashlib.sha256(altered["xml_bytes"]).hexdigest(),
+                source_attributes=tuple(sorted(attributes.items())), resolution=resolution,
+            )
+            forged = replace(run, evidence_inputs=(binding,), evidence_snapshot=snapshot,
+                             interpretation=interpretation, source_gene_references=(reference,))
+            self.assertTrue(forged.passed)
+            with self.assertRaisesRegex(self.sut.ReportProjectionError, "source_gene_identity_mismatch"):
+                self.project(forged, source_identity("SYNTHETIC-001"))
 
     def test_untyped_run_or_identity_is_rejected(self):
         with self.assertRaises(self.sut.ReportProjectionError):

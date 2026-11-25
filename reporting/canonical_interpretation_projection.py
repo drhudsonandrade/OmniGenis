@@ -9,8 +9,10 @@ and VCF bytes remain in the run, never in the reporting mapping.
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import fields, is_dataclass
 import hashlib
 import json
+import math
 import xml.etree.ElementTree as ET
 
 from omnigenis.capabilities.artifact_gate import verify_artifact_bytes
@@ -45,6 +47,8 @@ def _plain(value):
         return [_plain(item) for item in value]
     if value is None or type(value) in (str, int, bool):
         return value
+    if type(value) is float and math.isfinite(value):
+        return value
     raise ReportProjectionError("run_binding_invalid")
 
 
@@ -62,7 +66,29 @@ def _constant(_value):
 
 
 def _equal(actual, expected, code):
-    if type(actual) is not type(expected) or actual != expected:
+    """Compare rebuilt structures without numeric or nested type coercion."""
+    if type(actual) is not type(expected):
+        raise ReportProjectionError(code)
+    if is_dataclass(expected) and not isinstance(expected, type):
+        for field in fields(expected):
+            _equal(getattr(actual, field.name), getattr(expected, field.name), code)
+    elif isinstance(expected, Mapping):
+        if len(actual) != len(expected):
+            raise ReportProjectionError(code)
+        missing = object()
+        for key, value in expected.items():
+            actual_key = next((candidate for candidate in actual
+                               if type(candidate) is type(key) and candidate == key), missing)
+            if actual_key is missing:
+                raise ReportProjectionError(code)
+            _equal(actual_key, key, code)
+            _equal(actual[actual_key], value, code)
+    elif isinstance(expected, (tuple, list)):
+        if len(actual) != len(expected):
+            raise ReportProjectionError(code)
+        for item, reference in zip(actual, expected, strict=True):
+            _equal(item, reference, code)
+    elif actual != expected:
         raise ReportProjectionError(code)
 
 
@@ -99,7 +125,9 @@ def _source_genes(run):
     projected = []
     resolutions = {}
     for original, reference in zip(expected, run.source_gene_references, strict=True):
-        if type(reference) is not SourceGeneReference:
+        if (type(reference) is not SourceGeneReference
+                or type(reference.source_gene_ordinal) is not int
+                or type(reference.source_vcv_version) is not int):
             raise ReportProjectionError("source_gene_binding_mismatch")
         actual = (reference.canonical_variant_id, reference.source_vcv_accession,
                   reference.source_vcv_version, reference.source_xml_sha256,
@@ -127,7 +155,8 @@ def _source_genes(run):
                     source_registry=_plain(run.source_registry),
                     resource_bom=_plain(resource.resource_bom))
             rebuilt = resolutions[reference.hgnc_id]
-            if not rebuilt.passed:
+            if (not rebuilt.passed
+                    or rebuilt.gene.canonical_gene_id != reference.hgnc_id):
                 raise ReportProjectionError("source_gene_identity_mismatch")
             _equal(resolution, rebuilt, "source_gene_identity_mismatch")
         projected.append({

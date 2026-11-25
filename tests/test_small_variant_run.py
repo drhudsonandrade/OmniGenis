@@ -387,6 +387,24 @@ class SmallVariantRunTests(unittest.TestCase):
         self.assertIsNone(result.source_gene_references[1].resolution)
         self.assertIsNone(result.interpretation)
 
+    def test_symbol_in_explicit_hgnc_id_is_refused_without_dropping_source_entries(self):
+        item = self.fixture.evidence(genes=[
+            {"HGNC_ID": "GENEA", "Source": "submitted"},
+            {"HGNC_ID": "HGNC:1002", "Source": "calculated"},
+        ])
+        result = self.run_case(evidence_items=[item])
+        self.assertFalse(result.passed)
+        self.assertEqual(result.failed_stage, "source_genes")
+        self.assertIn("explicit_hgnc_identity_not_verified", result.errors)
+        self.assertIsNone(result.interpretation)
+        self.assertEqual(len(result.source_gene_references), 2)
+        first, second = result.source_gene_references
+        self.assertEqual(first.hgnc_id, "GENEA")
+        self.assertEqual(dict(first.source_attributes)["HGNC_ID"], "GENEA")
+        self.assertTrue(first.resolution.passed)
+        self.assertEqual(first.resolution.gene.canonical_gene_id, "HGNC:1001")
+        self.assertIsNone(second.resolution)
+
     def test_source_gene_budget_rejects_without_partial_interpretation(self):
         item = self.fixture.evidence(genes=[{"HGNC_ID": "HGNC:1001"}] * 65)
         result = self.run_case(evidence_items=[item])

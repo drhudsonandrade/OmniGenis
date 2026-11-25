@@ -480,7 +480,8 @@ def run_small_variant_components(
                 resource_bom=gene_bom)
             references[index] = replace(reference_entry, resolution=resolution)
             state["source_gene_references"] = tuple(references)
-            if not resolution.passed:
+            if (not resolution.passed
+                    or resolution.gene.canonical_gene_id != reference_entry.hgnc_id):
                 return refused(resolution, "explicit_hgnc_identity_not_verified")
         completed.append(stage)
 
