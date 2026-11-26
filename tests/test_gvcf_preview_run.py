@@ -704,5 +704,98 @@ class GvcfPreviewRunTests(unittest.TestCase):
         self.assertNotIn("output_schema", run.completed_stages)
 
 
+    def test_path_valued_manifest_ids_refuse_before_native_preparation(self):
+        original = make_preview_run()
+        self.assertTrue(original.passed, original.errors)
+        manifest = json.loads(original.source_artifact_manifest_json)
+        for identifier in (
+            "/private/source.g.vcf", "../source.g.vcf", "./source.g.vcf",
+            "sample/source.g.vcf", r"C:\private\source.g.vcf",
+            r"\\server\share\source.g.vcf", "C:source.g.vcf",
+            "file:source.g.vcf", ".", "..",
+        ):
+            with self.subTest(identifier=identifier):
+                changed = dict(manifest, artifact_id=identifier)
+                with patch.object(preview, "prepare_gvcf_artifacts") as prepare:
+                    refused = make_preview_run(source_artifact_manifest=changed)
+                self.assert_failed(refused)
+                self.assertEqual(refused.errors, ("source_artifact_invalid",))
+                self.assertIsNone(refused.artifact)
+                prepare.assert_not_called()
+                with self.assertRaisesRegex(preview.GvcfPreviewBindingError, "^source_artifact_invalid$"):
+                    preview.rebind_gvcf_preview_run(replace(
+                        original, source_artifact_manifest_json=_canonical(changed),
+                    ))
+
+    def test_opaque_manifest_ids_are_preserved_in_bound_lineage(self):
+        original = make_preview_run()
+        self.assertTrue(original.passed, original.errors)
+        manifest = json.loads(original.source_artifact_manifest_json)
+        for identifier in (
+            "sample-01", "group:sample_01.v1", "urn:sha256:" + "a" * 64, "sample-\u03b1",
+        ):
+            with self.subTest(identifier=identifier):
+                run = make_preview_run(source_artifact_manifest=dict(manifest, artifact_id=identifier))
+                self.assertTrue(run.passed, run.errors)
+                exported = run.to_dict()
+                self.assertEqual(run.artifact.source_artifact_id, identifier)
+                evidence = exported["evidence_snapshot"]["artifact_evidence"]
+                self.assertEqual(evidence["source_artifact_id"], identifier)
+                self.assertEqual(evidence["artifacts"][0]["parent_artifact_ids"], [identifier])
+
+    def test_escaped_capture_byte_budget_preserves_diagnostic_before_preparation(self):
+        with patch.object(preview, "prepare_gvcf_artifacts") as prepare:
+            refused = make_preview_run(input_profile={"escaped": "\x00" * 16_384})
+        self.assert_failed(refused)
+        self.assertEqual(refused.errors, ("json_byte_budget_exceeded",))
+        prepare.assert_not_called()
+
+    def test_escaped_export_byte_budget_refuses_before_schema_access(self):
+        run = make_preview_run()
+        self.assertTrue(run.passed, run.errors)
+        value = run.to_dict()
+        value["escaped_padding"] = ["\x00" * 32_768] * 43
+        with patch.object(preview, "_SCHEMA_PATH") as schema_path:
+            with self.assertRaisesRegex(preview.GvcfPreviewBindingError, "^json_byte_budget_exceeded$"):
+                preview.validate_gvcf_preview_export(value)
+            schema_path.open.assert_not_called()
+        self.assertEqual(value["escaped_padding"], ["\x00" * 32_768] * 43)
+
+    def test_detached_export_rejects_invalid_nested_timestamp(self):
+        run = make_preview_run()
+        self.assertTrue(run.passed, run.errors)
+        original = run.to_dict()
+        for offset in ("+00:60", "-00:60", "+00:99", "-12:99", "+24:00"):
+            with self.subTest(offset=offset):
+                value = copy.deepcopy(original)
+                value["evidence_snapshot"]["observed_at"] = "2026-11-26T18:00:00" + offset
+                self.assertEqual(value["observed_at"], original["observed_at"])
+                with self.assertRaisesRegex(preview.GvcfPreviewBindingError, "^observed_at_invalid$"):
+                    preview.validate_gvcf_preview_export(value)
+
+    def test_zero_padded_supported_genotypes_preserve_source_spelling(self):
+        for ordinal, genotype in (
+            (0, "00/0"), (0, "0000000000/00"), (4, "0000000000/0000000001"),
+        ):
+            with self.subTest(ordinal=ordinal, genotype=genotype):
+                columns = _record_lines(self.source)[ordinal].split("\t")
+                sample = columns[9].split(":")
+                sample[columns[8].split(":").index("GT")] = genotype
+                source = _change_record(self.source, ordinal, 9, ":".join(sample))
+                run = make_preview_run(source)
+                self.assertTrue(run.passed, run.errors)
+                exported = run.to_dict()
+                observation = exported["canonical_model"]["observations"][ordinal]
+                self.assertEqual(observation["source_gt"], genotype)
+                self.assertEqual(run.intake.records[ordinal].gt, genotype)
+                preview.validate_gvcf_preview_export(exported)
+                for unsupported in ("2/2", "00/2", "00000000000/0"):
+                    changed = copy.deepcopy(exported)
+                    changed["canonical_model"]["observations"][ordinal]["source_gt"] = unsupported
+                    with self.assertRaises(preview.GvcfPreviewBindingError):
+                        preview.validate_gvcf_preview_export(changed)
+
+
+
 if __name__ == "__main__":
     unittest.main()

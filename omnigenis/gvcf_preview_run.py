@@ -37,7 +37,7 @@ MAX_PREVIEW_EXPORT_BYTES = 8_388_608
 MAX_JSON_DEPTH = 16
 MAX_JSON_NODES = 16_384
 SCHEMA_ID = "urn:omnigenis:schema:gvcf-preview-run:1.0.0"
-SCHEMA_SHA256 = "4b453dd4052fa56572e5126deaf7a15a332d27a3f23aabee6ef063712db66460"
+SCHEMA_SHA256 = "ceb16db86150b1adf26942491d4a874283a1e9d5bfd793197afbb2c3962ccde6"
 _SCHEMA_PATH = Path(__file__).resolve().parents[1] / "schemas" / "gvcf-preview-run.v1.schema.json"
 COMPLETED_STAGES = (
     "bounded_inputs", "profiles", "intake", "artifact", "canonical_model",
@@ -141,6 +141,8 @@ def _bounded_json(value: object, *, limit: int) -> bytes:
             chunk = part.encode("utf-8")
             _require(len(encoded) + len(chunk) <= limit, "json_byte_budget_exceeded")
             encoded.extend(chunk)
+    except GvcfPreviewBindingError:
+        raise
     except (UnicodeError, ValueError, TypeError, RecursionError):
         raise GvcfPreviewBindingError("json_encoding_invalid") from None
     return bytes(encoded)
@@ -380,6 +382,15 @@ def _profiles(run: GvcfPreviewRunResult) -> tuple[dict, dict, dict, dict]:
         "executor_id": "omnigenis.local-direct", "executor_version": "1.0.0",
         "deterministic": True,
     })
+    artifact_id = manifest.get("artifact_id")
+    _require(
+        type(artifact_id) is str and bool(artifact_id)
+        and "/" not in artifact_id and "\\" not in artifact_id
+        and artifact_id not in {".", ".."}
+        and re.match(r"[A-Za-z]:", artifact_id) is None
+        and not artifact_id.lower().startswith("file:"),
+        "source_artifact_invalid",
+    )
     _require(type(manifest.get("size_bytes")) is int, "source_artifact_invalid")
     _require(
         manifest.get("artifact_kind") == "gVCF"
@@ -630,6 +641,7 @@ def validate_gvcf_preview_export(payload: dict) -> None:
         Draft202012Validator.check_schema(schema)
         Draft202012Validator(schema).validate(payload)
         _timestamp(payload["observed_at"])
+        _timestamp(payload["evidence_snapshot"]["observed_at"])
     except GvcfPreviewBindingError:
         raise
     except Exception:
