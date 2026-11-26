@@ -342,6 +342,39 @@ class GvcfPreviewRunTests(unittest.TestCase):
                 self.assert_failed(make_preview_run(**values))
                 prepare.assert_not_called()
 
+    def test_invalid_timezone_components_refuse_before_native_execution(self):
+        for offset in ("+00:60", "-00:60", "+00:99", "-12:99", "+24:00", "-24:00"):
+            with self.subTest(offset=offset), patch.object(preview, "prepare_gvcf_artifacts") as prepare:
+                result = make_preview_run(observed_at="2026-11-26T18:00:00" + offset)
+                self.assert_failed(result)
+                self.assertEqual(result.errors, ("observed_at_invalid",))
+                prepare.assert_not_called()
+
+    def test_rebind_and_export_refuse_overflowing_timezone_components(self):
+        run = make_preview_run()
+        self.assertTrue(run.passed, run.errors)
+        original = run.to_dict()
+        for offset in ("+00:60", "-00:60", "+00:99", "-12:99"):
+            timestamp = "2026-11-26T18:00:00" + offset
+            with self.subTest(offset=offset):
+                with self.assertRaisesRegex(preview.GvcfPreviewBindingError, "^observed_at_invalid$"):
+                    preview.rebind_gvcf_preview_run(replace(run, observed_at=timestamp))
+                payload = copy.deepcopy(original)
+                payload["observed_at"] = timestamp
+                with self.assertRaisesRegex(preview.GvcfPreviewBindingError, "^observed_at_invalid$"):
+                    preview.validate_gvcf_preview_export(payload)
+
+    def test_valid_timezone_boundaries_preserve_caller_context(self):
+        for offset in ("+00:59", "-00:59", "+23:59", "-23:59"):
+            timestamp = "2026-11-26T18:00:00.123456" + offset
+            with self.subTest(offset=offset):
+                run = make_preview_run(observed_at=timestamp)
+                self.assertTrue(run.passed, run.errors)
+                payload = run.to_dict()
+                preview.validate_gvcf_preview_export(payload)
+                self.assertEqual(payload["observed_at"], timestamp)
+                self.assertEqual(payload["evidence_snapshot"]["observed_at"], timestamp)
+
     def test_empty_nonbytes_and_oversized_sources_refuse_without_native_execution(self):
         for source in (b"", "not bytes", b"x" * (preview.MAX_INPUT_BYTES + 1)):
             with self.subTest(kind=type(source).__name__), patch.object(preview, "prepare_gvcf_artifacts") as prepare:
@@ -634,8 +667,10 @@ class GvcfPreviewRunTests(unittest.TestCase):
         self.assertTrue(run.passed, run.errors)
         value = run.to_dict()
         value["over_budget"] = ["x" * 32_768] * 257
-        with self.assertRaises(preview.GvcfPreviewBindingError):
-            preview.validate_gvcf_preview_export(value)
+        with patch.object(preview, "_SCHEMA_PATH") as schema_path:
+            with self.assertRaisesRegex(preview.GvcfPreviewBindingError, "^json_budget_exceeded$"):
+                preview.validate_gvcf_preview_export(value)
+            schema_path.open.assert_not_called()
         self.assertEqual(len(value["over_budget"]), 257)
         self.assertEqual(len(value["over_budget"][0]), 32_768)
 
