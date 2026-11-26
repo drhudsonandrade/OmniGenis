@@ -763,5 +763,125 @@ class FastqIntakeTests(unittest.TestCase):
         self.assertEqual(a.to_dict(), b.to_dict())
 
 
+    def _assert_non_bytes_chunk_refused(self, *, after_pair, spoof_class):
+        class NonBytesProxy:
+            def __init__(self):
+                self.class_lookups = 0
+
+            @property
+            def __class__(self):
+                self.class_lookups += 1
+                if spoof_class:
+                    return bytes
+                raise RuntimeError("synthetic-chunk-type-marker")
+
+        class ProxyAfterPrefix:
+            def __init__(self, prefix, proxy):
+                self.prefix = io.BytesIO(prefix)
+                self.proxy = proxy
+                self.requests = []
+                self.proxy_returned = False
+
+            def read(self, size):
+                if type(size) is not int or not 1 <= size <= MAX_READ:
+                    raise AssertionError("A bounded positive read size is required")
+                self.requests.append(size)
+                data = self.prefix.read(min(size, 17))
+                if data:
+                    return data
+                self.proxy_returned = True
+                return self.proxy
+
+        left, right = load_fixture_pair()
+        prefix = b"".join(left.splitlines(keepends=True)[:4]) if after_pair else b""
+        proxy = NonBytesProxy()
+        stream = ProxyAfterPrefix(prefix, proxy)
+        result = call_validator(stream, io.BytesIO(right), bound_profile(left, right))
+        exported = self.assert_refused(
+            result, {"stream_protocol_error"}, mate="R1",
+            record_index=2 if after_pair else 1,
+        )
+        self.assertTrue(stream.proxy_returned)
+        self.assertEqual(stream.prefix.tell(), len(prefix))
+        self.assertEqual(proxy.class_lookups, 0)
+        self.assertNotIn("synthetic-chunk-type-marker", json.dumps(exported))
+
+    def test_non_bytes_chunk_class_error_is_refused_immediately(self):
+        self._assert_non_bytes_chunk_refused(after_pair=False, spoof_class=False)
+
+    def test_non_bytes_chunk_class_error_is_refused_after_complete_pair(self):
+        self._assert_non_bytes_chunk_refused(after_pair=True, spoof_class=False)
+
+    def test_non_bytes_chunk_spoof_is_refused_immediately(self):
+        self._assert_non_bytes_chunk_refused(after_pair=False, spoof_class=True)
+
+    def test_non_bytes_chunk_spoof_is_refused_after_complete_pair(self):
+        self._assert_non_bytes_chunk_refused(after_pair=True, spoof_class=True)
+
+    def test_genuine_bytes_subclass_uses_only_underlying_buffer(self):
+        hooks = {"class": 0, "length": 0, "bytes": 0, "iteration": 0, "item": 0}
+
+        class GenuineBytes(bytes):
+            @property
+            def __class__(self):
+                hooks["class"] += 1
+                raise RuntimeError("unexpected class hook")
+
+            def __len__(self):
+                hooks["length"] += 1
+                raise RuntimeError("unexpected length hook")
+
+            def __bytes__(self):
+                hooks["bytes"] += 1
+                raise RuntimeError("unexpected bytes hook")
+
+            def __iter__(self):
+                hooks["iteration"] += 1
+                raise RuntimeError("unexpected iteration hook")
+
+            def __getitem__(self, item):
+                hooks["item"] += 1
+                raise RuntimeError("unexpected item hook")
+
+        class SubclassReader:
+            def __init__(self, data):
+                self.stream = io.BytesIO(data)
+                self.eof_observed = False
+                self.returned_bytes = 0
+
+            def read(self, size):
+                if type(size) is not int or not 1 <= size <= MAX_READ:
+                    raise AssertionError("A bounded positive read size is required")
+                data = self.stream.read(min(size, 17))
+                self.eof_observed = self.eof_observed or not data
+                self.returned_bytes += len(data)
+                return GenuineBytes(data)
+
+        left, right = load_fixture_pair()
+        profile = bound_profile(left, right)
+        a, b = SubclassReader(left), SubclassReader(right)
+        self.assert_valid(call_validator(a, b, profile), profile, left, right)
+        self.assertTrue(a.eof_observed and b.eof_observed)
+        self.assertEqual((a.returned_bytes, b.returned_bytes), (len(left), len(right)))
+        self.assertEqual(hooks, dict.fromkeys(hooks, 0))
+
+    def test_result_schema_refuses_escaped_limitations_over_byte_budget(self):
+        left, right = load_fixture_pair()
+        profile = bound_profile(left, right)
+        original = self.assert_valid(
+            call_validator(io.BytesIO(left), io.BytesIO(right), profile),
+            profile, left, right,
+        )
+        oversized = copy.deepcopy(original)
+        oversized["limitations"] = ["\u0001" * 512] * 8
+        self.assertGreater(len(canonical_bytes(oversized)), 16384)
+        self.assertEqual(
+            {key: value for key, value in oversized.items() if key != "limitations"},
+            {key: value for key, value in original.items() if key != "limitations"},
+        )
+        with self.assertRaises(ValidationError):
+            self.result_validator.validate(oversized)
+
+
 if __name__ == "__main__":
     unittest.main()

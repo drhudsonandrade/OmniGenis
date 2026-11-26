@@ -74,14 +74,15 @@
       "const": "AVAILABLE"
     },
     "limitations": {
-      "type": "array",
-      "minItems": 1,
-      "maxItems": 8,
-      "items": {
-        "type": "string",
-        "minLength": 1,
-        "maxLength": 512
-      }
+      "const": [
+        "Structural validation is limited to the declared uncompressed, non-UMI, four-line paired FASTQ profile; full upstream compatibility is not established.",
+        "PHRED33 and run metadata are declarations. Overlapping quality alphabets cannot establish encoding provenance or instrument authenticity.",
+        "Ordinal mate correspondence does not establish biological sample identity, demultiplexing correctness, orientation or global identifier uniqueness.",
+        "Input hashes describe the supplied uncompressed contents from each stream's current position. No decompression or preprocessing history is verified.",
+        "No trimming, filtering, alignment, reference concordance, coverage, callability, variant calling, interpretation, reporting or clinical assessment is performed.",
+        "Only identical stream objects are rejected as aliases. Distinct stream wrappers do not prove distinct backing storage.",
+        "The caller must enforce a deadline for blocking stream reads. Results contain no raw reads or identifiers; a declaration digest is not anonymization."
+      ]
     },
     "executor_id": {
       "const": "omnigenis.python-stdlib"

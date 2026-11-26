@@ -340,7 +340,7 @@ class _Reader:
             chunk = self._read(requested)
         except Exception:
             raise _Refused("stream_read_error", self.mate, record_index) from None
-        if not isinstance(chunk, bytes):
+        if not issubclass(type(chunk), bytes):
             raise _Refused("stream_protocol_error", self.mate, record_index)
         # Read the immutable byte buffer without trusting subclass length overrides.
         try:
