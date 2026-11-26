@@ -1,0 +1,329 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:omnigenis:schema:fastq-intake-result:1.0.0",
+  "title": "FASTQ Intake Result",
+  "description": "A bounded capability result containing artifact identities and structural assessments only. Invalid inputs have one fixed diagnostic and no accepted observations.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "capability_id",
+    "capability_version",
+    "canonical_status",
+    "canonical_payload",
+    "availability",
+    "limitations",
+    "executor_id",
+    "executor_version",
+    "adapter_version",
+    "model_id",
+    "resource_release",
+    "reference_bundle",
+    "execution_profile",
+    "raw_artifact_refs",
+    "provenance_refs"
+  ],
+  "properties": {
+    "capability_id": {
+      "const": "fastq-intake"
+    },
+    "capability_version": {
+      "const": "1.0.0"
+    },
+    "canonical_status": {
+      "enum": [
+        "VALID",
+        "INVALID"
+      ]
+    },
+    "canonical_payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "profile_id",
+        "accepted_pair",
+        "diagnostics"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "profile_id": {
+          "const": "paired-fastq-illumina-non-umi-phred33-v1"
+        },
+        "accepted_pair": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/acceptedPair"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "diagnostics": {
+          "type": "array",
+          "maxItems": 1,
+          "items": {
+            "$ref": "#/$defs/diagnostic"
+          }
+        }
+      }
+    },
+    "availability": {
+      "const": "AVAILABLE"
+    },
+    "limitations": {
+      "const": [
+        "Structural validation is limited to the declared uncompressed, non-UMI, four-line paired FASTQ profile; full upstream compatibility is not established.",
+        "PHRED33 and run metadata are declarations. Overlapping quality alphabets cannot establish encoding provenance or instrument authenticity.",
+        "Ordinal mate correspondence does not establish biological sample identity, demultiplexing correctness, orientation or global identifier uniqueness.",
+        "Input hashes describe the supplied uncompressed contents from each stream's current position. No decompression or preprocessing history is verified.",
+        "No trimming, filtering, alignment, reference concordance, coverage, callability, variant calling, interpretation, reporting or clinical assessment is performed.",
+        "Only identical stream objects are rejected as aliases. Distinct stream wrappers do not prove distinct backing storage.",
+        "The caller must enforce a deadline for blocking stream reads. Results contain no raw reads or identifiers; a declaration digest is not anonymization."
+      ]
+    },
+    "executor_id": {
+      "const": "omnigenis.python-stdlib"
+    },
+    "executor_version": {
+      "const": "1.0.0"
+    },
+    "adapter_version": {
+      "type": "null"
+    },
+    "model_id": {
+      "type": "null"
+    },
+    "resource_release": {
+      "type": "null"
+    },
+    "reference_bundle": {
+      "type": "null"
+    },
+    "execution_profile": {
+      "const": "paired-fastq-illumina-non-umi-phred33-v1"
+    },
+    "raw_artifact_refs": {
+      "type": "array",
+      "maxItems": 0
+    },
+    "provenance_refs": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "https://support.illumina.com/content/dam/illumina-support/documents/documentation/software_documentation/bcl2fastq/bcl2fastq2-v2-20-software-guide-15051736-03.pdf",
+          "https://pmc.ncbi.nlm.nih.gov/articles/PMC2847217/",
+          "https://help.basespace.illumina.com/files-used-by-basespace/fastq-files"
+        ]
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "canonical_status": {
+            "const": "VALID"
+          }
+        },
+        "required": [
+          "canonical_status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "canonical_payload": {
+            "properties": {
+              "accepted_pair": {
+                "$ref": "#/$defs/acceptedPair"
+              },
+              "diagnostics": {
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "canonical_payload": {
+            "properties": {
+              "accepted_pair": {
+                "type": "null"
+              },
+              "diagnostics": {
+                "minItems": 1,
+                "maxItems": 1
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$(?![\\s\\S])"
+    },
+    "mateIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "content_sha256",
+        "size_bytes"
+      ],
+      "properties": {
+        "content_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "size_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 67108864
+        }
+      }
+    },
+    "acceptedPair": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "input_profile_sha256",
+        "layout",
+        "quality_encoding",
+        "pair_count",
+        "r1",
+        "r2",
+        "assessments"
+      ],
+      "properties": {
+        "input_profile_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "layout": {
+          "const": "PAIRED_END"
+        },
+        "quality_encoding": {
+          "const": "PHRED33"
+        },
+        "pair_count": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100000
+        },
+        "r1": {
+          "$ref": "#/$defs/mateIdentity"
+        },
+        "r2": {
+          "$ref": "#/$defs/mateIdentity"
+        },
+        "assessments": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "biological_sample_identity",
+            "declared_run_consistency",
+            "downstream_processing",
+            "format_conformance",
+            "full_stream_integrity",
+            "instrument_authenticity",
+            "mate_correspondence",
+            "preprocessing_history",
+            "quality_encoding_provenance"
+          ],
+          "properties": {
+            "biological_sample_identity": {
+              "const": "NOT_ASSESSED"
+            },
+            "declared_run_consistency": {
+              "const": "PASS"
+            },
+            "downstream_processing": {
+              "const": "NOT_ASSESSED"
+            },
+            "format_conformance": {
+              "const": "PASS"
+            },
+            "full_stream_integrity": {
+              "const": "PASS"
+            },
+            "instrument_authenticity": {
+              "const": "NOT_VERIFIED"
+            },
+            "mate_correspondence": {
+              "const": "PASS"
+            },
+            "preprocessing_history": {
+              "const": "NOT_VERIFIED"
+            },
+            "quality_encoding_provenance": {
+              "const": "DECLARED"
+            }
+          }
+        }
+      }
+    },
+    "diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "mate",
+        "record_index"
+      ],
+      "properties": {
+        "code": {
+          "enum": [
+            "invalid_profile",
+            "invalid_stream",
+            "same_stream",
+            "unsupported_transport",
+            "stream_read_error",
+            "stream_protocol_error",
+            "input_limit_exceeded",
+            "line_limit_exceeded",
+            "header_limit_exceeded",
+            "unterminated_line",
+            "invalid_line_ending",
+            "non_ascii_input",
+            "truncated_record",
+            "invalid_header",
+            "declaration_mismatch",
+            "invalid_sequence",
+            "invalid_separator",
+            "invalid_quality",
+            "read_length_exceeded",
+            "empty_input",
+            "pair_limit_exceeded",
+            "pair_count_mismatch",
+            "mate_mismatch",
+            "pair_identity_mismatch",
+            "size_mismatch",
+            "digest_mismatch",
+            "output_limit_exceeded"
+          ]
+        },
+        "mate": {
+          "enum": [
+            "R1",
+            "R2",
+            null
+          ]
+        },
+        "record_index": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1,
+          "maximum": 100001
+        }
+      }
+    }
+  }
+}

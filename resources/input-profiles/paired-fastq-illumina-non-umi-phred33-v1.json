@@ -1,0 +1,100 @@
+{
+  "schema_version": "1.0.0",
+  "profile_id": "paired-fastq-illumina-non-umi-phred33-v1",
+  "default_enabled": false,
+  "description": "Structural validation of two supplied uncompressed FASTQ streams using a bounded Illumina-style non-UMI header profile.",
+  "transport": "UNCOMPRESSED",
+  "layout": "PAIRED_END",
+  "quality_encoding": "PHRED33",
+  "record_policy": {
+    "physical_lines": 4,
+    "line_endings": [
+      "LF",
+      "CRLF"
+    ],
+    "final_terminator_required": true,
+    "separator": "+",
+    "sequence_alphabet": "ACGTN",
+    "quality_ascii_min": 33,
+    "quality_ascii_max": 126,
+    "mate_lengths_may_differ": true
+  },
+  "header_policy": {
+    "format": "@instrument:run:flowcell:lane:tile:x:y read:filter:0:index_or_sample",
+    "separator": "one ASCII space",
+    "instrument_pattern": "[A-Za-z0-9_-]{1,64}",
+    "flowcell_pattern": "[A-Za-z0-9_-]{1,64}",
+    "run_and_tile": {
+      "minimum": 1,
+      "maximum": 2147483647,
+      "max_digits": 10
+    },
+    "lane": {
+      "minimum": 1,
+      "maximum": 999,
+      "max_digits": 10
+    },
+    "coordinates": {
+      "minimum": -2147483648,
+      "maximum": 2147483647,
+      "max_magnitude_digits": 10
+    },
+    "read_numbers": {
+      "R1": "1",
+      "R2": "2"
+    },
+    "filter_values": [
+      "Y",
+      "N"
+    ],
+    "control": "0",
+    "index_or_sample": "Unsigned decimal at most 65 characters and at most 2147483647, or 1..32 uppercase ACGTN symbols, or two such base tokens separated by +.",
+    "umi": false
+  },
+  "pair_policy": "Compare ordinal records using the exact seven cluster tokens and the filter/control/index token. Numeric declaration checks accept leading zeros within the token bounds. Equal complete record counts are required; global duplicate detection is not performed.",
+  "declaration_schema": "schemas/fastq-input-profile.v1.schema.json",
+  "result_schema": "schemas/fastq-intake-result.v1.schema.json",
+  "engineering_limits": {
+    "max_bytes_per_mate": 67108864,
+    "max_combined_bytes": 134217728,
+    "max_header_content_bytes": 512,
+    "max_pairs": 100000,
+    "max_physical_line_bytes": 4096,
+    "max_profile_json_bytes": 4096,
+    "max_read_bases": 1000,
+    "max_result_json_bytes": 16384,
+    "max_stream_read_bytes": 65536,
+    "qualification_max_rss_mib": 256,
+    "qualification_wall_seconds": 60
+  },
+  "source_documents": [
+    {
+      "title": "bcl2fastq2 Conversion Software v2.20 Software Guide",
+      "document_id": "15051736",
+      "revision": "v03",
+      "publication": "February 2019",
+      "url": "https://support.illumina.com/content/dam/illumina-support/documents/documentation/software_documentation/bcl2fastq/bcl2fastq2-v2-20-software-guide-15051736-03.pdf",
+      "content_sha256": "8e6bf9029282096470da3c5a2b427ffe12ab5082b5c3b797c707ff44422eab79",
+      "size_bytes": 675271,
+      "role": "Primary format reference."
+    },
+    {
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC2847217/",
+      "role": "Corroborating description of FASTQ and the ASCII Phred+33 range; not authority for the current Illumina header."
+    },
+    {
+      "url": "https://help.basespace.illumina.com/files-used-by-basespace/fastq-files",
+      "role": "Corroborating Illumina FASTQ overview."
+    }
+  ],
+  "rights": "Referenced vendor documentation remains copyrighted by its publisher. This profile and its synthetic fixtures are independently written; documentation and third-party fixture bytes are not redistributed.",
+  "known_issues": [
+    "This is a restricted input profile, not support for every FASTQ dialect or Illumina output mode.",
+    "Compressed, UMI, interleaved, single-end and wrapped input are unsupported. Decompression and conversions must occur outside this capability.",
+    "PHRED33 is a declaration whose compatible alphabet is checked; the encoding's historical origin cannot be established from those bytes.",
+    "Run metadata and mate correspondence do not establish biological sample identity, instrument authenticity or preprocessing history.",
+    "No trimming, filtering, alignment, calling, interpretation or scientific quality threshold is applied.",
+    "Distinct stream objects can share backing storage; full artifact identities do not prove storage independence.",
+    "The caller controls blocking-I/O deadlines. Engineering limits bound supplied bytes, records and output, not biological suitability."
+  ]
+}
