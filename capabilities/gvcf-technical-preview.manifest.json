@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0.0",
+  "capability_id": "gvcf-technical-preview",
+  "capability_version": "1.0.0",
+  "real_use_case": "Inspect a supported single-sample gVCF through source-preserving preparation, bound canonical observations and an explicit technical preview.",
+  "owner_priority": "source-integrity-and-report-traceability",
+  "upstream_status": "Reuses the existing declared GATK HaplotypeCaller 4.6.2.0 / VCF 4.2 / GRCh38.p14 input and artifact profiles, qualified bcftools 1.24 / HTSlib 1.24, and existing canonical-text-v1 preview renderer. No new caller, genotyper, renderer or external standard is activated.",
+  "license": "Independent composition and reporting implementation using existing qualified source, executor and resource contracts. Existing project and third-party notices remain applicable. No third-party implementation, fixture bytes or real genomic data are included.",
+  "supported_profile": "resources/gvcf-artifact-profiles/gatk-haplotypecaller-4.6.2.0-vcf42-grch38-bgzf-v1.json remains the sole input/artifact profile. schemas/gvcf-preview-run.v1.schema.json defines the bounded source-observation export; reporting/gvcf-catalog.v1.json defines its single technical preview.",
+  "resource_budget": "Retains the existing 1 MiB source, 32 records, 256 header lines, 64 KiB source line, one-thread offline artifact preparation and maximum 600-second cooperative native deadline. Captured profile metadata is limited to 64 KiB, JSON depth 16 and 16384 nodes; the safe canonical export is limited to 8 MiB. Oversize content is rejected whole, never truncated. Existing pinned reference and executor resources are reused.",
+  "input_fixture": "tests/fixtures/gvcf_artifact/valid-reference-bound.gvcf",
+  "output_contract": "omnigenis.gvcf_preview_run.GvcfPreviewRunResult.to_dict exports only a completed technical composition under schemas/gvcf-preview-run.v1.schema.json. reporting.gvcf_projection.project_gvcf_interpretation requires strict source rebinding, schema validation and sample identity before the existing semantic compiler and preview renderer. Scientific evaluated classes are empty; clinical assessments and conflict analysis are NOT_ASSESSED.",
+  "known_issues": "Qualification is limited to the existing bounded synthetic subset. Caller identity is declared only; no GATK execution, full gVCF compatibility, normalization, final genotype inference, biological callability, clinical interpretation, diagnostic exclusion or clinical release is established. Source observation IDs are not canonical variant IDs. Caller-provided observed_at is context, not execution attestation. The native deadline is cooperative and may be exceeded by blocking operations. This capability does not qualify gVCF PDF output.",
+  "security": "Immutable bounded capture; source, artifact, reference, ledger, query and canonical-object bindings; fixed closed schema with local references; sanitized refusal diagnostics; no raw gVCF, header text, private paths or native subprocess output in the reporting mapping. Failed or partial compositions cannot project a preview.",
+  "disable_path": "Explicit opt-in runner and named report profile only. Stop invoking run_gvcf_preview_components or selecting gvcf-technical-preview; no default route or fallback is added."
+}

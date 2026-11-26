@@ -1,0 +1,24 @@
+{
+  "schema_version": "1.0.0",
+  "catalog_id": "gvcf-technical-preview-catalog-v1",
+  "reports": [
+    {
+      "schema_version": "1.0.0",
+      "report_id": "gvcf-technical-preview",
+      "code": "GVCF",
+      "accent": "334155",
+      "slug": "gvcf-technical-preview",
+      "title": "gVCF Technical Preview",
+      "tagline": "Preserved source observations and technical integrity",
+      "purpose": "Present all supported gVCF source observations, bound technical evidence, explicit non-assessment and limitations. No clinical or variant-interpretation analysis classes were evaluated.",
+      "audience": "Technical reviewers and qualified genomic professionals",
+      "sections": [
+        "Identity and provenance",
+        "Preserved source observations",
+        "Assessment and conflict status",
+        "Limitations and not assessed",
+        "Technical evidence and versioning"
+      ]
+    }
+  ]
+}

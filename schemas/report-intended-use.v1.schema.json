@@ -21,7 +21,7 @@
     "schema_version": {"const": "1.0.0"},
     "report_id": {"type": "string", "pattern": ".*\\S.*"},
     "intended_use_id": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"},
-    "intended_use_category": {"const": "TECHNICAL_E1A_VALIDATION"},
+    "intended_use_category": {"enum": ["TECHNICAL_E1A_VALIDATION", "TECHNICAL_GVCF_VALIDATION"]},
     "summary": {"type": "string", "pattern": ".*\\S.*"},
     "intended_audience": {
       "type": "array",
@@ -50,5 +50,20 @@
     },
     "confirmation_status": {"const": "NOT_DEFINED_IN_RPT01"},
     "locale_status": {"const": "CANONICAL_ENGLISH_ONLY"}
-  }
+  },
+  "oneOf": [
+    {
+      "properties": {
+        "report_id": {"const": "e1a-small-variant-report"},
+        "intended_use_category": {"const": "TECHNICAL_E1A_VALIDATION"}
+      }
+    },
+    {
+      "properties": {
+        "report_id": {"const": "gvcf-technical-preview"},
+        "intended_use_id": {"const": "gvcf-technical-validation"},
+        "intended_use_category": {"const": "TECHNICAL_GVCF_VALIDATION"}
+      }
+    }
+  ]
 }

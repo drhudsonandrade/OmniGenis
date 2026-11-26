@@ -1,0 +1,8 @@
+{
+  "schema_version": "1.0.0",
+  "report_id": "gvcf-technical-preview",
+  "required_capability_ids": [
+    "gvcf-technical-preview"
+  ],
+  "evaluated_analysis_class_ids": []
+}

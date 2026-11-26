@@ -7,10 +7,46 @@ from dataclasses import dataclass
 import hashlib
 import json
 import re
+from types import MappingProxyType
 
 ROADMAP_ID = "RPT-01"
 REPORT_ID = "e1a-small-variant-report"
 CATALOG_ID = "e1a-report-catalog-v1"
+GVCF_REPORT_ID = "gvcf-technical-preview"
+GVCF_CATALOG_ID = "gvcf-technical-preview-catalog-v1"
+
+
+@dataclass(frozen=True)
+class _ReportProfile:
+    catalog_id: str
+    intended_use_category: str
+    required_capability_ids: tuple[str, ...]
+    evaluated_analysis_class_ids: tuple[str, ...]
+
+
+_REPORT_PROFILES = MappingProxyType({
+    REPORT_ID: _ReportProfile(
+        CATALOG_ID, "TECHNICAL_E1A_VALIDATION",
+        ("canonical-interpretation-object",), ("germline-snv-small-indel",),
+    ),
+    GVCF_REPORT_ID: _ReportProfile(
+        GVCF_CATALOG_ID, "TECHNICAL_GVCF_VALIDATION",
+        ("gvcf-technical-preview",), (),
+    ),
+})
+
+_GVCF_SECTIONS = (
+    ("identity-and-provenance", "Identity and provenance",
+     ("canonical_interpretation.identity",)),
+    ("preserved-source-observations", "Preserved source observations",
+     ("canonical_interpretation.items",)),
+    ("assessment-and-conflict-status", "Assessment and conflict status",
+     ("canonical_interpretation.conflicts",)),
+    ("limitations-and-not-assessed", "Limitations and not assessed",
+     ("canonical_interpretation.limitations",)),
+    ("technical-evidence-and-versioning", "Technical evidence and versioning",
+     ("canonical_interpretation.provenance",)),
+)
 
 _ALLOWED_SEMANTIC_INPUTS = frozenset(
     {
@@ -197,14 +233,17 @@ def _catalog_entry(
         {"schema_version", "catalog_id", "reports"}
     ):
         return None, "catalog_invalid"
+    if not _nonblank(report_id) or report_id not in _REPORT_PROFILES:
+        return None, "report_id_not_in_catalog"
+    profile = _REPORT_PROFILES[report_id]
     if (
         catalog.get("schema_version") != "1.0.0"
-        or catalog.get("catalog_id") != CATALOG_ID
+        or catalog.get("catalog_id") != profile.catalog_id
         or not isinstance(catalog.get("reports"), list)
     ):
         return None, "catalog_invalid"
-    if not _nonblank(report_id):
-        return None, "report_id_not_in_catalog"
+    if report_id == GVCF_REPORT_ID and len(catalog["reports"]) != 1:
+        return None, "catalog_invalid"
     entries = [
         entry
         for entry in catalog["reports"]
@@ -354,6 +393,18 @@ def _parse_sections(
         return None, "section_contract_invalid"
     if tuple(item.title for item in records) != catalog_titles:
         return None, "report_contract_binding_mismatch"
+    if report_id == GVCF_REPORT_ID:
+        expected = tuple(
+            (section_id, title, order, True, inputs, "EXPLICIT_NOT_AVAILABLE")
+            for order, (section_id, title, inputs) in enumerate(_GVCF_SECTIONS, 1)
+        )
+        observed = tuple(
+            (item.section_id, item.title, item.order, item.required,
+             item.required_semantic_inputs, item.empty_state_policy)
+            for item in records
+        )
+        if observed != expected:
+            return None, "section_contract_invalid"
     return tuple(records), None
 def _parse_intended_use(
     value: object,
@@ -381,6 +432,10 @@ def _parse_intended_use(
         return None, "intended_use_invalid"
     if value.get("report_id") != report_id:
         return None, "report_contract_binding_mismatch"
+    profile = _REPORT_PROFILES[report_id]
+    if (report_id == GVCF_REPORT_ID
+            and value.get("intended_use_id") != "gvcf-technical-validation"):
+        return None, "intended_use_invalid"
     audience = _string_tuple(value.get("intended_audience"))
     permitted = _string_tuple(value.get("permitted_uses"))
     prohibited = _string_tuple(value.get("prohibited_claims"))
@@ -389,7 +444,7 @@ def _parse_intended_use(
         or not _nonblank(value.get("intended_use_id"))
         or _SECTION_ID.fullmatch(str(value.get("intended_use_id"))) is None
         or value.get("intended_use_category")
-        != "TECHNICAL_E1A_VALIDATION"
+        != profile.intended_use_category
         or not _nonblank(value.get("summary"))
         or audience is None
         or not audience
@@ -410,7 +465,7 @@ def _parse_intended_use(
         ReportIntendedUseRecord(
             report_id=report_id,
             intended_use_id=str(value["intended_use_id"]),
-            intended_use_category="TECHNICAL_E1A_VALIDATION",
+            intended_use_category=profile.intended_use_category,
             summary=str(value["summary"]),
             intended_audience=audience,
             clinical_use_status="NOT_CLINICALLY_PROMOTED",
@@ -446,12 +501,13 @@ def _parse_capability_manifest(
         return None, None, "report_capability_manifest_invalid"
     if value.get("report_id") != report_id:
         return None, None, "report_contract_binding_mismatch"
+    profile = _REPORT_PROFILES[report_id]
     required = _string_tuple(value.get("required_capability_ids"))
     analysis = _string_tuple(value.get("evaluated_analysis_class_ids"))
     if (
         value.get("schema_version") != "1.0.0"
-        or required != ("canonical-interpretation-object",)
-        or analysis != ("germline-snv-small-indel",)
+        or required != profile.required_capability_ids
+        or analysis != profile.evaluated_analysis_class_ids
     ):
         return None, None, "report_capability_manifest_invalid"
     return required, analysis, None
@@ -465,7 +521,7 @@ def validate_rpt01_contracts(
     intended_use: object,
     report_capability_manifest: object,
 ) -> Rpt01ContractBundleResult:
-    """Validate the single, non-rendering E1A RPT-01 contract bundle."""
+    """Validate one of the two closed, non-rendering technical report profiles."""
 
     entry, error = _catalog_entry(catalog, report_id)
     if error is not None or entry is None:
@@ -509,7 +565,7 @@ def validate_rpt01_contracts(
     }
     return Rpt01ContractBundleResult(
         report_id=bound_report_id,
-        catalog_id=CATALOG_ID,
+        catalog_id=_REPORT_PROFILES[bound_report_id].catalog_id,
         code=str(entry["code"]),
         slug=str(entry["slug"]),
         title=str(entry["title"]),

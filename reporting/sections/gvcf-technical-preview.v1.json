@@ -1,0 +1,66 @@
+{
+  "schema_version": "1.0.0",
+  "report_id": "gvcf-technical-preview",
+  "sections": [
+    {
+      "schema_version": "1.0.0",
+      "report_id": "gvcf-technical-preview",
+      "section_id": "identity-and-provenance",
+      "title": "Identity and provenance",
+      "order": 1,
+      "required": true,
+      "required_semantic_inputs": [
+        "canonical_interpretation.identity"
+      ],
+      "empty_state_policy": "EXPLICIT_NOT_AVAILABLE"
+    },
+    {
+      "schema_version": "1.0.0",
+      "report_id": "gvcf-technical-preview",
+      "section_id": "preserved-source-observations",
+      "title": "Preserved source observations",
+      "order": 2,
+      "required": true,
+      "required_semantic_inputs": [
+        "canonical_interpretation.items"
+      ],
+      "empty_state_policy": "EXPLICIT_NOT_AVAILABLE"
+    },
+    {
+      "schema_version": "1.0.0",
+      "report_id": "gvcf-technical-preview",
+      "section_id": "assessment-and-conflict-status",
+      "title": "Assessment and conflict status",
+      "order": 3,
+      "required": true,
+      "required_semantic_inputs": [
+        "canonical_interpretation.conflicts"
+      ],
+      "empty_state_policy": "EXPLICIT_NOT_AVAILABLE"
+    },
+    {
+      "schema_version": "1.0.0",
+      "report_id": "gvcf-technical-preview",
+      "section_id": "limitations-and-not-assessed",
+      "title": "Limitations and not assessed",
+      "order": 4,
+      "required": true,
+      "required_semantic_inputs": [
+        "canonical_interpretation.limitations"
+      ],
+      "empty_state_policy": "EXPLICIT_NOT_AVAILABLE"
+    },
+    {
+      "schema_version": "1.0.0",
+      "report_id": "gvcf-technical-preview",
+      "section_id": "technical-evidence-and-versioning",
+      "title": "Technical evidence and versioning",
+      "order": 5,
+      "required": true,
+      "required_semantic_inputs": [
+        "canonical_interpretation.provenance"
+      ],
+      "empty_state_policy": "EXPLICIT_NOT_AVAILABLE"
+    }
+  ]
+}

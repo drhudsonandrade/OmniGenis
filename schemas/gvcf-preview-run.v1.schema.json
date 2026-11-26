@@ -1,0 +1,1091 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:omnigenis:schema:gvcf-preview-run:1.0.0",
+  "title": "GvcfTechnicalPreviewRun",
+  "description": "Closed export of a bounded source-preserving technical preview. Clinical analysis is NOT_ASSESSED. Semantic binding is additionally required.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "capability_id",
+    "capability_version",
+    "profile_id",
+    "status",
+    "completed_stages",
+    "observed_at",
+    "observed_at_origin",
+    "canonical_model",
+    "evidence_snapshot",
+    "interpretation",
+    "policy_status",
+    "limitations"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "capability_id": {
+      "const": "gvcf-technical-preview"
+    },
+    "capability_version": {
+      "const": "1.0.0"
+    },
+    "profile_id": {
+      "const": "single-sample-gvcf-technical-preview-v1"
+    },
+    "status": {
+      "const": "PASS"
+    },
+    "completed_stages": {
+      "const": [
+        "bounded_inputs",
+        "profiles",
+        "intake",
+        "artifact",
+        "canonical_model",
+        "evidence_snapshot",
+        "interpretation",
+        "output_schema"
+      ]
+    },
+    "observed_at": {
+      "type": "string",
+      "minLength": 20,
+      "maxLength": 35
+    },
+    "observed_at_origin": {
+      "const": "CALLER_PROVIDED_CONTEXT"
+    },
+    "canonical_model": {
+      "$ref": "#/$defs/model"
+    },
+    "evidence_snapshot": {
+      "$ref": "#/$defs/evidence"
+    },
+    "interpretation": {
+      "$ref": "#/$defs/interpretation"
+    },
+    "policy_status": {
+      "$ref": "#/$defs/policy"
+    },
+    "limitations": {
+      "type": "array",
+      "minItems": 8,
+      "maxItems": 8,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 512
+      }
+    }
+  },
+  "$defs": {
+    "reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profile_id",
+        "assembly_accession",
+        "bundle_sha256",
+        "content_sha256",
+        "content_size_bytes",
+        "alias_profile_id",
+        "alias_sha256"
+      ],
+      "properties": {
+        "profile_id": {
+          "const": "grch38-p14-ncbi-refseq-autosomal-v1"
+        },
+        "assembly_accession": {
+          "const": "GCF_000001405.40"
+        },
+        "bundle_sha256": {
+          "const": "1c34b839e1ae36102d003a217f76f1dd57cd1d10b0310cbd9e1d8078c8e88672"
+        },
+        "content_sha256": {
+          "const": "df6e4918316e05a9cc1fd29c352841d3678b607d7a436819cd43371b52c814c0"
+        },
+        "content_size_bytes": {
+          "const": 3339739109
+        },
+        "alias_profile_id": {
+          "const": "grch38-p14-primary-autosomes-v1"
+        },
+        "alias_sha256": {
+          "const": "e1f5e6be843cc30e05a0e8d714f10e11a352b09a955b7925069225621aeae68a"
+        }
+      }
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "observation_id",
+        "source_record_ordinal",
+        "source_line_number",
+        "record_sha256",
+        "kind",
+        "chrom",
+        "pos",
+        "source_position",
+        "end",
+        "source_id",
+        "ref",
+        "alts",
+        "qual",
+        "filter",
+        "info",
+        "format_values",
+        "source_gt",
+        "phase_separator",
+        "source_genotype_status"
+      ],
+      "properties": {
+        "observation_id": {
+          "type": "string",
+          "pattern": "^gvcf-observation:sha256:[0-9a-f]{64}$"
+        },
+        "source_record_ordinal": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32
+        },
+        "source_line_number": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 289
+        },
+        "record_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "kind": {
+          "enum": [
+            "REFERENCE_BLOCK",
+            "VARIANT"
+          ]
+        },
+        "chrom": {
+          "type": "string",
+          "pattern": "^(?:[1-9]|1[0-9]|2[0-2])$"
+        },
+        "pos": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "source_position": {
+          "type": "string",
+          "pattern": "^[0-9]{1,10}$"
+        },
+        "end": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "source_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 65536
+        },
+        "ref": {
+          "type": "string",
+          "pattern": "^[ACGT]{1,2}$"
+        },
+        "alts": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 9
+          }
+        },
+        "qual": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 65536
+        },
+        "filter": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 65536
+        },
+        "info": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 65536
+        },
+        "format_values": {
+          "type": "array",
+          "minItems": 5,
+          "maxItems": 10,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "key",
+              "value"
+            ],
+            "properties": {
+              "key": {
+                "enum": [
+                  "GT",
+                  "DP",
+                  "GQ",
+                  "MIN_DP",
+                  "PL",
+                  "AD",
+                  "SB",
+                  "PGT",
+                  "PID",
+                  "PS"
+                ]
+              },
+              "value": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 65536
+              }
+            }
+          }
+        },
+        "source_gt": {
+          "type": "string",
+          "pattern": "^(?:0|1|\\.)[/|](?:0|1|\\.)$"
+        },
+        "phase_separator": {
+          "enum": [
+            "/",
+            "|"
+          ]
+        },
+        "source_genotype_status": {
+          "enum": [
+            "CALLED",
+            "MISSING",
+            "PARTIAL"
+          ]
+        }
+      }
+    },
+    "record_key": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "chrom",
+        "pos",
+        "id",
+        "ref",
+        "alts"
+      ],
+      "properties": {
+        "chrom": {
+          "type": "string",
+          "pattern": "^(?:[1-9]|1[0-9]|2[0-2])$"
+        },
+        "pos": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 65536
+        },
+        "ref": {
+          "type": "string",
+          "pattern": "^[ACGT]{1,2}$"
+        },
+        "alts": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 9
+          }
+        }
+      }
+    },
+    "artifact_manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "artifact_id",
+        "artifact_kind",
+        "media_type",
+        "sha256",
+        "size_bytes",
+        "producer_execution_profile_id",
+        "parent_artifact_ids"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "artifact_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 65536
+        },
+        "artifact_kind": {
+          "enum": [
+            "gVCF_BGZF",
+            "CSI"
+          ]
+        },
+        "media_type": {
+          "enum": [
+            "application/gzip",
+            "application/octet-stream"
+          ]
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "size_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2097152
+        },
+        "producer_execution_profile_id": {
+          "const": "single-sample-gvcf-artifact-v1"
+        },
+        "parent_artifact_ids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 65536
+          }
+        }
+      }
+    },
+    "artifact_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_artifact_id",
+        "source_sha256",
+        "source_size_bytes",
+        "input_profile_id",
+        "input_profile_verification",
+        "caller_declaration",
+        "execution_profile_id",
+        "artifact_profile_id",
+        "input_record_count",
+        "retained_record_count",
+        "dropped_record_count",
+        "reference_block_count",
+        "variant_record_count",
+        "missing_genotype_count",
+        "partial_genotype_count",
+        "drop_reasons",
+        "reference",
+        "executor",
+        "zlib",
+        "rules",
+        "ledger",
+        "index_queries",
+        "artifacts",
+        "errors"
+      ],
+      "properties": {
+        "source_artifact_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 65536
+        },
+        "source_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "source_size_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1048576
+        },
+        "input_profile_id": {
+          "const": "gatk-haplotypecaller-4.6.2.0-vcf42-grch38-v1"
+        },
+        "input_profile_verification": {
+          "const": "VALIDATED"
+        },
+        "caller_declaration": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "version",
+            "verification"
+          ],
+          "properties": {
+            "id": {
+              "const": "gatk.HaplotypeCaller"
+            },
+            "version": {
+              "const": "4.6.2.0"
+            },
+            "verification": {
+              "const": "DECLARED_ONLY"
+            }
+          }
+        },
+        "execution_profile_id": {
+          "const": "single-sample-gvcf-artifact-v1"
+        },
+        "artifact_profile_id": {
+          "const": "gatk-haplotypecaller-4.6.2.0-vcf42-grch38-bgzf-v1"
+        },
+        "input_record_count": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32
+        },
+        "retained_record_count": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32
+        },
+        "dropped_record_count": {
+          "const": 0
+        },
+        "reference_block_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 32
+        },
+        "variant_record_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 32
+        },
+        "missing_genotype_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 32
+        },
+        "partial_genotype_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 32
+        },
+        "drop_reasons": {
+          "const": []
+        },
+        "reference": {
+          "$ref": "#/$defs/reference"
+        },
+        "executor": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "sha256",
+            "version",
+            "htslib_version"
+          ],
+          "properties": {
+            "id": {
+              "const": "bcftools"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "version": {
+              "const": "1.24"
+            },
+            "htslib_version": {
+              "const": "1.24"
+            }
+          }
+        },
+        "zlib": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "compile_version",
+            "runtime_version"
+          ],
+          "properties": {
+            "compile_version": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "runtime_version": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            }
+          }
+        },
+        "rules": {
+          "type": "array",
+          "minItems": 7,
+          "maxItems": 7,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "rule_id",
+              "status",
+              "detail"
+            ],
+            "properties": {
+              "rule_id": {
+                "enum": [
+                  "STRICT_REPARSE",
+                  "CARDINALITY",
+                  "PHASE_SEMANTICS",
+                  "ORDERING",
+                  "INDEXABILITY",
+                  "REF_CONCORDANCE",
+                  "RETENTION_ACCOUNTING"
+                ]
+              },
+              "status": {
+                "const": "PASS"
+              },
+              "detail": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              }
+            }
+          }
+        },
+        "ledger": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "source_record_ordinal",
+              "source_record_sha256",
+              "output_record_ordinal",
+              "output_record_sha256"
+            ],
+            "properties": {
+              "source_record_ordinal": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 32
+              },
+              "source_record_sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "output_record_ordinal": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 32
+              },
+              "output_record_sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              }
+            }
+          }
+        },
+        "index_queries": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 95,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "region",
+              "expected_record_ordinals",
+              "observed_record_ordinals",
+              "expected_count",
+              "observed_count",
+              "expected_record_keys",
+              "observed_record_keys"
+            ],
+            "properties": {
+              "region": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 48
+              },
+              "expected_record_ordinals": {
+                "type": "array",
+                "minItems": 0,
+                "maxItems": 32,
+                "items": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 32
+                }
+              },
+              "observed_record_ordinals": {
+                "type": "array",
+                "minItems": 0,
+                "maxItems": 32,
+                "items": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 32
+                }
+              },
+              "expected_count": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 32
+              },
+              "observed_count": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 32
+              },
+              "expected_record_keys": {
+                "type": "array",
+                "minItems": 0,
+                "maxItems": 32,
+                "items": {
+                  "$ref": "#/$defs/record_key"
+                }
+              },
+              "observed_record_keys": {
+                "type": "array",
+                "minItems": 0,
+                "maxItems": 32,
+                "items": {
+                  "$ref": "#/$defs/record_key"
+                }
+              }
+            }
+          }
+        },
+        "artifacts": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "$ref": "#/$defs/artifact_manifest"
+          }
+        },
+        "errors": {
+          "const": []
+        }
+      }
+    },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "model_id",
+        "content_sha256",
+        "source_artifact_id",
+        "source_sha256",
+        "source_size_bytes",
+        "input_profile_id",
+        "sample_id",
+        "caller_declaration",
+        "reference",
+        "record_count",
+        "reference_block_count",
+        "variant_record_count",
+        "missing_genotype_count",
+        "partial_genotype_count",
+        "observations",
+        "input_bindings"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "model_id": {
+          "type": "string",
+          "pattern": "^gvcf-model:sha256:[0-9a-f]{64}$"
+        },
+        "content_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "source_artifact_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 65536
+        },
+        "source_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "source_size_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1048576
+        },
+        "input_profile_id": {
+          "const": "gatk-haplotypecaller-4.6.2.0-vcf42-grch38-v1"
+        },
+        "sample_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "caller_declaration": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "version",
+            "verification"
+          ],
+          "properties": {
+            "id": {
+              "const": "gatk.HaplotypeCaller"
+            },
+            "version": {
+              "const": "4.6.2.0"
+            },
+            "verification": {
+              "const": "DECLARED_ONLY"
+            }
+          }
+        },
+        "reference": {
+          "$ref": "#/$defs/reference"
+        },
+        "record_count": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32
+        },
+        "reference_block_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 32
+        },
+        "variant_record_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 32
+        },
+        "missing_genotype_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 32
+        },
+        "partial_genotype_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 32
+        },
+        "observations": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "items": {
+            "$ref": "#/$defs/observation"
+          }
+        },
+        "input_bindings": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "input_profile_sha256",
+            "source_artifact_manifest_sha256",
+            "execution_profile_sha256",
+            "reference_profile_sha256"
+          ],
+          "properties": {
+            "input_profile_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "source_artifact_manifest_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "execution_profile_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "reference_profile_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "snapshot_id",
+        "content_sha256",
+        "canonical_model_sha256",
+        "source_sha256",
+        "observed_at",
+        "observed_at_origin",
+        "source_registry_id",
+        "sources",
+        "artifact_evidence"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "snapshot_id": {
+          "type": "string",
+          "pattern": "^gvcf-technical-evidence:sha256:[0-9a-f]{64}$"
+        },
+        "content_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "canonical_model_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "source_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "observed_at": {
+          "type": "string",
+          "minLength": 20,
+          "maxLength": 35
+        },
+        "observed_at_origin": {
+          "const": "CALLER_PROVIDED_CONTEXT"
+        },
+        "source_registry_id": {
+          "const": "source-registry-gvcf-technical-v1"
+        },
+        "sources": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "source_id",
+              "source_version",
+              "version_kind",
+              "locator",
+              "retrieval_method",
+              "result_sha256",
+              "mutable"
+            ],
+            "properties": {
+              "source_id": {
+                "enum": [
+                  "source-gvcf",
+                  "reference-fasta",
+                  "artifact-executor"
+                ]
+              },
+              "source_version": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "version_kind": {
+                "enum": [
+                  "CONTENT_SHA256",
+                  "PINNED_VERSION"
+                ]
+              },
+              "locator": {
+                "type": "string",
+                "pattern": "^urn:sha256:[0-9a-f]{64}$"
+              },
+              "retrieval_method": {
+                "const": "LOCAL_BOUND_TECHNICAL_EVIDENCE"
+              },
+              "result_sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "mutable": {
+                "const": false
+              }
+            }
+          }
+        },
+        "artifact_evidence": {
+          "$ref": "#/$defs/artifact_evidence"
+        }
+      }
+    },
+    "interpretation_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "observation",
+        "technical_evidence_sha256",
+        "assessment_status",
+        "clinical_availability",
+        "clinical_axes",
+        "reason"
+      ],
+      "properties": {
+        "observation": {
+          "$ref": "#/$defs/observation"
+        },
+        "technical_evidence_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "assessment_status": {
+          "const": "NOT_ASSESSED"
+        },
+        "clinical_availability": {
+          "const": "NOT_MEASURED"
+        },
+        "clinical_axes": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "variant_classification",
+            "gene_disease_validity",
+            "actionability",
+            "diagnostic_implication",
+            "clinical_confirmation",
+            "biological_callability",
+            "phase_confidence",
+            "cross_source_conflicts"
+          ],
+          "properties": {
+            "variant_classification": {
+              "const": "NOT_ASSESSED"
+            },
+            "gene_disease_validity": {
+              "const": "NOT_ASSESSED"
+            },
+            "actionability": {
+              "const": "NOT_ASSESSED"
+            },
+            "diagnostic_implication": {
+              "const": "NOT_ASSESSED"
+            },
+            "clinical_confirmation": {
+              "const": "NOT_ASSESSED"
+            },
+            "biological_callability": {
+              "const": "NOT_ASSESSED"
+            },
+            "phase_confidence": {
+              "const": "NOT_ASSESSED"
+            },
+            "cross_source_conflicts": {
+              "const": "NOT_ASSESSED"
+            }
+          }
+        },
+        "reason": {
+          "const": "Clinical interpretation was not performed; this item preserves a source gVCF observation."
+        }
+      }
+    },
+    "interpretation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "interpretation_id",
+        "content_sha256",
+        "canonical_model_sha256",
+        "evidence_snapshot_sha256",
+        "assessment_status",
+        "evaluated_analysis_class_ids",
+        "normalization_status",
+        "conflict_assessment_status",
+        "items"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "interpretation_id": {
+          "type": "string",
+          "pattern": "^gvcf-technical-interpretation:sha256:[0-9a-f]{64}$"
+        },
+        "content_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "canonical_model_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "evidence_snapshot_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "assessment_status": {
+          "const": "NOT_ASSESSED"
+        },
+        "evaluated_analysis_class_ids": {
+          "const": []
+        },
+        "normalization_status": {
+          "const": "NOT_ASSESSED"
+        },
+        "conflict_assessment_status": {
+          "const": "NOT_ASSESSED"
+        },
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "items": {
+            "$ref": "#/$defs/interpretation_item"
+          }
+        }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_id",
+        "lifecycle_profile",
+        "intended_use_category",
+        "clinical_use_status",
+        "release_authorization",
+        "clinical_assessment_status"
+      ],
+      "properties": {
+        "policy_id": {
+          "const": "gvcf-technical-preview-policy-v1"
+        },
+        "lifecycle_profile": {
+          "const": "preview"
+        },
+        "intended_use_category": {
+          "const": "TECHNICAL_GVCF_VALIDATION"
+        },
+        "clinical_use_status": {
+          "const": "NOT_CLINICALLY_PROMOTED"
+        },
+        "release_authorization": {
+          "const": "NOT_ESTABLISHED"
+        },
+        "clinical_assessment_status": {
+          "const": "NOT_ASSESSED"
+        }
+      }
+    }
+  }
+}
