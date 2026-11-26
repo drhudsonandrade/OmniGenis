@@ -1,0 +1,13 @@
+{
+  "schema_version": "1.0.0",
+  "profile_id": "gatk-haplotypecaller-4.6.2.0-vcf42-grch38-v1",
+  "input_id": "synthetic-gvcf-artifact-001",
+  "input_kind": "gVCF",
+  "media_type": "text/vcf",
+  "caller_id": "gatk.HaplotypeCaller",
+  "caller_version": "4.6.2.0",
+  "reference_assembly": "GRCh38",
+  "sample_id": "SYNTHETIC_ARTIFACT",
+  "content_sha256": "2fcfc6c415939bf5a3e064f74409ef717317bc190a3cefae98199e03ea62a22f",
+  "size_bytes": 1716
+}
