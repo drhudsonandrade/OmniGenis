@@ -529,7 +529,13 @@ class GvcfArtifactFixtureTests(unittest.TestCase):
             requested.append(flags)
             # Model vm.memfd_noexec=1 without reading or changing a sysctl.
             effective = flags if flags & executable_flag else flags | noexec_flag
-            return real_create(name, effective)
+            try:
+                return real_create(name, effective)
+            except OSError as error:
+                if error.errno != errno.EINVAL:
+                    raise
+                # Older hosts lack these flags; the requested-flag oracle remains exact.
+                return real_create(name, effective & ~(executable_flag | noexec_flag))
 
         with patch.object(artifact.os, "memfd_create", side_effect=noexec_default):
             result = self.prepare()
@@ -548,7 +554,12 @@ class GvcfArtifactFixtureTests(unittest.TestCase):
             if flags & executable_flag:
                 raise OSError(errno.EINVAL, "Synthetic unsupported executable flag")
             # The double models executable legacy semantics on the current host.
-            return real_create(name, flags | executable_flag)
+            try:
+                return real_create(name, flags | executable_flag)
+            except OSError as error:
+                if error.errno != errno.EINVAL:
+                    raise
+                return real_create(name, flags)
 
         with patch.object(artifact.os, "memfd_create", side_effect=legacy_kernel):
             result = self.prepare()
