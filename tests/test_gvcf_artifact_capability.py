@@ -3,6 +3,7 @@ from __future__ import annotations
 from contextlib import contextmanager
 import copy
 from dataclasses import FrozenInstanceError, is_dataclass, replace
+import errno
 import gzip
 import hashlib
 import inspect
@@ -517,6 +518,76 @@ class GvcfArtifactFixtureTests(unittest.TestCase):
             self.native_mode = mode
             self.assert_refused(self.prepare())
 
+    def test_explicit_executable_memfd_overrides_simulated_noexec_default(self) -> None:
+        real_create = os.memfd_create
+        executable_flag = getattr(os, "MFD_EXEC", 0x0010)
+        noexec_flag = getattr(os, "MFD_NOEXEC_SEAL", 0x0008)
+        base_flags = os.MFD_CLOEXEC | os.MFD_ALLOW_SEALING
+        requested = []
+
+        def noexec_default(name, flags):
+            requested.append(flags)
+            # Model vm.memfd_noexec=1 without reading or changing a sysctl.
+            effective = flags if flags & executable_flag else flags | noexec_flag
+            return real_create(name, effective)
+
+        with patch.object(artifact.os, "memfd_create", side_effect=noexec_default):
+            result = self.prepare()
+        self.assertTrue(result.passed, result.errors)
+        self.assertEqual(requested, [base_flags | executable_flag])
+        self.assertEqual({call[3] for call in self.calls}, {"version", "index", "query"})
+
+    def test_only_unsupported_executable_flag_uses_legacy_memfd_retry(self) -> None:
+        real_create = os.memfd_create
+        executable_flag = getattr(os, "MFD_EXEC", 0x0010)
+        base_flags = os.MFD_CLOEXEC | os.MFD_ALLOW_SEALING
+        requested = []
+
+        def legacy_kernel(name, flags):
+            requested.append(flags)
+            if flags & executable_flag:
+                raise OSError(errno.EINVAL, "Synthetic unsupported executable flag")
+            # The double models executable legacy semantics on the current host.
+            return real_create(name, flags | executable_flag)
+
+        with patch.object(artifact.os, "memfd_create", side_effect=legacy_kernel):
+            result = self.prepare()
+        self.assertTrue(result.passed, result.errors)
+        self.assertEqual(requested, [base_flags | executable_flag, base_flags])
+        self.assertEqual({call[3] for call in self.calls}, {"version", "index", "query"})
+
+    def test_memfd_policy_denial_never_uses_another_fallback_or_launch(self) -> None:
+        executable_flags = os.MFD_CLOEXEC | os.MFD_ALLOW_SEALING | getattr(os, "MFD_EXEC", 0x0010)
+        legacy_flags = os.MFD_CLOEXEC | os.MFD_ALLOW_SEALING
+        for code in (errno.EACCES, errno.EPERM):
+            for unsupported_first in (False, True):
+                with self.subTest(errno=code, legacy=unsupported_first):
+                    requested = []
+                    self.calls.clear()
+
+                    def denied(name, flags):
+                        requested.append(flags)
+                        if unsupported_first and len(requested) == 1:
+                            raise OSError(errno.EINVAL, "Synthetic unsupported executable flag")
+                        raise OSError(code, "Synthetic executable-memfd policy denial")
+
+                    with patch.object(artifact.os, "memfd_create", side_effect=denied):
+                        result = self.prepare()
+                    self.assert_refused(result)
+                    self.assertEqual(result.errors, ("executor_executable_memfd_policy_denied",))
+                    self.assertEqual(requested, [executable_flags, legacy_flags] if unsupported_first else [executable_flags])
+                    self.assertEqual(self.calls, [])
+
+    def test_unrelated_memfd_creation_error_has_no_retry_or_launch(self) -> None:
+        with patch.object(artifact.os, "memfd_create", side_effect=OSError(errno.EMFILE, "Synthetic descriptor limit")) as create:
+            result = self.prepare()
+        self.assert_refused(result)
+        self.assertEqual(result.errors, ("executor_executable_memfd_creation_failed",))
+        create.assert_called_once_with(
+            "omnigenis-bcftools", os.MFD_CLOEXEC | os.MFD_ALLOW_SEALING | getattr(os, "MFD_EXEC", 0x0010),
+        )
+        self.assertEqual(self.calls, [])
+
     def test_executor_replacement_cannot_change_any_verified_launch(self) -> None:
         native_double = self.run_double
         stages = []
@@ -753,6 +824,31 @@ class GvcfBoundedRunnerTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
         self.assertEqual(result.stdout, b"out:")
         self.assertEqual(result.stderr, b"err")
+
+    def test_pass_fds_reaches_a_real_child_without_inheritable_parent_state(self) -> None:
+        read_fd, write_fd = os.pipe()
+        payload = b"synthetic descriptor payload"
+        try:
+            self.assertFalse(os.get_inheritable(read_fd))
+            self.assertEqual(os.write(write_fd, payload), len(payload))
+            os.close(write_fd)
+            write_fd = None
+            script = (
+                "import os,sys; fd=int(sys.argv[1]); data=os.read(fd,64); "
+                "assert os.read(fd,1)==b''; os.close(fd); sys.stdout.buffer.write(data)"
+            )
+            result = artifact._run(
+                [sys.executable, "-I", "-c", script, str(read_fd)],
+                cwd=self.directory, deadline=time.monotonic() + 5, stage="unit", pass_fds=(read_fd,),
+            )
+            self.assertEqual(result.returncode, 0)
+            self.assertEqual(result.stdout, payload)
+            self.assertEqual(result.stderr, b"")
+            self.assertFalse(os.get_inheritable(read_fd))
+        finally:
+            os.close(read_fd)
+            if write_fd is not None:
+                os.close(write_fd)
 
     def test_nonzero_exit_is_a_sanitized_failure(self) -> None:
         stderr_marker = "synthetic stderr marker"

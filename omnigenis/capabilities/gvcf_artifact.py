@@ -10,6 +10,7 @@ from __future__ import annotations
 from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass
+import errno
 import hashlib
 import json
 import os
@@ -331,7 +332,20 @@ def _sealed_executor(path: Path, expected_digest: str, deadline: float) -> Itera
                 raise _Failure("executor", "byte_budget_exceeded")
             if not before.st_mode & 0o111:
                 raise _Failure("executor", "not_executable")
-            descriptor = os.memfd_create("omnigenis-bcftools", os.MFD_CLOEXEC | os.MFD_ALLOW_SEALING)
+            flags = os.MFD_CLOEXEC | os.MFD_ALLOW_SEALING
+            try:
+                try:
+                    descriptor = os.memfd_create("omnigenis-bcftools", flags | getattr(os, "MFD_EXEC", 0x0010))
+                except OSError as error:
+                    if error.errno != errno.EINVAL:
+                        raise
+                    # Older kernels reject the unsupported executable-memfd flag.
+                    _remaining(deadline, "executor")
+                    descriptor = os.memfd_create("omnigenis-bcftools", flags)
+            except OSError as error:
+                reason = ("executable_memfd_policy_denied" if error.errno in (errno.EACCES, errno.EPERM)
+                          else "executable_memfd_creation_failed")
+                raise _Failure("executor", reason) from None
             digest, total = hashlib.sha256(), 0
             while True:
                 _remaining(deadline, "executor")
