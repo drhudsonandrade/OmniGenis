@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:omnigenis:schema:fastq-input-profile:1.0.0",
+  "title": "Paired FASTQ Input Profile",
+  "description": "Serialized declarations for the bounded non-UMI paired FASTQ profile. Runtime validation additionally checks exact native types, distinct input IDs, canonical byte budget, and correspondence to supplied stream contents.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "profile_id",
+    "transport",
+    "layout",
+    "quality_encoding",
+    "declared_case_id",
+    "declared_sample_id",
+    "declared_specimen_id",
+    "declared_read_group_id",
+    "declared_run",
+    "r1",
+    "r2"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "profile_id": {
+      "const": "paired-fastq-illumina-non-umi-phred33-v1"
+    },
+    "transport": {
+      "const": "UNCOMPRESSED"
+    },
+    "layout": {
+      "const": "PAIRED_END"
+    },
+    "quality_encoding": {
+      "const": "PHRED33"
+    },
+    "declared_case_id": {
+      "$ref": "#/$defs/opaqueId"
+    },
+    "declared_sample_id": {
+      "$ref": "#/$defs/opaqueId"
+    },
+    "declared_specimen_id": {
+      "$ref": "#/$defs/opaqueId"
+    },
+    "declared_read_group_id": {
+      "$ref": "#/$defs/opaqueId"
+    },
+    "declared_run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "instrument",
+        "run",
+        "flowcell",
+        "lane"
+      ],
+      "properties": {
+        "instrument": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[A-Za-z0-9_-]{1,64}$(?![\\s\\S])"
+        },
+        "run": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "flowcell": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[A-Za-z0-9_-]{1,64}$(?![\\s\\S])"
+        },
+        "lane": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 999
+        }
+      }
+    },
+    "r1": {
+      "$ref": "#/$defs/mate"
+    },
+    "r2": {
+      "$ref": "#/$defs/mate"
+    }
+  },
+  "$defs": {
+    "opaqueId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$(?![\\s\\S])"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$(?![\\s\\S])"
+    },
+    "mate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "input_id",
+        "input_kind",
+        "media_type",
+        "content_sha256",
+        "size_bytes"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "input_id": {
+          "$ref": "#/$defs/opaqueId"
+        },
+        "input_kind": {
+          "const": "FASTQ"
+        },
+        "media_type": {
+          "const": "text/plain"
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "size_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 67108864
+        }
+      }
+    }
+  }
+}

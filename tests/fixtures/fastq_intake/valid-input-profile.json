@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.0.0",
+  "profile_id": "paired-fastq-illumina-non-umi-phred33-v1",
+  "transport": "UNCOMPRESSED",
+  "layout": "PAIRED_END",
+  "quality_encoding": "PHRED33",
+  "declared_case_id": "synthetic:case-01",
+  "declared_sample_id": "synthetic:sample-01",
+  "declared_specimen_id": "synthetic:specimen-01",
+  "declared_read_group_id": "synthetic:read-group-01",
+  "declared_run": {
+    "instrument": "SYNTHSEQ-01",
+    "run": 7,
+    "flowcell": "FLOWCELL-01",
+    "lane": 1
+  },
+  "r1": {
+    "schema_version": "1.0.0",
+    "input_id": "synthetic:input-r1",
+    "input_kind": "FASTQ",
+    "media_type": "text/plain",
+    "content_sha256": "504a6c91747e97313d954d0228f2957b91a0b3b6f30a595cf3bdddd72c009ae1",
+    "size_bytes": 143
+  },
+  "r2": {
+    "schema_version": "1.0.0",
+    "input_id": "synthetic:input-r2",
+    "input_kind": "FASTQ",
+    "media_type": "text/plain",
+    "content_sha256": "244a7efae6dd6dc7612777ede55b431e2d4923029348ca0b86bbb93d91329f1f",
+    "size_bytes": 143
+  }
+}

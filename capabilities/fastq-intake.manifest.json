@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0.0",
+  "capability_id": "fastq-intake",
+  "capability_version": "1.0.0",
+  "real_use_case": "Validate complete paired FASTQ artifacts and their declared run before downstream processing.",
+  "owner_priority": "input-validation",
+  "upstream_status": "Illumina bcl2fastq2 v2.20 Software Guide, document 15051736 v03, February 2019. The resource profile records the source URL, PDF SHA-256 and the supported restrictions.",
+  "license": "Independent implementation and synthetic fixtures. Referenced Illumina documentation remains copyrighted by its publisher; no vendor code, documentation bytes or third-party fixtures are distributed.",
+  "supported_profile": "resources/input-profiles/paired-fastq-illumina-non-umi-phred33-v1.json: two uncompressed ASCII streams, four-line records, non-UMI Illumina-style headers and declared PHRED33.",
+  "resource_budget": "Engineering limits: 64 MiB per mate, 128 MiB combined, 100000 pairs, 1000 bases per read, 512 header-content bytes, 4096 bytes per physical line, 64 KiB per stream read, 4096-byte canonical declaration and 16 KiB result. Streaming qualification budget: 256 MiB RSS and 60 seconds.",
+  "input_fixture": "tests/fixtures/fastq_intake/valid-r1.fastq and valid-r2.fastq, bound by tests/fixtures/fastq_intake/valid-input-profile.json.",
+  "output_contract": "schemas/fastq-intake-result.v1.schema.json; FastqIntakeResult.is_valid and detached FastqIntakeResult.to_dict() export whole-artifact identities, pair count and explicit structural assessments.",
+  "known_issues": "Restricted structural profile; no biological identity, encoding provenance inference, global duplicate detection, filtering, alignment, calling or scientific interpretation. Stream objects may share backing storage. Caller supplies any blocking-I/O deadline.",
+  "security": "Bounded binary stream consumption with exact supplied-content hashes and sizes. Failure exports one fixed code and no accepted observations. Raw reads, headers, paths and exception text are excluded from results.",
+  "disable_path": "Explicit omnigenis.capabilities.fastq_intake.validate_paired_fastq invocation only; no default pipeline or package-level export."
+}
