@@ -127,6 +127,12 @@
                   "const": "BAI"
                 },
                 "parent_artifact_ids": {
+                  "items": {
+                    "maxLength": 75,
+                    "minLength": 75,
+                    "pattern": "^bam:sha256:[0-9a-f]{64}$",
+                    "type": "string"
+                  },
                   "maxItems": 1,
                   "minItems": 1
                 },
@@ -582,13 +588,22 @@
       ]
     },
     "raw_artifact_refs": {
-      "items": {
-        "maxLength": 75,
-        "minLength": 75,
-        "pattern": "^(bam|bai):sha256:[0-9a-f]{64}$",
-        "type": "string"
-      },
+      "items": false,
       "maxItems": 2,
+      "prefixItems": [
+        {
+          "maxLength": 75,
+          "minLength": 75,
+          "pattern": "^bam:sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "maxLength": 75,
+          "minLength": 75,
+          "pattern": "^bai:sha256:[0-9a-f]{64}$",
+          "type": "string"
+        }
+      ],
       "type": "array",
       "uniqueItems": true
     },

@@ -467,7 +467,17 @@ class PairedReadAlignmentContractTests(unittest.TestCase):
                        next_ref=-1, next_pos=-1, tlen=0, seq=original[2], qual=original[3],
                        tags=[("RG", "Z", RG["ID"])])
         paths, _ = self.vectors(records)
-        accounting = self.validate(snapshot, paths)
+        with patch.object(self.api, "_parse_sam_record", wraps=self.api._parse_sam_record) as parse_record:
+            accounting = self.validate(snapshot, paths)
+        self.assertEqual(parse_record.call_count, 3 * len(records))
+        shared_names = parse_record.call_args_list[0].args[2]
+        self.assertEqual(shared_names, {b"unit_ref": 0})
+        self.assertTrue(all(call.args[2] is shared_names for call in parse_record.call_args_list))
+        shifted_contigs = (("unused_ref", 50000),) + CONTIGS
+        mapped_record = next(row for row in records if row["ref"] >= 0)
+        shifted = self.api._parse_sam_record(sam_record(mapped_record).rstrip(b"\n"), shifted_contigs,
+                                             {b"unused_ref": 0, b"unit_ref": 1})
+        self.assertEqual((shifted.rid, shifted.next_rid), (1, 1))
         self.assertEqual(accounting["pairs"], 128)
         self.assertEqual(accounting["primary"], 256)
         self.assertEqual(accounting["primary_mapped"], 254)
@@ -748,14 +758,34 @@ class PairedReadAlignmentContractTests(unittest.TestCase):
         command = "import time;data=bytearray(96*1024*1024);print(len(data),flush=True);time.sleep(8)"
         self.failure("resource_limit_exceeded",
                      lambda: self.run_small(command, self.small_limits(rss=64 * 1024**2, wall=5)))
+        transient = self.work / "transient-sort-files"
+        transient.mkdir()
+        (transient / "retained").write_bytes(b"abc")
+        # os.walk may have listed a spill file that sort has already removed.
+        with patch.object(self.api.os, "walk", return_value=[(str(transient), [], ["gone.tmp", "retained"])]):
+            self.assertEqual(self.api._owned_size(transient), 3)
+        (transient / "link").symlink_to(transient / "retained")
+        self.failure("resource_limit_exceeded", lambda: self.api._owned_size(transient))
 
     def test_t14b_owned_child_deadline_kills_and_reaps(self):
         command = ("import os,signal,time;signal.signal(signal.SIGTERM,signal.SIG_IGN);"
-                   "print(os.getpid(),flush=True);time.sleep(30)")
+                   "print(os.getpid(),flush=True);os.write(1,b'x'*(512*1024));time.sleep(30)")
+        samples = []
+        original_group_usage = self.api._group_usage
+
+        def record_group_usage(pgid):
+            samples.append(time.monotonic())
+            return original_group_usage(pgid)
+
         started = time.monotonic()
-        self.failure("deadline_exceeded", lambda: self.run_small(command, self.small_limits(wall=1)))
+        with patch.object(self.api, "_group_usage", side_effect=record_group_usage):
+            self.failure("deadline_exceeded", lambda: self.run_small(command, self.small_limits(wall=1)))
         self.assertLess(time.monotonic() - started, 8)
-        pid = int((self.work / "child.stdout").read_text().strip())
+        self.assertGreaterEqual(len(samples), 2)
+        # Reaping forces the final sample; pipe reads cannot force earlier ones.
+        for before, after in zip(samples, samples[1:-1]):
+            self.assertGreaterEqual(after - before, 0.020)
+        pid = int((self.work / "child.stdout").read_text().splitlines()[0])
         with self.assertRaises(ProcessLookupError):
             os.kill(pid, 0)
 
@@ -798,6 +828,19 @@ class PairedReadAlignmentContractTests(unittest.TestCase):
         second = self.api._promote(bam, bai, copy.deepcopy(accepted))
         self.assertEqual(first.to_dict(), second.to_dict())
         self.assertEqual(first.artifacts, second.artifacts)
+        invalid_parent = first.to_dict()
+        accepted_export = invalid_parent["canonical_payload"]["accepted_alignment"]
+        accepted_export["bai_artifact"]["parent_artifact_ids"] = [accepted_export["bai_artifact"]["artifact_id"]]
+        duplicate_kind = first.to_dict()
+        duplicate_kind["raw_artifact_refs"][1] = "bam:sha256:" + "0" * 64
+        reversed_refs = first.to_dict()
+        reversed_refs["raw_artifact_refs"].reverse()
+        for invalid_export in (invalid_parent, duplicate_kind, reversed_refs):
+            self.failure("output_schema_failed", lambda value=invalid_export: self.api._validate_export(value))
+        self.api._validate_export(self.api._refusal("promotion_failed").to_dict())
+        wrong_parent = copy.deepcopy(accepted)
+        wrong_parent["bai_artifact"]["parent_artifact_ids"] = ["bam:sha256:" + "0" * 64]
+        self.failure("promotion_failed", lambda: self.api._promote(bam, bai, wrong_parent))
         with patch.object(self.api, "_validate_export", side_effect=self.api._Failure("output_schema_failed")):
             self.failure("output_schema_failed", lambda: self.api._promote(bam, bai, copy.deepcopy(accepted)))
         self.assertEqual(first.to_dict(), second.to_dict())
@@ -823,15 +866,18 @@ class PairedReadAlignmentContractTests(unittest.TestCase):
 
         # Constructed command outputs isolate the promotion boundary. They are
         # unit controls, not execution of the published reference/executor.
-        calls = []
+        calls, control_workspaces = [], []
         native_streams = {key: path.read_bytes() for key, path in paths.items()}
 
         def observed_controls(resources, workspace, deadline, profiles):
+            control_workspaces.append(workspace)
+            index_prefix = workspace / "unit-unused-index"
+            for suffix in self.api.INDEX_SUFFIXES:
+                Path(str(index_prefix) + suffix).write_bytes(b"")
             descriptors = (os.memfd_create("unit-unused-bwa"), os.memfd_create("unit-unused-samtools"))
             return self.api._ObservedResources(
                 CONTIGS, copy.deepcopy(accepted["reference_binding"]),
-                copy.deepcopy(accepted["executor_binding"]), (),
-                workspace / "unit-unused-index", descriptors)
+                copy.deepcopy(accepted["executor_binding"]), (), index_prefix, descriptors)
 
         def materialize_controls(profiles, workspace, label, argv, deadline, kind="control",
                                  stdout_path=None, **kwargs):
@@ -876,6 +922,56 @@ class PairedReadAlignmentContractTests(unittest.TestCase):
         self.assertEqual(replaced.artifacts, ())
         self.assertEqual(replaced.to_dict()["canonical_payload"]["diagnostics"],
                          [{"code": "promotion_failed"}])
+
+        # Terminal I/O and the final size measurement are inside the acceptance
+        # deadline. A late refusal must replace both private success documents.
+        original_save = self.api._save_terminal
+        original_owned_size = self.api._owned_size
+        for refusal_code in (None, "resource_limit_exceeded", "deadline_exceeded"):
+            clock = [time.monotonic()]
+
+            def delayed_terminal(workspace, result, started, **kwargs):
+                original_save(workspace, result, started, **kwargs)
+                if result.is_valid:
+                    clock[0] += 1801
+
+            def oversized_terminal(workspace):
+                if (workspace / "result.json").exists():
+                    return self.api.MAX_MUTABLE_BYTES + 1
+                return original_owned_size(workspace)
+
+            with self.subTest(finalization=refusal_code), ExitStack() as stack:
+                stack.enter_context(patch.object(self.api, "_observe_resources", side_effect=observed_controls))
+                stack.enter_context(patch.object(self.api, "_command", side_effect=materialize_controls))
+                stack.enter_context(patch.object(self.api, "_capacity", return_value=None))
+                stack.enter_context(patch.object(self.api, "_verify_resources", return_value=None))
+                stack.enter_context(patch.object(self.api, "_run_native",
+                                                side_effect=AssertionError("No native unit execution")))
+                if refusal_code == "resource_limit_exceeded":
+                    stack.enter_context(patch.object(self.api, "_owned_size", side_effect=oversized_terminal))
+                elif refusal_code == "deadline_exceeded":
+                    stack.enter_context(patch.object(self.api.time, "monotonic", side_effect=lambda: clock[0]))
+                    stack.enter_context(patch.object(self.api, "_save_terminal", side_effect=delayed_terminal))
+                finalized = self.api.align_paired_fastq(
+                    r1, r2, bound_profile(r1, r2), execution_profile=execution_profile(),
+                    resources=self.unused_resources())
+            workspace = control_workspaces[-1]
+            exported = finalized.to_dict()
+            self.assertEqual(json.loads((workspace / "result.json").read_text()), exported)
+            terminal = json.loads((workspace / "terminal.json").read_text())
+            self.assertEqual(terminal["status"], exported["canonical_status"])
+            self.assertEqual(terminal["result_sha256"], digest(finalized._canonical_json))
+            self.assertEqual(terminal["artifact_ids"], [item.artifact_id for item in finalized.artifacts])
+            self.assertFalse(list(workspace.glob("*.replacement")))
+            if refusal_code is None:
+                self.assertTrue(finalized.is_valid)
+                self.assertEqual(finalized.artifacts, first.artifacts)
+                self.assertFalse((workspace / "promotion-refusal.json").exists())
+            else:
+                self.assertFalse(finalized.is_valid)
+                self.assertEqual(finalized.artifacts, ())
+                self.assertEqual(exported["canonical_payload"]["diagnostics"], [{"code": refusal_code}])
+                self.assertEqual(json.loads((workspace / "promotion-refusal.json").read_text()), exported)
 
 
 if __name__ == "__main__":

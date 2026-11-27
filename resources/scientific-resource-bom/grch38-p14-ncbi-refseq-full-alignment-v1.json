@@ -77,6 +77,28 @@
       "storage_mode": "EXTERNAL_LOCAL_INPUT_NOT_GIT_REPOSITORY"
     },
     {
+      "generation": {
+        "command_template": [
+          "samtools",
+          "dict",
+          "-o",
+          "<dictionary-output>",
+          "-"
+        ],
+        "executable_sha256": "33ffde7ffecfc1a96b4bce9265144799f9c7781fb5b166d2515a3e31c53b13a6",
+        "executor_profile_id": "bwa-mem2-2.3-sse41-samtools-1.25-v1",
+        "input_resource_id": "grch38-p14-genomic-fasta-gz",
+        "reproduction_note": "Supply the exact decompressed FASTA bytes on standard input using the positional input -. The --uri option is omitted, and the pinned dictionary contains no UR tag. Replace only the executable and dictionary-output placeholders with local paths.",
+        "stdin": {
+          "content_sha256": "df6e4918316e05a9cc1fd29c352841d3678b607d7a436819cd43371b52c814c0",
+          "content_size_bytes": 3339739109,
+          "format": "DECOMPRESSED_FASTA"
+        },
+        "tool": "samtools",
+        "tool_version": "1.25",
+        "ur_tag": "ABSENT",
+        "uri_option": null
+      },
       "lifecycle": "PINNED",
       "replacement_path": "Create and qualify a new versioned profile; never substitute a mutable latest resource.",
       "resource_id": "grch38-p14-dictionary",

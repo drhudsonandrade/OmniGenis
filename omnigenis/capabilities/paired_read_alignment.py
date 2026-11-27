@@ -57,7 +57,7 @@ INDEX_SUFFIXES = (".0123", ".amb", ".ann", ".bwt.2bit.64", ".pac")
 CANONICAL_PG = b"@PG\tID:bwa-mem2\tPN:bwa-mem2\tVN:2.2.1"
 PROFILE_FILES = {
     "alignment": ("resources/alignment-profiles/paired-fastq-grch38-p14-bwa-mem2-v1.json",
-                  "8bb5ac39f9a11211b08682a693c09402c4994ddfd6bae606bf9806c361957437"),
+                  "6ea4e1631a73b730306915d7db90b34460025fd4c4f3a82eba525c96c2fc6096"),
     "execution": ("resources/execution-profiles/paired-fastq-alignment-v1.json",
                   "ccc2ede6da765ac766fb197960ab48fed594476c94d1a67b3cf8a5bb81683c85"),
     "executor": ("resources/executor-profiles/bwa-mem2-2.3-sse41-samtools-1.25-v1.json",
@@ -65,10 +65,10 @@ PROFILE_FILES = {
     "reference": ("resources/reference-profiles/grch38-p14-ncbi-refseq-full-alignment-v1.json",
                   "58dc322611fdb586952e697123aba8c6deffc59724244a8e54164fa7e6a14ce8"),
     "bom": ("resources/scientific-resource-bom/grch38-p14-ncbi-refseq-full-alignment-v1.json",
-            "2e60167bf1f7e3cc3c0dbdf895bf77c39dc1650f51e1c2e5beb2776a8dc60658"),
+            "96dfd057e19dbeb4480b705667ee047cd6cfe7b1b349159d67929c46c25d9d0e"),
 }
 SCHEMA_PATH = "schemas/paired-read-alignment-result.v1.schema.json"
-SCHEMA_SHA256 = "41c93ca8a342d561a67511be0f87666eda9a95542947429def10bb872a811f2a"
+SCHEMA_SHA256 = "607fc32e4e93fab5a55ea8c3238eefcd3d541a9dab3feac5f263033eaa68b8a7"
 ARTIFACT_SCHEMA_SHA256 = "cbb32abed32b25392cc349f72cc9983d1e240b855c134c7f0dbaf3597db39d6a"
 _EXECUTION = {"schema_version": "1.0.0", "execution_profile_id": EXECUTION_PROFILE_ID,
               "executor_id": "omnigenis.local-paired-alignment", "executor_version": "1.0.0",
@@ -512,20 +512,26 @@ def _owned_size(root):
         _require(all(not (Path(directory) / name).is_symlink() for name in dirs), "resource_limit_exceeded")
         for name in files:
             path = Path(directory) / name
-            st = path.lstat()
+            try:
+                st = path.lstat()
+            except FileNotFoundError:
+                continue  # A native temporary file may disappear after os.walk.
             _require(stat.S_ISREG(st.st_mode), "resource_limit_exceeded")
             total += st.st_size
     return total
 
 
-def _private_json(path, value):
+def _private_json(path, value, *, replace=False):
     raw = _canonical(value) + b"\n"
     _require(len(raw) <= 65536, "resource_limit_exceeded")
-    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    target = path.with_name(path.name + ".replacement") if replace else path
+    fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
     with os.fdopen(fd, "wb") as stream:
         stream.write(raw)
         stream.flush()
         os.fsync(stream.fileno())
+    if replace:
+        os.replace(target, path)
 
 
 def _group_usage(pgid):
@@ -582,6 +588,7 @@ def _run_native(argv: list[str], *, cwd: Path, deadline: float, limits: _Command
     started = time.monotonic()
     proc, usage, code = None, None, None
     reaped, killed_at, last_disk = False, None, started
+    last_usage, members = started - 0.025, []
 
     def child_limits():
         os.sched_setaffinity(0, {cpu})
@@ -619,16 +626,20 @@ def _run_native(argv: list[str], *, cwd: Path, deadline: float, limits: _Command
                     receipt[name] += min(remaining, len(part))
                     if len(part) > remaining:
                         code = code or "resource_limit_exceeded"
+                just_reaped = False
                 if not reaped:
                     pid, wait_status, child_usage = os.wait4(proc.pid, os.WNOHANG)
                     if pid:
-                        reaped, usage = True, child_usage
+                        reaped, just_reaped, usage = True, True, child_usage
                         proc.returncode = os.waitstatus_to_exitcode(wait_status)
                         receipt["exit_code"] = proc.returncode
-                group_rss, group_cpu, members = _group_usage(proc.pid)
-                receipt["peak_sampled_group_rss_bytes"] = max(receipt["peak_sampled_group_rss_bytes"], group_rss)
-                if group_rss > limits.rss_bytes or group_cpu > cpu_limit:
-                    code = code or "resource_limit_exceeded"
+                now = time.monotonic()
+                if now - last_usage >= 0.025 or just_reaped:
+                    group_rss, group_cpu, members = _group_usage(proc.pid)
+                    last_usage = now
+                    receipt["peak_sampled_group_rss_bytes"] = max(receipt["peak_sampled_group_rss_bytes"], group_rss)
+                    if group_rss > limits.rss_bytes or group_cpu > cpu_limit:
+                        code = code or "resource_limit_exceeded"
                 if time.monotonic() - started > wall or time.monotonic() >= deadline:
                     code = code or "deadline_exceeded"
                 if reaped and members:
@@ -1018,8 +1029,11 @@ def _integer(raw, lower, upper, code="malformed_output"):
     return number
 
 
-def _iter_sam(path, contigs, read_group, deadline, *, sorted_required=False, normalized=True):
+def _iter_sam(path, contigs, read_group, deadline, *, sorted_required=False, normalized=True,
+              contig_names=None):
     """Yield one header tuple, then every record; EOF and file identity are checked."""
+    if contig_names is None:
+        contig_names = {name.encode(): i for i, (name, _) in enumerate(contigs)}
     with _open_read(path, MAX_SAM_BYTES, "malformed_output") as stream:
         before = _fingerprint(os.fstat(stream.fileno()))
         header, first = [], None
@@ -1041,7 +1055,7 @@ def _iter_sam(path, contigs, read_group, deadline, *, sorted_required=False, nor
         previous = None
         while first is not None:
             _remaining(deadline)
-            record = _parse_sam_record(first[:-1], contigs)
+            record = _parse_sam_record(first[:-1], contigs, contig_names)
             if sorted_required:
                 key = (record.rid if record.rid >= 0 else len(contigs), record.pos)
                 _require(previous is None or previous <= key, "coordinate_order_mismatch")
@@ -1230,12 +1244,11 @@ def _check_record(record, contigs):
     return r
 
 
-def _parse_sam_record(line, contigs):
+def _parse_sam_record(line, contigs, contig_names):
     fields = line.split(b"\t")
     _require(len(fields) >= 11, "malformed_output")
-    names = {name.encode(): i for i, (name, _) in enumerate(contigs)}
-    rid = -1 if fields[2] == b"*" else names.get(fields[2], -2)
-    next_rid = rid if fields[6] == b"=" else (-1 if fields[6] == b"*" else names.get(fields[6], -2))
+    rid = -1 if fields[2] == b"*" else contig_names.get(fields[2], -2)
+    next_rid = rid if fields[6] == b"=" else (-1 if fields[6] == b"*" else contig_names.get(fields[6], -2))
     record = _Record(
         fields[0], _integer(fields[1], 0, 65535), rid,
         _integer(fields[3], 0, 2**31 - 1, "record_out_of_bounds") - 1,
@@ -1654,13 +1667,16 @@ def _validate_alignment_outputs(snapshot, *, contigs, read_group, sam_path: Path
              and all(type(name) is str and type(length) is int and 0 < length < 2**29
                      for name, length in contigs), "header_reference_mismatch")
     _require(read_group == _read_group(snapshot), "header_reference_mismatch")
-    source = _iter_sam(sam_path, contigs, read_group, deadline)
+    contig_names = {name.encode(): i for i, (name, _) in enumerate(contigs)}
+    source = _iter_sam(sam_path, contigs, read_group, deadline, contig_names=contig_names)
     source_header = next(source)
     source_records = Counter(_record_hash(r) for r in source)
-    indexed = _iter_sam(indexed_path, contigs, read_group, deadline, sorted_required=True)
+    indexed = _iter_sam(indexed_path, contigs, read_group, deadline, sorted_required=True,
+                        contig_names=contig_names)
     indexed_header = next(indexed)
     indexed_records = Counter(_record_hash(r) for r in indexed)
-    native = _iter_sam(decoded_path, contigs, read_group, deadline, sorted_required=True)
+    native = _iter_sam(decoded_path, contigs, read_group, deadline, sorted_required=True,
+                       contig_names=contig_names)
     native_header = next(native)
     _require(indexed_header == native_header, "index_validation_failed")
     _require(_check_header(source_header, contigs, read_group, sorted_required=False, normalized=True)
@@ -1827,16 +1843,17 @@ def _workspace(resources):
         raise _Failure("resource_unavailable") from None
 
 
-def _save_terminal(workspace, result, started):
+def _save_terminal(workspace, result, started, *, replace=False):
     """Private evidence is retained for both refusal and successful promotion."""
-    _private_json(workspace / "result.json", result.to_dict())
+    _require(not replace or not result.is_valid, "promotion_failed")
+    _private_json(workspace / "result.json", result.to_dict(), replace=replace)
     _private_json(workspace / "terminal.json", {
         "capability_id": CAPABILITY_ID,
         "status": result.to_dict()["canonical_status"],
         "wall_seconds": round(time.monotonic() - started, 6),
         "result_sha256": _sha(result._canonical_json),
         "artifact_ids": [artifact.artifact_id for artifact in result.artifacts],
-    })
+    }, replace=replace)
 
 
 def align_paired_fastq(
@@ -1952,6 +1969,7 @@ def align_paired_fastq(
         _save_terminal(workspace, result, started)
         _require(_owned_size(workspace) <= profiles["alignment"]["resource_budget"]["mutable_output_bytes"],
                  "resource_limit_exceeded")
+        _remaining(deadline)
         return result
     except _Failure as error:
         result = _refusal(error.code)
@@ -1966,10 +1984,10 @@ def align_paired_fastq(
             observed.close()
     if workspace is not None:
         try:
-            if not (workspace / "result.json").exists():
-                _save_terminal(workspace, result, started)
-            else:
+            replace = (workspace / "result.json").exists() or (workspace / "terminal.json").exists()
+            if replace:
                 _private_json(workspace / "promotion-refusal.json", result.to_dict())
+            _save_terminal(workspace, result, started, replace=replace)
         except (OSError, _Failure):
             # Public refusal never becomes success because private storage failed.
             result = _refusal("promotion_failed")

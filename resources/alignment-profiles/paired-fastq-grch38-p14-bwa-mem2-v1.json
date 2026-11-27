@@ -76,7 +76,7 @@
     "extra_arguments": false,
     "preprocessing": "NONE",
     "program_header": "Validate native provenance, then replace only operational PG command metadata with fixed ID:bwa-mem2 PN:bwa-mem2 VN:2.2.1 before sorting; preserve records, SQ and RG.",
-    "read_group": "Exactly one SAM-safe read group derived from the complete accepted input declaration.",
+    "read_group": "Exactly one SAM-safe @RG uses declared_read_group_id for ID, declared_sample_id for SM, and fixed PL:ILLUMINA. declared_identity_binding_sha256 separately hashes declared_case_id, declared_sample_id, declared_specimen_id, declared_read_group_id and declared_run from the accepted input declaration. Case, specimen and run metadata are not serialized as @RG fields.",
     "samtools_index": [
       "index",
       "-b",
