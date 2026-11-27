@@ -1,0 +1,33 @@
+{
+  "declared_case_id": "synthetic:alignment-case",
+  "declared_read_group_id": "synthetic:alignment-rg",
+  "declared_run": {
+    "flowcell": "UNITONLY",
+    "instrument": "SYNTHALIGN",
+    "lane": 1,
+    "run": 1
+  },
+  "declared_sample_id": "synthetic:alignment-sample",
+  "declared_specimen_id": "synthetic:alignment-specimen",
+  "layout": "PAIRED_END",
+  "profile_id": "paired-fastq-illumina-non-umi-phred33-v1",
+  "quality_encoding": "PHRED33",
+  "r1": {
+    "content_sha256": "9c0f5b101fbb1811096b2e95a03509ec7e4f13f12235b5307da31437642496c9",
+    "input_id": "synthetic:alignment-r1",
+    "input_kind": "FASTQ",
+    "media_type": "text/plain",
+    "schema_version": "1.0.0",
+    "size_bytes": 44968
+  },
+  "r2": {
+    "content_sha256": "d230931d2e77b51a119fb39fe13bcd472a83c9da0ee53f1004c7b19ecbeec318",
+    "input_id": "synthetic:alignment-r2",
+    "input_kind": "FASTQ",
+    "media_type": "text/plain",
+    "schema_version": "1.0.0",
+    "size_bytes": 44968
+  },
+  "schema_version": "1.0.0",
+  "transport": "UNCOMPRESSED"
+}

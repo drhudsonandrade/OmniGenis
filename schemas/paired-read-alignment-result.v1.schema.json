@@ -1,0 +1,621 @@
+{
+  "$defs": {
+    "accepted_alignment": {
+      "additionalProperties": false,
+      "properties": {
+        "accounting": {
+          "additionalProperties": false,
+          "properties": {
+            "no_coordinate": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "nonprimary_union": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "orientation_restored_multiplicity_equal_FASTQ": {
+              "const": true
+            },
+            "pairs": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "primary": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "primary_mapped": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "primary_unmapped": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "records": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "secondary": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "secondary_and_supplementary": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "supplementary": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "pairs",
+            "records",
+            "primary",
+            "primary_mapped",
+            "primary_unmapped",
+            "secondary",
+            "supplementary",
+            "secondary_and_supplementary",
+            "nonprimary_union",
+            "no_coordinate",
+            "orientation_restored_multiplicity_equal_FASTQ"
+          ],
+          "type": "object"
+        },
+        "assessments": {
+          "additionalProperties": false,
+          "properties": {
+            "biological_sample_identity": {
+              "const": "NOT_ASSESSED"
+            },
+            "clinical_validity": {
+              "const": "NOT_ASSESSED"
+            },
+            "coordinate_order": {
+              "const": "PASS"
+            },
+            "coverage_callability": {
+              "const": "NOT_ASSESSED"
+            },
+            "declared_read_group_consistency": {
+              "const": "PASS"
+            },
+            "full_stream_integrity": {
+              "const": "PASS"
+            },
+            "index_consistency": {
+              "const": "PASS"
+            },
+            "input_accounting": {
+              "const": "PASS"
+            },
+            "reference_identity": {
+              "const": "PASS"
+            },
+            "variant_calling": {
+              "const": "NOT_ASSESSED"
+            }
+          },
+          "required": [
+            "biological_sample_identity",
+            "clinical_validity",
+            "coordinate_order",
+            "coverage_callability",
+            "declared_read_group_consistency",
+            "full_stream_integrity",
+            "index_consistency",
+            "input_accounting",
+            "reference_identity",
+            "variant_calling"
+          ],
+          "type": "object"
+        },
+        "bai_artifact": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/artifact"
+            },
+            {
+              "properties": {
+                "artifact_id": {
+                  "pattern": "^bai:sha256:[0-9a-f]{64}$"
+                },
+                "artifact_kind": {
+                  "const": "BAI"
+                },
+                "parent_artifact_ids": {
+                  "maxItems": 1,
+                  "minItems": 1
+                },
+                "size_bytes": {
+                  "maximum": 67108864
+                }
+              }
+            }
+          ]
+        },
+        "bam_artifact": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/artifact"
+            },
+            {
+              "properties": {
+                "artifact_id": {
+                  "pattern": "^bam:sha256:[0-9a-f]{64}$"
+                },
+                "artifact_kind": {
+                  "const": "BAM"
+                },
+                "parent_artifact_ids": {
+                  "maxItems": 6,
+                  "minItems": 6
+                }
+              }
+            }
+          ]
+        },
+        "declared_identity_binding_sha256": {
+          "maxLength": 64,
+          "minLength": 64,
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "executor_binding": {
+          "additionalProperties": false,
+          "properties": {
+            "bwa_sha256": {
+              "const": "f3b8190a35edbf8e4785c6e51e4f86172bdc44949a2cbb1d88a09edc69ee5c96"
+            },
+            "profile_id": {
+              "const": "bwa-mem2-2.3-sse41-samtools-1.25-v1"
+            },
+            "profile_sha256": {
+              "maxLength": 64,
+              "minLength": 64,
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "runtime_libraries_sha256": {
+              "maxLength": 64,
+              "minLength": 64,
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "samtools_sha256": {
+              "const": "33ffde7ffecfc1a96b4bce9265144799f9c7781fb5b166d2515a3e31c53b13a6"
+            }
+          },
+          "required": [
+            "profile_id",
+            "profile_sha256",
+            "bwa_sha256",
+            "samtools_sha256",
+            "runtime_libraries_sha256"
+          ],
+          "type": "object"
+        },
+        "input_mates": {
+          "additionalProperties": false,
+          "properties": {
+            "r1": {
+              "additionalProperties": false,
+              "properties": {
+                "content_sha256": {
+                  "maxLength": 64,
+                  "minLength": 64,
+                  "pattern": "^[0-9a-f]{64}$",
+                  "type": "string"
+                },
+                "size_bytes": {
+                  "maximum": 67108864,
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "content_sha256",
+                "size_bytes"
+              ],
+              "type": "object"
+            },
+            "r2": {
+              "additionalProperties": false,
+              "properties": {
+                "content_sha256": {
+                  "maxLength": 64,
+                  "minLength": 64,
+                  "pattern": "^[0-9a-f]{64}$",
+                  "type": "string"
+                },
+                "size_bytes": {
+                  "maximum": 67108864,
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "content_sha256",
+                "size_bytes"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "r1",
+            "r2"
+          ],
+          "type": "object"
+        },
+        "input_profile_sha256": {
+          "maxLength": 64,
+          "minLength": 64,
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "pair_count": {
+          "maximum": 100000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "parameter_profile_sha256": {
+          "maxLength": 64,
+          "minLength": 64,
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "reference_binding": {
+          "additionalProperties": false,
+          "properties": {
+            "contig_dictionary_sha256": {
+              "maxLength": 64,
+              "minLength": 64,
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "dictionary_sha256": {
+              "const": "9b96c2f15a901e4b96e9b3fb32c185fa91bd3878a7c8749a9fa4fd7f54afb6e2"
+            },
+            "fai_sha256": {
+              "const": "0afdd6ac2a873585725622de2310a55a5f6065b623a093467e7e26c66ba61de7"
+            },
+            "fasta_sha256": {
+              "const": "df6e4918316e05a9cc1fd29c352841d3678b607d7a436819cd43371b52c814c0"
+            },
+            "index_files": {
+              "additionalProperties": false,
+              "properties": {
+                ".0123": {
+                  "const": "54fafdfe030c535a9b0156e9ce1238d43befc1207a4c2ff42d84fbd532894584"
+                },
+                ".amb": {
+                  "const": "ee057c0f95a538a8a60eb3d4e4c22162ea72bfe341be0d1ff69365b1b1007879"
+                },
+                ".ann": {
+                  "const": "9967e6661ffe46da79977599ae073f903decaa7b759bb318b0ea38328d28319d"
+                },
+                ".bwt.2bit.64": {
+                  "const": "d90ef0302e88457a4c5d6727c3c2098144d18d4bb0f9e7fa83194ac5d4522428"
+                },
+                ".pac": {
+                  "const": "bb87a8aa50f07ba8f04c17097f2988585a89402ae8d87f14f9e5209d60c7f5a3"
+                }
+              },
+              "required": [
+                ".0123",
+                ".amb",
+                ".ann",
+                ".bwt.2bit.64",
+                ".pac"
+              ],
+              "type": "object"
+            },
+            "profile_id": {
+              "const": "grch38-p14-ncbi-refseq-full-alignment-v1"
+            },
+            "profile_sha256": {
+              "maxLength": 64,
+              "minLength": 64,
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "profile_id",
+            "profile_sha256",
+            "fasta_sha256",
+            "fai_sha256",
+            "dictionary_sha256",
+            "index_files",
+            "contig_dictionary_sha256"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "input_profile_sha256",
+        "input_mates",
+        "pair_count",
+        "reference_binding",
+        "executor_binding",
+        "parameter_profile_sha256",
+        "declared_identity_binding_sha256",
+        "bam_artifact",
+        "bai_artifact",
+        "accounting",
+        "assessments"
+      ],
+      "type": "object"
+    },
+    "artifact": {
+      "additionalProperties": false,
+      "properties": {
+        "artifact_id": {
+          "maxLength": 75,
+          "pattern": "^(bam|bai):sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "artifact_kind": {
+          "enum": [
+            "BAM",
+            "BAI"
+          ]
+        },
+        "media_type": {
+          "const": "application/octet-stream"
+        },
+        "parent_artifact_ids": {
+          "items": {
+            "maxLength": 100,
+            "minLength": 75,
+            "pattern": "^[a-z0-9-]+:sha256:[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "maxItems": 6,
+          "minItems": 1,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "producer_execution_profile_id": {
+          "const": "paired-fastq-alignment-v1"
+        },
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "sha256": {
+          "maxLength": 64,
+          "minLength": 64,
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "size_bytes": {
+          "maximum": 536870912,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "schema_version",
+        "artifact_id",
+        "artifact_kind",
+        "media_type",
+        "sha256",
+        "size_bytes",
+        "producer_execution_profile_id",
+        "parent_artifact_ids"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "urn:omnigenis:schema:paired-read-alignment-result:1.0.0",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "else": {
+        "properties": {
+          "canonical_payload": {
+            "properties": {
+              "accepted_alignment": {
+                "type": "null"
+              },
+              "diagnostics": {
+                "maxItems": 1,
+                "minItems": 1
+              }
+            }
+          },
+          "raw_artifact_refs": {
+            "maxItems": 0
+          }
+        }
+      },
+      "if": {
+        "properties": {
+          "canonical_status": {
+            "const": "VALID"
+          }
+        },
+        "required": [
+          "canonical_status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "canonical_payload": {
+            "properties": {
+              "accepted_alignment": {
+                "$ref": "#/$defs/accepted_alignment"
+              },
+              "diagnostics": {
+                "maxItems": 0
+              }
+            }
+          },
+          "raw_artifact_refs": {
+            "maxItems": 2,
+            "minItems": 2
+          }
+        }
+      }
+    }
+  ],
+  "properties": {
+    "adapter_version": {
+      "const": "1.0.0"
+    },
+    "availability": {
+      "const": "AVAILABLE"
+    },
+    "canonical_payload": {
+      "additionalProperties": false,
+      "properties": {
+        "accepted_alignment": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/accepted_alignment"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "diagnostics": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "code": {
+                "enum": [
+                  "invalid_input_profile",
+                  "input_intake_refused",
+                  "input_identity_changed",
+                  "unsupported_execution_profile",
+                  "executor_identity_mismatch",
+                  "executor_unavailable",
+                  "reference_identity_mismatch",
+                  "index_identity_mismatch",
+                  "unsafe_read_group",
+                  "resource_unavailable",
+                  "resource_limit_exceeded",
+                  "deadline_exceeded",
+                  "native_execution_failed",
+                  "malformed_output",
+                  "truncated_output",
+                  "output_checksum_error",
+                  "header_reference_mismatch",
+                  "record_out_of_bounds",
+                  "coordinate_order_mismatch",
+                  "primary_accounting_mismatch",
+                  "secondary_supplementary_accounting_mismatch",
+                  "index_validation_failed",
+                  "output_schema_failed",
+                  "promotion_failed"
+                ]
+              }
+            },
+            "required": [
+              "code"
+            ],
+            "type": "object"
+          },
+          "maxItems": 1,
+          "type": "array"
+        },
+        "profile_id": {
+          "const": "paired-fastq-grch38-p14-bwa-mem2-v1"
+        },
+        "schema_version": {
+          "const": "1.0.0"
+        }
+      },
+      "required": [
+        "schema_version",
+        "profile_id",
+        "accepted_alignment",
+        "diagnostics"
+      ],
+      "type": "object"
+    },
+    "canonical_status": {
+      "enum": [
+        "VALID",
+        "INVALID"
+      ]
+    },
+    "capability_id": {
+      "const": "paired-read-alignment"
+    },
+    "capability_version": {
+      "const": "1.0.0"
+    },
+    "execution_profile": {
+      "const": "paired-fastq-alignment-v1"
+    },
+    "executor_id": {
+      "const": "omnigenis.local-paired-alignment"
+    },
+    "executor_version": {
+      "const": "1.0.0"
+    },
+    "limitations": {
+      "const": [
+        "One explicitly selected paired Illumina non-UMI PHRED33 alignment profile; inputs are bounded by the current FASTQ intake.",
+        "Only the exact complete GRCh38.p14 RefSeq reference, five-file index, executor binaries and observed runtime library cohort are accepted.",
+        "Engineering artifact conformance does not establish general mapping accuracy, whole-genome throughput, coverage or callability.",
+        "Biological sample identity, variant calling and clinical validity are not assessed.",
+        "BWA-MEM2 upstream issue 262 remains unresolved; bounded boundary and supplementary regression evidence does not establish general parity with BWA.",
+        "No preprocessing, filtering, deduplication, GPU executor, automatic resource acquisition or hosted service is enabled."
+      ]
+    },
+    "model_id": {
+      "type": "null"
+    },
+    "provenance_refs": {
+      "const": [
+        "https://github.com/samtools/hts-specs/blob/b5341fbb5181cc7811c10c741a682149ab0cccf8/SAMv1.tex",
+        "https://github.com/bwa-mem2/bwa-mem2/tree/7aa5ff6c3330490e5629ab9b7327683d2dce02d6",
+        "https://github.com/samtools/samtools/tree/1.25",
+        "https://www.ncbi.nlm.nih.gov/assembly/GCF_000001405.40/"
+      ]
+    },
+    "raw_artifact_refs": {
+      "items": {
+        "maxLength": 75,
+        "minLength": 75,
+        "pattern": "^(bam|bai):sha256:[0-9a-f]{64}$",
+        "type": "string"
+      },
+      "maxItems": 2,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "reference_bundle": {
+      "const": "grch38-p14-ncbi-refseq-full-alignment-v1"
+    },
+    "resource_release": {
+      "const": "GCF_000001405.40"
+    }
+  },
+  "required": [
+    "capability_id",
+    "capability_version",
+    "canonical_status",
+    "canonical_payload",
+    "availability",
+    "limitations",
+    "executor_id",
+    "executor_version",
+    "adapter_version",
+    "model_id",
+    "resource_release",
+    "reference_bundle",
+    "execution_profile",
+    "raw_artifact_refs",
+    "provenance_refs"
+  ],
+  "title": "Paired read alignment result",
+  "type": "object"
+}

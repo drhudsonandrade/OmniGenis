@@ -1,0 +1,16 @@
+{
+  "capability_id": "paired-read-alignment",
+  "capability_version": "1.0.0",
+  "disable_path": "Explicit omnigenis.capabilities.paired_read_alignment.align_paired_fastq invocation and exact execution profile only; no package export, default pipeline activation or automatic resource download. Missing or mismatched resources refuse.",
+  "input_fixture": "tests/fixtures/paired_read_alignment/valid-r1.fastq and valid-r2.fastq, input-profile.json and fixture-manifest.json. Public artificial reads exercise intake and accounting; full-reference mapping qualification uses independently fixed reference-coordinate oracles.",
+  "known_issues": "Only the selected cohort is accepted. BWA-MEM2 issue 262 remains unresolved; bounded boundary and supplementary regressions do not imply general accuracy or equivalence to BWA. Coverage, callability, biological identity, variant calling, clinical validity and whole-WGS performance are not assessed.",
+  "license": "Independent adapter and regenerated synthetic fixtures. External BWA-MEM2 (MIT), samtools/HTSlib (MIT/Expat with retained notices) and htscodecs (BSD with named exceptions) are operator-supplied and not distributed. NCBI reference use retains submitter and third-party rights caveats; this profile grants no redistribution rights. Exact provenance is in the executor profile and scientific resource BOM.",
+  "output_contract": "schemas/paired-read-alignment-result.v1.schema.json and schemas/artifact-manifest.v1.schema.json; VALID promotes an immutable BAM/BAI pair only after complete physical decoding, reference/header/order/accounting/index checks and strict result reparse. INVALID returns one fixed diagnostic and no artifacts.",
+  "owner_priority": "paired-read-alignment",
+  "real_use_case": "Produce a coordinate-sorted BAM and BAI from accepted paired FASTQ bytes with reference, executor, declared identity and complete read-accounting evidence.",
+  "resource_budget": "One native thread; alignment address space 48 GiB/RSS 32 GiB/900 seconds; sort 8 GiB/4 GiB/600 seconds; decode/index 4 GiB/2 GiB/300 seconds; shared 1800-second deadline, 2 GiB mutable output, 16 MiB per-command stderr, 512 MiB SAM/BAM and 64 MiB BAI. Require at least 40 GiB available system RAM and 8 GiB free workspace. Exact limits are in the alignment profile.",
+  "schema_version": "1.0.0",
+  "security": "Owned immutable input snapshots, exact complete-content identities, argument-list subprocesses, bounded process groups/deadlines/resources, full BGZF/BAM/BAI validation and atomic promotion. Public results exclude read identifiers, operational paths, native command lines and exception text.",
+  "supported_profile": "resources/alignment-profiles/paired-fastq-grch38-p14-bwa-mem2-v1.json; explicit local invocation with the exact complete GRCh38.p14 reference and pinned native/runtime cohort. Resource ceilings are refusal limits, not a whole-WGS support claim.",
+  "upstream_status": "Pinned BWA-MEM2 release 2.3 (binary display 2.2.1), samtools/HTSlib 1.25, htscodecs 1.6.7, and SAM/BAM 1.6 plus BAI at hts-specs commit b5341fbb5181cc7811c10c741a682149ab0cccf8. See the executor and alignment profiles for exact identities and limitations."
+}

@@ -1,0 +1,7 @@
+{
+  "deterministic": true,
+  "execution_profile_id": "paired-fastq-alignment-v1",
+  "executor_id": "omnigenis.local-paired-alignment",
+  "executor_version": "1.0.0",
+  "schema_version": "1.0.0"
+}
