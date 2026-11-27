@@ -652,9 +652,10 @@ class PairedReadAlignmentContractTests(unittest.TestCase):
         resources = self.api.AlignmentResources(paths["fasta"], paths["fai"], paths["dictionary"], prefix,
                                                 paths["bwa"], paths["samtools"], directory)
         real_verify = self.api._verify_file_identity
+        real_index_verify = self.api._verify_index_fd
         real_sealed = self.api._sealed_copy
         real_resolve, real_read_text = Path.resolve, Path.read_text
-        observed = []
+        observed, index_descriptors = [], []
 
         def verify(path, expected_sha, expected_size, deadline, failure_code):
             if Path(path) == target:
@@ -662,6 +663,21 @@ class PairedReadAlignmentContractTests(unittest.TestCase):
                 return real_verify(path, expected_sha, expected_size, deadline, failure_code)
             # Other already-qualified identities are outside this one refusal.
             return {"sha256": expected_sha, "size_bytes": expected_size}
+
+        def verify_index(fd, expected, deadline):
+            index_descriptors.append(fd)
+            bound_path = Path(os.readlink(f"/proc/self/fd/{fd}"))
+            if bound_path == target:
+                self.assertEqual(expected, pin)
+                self.assertEqual(self.api._fingerprint(os.fstat(fd)), self.api._fingerprint(target.stat()))
+                self.assertEqual(self.api.fcntl.fcntl(fd, self.api.fcntl.F_GETFL) & os.O_ACCMODE, os.O_RDONLY)
+                self.assertEqual(os.fstat(fd).st_size, pin["size_bytes"])
+                self.assertNotEqual(digest(os.pread(fd, pin["size_bytes"], 0)), pin["sha256"])
+                observed.append((bound_path, expected["sha256"], expected["size_bytes"], code))
+                return real_index_verify(fd, expected, deadline)
+            # Unrelated members are stubbed; the selected .ann uses the real FD digest gate.
+            return {"sha256": expected["sha256"], "size_bytes": expected["size_bytes"],
+                    "fingerprint": self.api._fingerprint(os.fstat(fd))}
 
         def sealed(path, expected, deadline):
             if Path(path) == target:
@@ -699,6 +715,8 @@ class PairedReadAlignmentContractTests(unittest.TestCase):
 
         with ExitStack() as stack:
             stack.enter_context(patch.object(self.api, "_verify_file_identity", side_effect=verify))
+            if target_class == "index":
+                stack.enter_context(patch.object(self.api, "_verify_index_fd", side_effect=verify_index))
             stack.enter_context(patch.object(self.api, "_sealed_copy", side_effect=sealed))
             stack.enter_context(patch.object(self.api, "_command", side_effect=command))
             stack.enter_context(patch.object(Path, "resolve", new=resolve))
@@ -714,6 +732,9 @@ class PairedReadAlignmentContractTests(unittest.TestCase):
             native.assert_not_called()
             promotion.assert_not_called()
         self.assertEqual(observed, [(target, pin["sha256"], pin["size_bytes"], code)])
+        for fd in index_descriptors:
+            with self.assertRaises(OSError):
+                os.fstat(fd)
 
     def identity_refusal(self, name, code):
         p = self.work / name
