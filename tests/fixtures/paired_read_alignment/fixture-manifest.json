@@ -18,7 +18,7 @@
   ],
   "fragment_bases": 400,
   "license": "Generated fixture content is covered by the repository LICENSE.",
-  "origin": "Newly generated from the public deterministic recipe; no predecessor or private execution output copied.",
+  "origin": "Newly generated from the public deterministic recipe.",
   "pair_count": 128,
   "pairs": [
     {
