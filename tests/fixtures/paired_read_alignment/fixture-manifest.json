@@ -1,0 +1,812 @@
+{
+  "files": [
+    {
+      "bytes": 44968,
+      "path": "valid-r1.fastq",
+      "sha256": "9c0f5b101fbb1811096b2e95a03509ec7e4f13f12235b5307da31437642496c9"
+    },
+    {
+      "bytes": 44968,
+      "path": "valid-r2.fastq",
+      "sha256": "d230931d2e77b51a119fb39fe13bcd472a83c9da0ee53f1004c7b19ecbeec318"
+    },
+    {
+      "bytes": 1033,
+      "path": "input-profile.json",
+      "sha256": "bd9755b2b7b37dc5dd0d4734657d3fe0fe011206155b5cb1a7a502b0279c2f34"
+    }
+  ],
+  "fragment_bases": 400,
+  "license": "Generated fixture content is covered by the repository LICENSE.",
+  "origin": "Newly generated from the public deterministic recipe.",
+  "pair_count": 128,
+  "pairs": [
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:1:1",
+      "r1_start0": 600,
+      "r2_start0": 850
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:2:2",
+      "r1_start0": 911,
+      "r2_start0": 1161
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:3:3",
+      "r1_start0": 1222,
+      "r2_start0": 1472
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:4:4",
+      "r1_start0": 1533,
+      "r2_start0": 1783
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:5:5",
+      "r1_start0": 1844,
+      "r2_start0": 2094
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:6:6",
+      "r1_start0": 2155,
+      "r2_start0": 2405
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:7:7",
+      "r1_start0": 2466,
+      "r2_start0": 2716
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:8:8",
+      "r1_start0": 2777,
+      "r2_start0": 3027
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:9:9",
+      "r1_start0": 3088,
+      "r2_start0": 3338
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:10:10",
+      "r1_start0": 3399,
+      "r2_start0": 3649
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:11:11",
+      "r1_start0": 3710,
+      "r2_start0": 3960
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:12:12",
+      "r1_start0": 4021,
+      "r2_start0": 4271
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:13:13",
+      "r1_start0": 4332,
+      "r2_start0": 4582
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:14:14",
+      "r1_start0": 4643,
+      "r2_start0": 4893
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:15:15",
+      "r1_start0": 4954,
+      "r2_start0": 5204
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:16:16",
+      "r1_start0": 5265,
+      "r2_start0": 5515
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:17:17",
+      "r1_start0": 5576,
+      "r2_start0": 5826
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:18:18",
+      "r1_start0": 5887,
+      "r2_start0": 6137
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:19:19",
+      "r1_start0": 6198,
+      "r2_start0": 6448
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:20:20",
+      "r1_start0": 6509,
+      "r2_start0": 6759
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:21:21",
+      "r1_start0": 6820,
+      "r2_start0": 7070
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:22:22",
+      "r1_start0": 7131,
+      "r2_start0": 7381
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:23:23",
+      "r1_start0": 7442,
+      "r2_start0": 7692
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:24:24",
+      "r1_start0": 7753,
+      "r2_start0": 8003
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:25:25",
+      "r1_start0": 8064,
+      "r2_start0": 8314
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:26:26",
+      "r1_start0": 8375,
+      "r2_start0": 8625
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:27:27",
+      "r1_start0": 8686,
+      "r2_start0": 8936
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:28:28",
+      "r1_start0": 8997,
+      "r2_start0": 9247
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:29:29",
+      "r1_start0": 9308,
+      "r2_start0": 9558
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:30:30",
+      "r1_start0": 9619,
+      "r2_start0": 9869
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:31:31",
+      "r1_start0": 9930,
+      "r2_start0": 10180
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:32:32",
+      "r1_start0": 10241,
+      "r2_start0": 10491
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:33:33",
+      "r1_start0": 10552,
+      "r2_start0": 10802
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:34:34",
+      "r1_start0": 10863,
+      "r2_start0": 11113
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:35:35",
+      "r1_start0": 11174,
+      "r2_start0": 11424
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:36:36",
+      "r1_start0": 11485,
+      "r2_start0": 11735
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:37:37",
+      "r1_start0": 11796,
+      "r2_start0": 12046
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:38:38",
+      "r1_start0": 12107,
+      "r2_start0": 12357
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:39:39",
+      "r1_start0": 12418,
+      "r2_start0": 12668
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:40:40",
+      "r1_start0": 12729,
+      "r2_start0": 12979
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:41:41",
+      "r1_start0": 13040,
+      "r2_start0": 13290
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:42:42",
+      "r1_start0": 13351,
+      "r2_start0": 13601
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:43:43",
+      "r1_start0": 13662,
+      "r2_start0": 13912
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:44:44",
+      "r1_start0": 13973,
+      "r2_start0": 14223
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:45:45",
+      "r1_start0": 14284,
+      "r2_start0": 14534
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:46:46",
+      "r1_start0": 14595,
+      "r2_start0": 14845
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:47:47",
+      "r1_start0": 14906,
+      "r2_start0": 15156
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:48:48",
+      "r1_start0": 15217,
+      "r2_start0": 15467
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:49:49",
+      "r1_start0": 15528,
+      "r2_start0": 15778
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:50:50",
+      "r1_start0": 15839,
+      "r2_start0": 16089
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:51:51",
+      "r1_start0": 16150,
+      "r2_start0": 16400
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:52:52",
+      "r1_start0": 16461,
+      "r2_start0": 16711
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:53:53",
+      "r1_start0": 16772,
+      "r2_start0": 17022
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:54:54",
+      "r1_start0": 17083,
+      "r2_start0": 17333
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:55:55",
+      "r1_start0": 17394,
+      "r2_start0": 17644
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:56:56",
+      "r1_start0": 17705,
+      "r2_start0": 17955
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:57:57",
+      "r1_start0": 18016,
+      "r2_start0": 18266
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:58:58",
+      "r1_start0": 18327,
+      "r2_start0": 18577
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:59:59",
+      "r1_start0": 18638,
+      "r2_start0": 18888
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:60:60",
+      "r1_start0": 18949,
+      "r2_start0": 19199
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:61:61",
+      "r1_start0": 19260,
+      "r2_start0": 19510
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:62:62",
+      "r1_start0": 19571,
+      "r2_start0": 19821
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:63:63",
+      "r1_start0": 19882,
+      "r2_start0": 20132
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:64:64",
+      "r1_start0": 20193,
+      "r2_start0": 20443
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:65:65",
+      "r1_start0": 20504,
+      "r2_start0": 20754
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:66:66",
+      "r1_start0": 20815,
+      "r2_start0": 21065
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:67:67",
+      "r1_start0": 21126,
+      "r2_start0": 21376
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:68:68",
+      "r1_start0": 21437,
+      "r2_start0": 21687
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:69:69",
+      "r1_start0": 21748,
+      "r2_start0": 21998
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:70:70",
+      "r1_start0": 22059,
+      "r2_start0": 22309
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:71:71",
+      "r1_start0": 22370,
+      "r2_start0": 22620
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:72:72",
+      "r1_start0": 22681,
+      "r2_start0": 22931
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:73:73",
+      "r1_start0": 22992,
+      "r2_start0": 23242
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:74:74",
+      "r1_start0": 23303,
+      "r2_start0": 23553
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:75:75",
+      "r1_start0": 23614,
+      "r2_start0": 23864
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:76:76",
+      "r1_start0": 23925,
+      "r2_start0": 24175
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:77:77",
+      "r1_start0": 24236,
+      "r2_start0": 24486
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:78:78",
+      "r1_start0": 24547,
+      "r2_start0": 24797
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:79:79",
+      "r1_start0": 24858,
+      "r2_start0": 25108
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:80:80",
+      "r1_start0": 25169,
+      "r2_start0": 25419
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:81:81",
+      "r1_start0": 25480,
+      "r2_start0": 25730
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:82:82",
+      "r1_start0": 25791,
+      "r2_start0": 26041
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:83:83",
+      "r1_start0": 26102,
+      "r2_start0": 26352
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:84:84",
+      "r1_start0": 26413,
+      "r2_start0": 26663
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:85:85",
+      "r1_start0": 26724,
+      "r2_start0": 26974
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:86:86",
+      "r1_start0": 27035,
+      "r2_start0": 27285
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:87:87",
+      "r1_start0": 27346,
+      "r2_start0": 27596
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:88:88",
+      "r1_start0": 27657,
+      "r2_start0": 27907
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:89:89",
+      "r1_start0": 27968,
+      "r2_start0": 28218
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:90:90",
+      "r1_start0": 28279,
+      "r2_start0": 28529
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:91:91",
+      "r1_start0": 28590,
+      "r2_start0": 28840
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:92:92",
+      "r1_start0": 28901,
+      "r2_start0": 29151
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:93:93",
+      "r1_start0": 29212,
+      "r2_start0": 29462
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:94:94",
+      "r1_start0": 29523,
+      "r2_start0": 29773
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:95:95",
+      "r1_start0": 29834,
+      "r2_start0": 30084
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:96:96",
+      "r1_start0": 30145,
+      "r2_start0": 30395
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:97:97",
+      "r1_start0": 30456,
+      "r2_start0": 30706
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:98:98",
+      "r1_start0": 30767,
+      "r2_start0": 31017
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:99:99",
+      "r1_start0": 31078,
+      "r2_start0": 31328
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:100:100",
+      "r1_start0": 31389,
+      "r2_start0": 31639
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:101:101",
+      "r1_start0": 31700,
+      "r2_start0": 31950
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:102:102",
+      "r1_start0": 32011,
+      "r2_start0": 32261
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:103:103",
+      "r1_start0": 32322,
+      "r2_start0": 32572
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:104:104",
+      "r1_start0": 32633,
+      "r2_start0": 32883
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:105:105",
+      "r1_start0": 32944,
+      "r2_start0": 33194
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:106:106",
+      "r1_start0": 33255,
+      "r2_start0": 33505
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:107:107",
+      "r1_start0": 33566,
+      "r2_start0": 33816
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:108:108",
+      "r1_start0": 33877,
+      "r2_start0": 34127
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:109:109",
+      "r1_start0": 34188,
+      "r2_start0": 34438
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:110:110",
+      "r1_start0": 34499,
+      "r2_start0": 34749
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:111:111",
+      "r1_start0": 34810,
+      "r2_start0": 35060
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:112:112",
+      "r1_start0": 35121,
+      "r2_start0": 35371
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:113:113",
+      "r1_start0": 35432,
+      "r2_start0": 35682
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:114:114",
+      "r1_start0": 35743,
+      "r2_start0": 35993
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:115:115",
+      "r1_start0": 36054,
+      "r2_start0": 36304
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:116:116",
+      "r1_start0": 36365,
+      "r2_start0": 36615
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:117:117",
+      "r1_start0": 36676,
+      "r2_start0": 36926
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:118:118",
+      "r1_start0": 36987,
+      "r2_start0": 37237
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:119:119",
+      "r1_start0": 37298,
+      "r2_start0": 37548
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:120:120",
+      "r1_start0": 37609,
+      "r2_start0": 37859
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:121:121",
+      "r1_start0": 37920,
+      "r2_start0": 38170
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:122:122",
+      "r1_start0": 38231,
+      "r2_start0": 38481
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:123:123",
+      "r1_start0": 38542,
+      "r2_start0": 38792
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:124:124",
+      "r1_start0": 38853,
+      "r2_start0": 39103
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:125:125",
+      "r1_start0": 39164,
+      "r2_start0": 39414
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:126:126",
+      "r1_start0": 39475,
+      "r2_start0": 39725
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:127:127",
+      "r1_start0": 39786,
+      "r2_start0": 40036
+    },
+    {
+      "fragment_bases": 400,
+      "qname": "SYNTHALIGN:1:UNITONLY:1:1101:128:128",
+      "r1_start0": 40097,
+      "r2_start0": 40347
+    }
+  ],
+  "purpose": "Deterministic synthetic unit fixtures; not human reference data, native alignment evidence, or clinical validation.",
+  "read_bases": 150,
+  "recipe": {
+    "bases": "Map every digest byte b to ACGT[b & 3], concatenate and take the first 50000 bases.",
+    "block": "sha256(seed + ASCII colon + decimal zero-based block number)",
+    "line_ending": "LF",
+    "pair_start0": "600 + 311 * zero-based pair ordinal",
+    "quality_phred": "(7 * zero-based base ordinal + zero-based pair ordinal + mate number) % 41",
+    "seed": "OmniGenis synthetic alignment unit reference v1"
+  },
+  "reference": {
+    "length": 50000,
+    "name": "unit_ref",
+    "sha256": "1d0e61ae8a1d7cd68a5f23904ec7ccfd26a610fb8a1d1e4ae270777a807f4a2b"
+  },
+  "schema_version": "1.0.0",
+  "sources": [
+    "https://github.com/samtools/hts-specs/blob/b5341fbb5181cc7811c10c741a682149ab0cccf8/SAMv1.tex"
+  ]
+}

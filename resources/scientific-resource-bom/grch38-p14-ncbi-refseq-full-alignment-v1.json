@@ -1,0 +1,173 @@
+{
+  "bom_id": "scientific-resource-bom-grch38-p14-ncbi-refseq-full-alignment-v1",
+  "bundle_descriptor": {
+    "assembly_accession": "GCF_000001405.40",
+    "assembly_report_sha256": "64318ddff470b69b261a667d813210044f60d4ce654253a547db80ff73638d38",
+    "contig_dictionary_sha256": "4b0843b29493c683bf4fc8190b6cbb797d8feda3f4c6fab770d10b129eee0010",
+    "dictionary": {
+      "sha256": "9b96c2f15a901e4b96e9b3fb32c185fa91bd3878a7c8749a9fa4fd7f54afb6e2",
+      "size_bytes": 46658
+    },
+    "fai": {
+      "sha256": "0afdd6ac2a873585725622de2310a55a5f6065b623a093467e7e26c66ba61de7",
+      "size_bytes": 26165
+    },
+    "fasta": {
+      "sha256": "df6e4918316e05a9cc1fd29c352841d3678b607d7a436819cd43371b52c814c0",
+      "size_bytes": 3339739109
+    },
+    "index_bundle_sha256": "a95344ad3f1f0f26d2b3eb53acc4ca954b3206647d55f3acbcfdf7690559f7d8",
+    "index_files": {
+      ".0123": {
+        "sha256": "54fafdfe030c535a9b0156e9ce1238d43befc1207a4c2ff42d84fbd532894584",
+        "size_bytes": 6596861272
+      },
+      ".amb": {
+        "sha256": "ee057c0f95a538a8a60eb3d4e4c22162ea72bfe341be0d1ff69365b1b1007879",
+        "size_bytes": 21626
+      },
+      ".ann": {
+        "sha256": "9967e6661ffe46da79977599ae073f903decaa7b759bb318b0ea38328d28319d",
+        "size_bytes": 92376
+      },
+      ".bwt.2bit.64": {
+        "sha256": "d90ef0302e88457a4c5d6727c3c2098144d18d4bb0f9e7fa83194ac5d4522428",
+        "size_bytes": 10719899668
+      },
+      ".pac": {
+        "sha256": "bb87a8aa50f07ba8f04c17097f2988585a89402ae8d87f14f9e5209d60c7f5a3",
+        "size_bytes": 824607661
+      }
+    },
+    "profile_id": "grch38-p14-ncbi-refseq-full-alignment-v1"
+  },
+  "bundle_sha256": "da76f6f1b3f30bc77f55cbcd3e3114a15fcbe619190481a249c46e74fb3acd15",
+  "known_issues": "Complete 705-sequence identity is specific to this alignment profile and does not extend autosomal variant-calling profiles. Index integrity and bounded alignment regression do not establish whole-WGS accuracy or clinical validity.",
+  "profile_id": "grch38-p14-ncbi-refseq-full-alignment-v1",
+  "resources": [
+    {
+      "content_sha256": "df6e4918316e05a9cc1fd29c352841d3678b607d7a436819cd43371b52c814c0",
+      "content_size_bytes": 3339739109,
+      "lifecycle": "PINNED",
+      "replacement_path": "Create and qualify a new versioned profile; never substitute a mutable latest resource.",
+      "resource_id": "grch38-p14-genomic-fasta-gz",
+      "role": "reference_fasta_transport",
+      "sha256": "11912a45a545bf01a10b2a7f10eb7a42924436b4d19b476b1899834fb7ba74a3",
+      "size_bytes": 972898531,
+      "source_url": "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/001/405/GCF_000001405.40_GRCh38.p14/GCF_000001405.40_GRCh38.p14_genomic.fna.gz",
+      "storage_mode": "EXTERNAL_LOCAL_INPUT_NOT_GIT_REPOSITORY"
+    },
+    {
+      "lifecycle": "PINNED",
+      "replacement_path": "Create and qualify a new versioned profile; never substitute a mutable latest resource.",
+      "resource_id": "grch38-p14-assembly-report",
+      "role": "assembly_report",
+      "sha256": "64318ddff470b69b261a667d813210044f60d4ce654253a547db80ff73638d38",
+      "size_bytes": 80454,
+      "source_url": "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/001/405/GCF_000001405.40_GRCh38.p14/GCF_000001405.40_GRCh38.p14_assembly_report.txt",
+      "storage_mode": "EXTERNAL_LOCAL_INPUT_NOT_GIT_REPOSITORY"
+    },
+    {
+      "lifecycle": "PINNED",
+      "replacement_path": "Create and qualify a new versioned profile; never substitute a mutable latest resource.",
+      "resource_id": "grch38-p14-fai",
+      "role": "reference_fai",
+      "sha256": "0afdd6ac2a873585725622de2310a55a5f6065b623a093467e7e26c66ba61de7",
+      "size_bytes": 26165,
+      "storage_mode": "EXTERNAL_LOCAL_INPUT_NOT_GIT_REPOSITORY"
+    },
+    {
+      "generation": {
+        "command_template": [
+          "samtools",
+          "dict",
+          "-o",
+          "<dictionary-output>",
+          "-"
+        ],
+        "executable_sha256": "33ffde7ffecfc1a96b4bce9265144799f9c7781fb5b166d2515a3e31c53b13a6",
+        "executor_profile_id": "bwa-mem2-2.3-sse41-samtools-1.25-v1",
+        "input_resource_id": "grch38-p14-genomic-fasta-gz",
+        "reproduction_note": "Supply the exact decompressed FASTA bytes on standard input using the positional input -. The --uri option is omitted, and the pinned dictionary contains no UR tag. Replace only the executable and dictionary-output placeholders with local paths.",
+        "stdin": {
+          "content_sha256": "df6e4918316e05a9cc1fd29c352841d3678b607d7a436819cd43371b52c814c0",
+          "content_size_bytes": 3339739109,
+          "format": "DECOMPRESSED_FASTA"
+        },
+        "tool": "samtools",
+        "tool_version": "1.25",
+        "ur_tag": "ABSENT",
+        "uri_option": null
+      },
+      "lifecycle": "PINNED",
+      "replacement_path": "Create and qualify a new versioned profile; never substitute a mutable latest resource.",
+      "resource_id": "grch38-p14-dictionary",
+      "role": "reference_dictionary",
+      "sha256": "9b96c2f15a901e4b96e9b3fb32c185fa91bd3878a7c8749a9fa4fd7f54afb6e2",
+      "size_bytes": 46658,
+      "storage_mode": "EXTERNAL_LOCAL_INPUT_NOT_GIT_REPOSITORY"
+    },
+    {
+      "lifecycle": "PINNED",
+      "replacement_path": "Create and qualify a new versioned profile; never substitute a mutable latest resource.",
+      "resource_id": "grch38-p14-bwa-mem2.0123",
+      "role": "native_alignment_index_member",
+      "sha256": "54fafdfe030c535a9b0156e9ce1238d43befc1207a4c2ff42d84fbd532894584",
+      "size_bytes": 6596861272,
+      "storage_mode": "EXTERNAL_LOCAL_INPUT_NOT_GIT_REPOSITORY",
+      "suffix": ".0123"
+    },
+    {
+      "lifecycle": "PINNED",
+      "replacement_path": "Create and qualify a new versioned profile; never substitute a mutable latest resource.",
+      "resource_id": "grch38-p14-bwa-mem2.amb",
+      "role": "native_alignment_index_member",
+      "sha256": "ee057c0f95a538a8a60eb3d4e4c22162ea72bfe341be0d1ff69365b1b1007879",
+      "size_bytes": 21626,
+      "storage_mode": "EXTERNAL_LOCAL_INPUT_NOT_GIT_REPOSITORY",
+      "suffix": ".amb"
+    },
+    {
+      "lifecycle": "PINNED",
+      "replacement_path": "Create and qualify a new versioned profile; never substitute a mutable latest resource.",
+      "resource_id": "grch38-p14-bwa-mem2.ann",
+      "role": "native_alignment_index_member",
+      "sha256": "9967e6661ffe46da79977599ae073f903decaa7b759bb318b0ea38328d28319d",
+      "size_bytes": 92376,
+      "storage_mode": "EXTERNAL_LOCAL_INPUT_NOT_GIT_REPOSITORY",
+      "suffix": ".ann"
+    },
+    {
+      "lifecycle": "PINNED",
+      "replacement_path": "Create and qualify a new versioned profile; never substitute a mutable latest resource.",
+      "resource_id": "grch38-p14-bwa-mem2.bwt.2bit.64",
+      "role": "native_alignment_index_member",
+      "sha256": "d90ef0302e88457a4c5d6727c3c2098144d18d4bb0f9e7fa83194ac5d4522428",
+      "size_bytes": 10719899668,
+      "storage_mode": "EXTERNAL_LOCAL_INPUT_NOT_GIT_REPOSITORY",
+      "suffix": ".bwt.2bit.64"
+    },
+    {
+      "lifecycle": "PINNED",
+      "replacement_path": "Create and qualify a new versioned profile; never substitute a mutable latest resource.",
+      "resource_id": "grch38-p14-bwa-mem2.pac",
+      "role": "native_alignment_index_member",
+      "sha256": "bb87a8aa50f07ba8f04c17097f2988585a89402ae8d87f14f9e5209d60c7f5a3",
+      "size_bytes": 824607661,
+      "storage_mode": "EXTERNAL_LOCAL_INPUT_NOT_GIT_REPOSITORY",
+      "suffix": ".pac"
+    }
+  ],
+  "rights": {
+    "license": "NCBI molecular-data policy with third-party and submitter rights caveats",
+    "obligation": "Verify applicable submitter, patent and third-party rights for the intended use; retain source provenance and notices. No reference sequence or native index is distributed in this repository.",
+    "policy_url": "https://www.ncbi.nlm.nih.gov/home/about/policies/",
+    "redistribution": "NOT_GRANTED_BY_THIS_PROFILE",
+    "use_rights": "DOCUMENTED_WITH_OBLIGATIONS"
+  },
+  "schema_version": "1.0.0",
+  "source_registry_ref": {
+    "registry_id": "source-registry-minimal-e1a-v1",
+    "source_id": "ncbi-refseq-grch38-p14"
+  }
+}

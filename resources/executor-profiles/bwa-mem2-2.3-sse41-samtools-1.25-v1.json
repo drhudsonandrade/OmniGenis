@@ -1,0 +1,148 @@
+{
+  "build_package_provenance": {
+    "libc6": "2.39-0ubuntu8.12",
+    "libgcc-s1": "14.2.0-4ubuntu2~24.04.1",
+    "libstdc++6": "14.2.0-4ubuntu2~24.04.1",
+    "zlib1g": "1:1.3.dfsg-3.1ubuntu2.3"
+  },
+  "executors": {
+    "bwa": {
+      "displayed_version": "2.2.1",
+      "license": "MIT",
+      "license_sha256": "14788d0bad0a530a616daa85a4cc9c5b9e7eb6a693fae100f6656d3316776542",
+      "license_url": "https://github.com/bwa-mem2/bwa-mem2/blob/7aa5ff6c3330490e5629ab9b7327683d2dce02d6/LICENSE",
+      "name": "bwa-mem2.sse41",
+      "release": "2.3",
+      "sha256": "f3b8190a35edbf8e4785c6e51e4f86172bdc44949a2cbb1d88a09edc69ee5c96",
+      "size_bytes": 2006344,
+      "source_commit": "7aa5ff6c3330490e5629ab9b7327683d2dce02d6",
+      "source_url": "https://github.com/bwa-mem2/bwa-mem2/tree/7aa5ff6c3330490e5629ab9b7327683d2dce02d6"
+    },
+    "samtools": {
+      "disabled_features": [
+        "curses",
+        "libcurl",
+        "S3",
+        "GCS",
+        "libdeflate",
+        "lzma",
+        "bzip2",
+        "plugins"
+      ],
+      "htscodecs_version": "1.6.7",
+      "htslib_version": "1.25",
+      "license": "MIT/Expat",
+      "license_sha256": "3567b264a6bd25b207b7a66b5c6a3d913a7766488cb3596c595e0caef937016d",
+      "license_url": "https://github.com/samtools/samtools/blob/1.25/LICENSE",
+      "name": "samtools",
+      "sha256": "33ffde7ffecfc1a96b4bce9265144799f9c7781fb5b166d2515a3e31c53b13a6",
+      "size_bytes": 1707784,
+      "source_url": "https://github.com/samtools/samtools/tree/1.25",
+      "version": "1.25"
+    }
+  },
+  "known_issues": [
+    {
+      "effect": "Contig-start and supplementary alignment concerns require independent boundary regression; no general BWA parity is asserted.",
+      "status": "UNRESOLVED",
+      "url": "https://github.com/bwa-mem2/bwa-mem2/issues/262"
+    }
+  ],
+  "platform": {
+    "byte_order": "little",
+    "machine": "x86_64",
+    "required_cpu_flags": [
+      "sse4_1"
+    ],
+    "system": "Linux"
+  },
+  "profile_id": "bwa-mem2-2.3-sse41-samtools-1.25-v1",
+  "profile_version": "1.0.0",
+  "replacement_policy": "A changed executable or loaded library requires a separately versioned and qualified profile; no automatic SIMD substitution.",
+  "runtime_libraries": [
+    {
+      "sha256": "5fc0940888e9d2e1a00e66d6b1a559c36364ee867683652e1074fa576952cc3f",
+      "size_bytes": 236616,
+      "soname": "ld-linux-x86-64.so.2"
+    },
+    {
+      "sha256": "755a371e86cc9f564ab54f66140747700fb0a103f698f659f2060f707897e09a",
+      "size_bytes": 2129424,
+      "soname": "libc.so.6"
+    },
+    {
+      "sha256": "d93224d2b0dab4247598be683adca02f5cf00586f99c187579cd7e92058fb7cb",
+      "size_bytes": 183024,
+      "soname": "libgcc_s.so.1"
+    },
+    {
+      "sha256": "5dcc4d25466e29ca390ed6fabb371c69b65dff6fa4e91c34561057a020d6994a",
+      "size_bytes": 952616,
+      "soname": "libm.so.6"
+    },
+    {
+      "sha256": "cd34f895c9d2aa669d5d2654bed6b71210fc9003c3a1e96bb5311a40feb86039",
+      "size_bytes": 14408,
+      "soname": "libpthread.so.0"
+    },
+    {
+      "sha256": "1fd75fe70354a416d75aef22bcae68c47bd25d20e2d0568c30b1a9838cf62f11",
+      "size_bytes": 2592224,
+      "soname": "libstdc++.so.6"
+    },
+    {
+      "sha256": "f61677c7bdb7c2aa2a243ea781bfd16afcb361cede7b4ef76127a9d8eb9a5242",
+      "size_bytes": 113000,
+      "soname": "libz.so.1"
+    }
+  ],
+  "runtime_libraries_sha256": "02e03638156a3107982f4efc5fd66b4ce7fdd5cd82a4ccb990e4a980c2932849",
+  "runtime_library_sets": {
+    "bwa": [
+      "ld-linux-x86-64.so.2",
+      "libc.so.6",
+      "libgcc_s.so.1",
+      "libm.so.6",
+      "libpthread.so.0",
+      "libstdc++.so.6",
+      "libz.so.1"
+    ],
+    "samtools": [
+      "ld-linux-x86-64.so.2",
+      "libc.so.6",
+      "libm.so.6",
+      "libz.so.1"
+    ]
+  },
+  "schema_version": "1.0.0",
+  "storage": "EXTERNAL_LOCAL_INPUT_NOT_GIT_REPOSITORY",
+  "system_tools": {
+    "ldd": {
+      "sha256": "e47db1b5348bb415b14b43217d2843d87e92798bb191efab2159c3f959174e83",
+      "size_bytes": 5383
+    }
+  },
+  "transitive_licenses": [
+    {
+      "component": "HTSlib",
+      "license": "MIT/Expat; CRAM portions retain modified BSD notices",
+      "sha256": "62a9257fa98697f92cf0fee949d59c8afa150b61be210b1f34f5a1bdc6aeb6dd",
+      "url": "https://github.com/samtools/htslib/blob/1.25/LICENSE",
+      "version": "1.25"
+    },
+    {
+      "component": "htscodecs",
+      "license": "BSD with named public-domain/CC0 exceptions",
+      "sha256": "d17f1bae81abcca5928c2ee0adbc7d4429cc5ad8649d195e011a69f1c3b6b2ad",
+      "size_bytes": 2160,
+      "source": "Bundled samtools-1.25/htslib-1.25/htscodecs/LICENSE.md; exact license bytes are identified by sha256.",
+      "source_archive": {
+        "sha256": "8bbd2b3cb447953149a74ab0b00e3ec4e88a789a27b8373a31fa6b5b2dee02b1",
+        "size_bytes": 9521878,
+        "url": "https://github.com/samtools/samtools/releases/download/1.25/samtools-1.25.tar.bz2"
+      },
+      "source_member": "samtools-1.25/htslib-1.25/htscodecs/LICENSE.md",
+      "version": "1.6.7"
+    }
+  ]
+}

@@ -1,0 +1,156 @@
+{
+  "assessments": {
+    "biological_sample_identity": "NOT_ASSESSED",
+    "clinical_validity": "NOT_ASSESSED",
+    "coordinate_order": "PASS",
+    "coverage_callability": "NOT_ASSESSED",
+    "declared_read_group_consistency": "PASS",
+    "full_stream_integrity": "PASS",
+    "index_consistency": "PASS",
+    "input_accounting": "PASS",
+    "reference_identity": "PASS",
+    "variant_calling": "NOT_ASSESSED"
+  },
+  "capability_id": "paired-read-alignment",
+  "capability_version": "1.0.0",
+  "default_enabled": false,
+  "diagnostics": [
+    "invalid_input_profile",
+    "input_intake_refused",
+    "input_identity_changed",
+    "unsupported_execution_profile",
+    "executor_identity_mismatch",
+    "executor_unavailable",
+    "reference_identity_mismatch",
+    "index_identity_mismatch",
+    "unsafe_read_group",
+    "resource_unavailable",
+    "resource_limit_exceeded",
+    "deadline_exceeded",
+    "native_execution_failed",
+    "malformed_output",
+    "truncated_output",
+    "output_checksum_error",
+    "header_reference_mismatch",
+    "record_out_of_bounds",
+    "coordinate_order_mismatch",
+    "primary_accounting_mismatch",
+    "secondary_supplementary_accounting_mismatch",
+    "index_validation_failed",
+    "output_schema_failed",
+    "promotion_failed"
+  ],
+  "disable_path": "Do not select this profile. Only explicit invocation may dispatch native work; no fallback profile is accepted.",
+  "execution_profile_id": "paired-fastq-alignment-v1",
+  "executor_profile_id": "bwa-mem2-2.3-sse41-samtools-1.25-v1",
+  "format": {
+    "index": "BAI",
+    "sam_bam_version": "1.6",
+    "source_commit": "b5341fbb5181cc7811c10c741a682149ab0cccf8",
+    "source_url": "https://github.com/samtools/hts-specs/blob/b5341fbb5181cc7811c10c741a682149ab0cccf8/SAMv1.tex"
+  },
+  "input_limits": {
+    "max_bytes_per_mate": 67108864,
+    "max_combined_bytes": 134217728,
+    "max_pairs": 100000,
+    "max_read_bases": 1000
+  },
+  "input_profile_id": "paired-fastq-illumina-non-umi-phred33-v1",
+  "limitations": [
+    "One explicitly selected paired Illumina non-UMI PHRED33 alignment profile; inputs are bounded by the current FASTQ intake.",
+    "Only the exact complete GRCh38.p14 RefSeq reference, five-file index, executor binaries and observed runtime library cohort are accepted.",
+    "Engineering artifact conformance does not establish general mapping accuracy, whole-genome throughput, coverage or callability.",
+    "Biological sample identity, variant calling and clinical validity are not assessed.",
+    "BWA-MEM2 upstream issue 262 remains unresolved; bounded boundary and supplementary regression evidence does not establish general parity with BWA.",
+    "No preprocessing, filtering, deduplication, GPU executor, automatic resource acquisition or hosted service is enabled."
+  ],
+  "parameters": {
+    "bwa_mem": [
+      "mem",
+      "-t",
+      "1",
+      "-K",
+      "10000"
+    ],
+    "duplicate_occurrences": "PRESERVE",
+    "extra_arguments": false,
+    "preprocessing": "NONE",
+    "program_header": "Validate native provenance, then replace only operational PG command metadata with fixed ID:bwa-mem2 PN:bwa-mem2 VN:2.2.1 before sorting; preserve records, SQ and RG. Validate the pinned executor's input-ordinal read blocks and reciprocal primary links against the unsorted SAM before accepting the sorted BAM. Preserve native SAM bytes. Recover a solitary BAM Phred score 9 only from the exact clipped, oriented source occurrence when SAM represents it as missing QUAL; preserve all other record values and account for this proven SAM representation loss in full and indexed decodes.",
+    "read_group": "Exactly one SAM-safe @RG uses declared_read_group_id for ID, declared_sample_id for SM, and fixed PL:ILLUMINA. declared_identity_binding_sha256 separately hashes declared_case_id, declared_sample_id, declared_specimen_id, declared_read_group_id and declared_run from the accepted input declaration. Case, specimen and run metadata are not serialized as @RG fields.",
+    "samtools_index": [
+      "index",
+      "-b",
+      "-@",
+      "0"
+    ],
+    "samtools_indexed_view": [
+      "view",
+      "--no-PG",
+      "-h",
+      "-X"
+    ],
+    "samtools_sort": [
+      "sort",
+      "--no-PG",
+      "-@",
+      "0",
+      "-m",
+      "1G"
+    ],
+    "samtools_view": [
+      "view",
+      "--no-PG",
+      "-h"
+    ],
+    "unmapped_primaries": "PRESERVE"
+  },
+  "profile_id": "paired-fastq-grch38-p14-bwa-mem2-v1",
+  "profile_version": "1.0.0",
+  "provenance_refs": [
+    "https://github.com/samtools/hts-specs/blob/b5341fbb5181cc7811c10c741a682149ab0cccf8/SAMv1.tex",
+    "https://github.com/bwa-mem2/bwa-mem2/tree/7aa5ff6c3330490e5629ab9b7327683d2dce02d6",
+    "https://github.com/samtools/samtools/tree/1.25",
+    "https://www.ncbi.nlm.nih.gov/assembly/GCF_000001405.40/"
+  ],
+  "reference_profile_id": "grch38-p14-ncbi-refseq-full-alignment-v1",
+  "resource_budget": {
+    "adapter": {
+      "rss_bytes": 536870912,
+      "wall_seconds": 1800
+    },
+    "alignment": {
+      "address_space_bytes": 51539607552,
+      "cpu_count": 1,
+      "rss_bytes": 34359738368,
+      "threads": 1,
+      "wall_seconds": 900
+    },
+    "bai_bytes": 67108864,
+    "bam_bytes": 536870912,
+    "control": {
+      "address_space_bytes": 2147483648,
+      "cpu_count": 1,
+      "rss_bytes": 536870912,
+      "wall_seconds": 120
+    },
+    "decode": {
+      "address_space_bytes": 4294967296,
+      "cpu_count": 1,
+      "rss_bytes": 2147483648,
+      "wall_seconds": 300
+    },
+    "min_disk_free_bytes": 8589934592,
+    "min_mem_available_bytes": 42949672960,
+    "mutable_output_bytes": 2147483648,
+    "sam_bytes": 536870912,
+    "sort": {
+      "address_space_bytes": 8589934592,
+      "buffer_bytes": 1073741824,
+      "cpu_count": 1,
+      "rss_bytes": 4294967296,
+      "wall_seconds": 600
+    },
+    "stderr_bytes": 16777216
+  },
+  "schema_version": "1.0.0"
+}
