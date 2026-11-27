@@ -9,6 +9,7 @@ from collections import Counter
 from contextlib import ExitStack
 import copy
 from dataclasses import fields, FrozenInstanceError
+import gzip
 import hashlib
 import importlib
 import inspect
@@ -19,6 +20,7 @@ from pathlib import Path
 import struct
 import sys
 import tempfile
+import threading
 import time
 import unittest
 from unittest.mock import patch
@@ -357,13 +359,14 @@ class PairedReadAlignmentContractTests(unittest.TestCase):
         self.work = Path(self.temporary.name)
         self.counter = 0
 
-    def snapshot(self, r1=None, r2=None):
+    def snapshot(self, r1=None, r2=None, *, profile=None):
         if r1 is None:
             r1, r2 = fixture_pair()
         self.counter += 1
         workspace = self.work / ("snapshot-" + str(self.counter))
         workspace.mkdir()
-        value = self.api._snapshot_inputs(r1, r2, bound_profile(r1, r2), workspace, time.monotonic() + 30)
+        selected_profile = bound_profile(r1, r2) if profile is None else profile
+        value = self.api._snapshot_inputs(r1, r2, selected_profile, workspace, time.monotonic() + 30)
         self.addCleanup(value.close)
         return value
 
@@ -434,13 +437,36 @@ class PairedReadAlignmentContractTests(unittest.TestCase):
             value = (FIXTURES / expected["path"]).read_bytes()
             self.assertEqual((len(value), digest(value)), (expected["bytes"], expected["sha256"]))
         self.assertEqual(digest(synthetic_reference()), manifest["reference"]["sha256"])
-        snapshot = self.snapshot(r1, r2)
+        input_profile = json.loads((FIXTURES / "input-profile.json").read_text())
+        snapshot = self.snapshot(r1, r2, profile=input_profile)
         self.assertEqual(snapshot.pair_count, 128)
         self.assertEqual(snapshot.expected_reads, Counter(fastq_records(r1, 1) + fastq_records(r2, 2)))
-        self.assertEqual(snapshot.input_profile_sha256, digest(canonical(bound_profile(r1, r2))))
+        self.assertEqual(snapshot.input_profile_sha256, digest(canonical(input_profile)))
         self.api._verify_snapshot(snapshot, time.monotonic() + 10)
         profile = json.loads((ROOT / "resources/alignment-profiles/paired-fastq-grch38-p14-bwa-mem2-v1.json").read_text())
         self.assertIs(profile["default_enabled"], False)
+        selected_execution = execution_profile()
+        integer_execution = dict(selected_execution, deterministic=1)
+        with patch.object(self.api, "_workspace",
+                          side_effect=AssertionError("Rejected profile must not create a workspace")) as workspace:
+            refused = self.api.align_paired_fastq(
+                r1, r2, input_profile, execution_profile=integer_execution,
+                resources=self.unused_resources())
+        workspace.assert_not_called()
+        self.assertFalse(refused.is_valid)
+        self.assertEqual(refused.artifacts, ())
+        self.assertEqual(refused.to_dict()["canonical_payload"]["diagnostics"],
+                         [{"code": "unsupported_execution_profile"}])
+        reordered_execution = dict(reversed(tuple(selected_execution.items())))
+        with patch.object(self.api, "_snapshot_inputs",
+                          side_effect=self.api._Failure("input_intake_refused")) as intake:
+            reached_intake = self.api.align_paired_fastq(
+                r1, r2, input_profile, execution_profile=reordered_execution,
+                resources=self.unused_resources())
+        intake.assert_called_once()
+        self.assertFalse(reached_intake.is_valid)
+        self.assertEqual(reached_intake.to_dict()["canonical_payload"]["diagnostics"],
+                         [{"code": "input_intake_refused"}])
 
     def test_t02_legacy_headers_refuse_before_native_work(self):
         r1, r2 = fixture_pair()
@@ -457,6 +483,81 @@ class PairedReadAlignmentContractTests(unittest.TestCase):
         r1, r2 = fixture_pair()
         r2 = r2.replace(b":1101:1:1 2:", b":1101:999:1 2:", 1)
         self.public_refusal(r1, r2, bound_profile(r1, r2), "input_intake_refused")
+
+        # A small owned child reads the already verified objects while the
+        # operator-visible index directory contains different bytes.
+        original, replacement, saved = (self.work / name for name in ("index-original", "index-other", "index-held"))
+        original.mkdir()
+        replacement.mkdir()
+        expected, contents = {}, {}
+        for suffix in self.api.INDEX_SUFFIXES:
+            raw = ("verified-member:" + suffix).encode()
+            contents[suffix] = raw
+            (original / ("ref" + suffix)).write_bytes(raw)
+            (replacement / ("ref" + suffix)).write_bytes(b"unverified-replacement")
+            expected[suffix] = {"sha256": digest(raw), "size_bytes": len(raw)}
+        child_work = self.work / "bound-index-child"
+        child_work.mkdir()
+        view = self.api._bind_index_view(original / "ref", child_work, expected, time.monotonic() + 10)
+        self.addCleanup(view.close)
+        self.failure("resource_limit_exceeded", lambda: self.api._owned_size(child_work))
+        self.assertLess(self.api._owned_size(child_work, index_view=view), self.small_limits().disk_bytes)
+        unowned = child_work / "unowned-link"
+        unowned.symlink_to(original / ("ref" + self.api.INDEX_SUFFIXES[0]))
+        self.failure("resource_limit_exceeded", lambda: self.api._owned_size(child_work, index_view=view))
+        unowned.unlink()
+        ready, release = child_work / "ready", child_work / "release"
+        errors = []
+
+        def replace_index_directory():
+            try:
+                until = time.monotonic() + 3
+                while not ready.exists() and time.monotonic() < until:
+                    time.sleep(0.01)
+                if not ready.exists():
+                    raise AssertionError("Small child did not reach the controlled read boundary")
+                original.rename(saved)
+                replacement.rename(original)
+            except BaseException as error:
+                errors.append(error)
+            finally:
+                release.write_bytes(b"go")
+
+        code = ("from pathlib import Path\nimport sys,time\n"
+                "Path('ready').write_bytes(b'ready')\n"
+                "while not Path('release').exists():time.sleep(0.01)\n"
+                "prefix=sys.argv[1]\n"
+                + "suffixes=" + repr(self.api.INDEX_SUFFIXES) + "\n"
+                + "print(b''.join(Path(prefix+s).read_bytes()for s in suffixes).hex(),flush=True)\n")
+        updater = threading.Thread(target=replace_index_directory, daemon=True)
+        updater.start()
+        try:
+            receipt = self.api._run_native(
+                [sys.executable, "-I", "-S", "-B", "-c", code, str(view.prefix)],
+                cwd=child_work, deadline=time.monotonic() + 10, limits=self.small_limits(),
+                stdout_path=child_work / "index.stdout", stderr_path=child_work / "index.stderr",
+                pass_fds=view.fds, index_view=view)
+            self.assertEqual(receipt["status"], "PASS")
+            self.assertEqual((child_work / "index.stdout").read_text().strip(),
+                             b"".join(contents[s] for s in self.api.INDEX_SUFFIXES).hex())
+            self.assertEqual((original / "ref.0123").read_bytes(), b"unverified-replacement")
+        finally:
+            updater.join(4)
+            self.assertFalse(updater.is_alive())
+            if saved.exists():
+                if original.exists():
+                    original.rename(replacement)
+                saved.rename(original)
+            view.retire()
+        self.assertFalse(errors)
+        self.assertFalse(view.directory.exists())
+        view.verify(time.monotonic() + 10)
+        for suffix in self.api.INDEX_SUFFIXES:
+            self.assertEqual((original / ("ref" + suffix)).read_bytes(), contents[suffix])
+        changed = original / "ref.0123"
+        changed.write_bytes(b"changed in place")
+        changed.write_bytes(contents[".0123"])
+        self.failure("index_identity_mismatch", lambda: view.verify(time.monotonic() + 10))
 
     def test_t05a_constructed_complete_stream_and_lineage(self):
         r1, r2 = fixture_pair()
@@ -708,6 +809,25 @@ class PairedReadAlignmentContractTests(unittest.TestCase):
         self.assertEqual(accounting["primary"], 256)
         self.assertTrue(accounting["orientation_restored_multiplicity_equal_FASTQ"])
 
+        # CONSTRUCTED_TEST_ONLY: preserve original occurrence pairs, not just mate marginals.
+        crossed = copy.deepcopy(record_vectors(r1, r2))
+        for left, right in ((crossed[0], crossed[3]), (crossed[2], crossed[1])):
+            left["next_pos"], right["next_pos"] = right["pos"], left["pos"]
+            width = max(reference_end(left), reference_end(right)) - min(left["pos"], right["pos"])
+            left["tlen"] = width if left["pos"] <= right["pos"] else -width
+            right["tlen"] = -left["tlen"]
+        crossed_paths, _ = self.vectors(crossed)
+        self.failure("primary_accounting_mismatch", lambda: self.validate(snapshot, crossed_paths))
+        colliding = record_vectors(r1, r2, [600, 600] + [600 + i * 311 for i in range(2, 128)])
+        self.assertNotEqual(colliding[0]["seq"], colliding[2]["seq"])
+        collision_paths, _ = self.vectors(colliding)
+        self.assertEqual(self.validate(snapshot, collision_paths)["primary"], 256)
+        one = b"\n".join(r1.split(b"\n")[:4]) + b"\n"
+        two = b"\n".join(r2.split(b"\n")[:4]) + b"\n"
+        identical_snapshot = self.snapshot(one * 2, two * 2)
+        identical_paths, _ = self.vectors(record_vectors(one * 2, two * 2, [1000, 1000]))
+        self.assertEqual(self.validate(identical_snapshot, identical_paths)["primary"], 4)
+
     def test_t13a_nonconstant_reverse_qualities_and_full_intake_length(self):
         r1, r2 = make_pair_at([1000], read_length=1000, eol=b"\r\n", include_n=True)
         snapshot = self.snapshot(r1, r2)
@@ -720,6 +840,66 @@ class PairedReadAlignmentContractTests(unittest.TestCase):
         records[1]["qual"] = original_quality
         wrong, _ = self.vectors(records)
         self.failure("primary_accounting_mismatch", lambda: self.validate(snapshot, wrong))
+
+        # CONSTRUCTED_TEST_ONLY: one-base Phred9, reverse mate and identical occurrence counts.
+        one, two = make_pair_at([1200], read_length=1)
+        def phred_nine(data):
+            lines = data.splitlines()
+            lines[3] = b"*"
+            return b"\n".join(lines) + b"\n"
+        one, two = phred_nine(one) * 2, phred_nine(two) * 2
+        tiny_snapshot = self.snapshot(one, two)
+        tiny_records = record_vectors(one, two, [1200, 1200])
+        tiny_paths, _ = self.vectors(tiny_records)
+        self.assertEqual(self.validate(tiny_snapshot, tiny_paths)["primary"], 4)
+        missing_records = copy.deepcopy(tiny_records)
+        for row in missing_records:
+            row["qual"] = None
+        converted_paths, _ = self.vectors(missing_records)
+        sam_before = converted_paths["sam_path"].read_bytes()
+        self.api._restore_sam_quality_sentinels(
+            tiny_snapshot, contigs=CONTIGS, read_group=RG,
+            sam_path=converted_paths["sam_path"], bam_path=converted_paths["bam_path"],
+            deadline=time.monotonic() + 30,
+        )
+        self.assertEqual(converted_paths["sam_path"].read_bytes(), sam_before)
+        self.assertEqual(gzip.decompress(converted_paths["bam_path"].read_bytes()),
+                         gzip.decompress(tiny_paths["bam_path"].read_bytes()))
+        reader = self.api._BgzfReader(converted_paths["bam_path"], time.monotonic() + 30)
+        try:
+            self.api._bam_header(reader, CONTIGS, RG)
+            restored = []
+            while (item := self.api._bam_record(reader, CONTIGS)) is not None:
+                restored.append(item[0])
+            reader.finish()
+        finally:
+            reader.close()
+        self.assertEqual(len(restored), 4)
+        self.assertTrue(all(record.quality == b"*" for record in restored))
+        self.assertFalse((converted_paths["bam_path"].parent / "alignment-quality.tmp.bam").exists())
+        # Missing values for a different source quality must never be substituted.
+        plus_one, plus_two = one.replace(b"\n*\n", b"\n+\n"), two.replace(b"\n*\n", b"\n+\n")
+        plus_snapshot = self.snapshot(plus_one, plus_two)
+        untouched = converted_paths["bam_path"].read_bytes()
+        self.failure("primary_accounting_mismatch", lambda: self.api._restore_sam_quality_sentinels(
+            plus_snapshot, contigs=CONTIGS, read_group=RG,
+            sam_path=converted_paths["sam_path"], bam_path=converted_paths["bam_path"],
+            deadline=time.monotonic() + 30,
+        ))
+        self.assertEqual(converted_paths["bam_path"].read_bytes(), untouched)
+        # An unexpected BAM value is not covered by native-SAM occurrence proof.
+        tampered = copy.deepcopy(missing_records)
+        tampered[0]["seq"] = b"C" if tampered[0]["seq"] != b"C" else b"A"
+        tampered_paths, _ = self.vectors(tampered)
+        tampered_paths["sam_path"].write_bytes(sam_before)
+        before = tampered_paths["bam_path"].read_bytes()
+        self.failure("primary_accounting_mismatch", lambda: self.api._restore_sam_quality_sentinels(
+            tiny_snapshot, contigs=CONTIGS, read_group=RG,
+            sam_path=tampered_paths["sam_path"], bam_path=tampered_paths["bam_path"],
+            deadline=time.monotonic() + 30,
+        ))
+        self.assertEqual(tampered_paths["bam_path"].read_bytes(), before)
+        self.assertFalse((tampered_paths["bam_path"].parent / "alignment-quality.tmp.bam").exists())
 
     def test_t13b_constructed_secondary_and_hard_clipped_supplementary(self):
         left, right = fixture_pair()
@@ -738,7 +918,7 @@ class PairedReadAlignmentContractTests(unittest.TestCase):
         supplementary["qual"] = None
         both = copy.deepcopy(secondary)
         both["flag"] |= 2048
-        records += [secondary, supplementary, both]
+        records = [records[0], secondary, both, records[1], supplementary]
         paths, _ = self.vectors(records)
         accounting = self.validate(snapshot, paths)
         self.assertEqual(accounting["primary"], 2)
@@ -753,6 +933,51 @@ class PairedReadAlignmentContractTests(unittest.TestCase):
         malformed, _ = self.vectors(records)
         self.failure("secondary_supplementary_accounting_mismatch",
                      lambda: self.validate(snapshot, malformed))
+
+        # CONSTRUCTED_TEST_ONLY: a longer reverse read can emit a one-base supplementary QUAL.
+        supplementary["seq"] = records[3]["seq"][70:]
+        original = fastq_records(r2, 2)[0]
+        source_index = original[3].index(b"*")
+        left_clip = len(original[2]) - 1 - source_index
+        right_clip = len(original[2]) - left_clip - 1
+        solitary = copy.deepcopy(records[3])
+        solitary["flag"] |= 2048
+        solitary["pos"] += 91
+        solitary["cigar"] = ([(left_clip, "H")] if left_clip else []) + [(1, "M")]
+        solitary["cigar"] += [(right_clip, "H")] if right_clip else []
+        solitary["seq"] = solitary["seq"][left_clip:left_clip + 1]
+        solitary["qual"] = b"*"
+        clipped_records = records + [solitary]
+        clipped_paths, _ = self.vectors(clipped_records)
+        self.assertEqual(self.validate(snapshot, clipped_paths)["supplementary"], 3)
+        converted = copy.deepcopy(clipped_records)
+        converted[-1]["qual"] = None
+        converted_paths, _ = self.vectors(converted)
+        original_sam = converted_paths["sam_path"].read_bytes()
+        self.api._restore_sam_quality_sentinels(
+            snapshot, contigs=CONTIGS, read_group=RG, sam_path=converted_paths["sam_path"],
+            bam_path=converted_paths["bam_path"], deadline=time.monotonic() + 30,
+        )
+        self.assertEqual(converted_paths["sam_path"].read_bytes(), original_sam)
+        self.assertEqual(gzip.decompress(converted_paths["bam_path"].read_bytes()),
+                         gzip.decompress(clipped_paths["bam_path"].read_bytes()))
+        reader = self.api._BgzfReader(converted_paths["bam_path"], time.monotonic() + 30)
+        try:
+            self.api._bam_header(reader, CONTIGS, RG)
+            decoded = []
+            while (item := self.api._bam_record(reader, CONTIGS)) is not None:
+                decoded.append(item[0])
+            reader.finish()
+        finally:
+            reader.close()
+        recovered = [row for row in decoded if row.flag & 2048 and row.sequence is not None
+                     and len(row.sequence) == 1]
+        self.assertEqual(len(recovered), 1)
+        self.assertEqual(recovered[0].quality, b"*")
+        omitted = [row for row in decoded if row.flag & 2048 and row.sequence is not None
+                   and len(row.sequence) == 80]
+        self.assertEqual(len(omitted), 1)
+        self.assertIsNone(omitted[0].quality)
 
     def test_t14a_owned_child_memory_exhaustion_refuses(self):
         command = "import time;data=bytearray(96*1024*1024);print(len(data),flush=True);time.sleep(8)"
@@ -777,9 +1002,26 @@ class PairedReadAlignmentContractTests(unittest.TestCase):
             samples.append(time.monotonic())
             return original_group_usage(pgid)
 
+        failures = []
+
+        def run_in_calling_thread():
+            try:
+                self.run_small(command, self.small_limits(wall=1))
+            except BaseException as error:
+                failures.append(error)
+
         started = time.monotonic()
-        with patch.object(self.api, "_group_usage", side_effect=record_group_usage):
-            self.failure("deadline_exceeded", lambda: self.run_small(command, self.small_limits(wall=1)))
+        caller = threading.Thread(target=run_in_calling_thread, daemon=True)
+        with patch.object(self.api, "_group_usage", side_effect=record_group_usage), \
+                patch.object(self.api.subprocess, "Popen", wraps=self.api.subprocess.Popen) as launches:
+            caller.start()
+            caller.join(8)
+        self.assertFalse(caller.is_alive())
+        self.assertEqual(len(failures), 1)
+        self.assertIsInstance(failures[0], self.api._Failure)
+        self.assertEqual(failures[0].code, "deadline_exceeded")
+        self.assertEqual(launches.call_count, 1)
+        self.assertNotIn("preexec_fn", launches.call_args.kwargs)
         self.assertLess(time.monotonic() - started, 8)
         self.assertGreaterEqual(len(samples), 2)
         # Reaping forces the final sample; pipe reads cannot force earlier ones.
@@ -788,6 +1030,38 @@ class PairedReadAlignmentContractTests(unittest.TestCase):
         pid = int((self.work / "child.stdout").read_text().splitlines()[0])
         with self.assertRaises(ProcessLookupError):
             os.kill(pid, 0)
+
+        # Supervision must already be active before the bootstrap execs the
+        # requested command, including when launch originates from a thread.
+        bootstrap_work = self.work / "bootstrap-deadline"
+        bootstrap_work.mkdir()
+        delayed = ("import os,time\nprint(os.getpid(),flush=True)\ntime.sleep(30)\n"
+                   + self.api._NATIVE_BOOTSTRAP)
+        failures.clear()
+
+        def run_delayed_bootstrap():
+            try:
+                self.api._run_native(
+                    [sys.executable, "-I", "-B", "-c", "raise SystemExit(0)"],
+                    cwd=bootstrap_work, deadline=time.monotonic() + 1, limits=self.small_limits(wall=1),
+                    stdout_path=bootstrap_work / "startup.stdout", stderr_path=bootstrap_work / "startup.stderr")
+            except BaseException as error:
+                failures.append(error)
+
+        caller = threading.Thread(target=run_delayed_bootstrap, daemon=True)
+        with patch.object(self.api, "_NATIVE_BOOTSTRAP", delayed):
+            caller.start()
+            caller.join(8)
+        self.assertFalse(caller.is_alive())
+        self.assertEqual(len(failures), 1)
+        self.assertIsInstance(failures[0], self.api._Failure)
+        self.assertEqual(failures[0].code, "deadline_exceeded")
+        startup_pid = int((bootstrap_work / "startup.stdout").read_text().strip())
+        with self.assertRaises(ProcessLookupError):
+            os.kill(startup_pid, 0)
+        startup_receipt = json.loads((bootstrap_work / "startup.stdout.receipt.json").read_text())
+        self.assertEqual(startup_receipt["status"], "FAIL")
+        self.assertEqual(startup_receipt["diagnostic"], "deadline_exceeded")
 
     def test_t15_bai_accounting_and_indexed_stream_must_match(self):
         r1, r2 = fixture_pair()
@@ -835,8 +1109,23 @@ class PairedReadAlignmentContractTests(unittest.TestCase):
         duplicate_kind["raw_artifact_refs"][1] = "bam:sha256:" + "0" * 64
         reversed_refs = first.to_dict()
         reversed_refs["raw_artifact_refs"].reverse()
-        for invalid_export in (invalid_parent, duplicate_kind, reversed_refs):
+        wrong_roles = first.to_dict()
+        wrong_roles["canonical_payload"]["accepted_alignment"]["bam_artifact"]["parent_artifact_ids"] = [
+            "bai:sha256:" + format(index, "064x") for index in range(6)]
+        reversed_parents = first.to_dict()
+        parent_ids = reversed_parents["canonical_payload"]["accepted_alignment"]["bam_artifact"]["parent_artifact_ids"]
+        parent_ids[0], parent_ids[1] = parent_ids[1], parent_ids[0]
+        for invalid_export in (invalid_parent, duplicate_kind, reversed_refs, wrong_roles, reversed_parents):
             self.failure("output_schema_failed", lambda value=invalid_export: self.api._validate_export(value))
+        for binding, field in (("executor_binding", "profile_sha256"),
+                               ("executor_binding", "runtime_libraries_sha256"),
+                               ("reference_binding", "profile_sha256"),
+                               ("reference_binding", "contig_dictionary_sha256")):
+            with self.subTest(binding=binding, field=field):
+                invalid_digest = first.to_dict()
+                invalid_digest["canonical_payload"]["accepted_alignment"][binding][field] = "0" * 64
+                self.failure("output_schema_failed",
+                             lambda value=invalid_digest: self.api._validate_export(value))
         self.api._validate_export(self.api._refusal("promotion_failed").to_dict())
         wrong_parent = copy.deepcopy(accepted)
         wrong_parent["bai_artifact"]["parent_artifact_ids"] = ["bam:sha256:" + "0" * 64]
@@ -868,23 +1157,30 @@ class PairedReadAlignmentContractTests(unittest.TestCase):
         # unit controls, not execution of the published reference/executor.
         calls, control_workspaces = [], []
         native_streams = {key: path.read_bytes() for key, path in paths.items()}
+        native_sam_bytes = header(coordinate=False) + b"".join(sam_record(row) for row in records)
 
         def observed_controls(resources, workspace, deadline, profiles):
             control_workspaces.append(workspace)
             index_prefix = workspace / "unit-unused-index"
+            expected_index_files = {}
             for suffix in self.api.INDEX_SUFFIXES:
-                Path(str(index_prefix) + suffix).write_bytes(b"")
+                data = b"constructed-index-member:" + suffix.encode("ascii")
+                member = Path(str(index_prefix) + suffix)
+                member.write_bytes(data)
+                member.chmod(0o400)
+                expected_index_files[suffix] = {"sha256": digest(data), "size_bytes": len(data)}
+            index_view = self.api._bind_index_view(index_prefix, workspace, expected_index_files, deadline)
             descriptors = (os.memfd_create("unit-unused-bwa"), os.memfd_create("unit-unused-samtools"))
             return self.api._ObservedResources(
                 CONTIGS, copy.deepcopy(accepted["reference_binding"]),
-                copy.deepcopy(accepted["executor_binding"]), (), index_prefix, descriptors)
+                copy.deepcopy(accepted["executor_binding"]), (), index_prefix, descriptors, index_view)
 
         def materialize_controls(profiles, workspace, label, argv, deadline, kind="control",
                                  stdout_path=None, **kwargs):
             calls.append(label)
             output = stdout_path or workspace / (label + ".stdout")
             if label == "alignment":
-                output.write_bytes(native_streams["sam_path"])
+                output.write_bytes(native_sam_bytes)
             elif label == "sort":
                 (workspace / "alignment.bam").write_bytes(native_streams["bam_path"])
                 output.write_bytes(b"")
@@ -972,6 +1268,40 @@ class PairedReadAlignmentContractTests(unittest.TestCase):
                 self.assertEqual(finalized.artifacts, ())
                 self.assertEqual(exported["canonical_payload"]["diagnostics"], [{"code": refusal_code}])
                 self.assertEqual(json.loads((workspace / "promotion-refusal.json").read_text()), exported)
+
+        # A failed terminal write and failed recovery log must not retain VALID.
+        original_private_json = self.api._private_json
+        write_failures = {"terminal": 0, "recovery": 0}
+
+        def fail_terminal_and_recovery(path, value, **kwargs):
+            if path.name == "terminal.json" and value.get("status") == "VALID":
+                write_failures["terminal"] += 1
+                raise OSError("Constructed terminal write failure")
+            if path.name == "promotion-refusal.json":
+                write_failures["recovery"] += 1
+                raise OSError("Constructed recovery write failure")
+            return original_private_json(path, value, **kwargs)
+
+        with ExitStack() as stack:
+            stack.enter_context(patch.object(self.api, "_observe_resources", side_effect=observed_controls))
+            stack.enter_context(patch.object(self.api, "_command", side_effect=materialize_controls))
+            stack.enter_context(patch.object(self.api, "_capacity", return_value=None))
+            stack.enter_context(patch.object(self.api, "_verify_resources", return_value=None))
+            stack.enter_context(patch.object(self.api, "_run_native",
+                                            side_effect=AssertionError("No native unit execution")))
+            stack.enter_context(patch.object(self.api, "_private_json", side_effect=fail_terminal_and_recovery))
+            refused = self.api.align_paired_fastq(
+                r1, r2, bound_profile(r1, r2), execution_profile=execution_profile(),
+                resources=self.unused_resources())
+        self.assertEqual(write_failures, {"terminal": 1, "recovery": 1})
+        self.assertFalse(refused.is_valid)
+        self.assertEqual(refused.artifacts, ())
+        workspace = control_workspaces[-1]
+        self.assertFalse(list(workspace.glob("*.replacement")))
+        for document in workspace.glob("*.json"):
+            value = json.loads(document.read_text())
+            self.assertNotEqual(value.get("canonical_status"), "VALID", document.name)
+            self.assertNotEqual(value.get("status"), "VALID", document.name)
 
 
 if __name__ == "__main__":

@@ -157,8 +157,35 @@
                   "const": "BAM"
                 },
                 "parent_artifact_ids": {
+                  "items": false,
                   "maxItems": 6,
-                  "minItems": 6
+                  "minItems": 6,
+                  "prefixItems": [
+                    {
+                      "pattern": "^fastq-r1:sha256:[0-9a-f]{64}$",
+                      "type": "string"
+                    },
+                    {
+                      "pattern": "^fastq-r2:sha256:[0-9a-f]{64}$",
+                      "type": "string"
+                    },
+                    {
+                      "pattern": "^input-profile:sha256:[0-9a-f]{64}$",
+                      "type": "string"
+                    },
+                    {
+                      "pattern": "^parameters:sha256:[0-9a-f]{64}$",
+                      "type": "string"
+                    },
+                    {
+                      "pattern": "^reference-binding:sha256:[0-9a-f]{64}$",
+                      "type": "string"
+                    },
+                    {
+                      "pattern": "^executor-binding:sha256:[0-9a-f]{64}$",
+                      "type": "string"
+                    }
+                  ]
                 }
               }
             }
@@ -180,16 +207,10 @@
               "const": "bwa-mem2-2.3-sse41-samtools-1.25-v1"
             },
             "profile_sha256": {
-              "maxLength": 64,
-              "minLength": 64,
-              "pattern": "^[0-9a-f]{64}$",
-              "type": "string"
+              "const": "a763f3789f664a9b678adc14365b30fb2c7ba588a621c7d9cfe2002b4c9ebdbb"
             },
             "runtime_libraries_sha256": {
-              "maxLength": 64,
-              "minLength": 64,
-              "pattern": "^[0-9a-f]{64}$",
-              "type": "string"
+              "const": "02e03638156a3107982f4efc5fd66b4ce7fdd5cd82a4ccb990e4a980c2932849"
             },
             "samtools_sha256": {
               "const": "33ffde7ffecfc1a96b4bce9265144799f9c7781fb5b166d2515a3e31c53b13a6"
@@ -277,10 +298,7 @@
           "additionalProperties": false,
           "properties": {
             "contig_dictionary_sha256": {
-              "maxLength": 64,
-              "minLength": 64,
-              "pattern": "^[0-9a-f]{64}$",
-              "type": "string"
+              "const": "4b0843b29493c683bf4fc8190b6cbb797d8feda3f4c6fab770d10b129eee0010"
             },
             "dictionary_sha256": {
               "const": "9b96c2f15a901e4b96e9b3fb32c185fa91bd3878a7c8749a9fa4fd7f54afb6e2"
@@ -323,10 +341,7 @@
               "const": "grch38-p14-ncbi-refseq-full-alignment-v1"
             },
             "profile_sha256": {
-              "maxLength": 64,
-              "minLength": 64,
-              "pattern": "^[0-9a-f]{64}$",
-              "type": "string"
+              "const": "18cdfc62cf6d55bc0097e1a31a2429683009d57ba4981b74d0f7a4dfdcb425dd"
             }
           },
           "required": [

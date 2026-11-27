@@ -4979,7 +4979,7 @@
       "size_bytes": 824607661
     }
   },
-  "index_sidecars": "Only the five pinned suffixes are accepted; implicit alternative sidecars are refused.",
+  "index_sidecars": "Supply a dedicated BWA-MEM2 index prefix, such as ref-bwa, with only the five pinned suffixes. Keep the FASTA, its FAI and dictionary at separate paths so they are not counted as index sidecars. The adapter reads the verified index members through a private descriptor-backed prefix view; it neither rebuilds nor copies the index.",
   "maximum_contig_length": 248956422,
   "profile_id": "grch38-p14-ncbi-refseq-full-alignment-v1",
   "profile_version": "1.0.0",

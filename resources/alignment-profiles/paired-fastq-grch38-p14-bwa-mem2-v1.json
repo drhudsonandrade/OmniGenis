@@ -75,7 +75,7 @@
     "duplicate_occurrences": "PRESERVE",
     "extra_arguments": false,
     "preprocessing": "NONE",
-    "program_header": "Validate native provenance, then replace only operational PG command metadata with fixed ID:bwa-mem2 PN:bwa-mem2 VN:2.2.1 before sorting; preserve records, SQ and RG.",
+    "program_header": "Validate native provenance, then replace only operational PG command metadata with fixed ID:bwa-mem2 PN:bwa-mem2 VN:2.2.1 before sorting; preserve records, SQ and RG. Validate the pinned executor's input-ordinal read blocks and reciprocal primary links against the unsorted SAM before accepting the sorted BAM. Preserve native SAM bytes. Recover a solitary BAM Phred score 9 only from the exact clipped, oriented source occurrence when SAM represents it as missing QUAL; preserve all other record values and account for this proven SAM representation loss in full and indexed decodes.",
     "read_group": "Exactly one SAM-safe @RG uses declared_read_group_id for ID, declared_sample_id for SM, and fixed PL:ILLUMINA. declared_identity_binding_sha256 separately hashes declared_case_id, declared_sample_id, declared_specimen_id, declared_read_group_id and declared_run from the accepted input declaration. Case, specimen and run metadata are not serialized as @RG fields.",
     "samtools_index": [
       "index",
@@ -115,6 +115,7 @@
   "reference_profile_id": "grch38-p14-ncbi-refseq-full-alignment-v1",
   "resource_budget": {
     "adapter": {
+      "rss_bytes": 536870912,
       "wall_seconds": 1800
     },
     "alignment": {

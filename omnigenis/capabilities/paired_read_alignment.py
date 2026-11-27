@@ -7,7 +7,7 @@ native stderr or operational paths. No default processing route is registered.
 from __future__ import annotations
 
 from collections import Counter, defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import errno
 import fcntl
 import hashlib
@@ -18,7 +18,6 @@ import os
 from pathlib import Path
 import platform
 import re
-import resource
 import selectors
 import shutil
 import signal
@@ -57,18 +56,18 @@ INDEX_SUFFIXES = (".0123", ".amb", ".ann", ".bwt.2bit.64", ".pac")
 CANONICAL_PG = b"@PG\tID:bwa-mem2\tPN:bwa-mem2\tVN:2.2.1"
 PROFILE_FILES = {
     "alignment": ("resources/alignment-profiles/paired-fastq-grch38-p14-bwa-mem2-v1.json",
-                  "6ea4e1631a73b730306915d7db90b34460025fd4c4f3a82eba525c96c2fc6096"),
+                  "0d90dbe83ada515e94bf12925032085ec97772799047a4e5c72f180187367335"),
     "execution": ("resources/execution-profiles/paired-fastq-alignment-v1.json",
                   "ccc2ede6da765ac766fb197960ab48fed594476c94d1a67b3cf8a5bb81683c85"),
     "executor": ("resources/executor-profiles/bwa-mem2-2.3-sse41-samtools-1.25-v1.json",
                  "a763f3789f664a9b678adc14365b30fb2c7ba588a621c7d9cfe2002b4c9ebdbb"),
     "reference": ("resources/reference-profiles/grch38-p14-ncbi-refseq-full-alignment-v1.json",
-                  "58dc322611fdb586952e697123aba8c6deffc59724244a8e54164fa7e6a14ce8"),
+                  "18cdfc62cf6d55bc0097e1a31a2429683009d57ba4981b74d0f7a4dfdcb425dd"),
     "bom": ("resources/scientific-resource-bom/grch38-p14-ncbi-refseq-full-alignment-v1.json",
             "96dfd057e19dbeb4480b705667ee047cd6cfe7b1b349159d67929c46c25d9d0e"),
 }
 SCHEMA_PATH = "schemas/paired-read-alignment-result.v1.schema.json"
-SCHEMA_SHA256 = "607fc32e4e93fab5a55ea8c3238eefcd3d541a9dab3feac5f263033eaa68b8a7"
+SCHEMA_SHA256 = "ee262dfea314ee3d728969dc05c007553d2c56cf01327d52c809c32fd8120e7e"
 ARTIFACT_SCHEMA_SHA256 = "cbb32abed32b25392cc349f72cc9983d1e240b855c134c7f0dbaf3597db39d6a"
 _EXECUTION = {"schema_version": "1.0.0", "execution_profile_id": EXECUTION_PROFILE_ID,
               "executor_id": "omnigenis.local-paired-alignment", "executor_version": "1.0.0",
@@ -374,6 +373,7 @@ class _InputSnapshot:
     identities: tuple[dict, dict]
     expected_reads: Counter
     source_reads: dict
+    ordered_reads: tuple
 
     def close(self):
         for fd in self.fds:
@@ -443,7 +443,7 @@ def _snapshot_inputs(r1: bytes, r2: bytes, input_profile: dict,
                      {"content_sha256": identity["sha256"], "size_bytes": identity["size_bytes"]},
                      "input_identity_changed")
             identities.append(identity)
-        expected, source = Counter(), defaultdict(set)
+        expected, source, ordered = Counter(), defaultdict(set), [[], []]
         for mate, data in enumerate((r1, r2), 1):
             stream = io.BytesIO(data)
             while True:
@@ -456,12 +456,16 @@ def _snapshot_inputs(r1: bytes, r2: bytes, input_profile: dict,
                 seq, qual = seq.rstrip(b"\r\n"), qual.rstrip(b"\r\n")
                 _require(separator.rstrip(b"\r\n") == b"+" and 0 < len(seq) <= MAX_READ_BASES
                          and len(seq) == len(qual) and 0 < len(qname) <= 254, "input_identity_changed")
-                expected[(qname, mate, seq, qual)] += 1
+                row = (qname, mate, seq, qual)
+                expected[row] += 1
+                ordered[mate - 1].append(row)
                 source[(qname, mate)].add((seq, qual))
-        _require(sum(expected.values()) == accepted["pair_count"] * 2, "input_identity_changed")
+        _require(sum(expected.values()) == accepted["pair_count"] * 2
+                 and all(len(rows) == accepted["pair_count"] for rows in ordered), "input_identity_changed")
         return _InputSnapshot(profile_json, accepted["input_profile_sha256"], accepted["pair_count"],
                               paths[0], paths[1], tuple(fds), tuple(identities),
-                              expected, {k: tuple(sorted(v)) for k, v in source.items()})
+                              expected, {k: tuple(sorted(v)) for k, v in source.items()},
+                              tuple(row for pair in zip(*ordered) for row in pair))
     except BaseException:
         for fd in fds:
             os.close(fd)
@@ -506,7 +510,9 @@ class _CommandLimits:
     free_disk_bytes: int = MIN_FREE_BYTES
 
 
-def _owned_size(root):
+def _owned_size(root, *, index_view=None):
+    _require(index_view is None or type(index_view) is _IndexView, "resource_limit_exceeded")
+    allowed_links = {} if index_view is None else index_view.allowed_links(root)
     total = 0
     for directory, dirs, files in os.walk(root, followlinks=False):
         _require(all(not (Path(directory) / name).is_symlink() for name in dirs), "resource_limit_exceeded")
@@ -516,7 +522,13 @@ def _owned_size(root):
                 st = path.lstat()
             except FileNotFoundError:
                 continue  # A native temporary file may disappear after os.walk.
-            _require(stat.S_ISREG(st.st_mode), "resource_limit_exceeded")
+            if stat.S_ISLNK(st.st_mode):
+                _require(path in allowed_links, "resource_limit_exceeded")
+                target, fd, expected_fd, expected_link = allowed_links[path]
+                _require(_fingerprint(st) == expected_link and os.readlink(path) == target
+                         and _fingerprint(os.fstat(fd)) == expected_fd, "index_identity_mismatch")
+            else:
+                _require(stat.S_ISREG(st.st_mode), "resource_limit_exceeded")
             total += st.st_size
     return total
 
@@ -559,8 +571,24 @@ def _signal_group(pgid, sig):
         pass
 
 
+_NATIVE_BOOTSTRAP = (
+    "import os,resource,signal,sys\n"
+    "cpu,address_space,cpu_seconds,file_bytes=map(int,sys.argv[1:5])\n"
+    "os.sched_setaffinity(0,{cpu})\n"
+    "resource.setrlimit(resource.RLIMIT_AS,(address_space,address_space))\n"
+    "resource.setrlimit(resource.RLIMIT_CPU,(cpu_seconds,cpu_seconds))\n"
+    "resource.setrlimit(resource.RLIMIT_FSIZE,(file_bytes,file_bytes))\n"
+    "resource.setrlimit(resource.RLIMIT_CORE,(0,0))\n"
+    "for name in ('SIGPIPE','SIGXFZ','SIGXFSZ'):\n"
+    " value=getattr(signal,name,None)\n"
+    " if value is not None:signal.signal(value,signal.SIG_DFL)\n"
+    "os.execv(sys.argv[5],sys.argv[5:])\n"
+)
+
+
 def _run_native(argv: list[str], *, cwd: Path, deadline: float, limits: _CommandLimits,
-                stdout_path: Path, stderr_path: Path, pass_fds: tuple[int, ...] = ()) -> dict:
+                stdout_path: Path, stderr_path: Path, pass_fds: tuple[int, ...] = (),
+                index_view=None) -> dict:
     """Supervise one owned process group; any failed bound is a refusal."""
     _remaining(deadline)
     _require(type(argv) is list and argv and all(type(x) is str and "\0" not in x for x in argv),
@@ -573,7 +601,7 @@ def _run_native(argv: list[str], *, cwd: Path, deadline: float, limits: _Command
     _require(cwd.is_absolute() and cwd.resolve() == cwd and cwd.is_dir()
              and cwd in stdout_path.parents and cwd in stderr_path.parents
              and stdout_path != stderr_path, "resource_unavailable")
-    _require(_owned_size(cwd) <= limits.disk_bytes
+    _require(_owned_size(cwd, index_view=index_view) <= limits.disk_bytes
              and shutil.disk_usage(cwd).free >= limits.free_disk_bytes, "resource_limit_exceeded")
     cpu = min(os.sched_getaffinity(0))
     wall = min(float(limits.wall_seconds), _remaining(deadline))
@@ -584,18 +612,17 @@ def _run_native(argv: list[str], *, cwd: Path, deadline: float, limits: _Command
     receipt = {"argv": argv, "cwd": str(cwd), "status": "FAIL", "exit_code": None,
                "cpu_affinity": [cpu], "peak_sampled_group_rss_bytes": 0,
                "final_maxrss_bytes": None, "wall_seconds": None,
-               "stdout_bytes": 0, "stderr_bytes": 0}
+               "stdout_bytes": 0, "stderr_bytes": 0,
+               "pass_fds": list(pass_fds),
+               "bootstrap": {"interpreter": sys.executable, "version": platform.python_version(),
+                             "flags": ["-I", "-S", "-B"], "code_sha256": _sha(_NATIVE_BOOTSTRAP.encode("ascii"))}}
     started = time.monotonic()
     proc, usage, code = None, None, None
     reaped, killed_at, last_disk = False, None, started
     last_usage, members = started - 0.025, []
 
-    def child_limits():
-        os.sched_setaffinity(0, {cpu})
-        resource.setrlimit(resource.RLIMIT_AS, (limits.address_space_bytes, limits.address_space_bytes))
-        resource.setrlimit(resource.RLIMIT_CPU, (cpu_limit, cpu_limit))
-        resource.setrlimit(resource.RLIMIT_FSIZE, (limits.file_bytes, limits.file_bytes))
-        resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
+    bootstrap_argv = [sys.executable, "-I", "-S", "-B", "-c", _NATIVE_BOOTSTRAP,
+                      str(cpu), str(limits.address_space_bytes), str(cpu_limit), str(limits.file_bytes), *argv]
 
     try:
         stdout_path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -603,9 +630,9 @@ def _run_native(argv: list[str], *, cwd: Path, deadline: float, limits: _Command
         with stdout_path.open("xb") as out, stderr_path.open("xb") as err, selectors.DefaultSelector() as selector:
             os.chmod(stdout_path, 0o600)
             os.chmod(stderr_path, 0o600)
-            proc = subprocess.Popen(argv, cwd=cwd, env=environment, stdin=subprocess.DEVNULL,
+            proc = subprocess.Popen(bootstrap_argv, cwd=cwd, env=environment, stdin=subprocess.DEVNULL,
                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=False,
-                                    start_new_session=True, pass_fds=pass_fds, preexec_fn=child_limits)
+                                    start_new_session=True, pass_fds=pass_fds)
             for stream, target, name, maximum in (
                 (proc.stdout, out, "stdout_bytes", limits.stdout_bytes),
                 (proc.stderr, err, "stderr_bytes", limits.stderr_bytes),
@@ -645,7 +672,7 @@ def _run_native(argv: list[str], *, cwd: Path, deadline: float, limits: _Command
                 if reaped and members:
                     code = code or "native_execution_failed"
                 if time.monotonic() - last_disk >= 0.1:
-                    if _owned_size(cwd) > limits.disk_bytes or shutil.disk_usage(cwd).free < limits.free_disk_bytes:
+                    if _owned_size(cwd, index_view=index_view) > limits.disk_bytes or shutil.disk_usage(cwd).free < limits.free_disk_bytes:
                         code = code or "resource_limit_exceeded"
                     last_disk = time.monotonic()
                 if code and killed_at is None:
@@ -673,7 +700,7 @@ def _run_native(argv: list[str], *, cwd: Path, deadline: float, limits: _Command
                 code = code or "resource_limit_exceeded"
             code = code or "native_execution_failed"
         _require(code is None, code or "native_execution_failed")
-        _require(_owned_size(cwd) <= limits.disk_bytes
+        _require(_owned_size(cwd, index_view=index_view) <= limits.disk_bytes
                  and shutil.disk_usage(cwd).free >= limits.free_disk_bytes, "resource_limit_exceeded")
         _remaining(deadline)
         receipt["status"] = "PASS"
@@ -710,11 +737,12 @@ def _limits(profiles, kind, *, output=16777216, file_bytes=536870912):
 
 
 def _command(profiles, workspace, label, argv, deadline, kind="control",
-             stdout_path=None, output=16777216, file_bytes=536870912, pass_fds=()):
+             stdout_path=None, output=16777216, file_bytes=536870912, pass_fds=(), index_view=None):
     stdout_path = stdout_path or workspace / f"{label}.stdout"
     _run_native([str(x) for x in argv], cwd=workspace, deadline=deadline,
                 limits=_limits(profiles, kind, output=output, file_bytes=file_bytes),
-                stdout_path=stdout_path, stderr_path=workspace / f"{label}.stderr", pass_fds=pass_fds)
+                stdout_path=stdout_path, stderr_path=workspace / f"{label}.stderr",
+                pass_fds=pass_fds, index_view=index_view)
     return stdout_path
 
 
@@ -798,7 +826,7 @@ def _cgroup_memory_headroom():
     return ceilings
 
 
-def _capacity(workspace, profiles):
+def _capacity(workspace, profiles, *, index_view=None):
     budget = profiles["alignment"]["resource_budget"]
     values = {}
     for line in Path("/proc/meminfo").read_text().splitlines():
@@ -808,7 +836,192 @@ def _capacity(workspace, profiles):
     _require(values.get("MemAvailable", 0) >= budget["min_mem_available_bytes"], "resource_unavailable")
     _require(all(x >= budget["min_mem_available_bytes"] for x in _cgroup_memory_headroom()), "resource_unavailable")
     _require(shutil.disk_usage(workspace).free >= budget["min_disk_free_bytes"]
-             and _owned_size(workspace) <= budget["mutable_output_bytes"], "resource_unavailable")
+             and _owned_size(workspace, index_view=index_view) <= budget["mutable_output_bytes"],
+             "resource_unavailable")
+
+
+def _verify_index_fd(fd, expected, deadline):
+    """Hash the retained file object, independently of its original pathname."""
+    code = "index_identity_mismatch"
+    try:
+        before_stat = os.fstat(fd)
+        before = _fingerprint(before_stat)
+        _require(stat.S_ISREG(before_stat.st_mode)
+                 and fcntl.fcntl(fd, fcntl.F_GETFL) & os.O_ACCMODE == os.O_RDONLY
+                 and before[2] == expected["size_bytes"], code)
+        if "fingerprint" in expected:
+            _require(before == expected["fingerprint"], code)
+        digest, count = hashlib.sha256(), 0
+        while True:
+            _remaining(deadline)
+            part = os.pread(fd, 1048576, count)
+            if not part:
+                break
+            count += len(part)
+            _require(count <= expected["size_bytes"], code)
+            digest.update(part)
+        _require(before == _fingerprint(os.fstat(fd))
+                 and count == expected["size_bytes"] and digest.hexdigest() == expected["sha256"], code)
+        return {"sha256": digest.hexdigest(), "size_bytes": count, "fingerprint": before}
+    except OSError:
+        raise _Failure(code) from None
+
+
+@dataclass(repr=False)
+class _IndexView:
+    directory: Path
+    parent_fd: int
+    directory_fd: int
+    parent_identity: tuple
+    directory_identity: tuple
+    members: tuple
+    link_identities: dict
+    retired: bool = False
+    closed: bool = False
+
+    @property
+    def prefix(self):
+        return Path(f"/proc/self/fd/{self.directory_fd}/index")
+
+    @property
+    def fds(self):
+        return tuple(fd for _, fd, _ in self.members) + (self.directory_fd,)
+
+    def allowed_links(self, root):
+        """Only these owned link inodes and live read-only descriptors are allowed."""
+        code = "index_identity_mismatch"
+        _require(not self.retired and not self.closed and self.directory.parent == Path(root)
+                 and self.directory.resolve() == self.directory, code)
+        _require(_fingerprint(os.fstat(self.parent_fd))[:2] == self.parent_identity
+                 == _fingerprint(Path(root).lstat())[:2], code)
+        _require(_fingerprint(os.fstat(self.directory_fd)) == self.directory_identity
+                 == _fingerprint(os.stat(self.directory.name, dir_fd=self.parent_fd, follow_symlinks=False)), code)
+        names = {"index" + suffix for suffix in INDEX_SUFFIXES}
+        _require(tuple(suffix for suffix, _, _ in self.members) == INDEX_SUFFIXES
+                 and set(self.link_identities) == names and set(os.listdir(self.directory_fd)) == names, code)
+        result = {}
+        for suffix, fd, expected in self.members:
+            name, target = "index" + suffix, f"/proc/self/fd/{fd}"
+            observed = os.stat(name, dir_fd=self.directory_fd, follow_symlinks=False)
+            _require(stat.S_ISLNK(observed.st_mode)
+                     and _fingerprint(observed) == self.link_identities[name]
+                     and os.readlink(name, dir_fd=self.directory_fd) == target
+                     and _fingerprint(os.fstat(fd)) == expected["fingerprint"]
+                     and fcntl.fcntl(fd, fcntl.F_GETFL) & os.O_ACCMODE == os.O_RDONLY, code)
+            result[self.directory / name] = (target, fd, expected["fingerprint"], self.link_identities[name])
+        return result
+
+    def verify(self, deadline):
+        _require(not self.closed, "index_identity_mismatch")
+        for _, fd, expected in self.members:
+            _require(_verify_index_fd(fd, expected, deadline) == expected, "index_identity_mismatch")
+
+    def check_identities(self):
+        _require(not self.closed, "index_identity_mismatch")
+        for _, fd, expected in self.members:
+            _require(_fingerprint(os.fstat(fd)) == expected["fingerprint"], "index_identity_mismatch")
+
+    def retire(self):
+        """Remove only the recorded links and directory; keep member FDs open."""
+        if self.retired:
+            return
+        code = "index_identity_mismatch"
+        _require(not self.closed and _fingerprint(os.fstat(self.directory_fd))[:2]
+                 == self.directory_identity[:2], code)
+        os.fchmod(self.directory_fd, 0o700)
+        failed = False
+        targets = {"index" + suffix: f"/proc/self/fd/{fd}" for suffix, fd, _ in self.members}
+        for name, expected in self.link_identities.items():
+            try:
+                observed = os.stat(name, dir_fd=self.directory_fd, follow_symlinks=False)
+            except FileNotFoundError:
+                continue
+            if (not stat.S_ISLNK(observed.st_mode) or _fingerprint(observed) != expected
+                    or os.readlink(name, dir_fd=self.directory_fd) != targets[name]):
+                failed = True
+                continue
+            os.unlink(name, dir_fd=self.directory_fd)
+        _require(not failed and not os.listdir(self.directory_fd), code)
+        _require(_fingerprint(os.stat(self.directory.name, dir_fd=self.parent_fd, follow_symlinks=False))[:2]
+                 == self.directory_identity[:2], code)
+        os.rmdir(self.directory.name, dir_fd=self.parent_fd)
+        self.retired = True
+
+    def close(self):
+        if self.closed:
+            return
+        try:
+            self.retire()
+        except (OSError, _Failure):
+            # Failed calls still release descriptors; unfamiliar entries are retained.
+            pass
+        finally:
+            for fd in (*self.fds, self.parent_fd):
+                try:
+                    os.close(fd)
+                except OSError:
+                    pass
+            self.closed = True
+
+
+def _bind_index_view(index_prefix, workspace, expected_files, deadline):
+    """Keep the five verified objects open; construct a private FD-backed prefix."""
+    prefix, workspace = Path(index_prefix), Path(workspace)
+    _index_inventory(prefix)
+    members, view = [], None
+    directory, parent_fd, directory_fd, directory_identity = None, None, None, None
+    try:
+        for suffix in INDEX_SUFFIXES:
+            path = Path(str(prefix) + suffix)
+            fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC)
+            try:
+                identity = _verify_index_fd(fd, expected_files[suffix], deadline)
+                _require(_fingerprint(path.lstat()) == identity["fingerprint"], "index_identity_mismatch")
+            except BaseException:
+                os.close(fd)
+                raise
+            members.append((suffix, fd, identity))
+        parent_fd = os.open(workspace, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC)
+        directory = Path(tempfile.mkdtemp(prefix="index-view-", dir=workspace))
+        directory_identity = _fingerprint(directory.lstat())
+        directory_fd = os.open(directory.name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC,
+                               dir_fd=parent_fd)
+        _require(_fingerprint(os.fstat(directory_fd)) == directory_identity, "index_identity_mismatch")
+        view = _IndexView(directory, parent_fd, directory_fd, _fingerprint(os.fstat(parent_fd))[:2],
+                          directory_identity, tuple(members), {})
+        for suffix, fd, _ in members:
+            name = "index" + suffix
+            os.symlink(f"/proc/self/fd/{fd}", name, dir_fd=directory_fd)
+            view.link_identities[name] = _fingerprint(os.stat(name, dir_fd=directory_fd, follow_symlinks=False))
+        os.fchmod(directory_fd, 0o500)
+        view.directory_identity = _fingerprint(os.fstat(directory_fd))
+        view.allowed_links(workspace)
+        _private_json(workspace / "verified-index-view.json", {
+            "original_prefix": str(prefix), "native_prefix": str(view.prefix),
+            "members": [{"suffix": suffix, "fd": fd, **identity} for suffix, fd, identity in members],
+            "index_copied": False, "index_rebuilt": False,
+        })
+        return view
+    except BaseException as error:
+        if view is not None:
+            view.close()
+        else:
+            if directory is not None and parent_fd is not None and directory_identity is not None:
+                try:
+                    _require(_fingerprint(os.stat(directory.name, dir_fd=parent_fd, follow_symlinks=False))[:2]
+                             == directory_identity[:2], "index_identity_mismatch")
+                    os.rmdir(directory.name, dir_fd=parent_fd)
+                except (OSError, _Failure):
+                    pass
+            for fd in [item[1] for item in members] + [directory_fd, parent_fd]:
+                if fd is not None:
+                    try:
+                        os.close(fd)
+                    except OSError:
+                        pass
+        if isinstance(error, OSError):
+            raise _Failure("index_identity_mismatch") from None
+        raise
 
 
 @dataclass(repr=False)
@@ -819,8 +1032,11 @@ class _ObservedResources:
     identities: tuple
     index_prefix: Path
     executable_fds: tuple[int, int]
+    index_view: _IndexView | None = None
 
     def close(self):
+        if self.index_view is not None:
+            self.index_view.close()
         for fd in self.executable_fds:
             try:
                 os.close(fd)
@@ -852,7 +1068,7 @@ def _observe_resources(resources: AlignmentResources, workspace: Path, deadline:
             flag_sets.append(set(fields.get("flags", "").split()))
     _require(len(flag_sets) == 1 and set(platform_profile["required_cpu_flags"]) <= flag_sets[0],
              "executor_unavailable")
-    identities, fds = [], []
+    identities, fds, index_view = [], [], None
     paths = {"bwa": Path(resources.bwa_executable), "samtools": Path(resources.samtools_executable)}
     try:
         for name in ("bwa", "samtools"):
@@ -939,16 +1155,12 @@ def _observe_resources(resources: AlignmentResources, workspace: Path, deadline:
         contig_digest = _sha(_canonical([{"name": name, "length": length} for name, length in contigs]))
         _require(contig_digest == reference["contig_dictionary_sha256"], "reference_identity_mismatch")
         prefix = Path(resources.bwa_index_prefix)
-        _index_inventory(prefix)
+        index_view = _bind_index_view(prefix, workspace, reference["index_files"], deadline)
         index_hashes = {}
-        for suffix in INDEX_SUFFIXES:
-            wanted = reference["index_files"][suffix]
-            path = Path(str(prefix) + suffix)
-            observed = _verify_file_identity(path, wanted["sha256"], wanted["size_bytes"],
-                                             deadline, "index_identity_mismatch")
-            identities.append((path, observed, "index_identity_mismatch"))
-            index_hashes[suffix] = observed["sha256"]
-        _capacity(workspace, profiles)
+        for suffix, _, identity in index_view.members:
+            identities.append((Path(str(prefix) + suffix), identity, "index_identity_mismatch"))
+            index_hashes[suffix] = identity["sha256"]
+        _capacity(workspace, profiles, index_view=index_view)
         reference_binding = {
             "profile_id": REFERENCE_PROFILE_ID, "profile_sha256": PROFILE_FILES["reference"][1],
             "fasta_sha256": reference["fasta"]["sha256"], "fai_sha256": reference["fai"]["sha256"],
@@ -962,8 +1174,10 @@ def _observe_resources(resources: AlignmentResources, workspace: Path, deadline:
             "runtime_libraries_sha256": library_digest,
         }
         return _ObservedResources(contigs, reference_binding, executor_binding,
-                                  tuple(identities), prefix, tuple(fds))
+                                  tuple(identities), prefix, tuple(fds), index_view)
     except BaseException:
+        if index_view is not None:
+            index_view.close()
         for fd in fds:
             os.close(fd)
         raise
@@ -971,9 +1185,17 @@ def _observe_resources(resources: AlignmentResources, workspace: Path, deadline:
 
 def _verify_resources(observed, deadline):
     _index_inventory(observed.index_prefix)
+    _require(type(observed.index_view) is _IndexView, "index_identity_mismatch")
+    observed.index_view.verify(deadline)
+    held = {Path(str(observed.index_prefix) + suffix): identity
+            for suffix, _, identity in observed.index_view.members}
     for path, expected, code in observed.identities:
-        actual = _verify_file_identity(path, expected["sha256"], expected["size_bytes"], deadline, code)
-        _require(actual == expected, code)
+        if path in held:
+            _require(expected == held[path] and not path.is_symlink()
+                     and _fingerprint(path.lstat()) == expected["fingerprint"], code)
+        else:
+            actual = _verify_file_identity(path, expected["sha256"], expected["size_bytes"], deadline, code)
+            _require(actual == expected, code)
     seals = fcntl.F_SEAL_WRITE | fcntl.F_SEAL_GROW | fcntl.F_SEAL_SHRINK | fcntl.F_SEAL_SEAL
     for fd in observed.executable_fds:
         _require(fcntl.fcntl(fd, fcntl.F_GET_SEALS) & seals == seals, "executor_identity_mismatch")
@@ -1504,6 +1726,216 @@ def _bam_record(reader, contigs):
     return record, (start, reader.pos, rid, pos, width, flag, bin_id)
 
 
+def _primary_link(record):
+    own = (record.rid, record.pos, bool(record.flag & 16), bool(record.flag & 4))
+    other = (record.next_rid, record.next_pos, bool(record.flag & 32), bool(record.flag & 8))
+    if own[3]:
+        own = (own[0], own[1], None, True)
+    if other[3]:
+        other = (other[0], other[1], None, True)
+    if record.flag & 64:
+        return record.qname, own, other, bool(record.flag & 2), record.tlen
+    return record.qname, other, own, bool(record.flag & 2), -record.tlen
+
+
+def _source_sam_proof(snapshot, records):
+    """Bind native read blocks to exact input occurrences, retaining all multiplicities."""
+    semantic, projected, recoveries = Counter(), Counter(), Counter()
+    ordinal, last_mate, primary_seen, first_link = -1, None, False, None
+    complement = bytes.maketrans(b"ACGTN", b"TGCAN")
+    for record in records:
+        mate = 1 if record.flag & 64 else 2
+        if mate != last_mate:
+            _require(ordinal < 0 or primary_seen, "primary_accounting_mismatch")
+            ordinal += 1
+            _require(ordinal < len(snapshot.ordered_reads), "primary_accounting_mismatch")
+            last_mate, primary_seen = mate, False
+        qname, expected_mate, original_seq, original_qual = snapshot.ordered_reads[ordinal]
+        _require((record.qname, mate) == (qname, expected_mate), "primary_accounting_mismatch")
+        nonprimary = bool(record.flag & (256 | 2048))
+        code = "secondary_supplementary_accounting_mismatch" if nonprimary else "primary_accounting_mismatch"
+        left = record.cigar[0][0] if record.cigar and record.cigar[0][1] == "H" else 0
+        right = record.cigar[-1][0] if record.cigar and record.cigar[-1][1] == "H" else 0
+        if nonprimary:
+            query = sum(n for n, op in record.cigar if op in "MIS=X")
+            _require(query + left + right == len(original_seq), code)
+        else:
+            _require(not any(op == "H" for _, op in record.cigar), code)
+        if record.flag & 16:
+            original_seq = original_seq.translate(complement)[::-1]
+            original_qual = original_qual[::-1]
+        stop = len(original_seq) - right
+        expected_seq, expected_qual = original_seq[left:stop], original_qual[left:stop]
+        _require(record.sequence is None or record.sequence == expected_seq, code)
+        _require(record.quality is None or record.quality == expected_qual, code)
+        projected_key = _record_hash(record)
+        projected[projected_key] += 1
+        # A secondary record may intentionally omit both fields. Never fill it.
+        if (not record.flag & 256 and record.quality is None
+                and record.sequence is not None and len(record.sequence) == 1
+                and expected_qual == b"*"):
+            recoveries[projected_key] += 1
+            record = replace(record, quality=b"*")
+        if not nonprimary:
+            _require(not primary_seen and record.sequence == expected_seq
+                     and record.quality == expected_qual, code)
+            primary_seen = True
+            link = _primary_link(record)
+            if mate == 1:
+                _require(first_link is None, code)
+                first_link = link
+            else:
+                _require(first_link is not None and first_link == link, code)
+                first_link = None
+        semantic[_record_hash(record)] += 1
+    _require(ordinal + 1 == len(snapshot.ordered_reads) and primary_seen
+             and first_link is None, "primary_accounting_mismatch")
+    return semantic, projected, recoveries
+
+
+def _consume_record(counter, key, code):
+    _require(counter[key] > 0, code)
+    counter[key] -= 1
+    if not counter[key]:
+        del counter[key]
+
+
+class _CapturedBamReader:
+    """Capture only one bounded BAM header or record while using the physical reader."""
+    def __init__(self, reader):
+        self.reader, self.data = reader, bytearray()
+
+    @property
+    def pos(self):
+        return self.reader.pos
+
+    def read(self, n, *, at_eof=False):
+        value = self.reader.read(n, at_eof=at_eof)
+        self.data.extend(value)
+        _require(len(self.data) <= MAX_RECORD_BYTES + 4, "resource_limit_exceeded")
+        return value
+
+    def take(self):
+        value = bytes(self.data)
+        self.data.clear()
+        return value
+
+
+class _BoundedBgzfWriter:
+    """Fixed-header BGZF output with bounded chunks, physical size and owned workspace."""
+    def __init__(self, stream, workspace, deadline):
+        self.stream, self.workspace, self.deadline = stream, workspace, deadline
+        self.buffer, self.decoded, self.compressed = bytearray(), 0, 0
+        self.digest = hashlib.sha256()
+
+    def _physical(self, value):
+        _remaining(self.deadline)
+        _require(self.compressed + len(value) <= MAX_BAM_BYTES, "resource_limit_exceeded")
+        _require(shutil.disk_usage(self.workspace).free - len(value) >= MIN_FREE_BYTES,
+                 "resource_unavailable")
+        self.stream.write(value)
+        self.digest.update(value)
+        self.compressed += len(value)
+        self.stream.flush()
+        _require(shutil.disk_usage(self.workspace).free >= MIN_FREE_BYTES, "resource_unavailable")
+        _require(_owned_size(self.workspace) <= MAX_MUTABLE_BYTES, "resource_limit_exceeded")
+
+    def _block(self, value):
+        compressor = zlib.compressobj(level=6, wbits=-15)
+        payload = compressor.compress(value) + compressor.flush()
+        total = 18 + len(payload) + 8
+        _require(total <= 65536, "resource_limit_exceeded")
+        prefix = b"\x1f\x8b\x08\x04" + b"\0" * 4 + b"\0\xff" + struct.pack("<H", 6)
+        prefix += b"BC" + struct.pack("<HH", 2, total - 1)
+        self._physical(prefix + payload + struct.pack("<II", zlib.crc32(value) & 0xffffffff, len(value)))
+
+    def write(self, value):
+        self.decoded += len(value)
+        _require(self.decoded <= MAX_DECODED_BYTES, "resource_limit_exceeded")
+        offset = 0
+        while offset < len(value):
+            count = min(32768 - len(self.buffer), len(value) - offset)
+            self.buffer.extend(value[offset:offset + count])
+            offset += count
+            if len(self.buffer) == 32768:
+                self._block(bytes(self.buffer))
+                self.buffer.clear()
+
+    def finish(self):
+        if self.buffer:
+            self._block(bytes(self.buffer))
+            self.buffer.clear()
+        self._physical(BGZF_EOF)
+        os.fsync(self.stream.fileno())
+
+
+def _restore_sam_quality_sentinels(snapshot, *, contigs, read_group, sam_path, bam_path, deadline):
+    """Recover only source-proven solitary Phred9 values lost by SAM-to-BAM conversion."""
+    _verify_snapshot(snapshot, deadline)
+    source = _iter_sam(sam_path, contigs, read_group, deadline)
+    try:
+        source_header = next(source)
+        semantic, projected, recoveries = _source_sam_proof(snapshot, source)
+    finally:
+        source.close()
+    if not recoveries:
+        return
+    temporary = Path(bam_path).with_name("alignment-quality.tmp.bam")
+    physical = _BgzfReader(bam_path, deadline)
+    captured = _CapturedBamReader(physical)
+    created = False
+    try:
+        with temporary.open("xb") as output:
+            created = True
+            os.chmod(temporary, 0o600)
+            writer = _BoundedBgzfWriter(output, temporary.parent, deadline)
+            header = _bam_header(captured, contigs, read_group)
+            _require(_check_header(source_header, contigs, read_group,
+                                   sorted_required=False, normalized=True)
+                     == _check_header(header, contigs, read_group,
+                                      sorted_required=True, normalized=True),
+                     "header_reference_mismatch")
+            writer.write(captured.take())
+            previous = None
+            while True:
+                _remaining(deadline)
+                item = _bam_record(captured, contigs)
+                if item is None:
+                    break
+                record, _ = item
+                raw = captured.take()
+                key = _record_hash(record)
+                _consume_record(projected, key, "primary_accounting_mismatch")
+                if recoveries[key]:
+                    _require(record.sequence is not None and len(record.sequence) == 1
+                             and record.quality is None and not record.flag & 256,
+                             "primary_accounting_mismatch")
+                    name_length = raw[12]
+                    cigar_count = struct.unpack_from("<H", raw, 16)[0]
+                    sequence_length = struct.unpack_from("<i", raw, 20)[0]
+                    quality_offset = 36 + name_length + 4 * cigar_count + (sequence_length + 1) // 2
+                    _require(sequence_length == 1 and raw[quality_offset] == 255, "malformed_output")
+                    raw = raw[:quality_offset] + b"\x09" + raw[quality_offset + 1:]
+                    record = replace(record, quality=b"*")
+                    _consume_record(recoveries, key, "primary_accounting_mismatch")
+                _consume_record(semantic, _record_hash(record), "primary_accounting_mismatch")
+                coordinate = (record.rid if record.rid >= 0 else len(contigs), record.pos)
+                _require(previous is None or previous <= coordinate, "coordinate_order_mismatch")
+                previous = coordinate
+                writer.write(raw)
+            physical.finish()
+            _require(not semantic and not projected and not recoveries, "primary_accounting_mismatch")
+            writer.finish()
+        _verify_file_identity(temporary, writer.digest.hexdigest(), writer.compressed,
+                              deadline, "input_identity_changed")
+        _verify_snapshot(snapshot, deadline)
+        os.replace(temporary, bam_path)
+    finally:
+        physical.close()
+        if created:
+            temporary.unlink(missing_ok=True)
+
+
 class _Accounting:
     def __init__(self, snapshot, read_group):
         self.snapshot, self.read_group = snapshot, read_group
@@ -1557,18 +1989,11 @@ class _Accounting:
                  and not any(op == "H" for _, op in r.cigar), "primary_accounting_mismatch")
         self.primary[(r.qname, mate, seq, qual)] += 1
         # An occurrence multiset, rather than a QNAME dictionary, retains aliases.
-        own = (r.rid, r.pos, bool(r.flag & 16), bool(r.flag & 4))
-        other = (r.next_rid, r.next_pos, bool(r.flag & 32), bool(r.flag & 8))
-        if own[3]:
-            own = own[:2] + (None, own[3])
-        if other[3]:
-            other = other[:2] + (None, other[3])
-        token = (r.qname, own, other, bool(r.flag & 2), r.tlen)
+        token = _primary_link(r)
         if mate == 1:
             self.mate_first[token] += 1
         else:
-            mirror = (r.qname, other, own, bool(r.flag & 2), -r.tlen)
-            self.mate_second[mirror] += 1
+            self.mate_second[token] += 1
 
     def finish(self):
         c = self.counts
@@ -1670,7 +2095,7 @@ def _validate_alignment_outputs(snapshot, *, contigs, read_group, sam_path: Path
     contig_names = {name.encode(): i for i, (name, _) in enumerate(contigs)}
     source = _iter_sam(sam_path, contigs, read_group, deadline, contig_names=contig_names)
     source_header = next(source)
-    source_records = Counter(_record_hash(r) for r in source)
+    source_records, projected_records, recoveries = _source_sam_proof(snapshot, source)
     indexed = _iter_sam(indexed_path, contigs, read_group, deadline, sorted_required=True,
                         contig_names=contig_names)
     indexed_header = next(indexed)
@@ -1696,7 +2121,15 @@ def _validate_alignment_outputs(snapshot, *, contigs, read_group, sam_path: Path
                 break
             record, span = item
             decoded = next(native, None)
-            _require(decoded is not None and record == decoded, "malformed_output")
+            if decoded is not None and record != decoded:
+                projected = replace(record, quality=None)
+                key = _record_hash(projected)
+                _require(record.quality == b"*" and record.sequence is not None
+                         and len(record.sequence) == 1 and decoded == projected,
+                         "malformed_output")
+                _consume_record(recoveries, key, "malformed_output")
+            else:
+                _require(decoded is not None, "malformed_output")
             key = (record.rid if record.rid >= 0 else len(contigs), record.pos)
             _require(previous is None or previous <= key, "coordinate_order_mismatch")
             previous = key
@@ -1707,8 +2140,8 @@ def _validate_alignment_outputs(snapshot, *, contigs, read_group, sam_path: Path
         _require(next(native, None) is None, "malformed_output")
         physical.finish()
         result = accounting.finish()
-        _require(full_records == source_records, "primary_accounting_mismatch")
-        _require(full_records == indexed_records, "index_validation_failed")
+        _require(full_records == source_records and not recoveries, "primary_accounting_mismatch")
+        _require(projected_records == indexed_records, "index_validation_failed")
         try:
             _validate_bai(bai_path, contigs, physical.blocks, spans, boundaries,
                           result["no_coordinate"], deadline)
@@ -1752,6 +2185,8 @@ def _final_identity_readback(bindings, observed):
     for path, expected in bindings.items():
         _require(_fingerprint(path.lstat()) == expected["fingerprint"], "promotion_failed")
     _index_inventory(observed.index_prefix)
+    _require(type(observed.index_view) is _IndexView, "index_identity_mismatch")
+    observed.index_view.check_identities()
     for path, expected, code in observed.identities:
         _require(_fingerprint(path.lstat()) == expected["fingerprint"], code)
 
@@ -1846,14 +2281,19 @@ def _workspace(resources):
 def _save_terminal(workspace, result, started, *, replace=False):
     """Private evidence is retained for both refusal and successful promotion."""
     _require(not replace or not result.is_valid, "promotion_failed")
-    _private_json(workspace / "result.json", result.to_dict(), replace=replace)
+    if replace:
+        # Remove earlier success documents before any refusal write can fail.
+        for name in ("result.json", "terminal.json",
+                     "result.json.replacement", "terminal.json.replacement"):
+            (workspace / name).unlink(missing_ok=True)
+    _private_json(workspace / "result.json", result.to_dict())
     _private_json(workspace / "terminal.json", {
         "capability_id": CAPABILITY_ID,
         "status": result.to_dict()["canonical_status"],
         "wall_seconds": round(time.monotonic() - started, 6),
         "result_sha256": _sha(result._canonical_json),
         "artifact_ids": [artifact.artifact_id for artifact in result.artifacts],
-    }, replace=replace)
+    })
 
 
 def align_paired_fastq(
@@ -1878,7 +2318,7 @@ def align_paired_fastq(
         _remaining(deadline)
         profiles = _load_profiles()
         execution_json = _capture_json(execution_profile, 4096, "unsupported_execution_profile")
-        _require(json.loads(execution_json) == profiles["execution"], "unsupported_execution_profile")
+        _require(execution_json == _canonical(profiles["execution"]), "unsupported_execution_profile")
         workspace = _workspace(resources)
         snapshot = _snapshot_inputs(r1, r2, input_profile, workspace, deadline)
         read_group = _read_group(snapshot)
@@ -1893,13 +2333,18 @@ def align_paired_fastq(
         canonical_sam = workspace / "canonical.sam"
         bam_path, bai_path = workspace / "alignment.bam", workspace / "alignment.bam.bai"
         decoded_path, indexed_path = workspace / "decoded.sam", workspace / "indexed.sam"
-        _command(
-            profiles, workspace, "alignment",
-            [bwa, *parameters["bwa_mem"], "-R", read_group_argument,
-             str(observed.index_prefix), *(f"/proc/self/fd/{fd}" for fd in snapshot.fds)],
-            deadline, "alignment", stdout_path=native_sam, output=MAX_SAM_BYTES,
-            pass_fds=(bwa_fd, *snapshot.fds),
-        )
+        _require(type(observed.index_view) is _IndexView, "index_identity_mismatch")
+        try:
+            _command(
+                profiles, workspace, "alignment",
+                [bwa, *parameters["bwa_mem"], "-R", read_group_argument,
+                 str(observed.index_view.prefix), *(f"/proc/self/fd/{fd}" for fd in snapshot.fds)],
+                deadline, "alignment", stdout_path=native_sam, output=MAX_SAM_BYTES,
+                pass_fds=(bwa_fd, *snapshot.fds, *observed.index_view.fds),
+                index_view=observed.index_view,
+            )
+        finally:
+            observed.index_view.retire()
         _verify_snapshot(snapshot, deadline)
         _normalize_sam_header(native_sam, canonical_sam, contigs=observed.contigs,
                               read_group=read_group, deadline=deadline)
@@ -1908,6 +2353,10 @@ def align_paired_fastq(
             [samtools, *parameters["samtools_sort"], "-T", str(workspace / "sort-tmp"),
              "-o", str(bam_path), str(canonical_sam)], deadline, "sort",
             pass_fds=(samtools_fd,),
+        )
+        _restore_sam_quality_sentinels(
+            snapshot, contigs=observed.contigs, read_group=read_group,
+            sam_path=canonical_sam, bam_path=bam_path, deadline=deadline,
         )
         _command(
             profiles, workspace, "index",
@@ -1985,9 +2434,9 @@ def align_paired_fastq(
     if workspace is not None:
         try:
             replace = (workspace / "result.json").exists() or (workspace / "terminal.json").exists()
+            _save_terminal(workspace, result, started, replace=replace)
             if replace:
                 _private_json(workspace / "promotion-refusal.json", result.to_dict())
-            _save_terminal(workspace, result, started, replace=replace)
         except (OSError, _Failure):
             # Public refusal never becomes success because private storage failed.
             result = _refusal("promotion_failed")
